@@ -2,7 +2,12 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'motion/react';
-import { Loader2, Upload, CheckCircle2, Info, HelpCircle, X, Plus } from 'lucide-react';
+import { Loader2, Upload, CheckCircle2, Info, HelpCircle, X, Plus, Lock } from 'lucide-react';
+import { useAuth } from '../lib/auth';
+import { AuthModal } from '../components/AuthModal';
+import { log } from '../lib/log';
+
+const slog = log('sell');
 
 const CATEGORY_SIZES: Record<string, string[]> = {
   'Tops': ['XXS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', 'One Size'],
@@ -38,15 +43,16 @@ const CONDITIONS = [
 
 export function Sell() {
   const navigate = useNavigate();
+  const { user, profile, refreshProfile, loading: authLoading } = useAuth();
   const [loading, setLoading] = React.useState(false);
   const [submitted, setSubmitted] = React.useState(false);
   const [imageFiles, setImageFiles] = React.useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = React.useState<string[]>([]);
   const [showSalePrice, setShowSalePrice] = React.useState(false);
   const [showConditionInfo, setShowConditionInfo] = React.useState(false);
-  const [isFreeShipping, setIsFreeShipping] = React.useState(true);
   const [noReturns, setNoReturns] = React.useState(true);
   const [selectedCategory, setSelectedCategory] = React.useState<string>('');
+  const [showAuth, setShowAuth] = React.useState(false);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const fileList = e.target.files;
@@ -89,31 +95,55 @@ export function Sell() {
     const size = formData.get('size') as string;
     const condition = formData.get('condition') as string;
     const description = formData.get('description') as string;
-    const seller_email = formData.get('seller_email') as string;
+    if (!user) { setShowAuth(true); setLoading(false); return; }
+    const seller_email = user.email!;
     const seller_instagram = formData.get('seller_instagram') as string;
-    const shipping_cost = isFreeShipping ? 0 : parseFloat(formData.get('shipping_cost') as string || '0');
+    const seller_upi_vpa = formData.get('seller_upi_vpa') as string;
+    const seller_bank_account = formData.get('seller_bank_account') as string;
+    const seller_bank_ifsc = formData.get('seller_bank_ifsc') as string;
+    const seller_bank_holder = formData.get('seller_bank_holder') as string;
+    // Sellers handle shipping themselves; we never charge buyers for it.
+    const shipping_cost = 0;
 
+    slog('handleSubmit START', { imageCount: imageFiles.length, title, category });
+    // Persist payout details onto the seller's profile so they only enter them once.
+    if (seller_upi_vpa || seller_bank_account || seller_bank_ifsc || seller_bank_holder) {
+      slog('saving payout details to profile');
+      await supabase.from('profiles').update({
+        seller_upi_vpa: seller_upi_vpa || profile?.seller_upi_vpa || null,
+        seller_bank_account: seller_bank_account || profile?.seller_bank_account || null,
+        seller_bank_ifsc: seller_bank_ifsc || profile?.seller_bank_ifsc || null,
+        seller_bank_holder: seller_bank_holder || profile?.seller_bank_holder || null,
+      }).eq('id', user.id);
+      await refreshProfile();
+    }
+
+    const tFull = slog.time('full submit');
     try {
       const uploadedUrls: string[] = [];
 
-      for (const file of imageFiles) {
+      for (let i = 0; i < imageFiles.length; i++) {
+        const file = imageFiles[i];
         const fileExt = file.name.split('.').pop();
         const fileName = `${Math.random()}.${fileExt}`;
         const filePath = `listings/${fileName}`;
+        const tUp = slog.time(`upload ${i + 1}/${imageFiles.length}`);
 
         const { error: uploadError } = await supabase.storage
           .from('listing-images')
           .upload(filePath, file);
+        tUp.end({ size: file.size, error: uploadError });
 
         if (uploadError) throw uploadError;
 
         const { data: { publicUrl } } = supabase.storage
           .from('listing-images')
           .getPublicUrl(filePath);
-        
+
         uploadedUrls.push(publicUrl);
       }
 
+      const tInsert = slog.time('insert listing');
       const { error } = await supabase.from('listings').insert({
         title,
         brand,
@@ -127,26 +157,53 @@ export function Sell() {
         description,
         image_url: uploadedUrls[0],
         image_urls: uploadedUrls,
+        seller_id: user.id,
         seller_email,
         seller_instagram,
+        seller_upi_vpa: seller_upi_vpa || profile?.seller_upi_vpa || null,
+        seller_bank_account: seller_bank_account || profile?.seller_bank_account || null,
+        seller_bank_ifsc: seller_bank_ifsc || profile?.seller_bank_ifsc || null,
+        seller_bank_holder: seller_bank_holder || profile?.seller_bank_holder || null,
         no_returns: noReturns,
         shipping_cost,
         status: 'pending'
       });
 
+      tInsert.end({ error });
       if (error) throw error;
+      tFull.end({ outcome: 'success' });
       setSubmitted(true);
     } catch (err: any) {
-      console.error('Error submitting listing:', err);
-      console.error("FULL ERROR:", err);
-      console.error("MESSAGE:", err?.message);
-      console.error("DETAILS:", err?.details);
-      console.error("HINT:", err?.hint);
+      slog.error('handleSubmit THREW', { message: err?.message, details: err?.details, hint: err?.hint, raw: err });
+      tFull.end({ outcome: 'error' });
       alert(err?.message || 'Failed to submit listing');
     } finally {
       setLoading(false);
     }
   };
+
+  if (!authLoading && !user) {
+    return (
+      <>
+        <div className="mx-auto max-w-2xl px-4 py-32 text-center flex flex-col items-center gap-8">
+          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-black text-white">
+            <Lock className="h-10 w-10" />
+          </div>
+          <h1 className="text-5xl font-black tracking-tighter uppercase">Sign in to sell</h1>
+          <p className="text-xs font-bold uppercase tracking-widest text-black/60 max-w-md">
+            Create an account to list items, manage your shop, and receive payouts.
+          </p>
+          <button
+            onClick={() => setShowAuth(true)}
+            className="bg-black px-12 py-5 text-xs font-black uppercase tracking-[0.4em] text-white hover:bg-zinc-800"
+          >
+            Sign In to Continue
+          </button>
+        </div>
+        <AuthModal open={showAuth} onClose={() => setShowAuth(false)} message="Sign in to list an item." />
+      </>
+    );
+  }
 
   if (submitted) {
     return (
@@ -342,14 +399,10 @@ export function Sell() {
           </div>
 
           <div className="flex flex-col gap-3">
-            <label className="text-[10px] font-black uppercase tracking-widest">Seller Email *</label>
-            <input 
-              name="seller_email"
-              type="email" 
-              placeholder="your@email.com"
-              className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20"
-              required
-            />
+            <label className="text-[10px] font-black uppercase tracking-widest">Seller Email</label>
+            <div className="border-b border-black/10 py-4 text-sm font-bold text-black/60">
+              {user?.email ?? <span className="text-red-600">Sign in to list an item</span>}
+            </div>
           </div>
 
           <div className="flex flex-col gap-3">
@@ -360,6 +413,59 @@ export function Sell() {
               placeholder="@username"
               className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20"
             />
+          </div>
+
+          {/* Payout details — used by finance team to release funds after delivery.
+              At least one of UPI VPA OR full bank details should be provided. */}
+          <div className="md:col-span-2 flex flex-col gap-6 pt-10 border-t border-black/5">
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] font-black uppercase tracking-widest">Payout Details</label>
+              <p className="text-[9px] font-bold uppercase tracking-widest text-black/40">
+                Required so we can release your funds after the buyer receives the item. Provide UPI VPA or bank details.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+              <div className="flex flex-col gap-3">
+                <label className="text-[10px] font-black uppercase tracking-widest">UPI VPA</label>
+                <input
+                  name="seller_upi_vpa"
+                  type="text"
+                  placeholder="username@upi"
+                  defaultValue={profile?.seller_upi_vpa ?? ''}
+                  className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20"
+                />
+              </div>
+              <div className="flex flex-col gap-3">
+                <label className="text-[10px] font-black uppercase tracking-widest">Account Holder Name</label>
+                <input
+                  name="seller_bank_holder"
+                  type="text"
+                  placeholder="As per bank records"
+                  defaultValue={profile?.seller_bank_holder ?? ''}
+                  className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20"
+                />
+              </div>
+              <div className="flex flex-col gap-3">
+                <label className="text-[10px] font-black uppercase tracking-widest">Bank Account Number</label>
+                <input
+                  name="seller_bank_account"
+                  type="text"
+                  placeholder="Account number"
+                  defaultValue={profile?.seller_bank_account ?? ''}
+                  className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20"
+                />
+              </div>
+              <div className="flex flex-col gap-3">
+                <label className="text-[10px] font-black uppercase tracking-widest">IFSC Code</label>
+                <input
+                  name="seller_bank_ifsc"
+                  type="text"
+                  placeholder="IFSC0000000"
+                  defaultValue={profile?.seller_bank_ifsc ?? ''}
+                  className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20"
+                />
+              </div>
+            </div>
           </div>
 
           <div className="md:col-span-2 flex flex-col gap-4">
@@ -445,41 +551,6 @@ export function Sell() {
             )}
           </div>
 
-          <div className="md:col-span-2 flex flex-col gap-6 pt-10 border-t border-black/5">
-            <div className="flex items-center justify-between">
-              <div className="flex flex-col gap-1">
-                <label className="text-[10px] font-black uppercase tracking-widest">Shipping</label>
-                <p className="text-[9px] font-bold uppercase tracking-widest text-black/40">Sell faster by offering free shipping</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input 
-                  type="checkbox" 
-                  className="sr-only peer" 
-                  checked={isFreeShipping}
-                  onChange={() => setIsFreeShipping(!isFreeShipping)}
-                />
-                <div className="w-10 h-5 bg-zinc-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-black"></div>
-              </label>
-            </div>
-            
-            {!isFreeShipping && (
-              <motion.div 
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex flex-col gap-3"
-              >
-                <label className="text-[10px] font-black uppercase tracking-widest">Shipping Cost (INR) *</label>
-                <input 
-                  name="shipping_cost"
-                  type="number" 
-                  placeholder="150"
-                  className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20"
-                  required={!isFreeShipping}
-                />
-              </motion.div>
-            )}
-          </div>
-
           <div className="md:col-span-2 pt-10 border-t border-black/5">
             <div className="bg-zinc-50 p-6 border border-black/5 mb-8">
               <div className="flex items-center justify-between mb-2">
@@ -522,6 +593,7 @@ export function Sell() {
           </div>
         </div>
       </form>
+      <AuthModal open={showAuth} onClose={() => setShowAuth(false)} message="Sign in to list an item." />
     </div>
   );
 }

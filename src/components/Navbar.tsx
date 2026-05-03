@@ -1,16 +1,21 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, ShoppingBag, User, Menu, X, Plus } from 'lucide-react';
+import { Search, User, Menu, X, Plus, LogOut, LayoutGrid, Package } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
+import { useAuth } from '../lib/auth';
+import { AuthModal } from './AuthModal';
 
 export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const [isSearchOpen, setIsSearchOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [isBrowseOpen, setIsBrowseOpen] = React.useState(false);
+  const [isAccountOpen, setIsAccountOpen] = React.useState(false);
+  const [showAuth, setShowAuth] = React.useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, profile, signOut } = useAuth();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,6 +99,16 @@ export function Navbar() {
                 >
                   Sell
                 </Link>
+
+                <Link
+                  to="/track-order"
+                  className={cn(
+                    "relative text-[10px] font-black uppercase tracking-[0.3em] transition-colors hover:text-black",
+                    location.pathname === '/track-order' ? "text-black" : "text-black hover:text-black/80"
+                  )}
+                >
+                  Track Order
+                </Link>
               </div>
             </div>
           </div>
@@ -128,6 +143,54 @@ export function Navbar() {
               <Link to="/sell" className="bg-black px-8 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-white transition-all hover:scale-105 active:scale-95">
                 List Item
               </Link>
+
+              {user ? (
+                <div
+                  className="relative"
+                  onMouseEnter={() => setIsAccountOpen(true)}
+                  onMouseLeave={() => setIsAccountOpen(false)}
+                >
+                  <button className="p-2 text-black hover:text-black/80 transition-colors flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                  </button>
+                  {isAccountOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="absolute right-0 top-full w-64 bg-white border border-black/5 shadow-2xl p-6 flex flex-col gap-4"
+                    >
+                      <div className="flex flex-col gap-1 pb-3 border-b border-black/5">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-black/40">Signed in as</p>
+                        <p className="text-xs font-bold truncate">{profile?.email ?? user.email}</p>
+                      </div>
+                      <Link to="/seller-portal" onClick={() => setIsAccountOpen(false)} className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest hover:text-black/60">
+                        <LayoutGrid className="h-3.5 w-3.5" /> Seller Portal
+                      </Link>
+                      <Link to="/track-order" onClick={() => setIsAccountOpen(false)} className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest hover:text-black/60">
+                        <Package className="h-3.5 w-3.5" /> My Orders
+                      </Link>
+                      {profile?.is_admin && (
+                        <Link to="/admin" onClick={() => setIsAccountOpen(false)} className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest hover:text-black/60">
+                          <User className="h-3.5 w-3.5" /> Admin
+                        </Link>
+                      )}
+                      <button
+                        onClick={async () => { await signOut(); setIsAccountOpen(false); navigate('/'); }}
+                        className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-red-600 hover:text-red-700 pt-3 border-t border-black/5"
+                      >
+                        <LogOut className="h-3.5 w-3.5" /> Sign Out
+                      </button>
+                    </motion.div>
+                  )}
+                </div>
+              ) : (
+                <button
+                  onClick={() => setShowAuth(true)}
+                  className="text-[10px] font-black uppercase tracking-[0.3em] text-black hover:text-black/80 transition-colors"
+                >
+                  Sign In
+                </button>
+              )}
             </div>
             
             <button 
@@ -143,30 +206,25 @@ export function Navbar() {
       {/* Mobile menu */}
       {isMenuOpen && (
         <div className="md:hidden border-t border-black/5 bg-white px-4 py-4 space-y-4">
-          <Link
-            to="/browse"
-            className="block text-lg font-medium"
-            onClick={() => setIsMenuOpen(false)}
-          >
-            Buy
-          </Link>
-          <Link
-            to="/sell"
-            className="block text-lg font-medium"
-            onClick={() => setIsMenuOpen(false)}
-          >
-            Sell
-          </Link>
-          <Link
-            to="/sell"
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-black py-3 text-white"
-            onClick={() => setIsMenuOpen(false)}
-          >
+          <Link to="/browse" className="block text-lg font-medium" onClick={() => setIsMenuOpen(false)}>Buy</Link>
+          <Link to="/sell" className="block text-lg font-medium" onClick={() => setIsMenuOpen(false)}>Sell</Link>
+          <Link to="/track-order" className="block text-lg font-medium" onClick={() => setIsMenuOpen(false)}>Track Order</Link>
+          {user ? (
+            <>
+              <Link to="/seller-portal" className="block text-lg font-medium" onClick={() => setIsMenuOpen(false)}>Seller Portal</Link>
+              {profile?.is_admin && <Link to="/admin" className="block text-lg font-medium" onClick={() => setIsMenuOpen(false)}>Admin</Link>}
+              <button onClick={async () => { await signOut(); setIsMenuOpen(false); navigate('/'); }} className="block text-lg font-medium text-red-600">Sign Out</button>
+            </>
+          ) : (
+            <button onClick={() => { setShowAuth(true); setIsMenuOpen(false); }} className="block text-lg font-medium">Sign In</button>
+          )}
+          <Link to="/sell" className="flex w-full items-center justify-center gap-2 rounded-lg bg-black py-3 text-white" onClick={() => setIsMenuOpen(false)}>
             <Plus className="h-5 w-5" />
             <span>List Item</span>
           </Link>
         </div>
       )}
+      <AuthModal open={showAuth} onClose={() => setShowAuth(false)} />
     </nav>
   );
 }

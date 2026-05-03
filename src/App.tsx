@@ -11,6 +11,10 @@ import { Condition } from './pages/Condition';
 import { Checkout } from './pages/Checkout';
 import { About } from './pages/About';
 import { Contact } from './pages/Contact';
+import { TrackOrder } from './pages/TrackOrder';
+import { SellerPortal } from './pages/SellerPortal';
+import { AuthCallback } from './pages/AuthCallback';
+import { AuthProvider } from './lib/auth';
 import { Instagram, Twitter, Facebook, ArrowUpRight } from 'lucide-react';
 
 import { ScrollToTop } from './components/ScrollToTop';
@@ -18,6 +22,7 @@ import { ScrollToTop } from './components/ScrollToTop';
 export default function App() {
   return (
     <Router>
+      <AuthProvider>
       <ScrollToTop />
       <div className="min-h-screen bg-white font-sans text-black selection:bg-black selection:text-white">
         <Navbar />
@@ -34,6 +39,9 @@ export default function App() {
             <Route path="/checkout/:id" element={<Checkout />} />
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
+            <Route path="/track-order" element={<TrackOrder />} />
+            <Route path="/seller-portal" element={<SellerPortal />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
           </Routes>
         </main>
         
@@ -55,6 +63,8 @@ export default function App() {
                       <Link to="/browse" className="hover:text-black/80 transition-colors">Buy</Link>
                     </li>
                     <li><Link to="/sell" className="hover:text-black/80 transition-colors">Sell</Link></li>
+                    <li><Link to="/seller-portal" className="hover:text-black/80 transition-colors">Seller Portal</Link></li>
+                    <li><Link to="/track-order" className="hover:text-black/80 transition-colors">Track Order</Link></li>
                     <li><Link to="/about" className="hover:text-black/80 transition-colors">About</Link></li>
                     <li><Link to="/contact" className="hover:text-black/80 transition-colors">Contact</Link></li>
                   </ul>
@@ -94,6 +104,7 @@ export default function App() {
           </div>
         </footer>
       </div>
+      </AuthProvider>
     </Router>
   );
 }

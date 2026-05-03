@@ -6,6 +6,9 @@ import { supabase } from '../lib/supabase';
 import { Listing } from '../types';
 import { ListingCard } from '../components/ListingCard';
 import { cn } from '../lib/utils';
+import { log } from '../lib/log';
+
+const hlog = log('home');
 
 export function Home() {
   const [previewListings, setPreviewListings] = React.useState<Listing[]>([]);
@@ -14,13 +17,16 @@ export function Home() {
   const backgroundY = useTransform(scrollYProgress, [0, 0.5], ['0%', '20%']);
 
   React.useEffect(() => {
+    const t = hlog.time('fetchPreview');
     async function fetchPreview() {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('listings')
         .select('*')
         .eq('status', 'approved')
+        .or('is_sold.is.null,is_sold.eq.false')
         .limit(4)
         .order('created_at', { ascending: false });
+      t.end({ count: data?.length, error });
       if (data) setPreviewListings(data);
     }
     fetchPreview();

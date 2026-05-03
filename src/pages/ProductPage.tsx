@@ -5,6 +5,9 @@ import { Listing } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { motion } from 'motion/react';
 import { Loader2, Truck, RotateCcw, Mail, Info, ArrowLeft, ChevronLeft, ChevronRight, Grid, Layout } from 'lucide-react';
+import { log } from '../lib/log';
+
+const plog = log('product');
 
 const CONDITION_TIERS = [
   { name: 'As Is', desc: 'Heavily worn or naturally damaged. Visible flaws such as stains, holes, or broken hardware. Best for upcycling or collectors who appreciate the wear story.' },
@@ -34,6 +37,7 @@ export function ProductPage() {
   React.useEffect(() => {
     async function fetchListing() {
       if (!id) return;
+      const t = plog.time(`fetch ${id}`);
       setLoading(true);
       try {
         const { data, error } = await supabase
@@ -41,11 +45,11 @@ export function ProductPage() {
           .select('*')
           .eq('id', id)
           .single();
-
+        t.end({ found: !!data, error });
         if (error) throw error;
         setListing(data);
       } catch (err) {
-        console.error('Error fetching listing:', err);
+        plog.error('fetch THREW', err);
       } finally {
         setLoading(false);
       }
@@ -242,12 +246,18 @@ export function ProductPage() {
           </div>
 
           <div className="flex flex-col gap-4">
-            <Link 
-              to={`/checkout/${listing.id}`}
-              className="w-full bg-black py-6 text-center text-xs font-black uppercase tracking-[0.3em] text-white transition-all hover:bg-zinc-800 active:scale-[0.98]"
-            >
-              Buy it now
-            </Link>
+            {listing.is_sold ? (
+              <div className="w-full bg-zinc-100 py-6 text-center text-xs font-black uppercase tracking-[0.3em] text-black/40 cursor-not-allowed border border-black/5">
+                Sold Out
+              </div>
+            ) : (
+              <Link 
+                to={`/checkout/${listing.id}`}
+                className="w-full bg-black py-6 text-center text-xs font-black uppercase tracking-[0.3em] text-white transition-all hover:bg-zinc-800 active:scale-[0.98]"
+              >
+                Buy it now
+              </Link>
+            )}
             <button 
               disabled
               className="w-full border border-black/5 py-6 text-center text-[10px] font-black uppercase tracking-[0.3em] text-black/20 cursor-not-allowed"
@@ -277,7 +287,7 @@ export function ProductPage() {
 
             <div className="mt-8 pt-8 border-t border-black/5">
               <p className="text-[9px] font-black uppercase tracking-[0.4em] text-black/40">
-                Product Code: ZV-{listing.id.slice(0, 8).toUpperCase()}
+                Product Code: {listing.sku || `ZV-${listing.id.slice(0, 8).toUpperCase()}`}
               </p>
             </div>
           </div>

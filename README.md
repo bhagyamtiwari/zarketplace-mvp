@@ -2,19 +2,30 @@
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
 
-# Run and deploy your AI Studio app
+# Zarketplace MVP
 
-This contains everything you need to run your app locally.
+Resale marketplace for pre-owned fashion. React + Vite frontend, Supabase backend, Cashfree payments.
 
-View your app in AI Studio: https://ai.studio/apps/1cbaba01-3984-4c17-bced-822a7d165433
+## Quick start
 
-## Run Locally
+```bash
+npm install
+cp docs/env.example.txt .env.local   # then fill in Supabase keys
+npm run dev
+```
 
-**Prerequisites:**  Node.js
+## Docs
 
+- **[`docs/SETUP.md`](docs/SETUP.md)** — full step-by-step setup, migrations, edge function deploys, smoke test
+- **[`docs/AUTH.md`](docs/AUTH.md)** — email magic-link auth, roles, RLS, admin promotion
+- **[`docs/CASHFREE.md`](docs/CASHFREE.md)** — payment + payout flow, refunds, marketplace upgrade paths
+- **[`docs/SHIPPING.md`](docs/SHIPPING.md)** — current shipping flow, Shiprocket upgrade plan
+- **[`docs/CHANGES.md`](docs/CHANGES.md)** — file-by-file changelog of MVP changes
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## Architecture in 30 seconds
+
+- **Listings** with auto-generated SKUs (`ZV-CAT-NNNNNN`).
+- **Checkout** opens Cashfree (sandbox); webhook flips `is_sold = true` and creates a `seller_payouts` row.
+- **Buyer** tracks orders at `/track-order` (email + order #).
+- **Seller** manages listings, ships items, and updates tracking at `/seller-portal`.
+- **Admin** at `/admin` (password-gated) approves listings, manages orders, releases payouts, sends email campaigns.

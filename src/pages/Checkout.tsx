@@ -4,18 +4,27 @@ import { motion } from 'motion/react';
 import { supabase } from '../lib/supabase';
 import { Listing } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
-import { Loader2, ArrowLeft, CreditCard, Truck, ShieldCheck, CheckCircle2, Package } from 'lucide-react';
-import { handleCashfreePayment } from '../lib/cashfree';
+import { Loader2, ArrowLeft, CreditCard, Truck, ShieldCheck, CheckCircle2, Package, Lock } from 'lucide-react';
+import { handleCashfreePayment, createCashfreeOrder } from '../lib/cashfree';
+import { useAuth } from '../lib/auth';
+import { AuthModal } from '../components/AuthModal';
+import { log } from '../lib/log';
+
+const clog = log('checkout');
 
 export function Checkout() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user, profile, loading: authLoading, refreshProfile } = useAuth();
   const [listing, setListing] = React.useState<Listing | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [paymentMethod, setPaymentMethod] = React.useState<'online' | 'cod'>('online');
   const [isSuccess, setIsSuccess] = React.useState(false);
   const [orderNumber, setOrderNumber] = React.useState('');
   const [isBillingSameAsShipping, setIsBillingSameAsShipping] = React.useState(true);
+  const [isPaying, setIsPaying] = React.useState(false);
+  const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
+  const [showAuth, setShowAuth] = React.useState(false);
 
   const [shippingAddress, setShippingAddress] = React.useState({
     fullName: '',
@@ -32,6 +41,20 @@ export function Checkout() {
     city: '',
     pincode: ''
   });
+
+  // Prefill from profile + saved default address whenever auth state settles.
+  React.useEffect(() => {
+    if (!user) return;
+    const addr = (profile?.default_address ?? {}) as Record<string, string>;
+    setShippingAddress((prev) => ({
+      fullName: prev.fullName || profile?.full_name || addr.fullName || '',
+      email: user.email ?? prev.email,
+      phone: prev.phone || profile?.phone || addr.phone || '',
+      address: prev.address || addr.address || '',
+      city: prev.city || addr.city || '',
+      pincode: prev.pincode || addr.pincode || '',
+    }));
+  }, [user, profile]);
 
   React.useEffect(() => {
     async function fetchListing() {
@@ -75,45 +98,135 @@ export function Checkout() {
   }
 
   const subtotal = listing.sale_price || listing.price;
-  const shipping = listing.shipping_cost || 0;
-  const total = subtotal + shipping;
+  // Shipping is arranged directly between buyer and seller; we don't charge for it.
+  const shipping = 0;
+  const total = subtotal;
 
   const handleCheckout = async () => {
-    if (paymentMethod === 'cod') {
-      return; // Should not happen as button is disabled or logic prevents it
-    }
+    clog('handleCheckout START', { paymentMethod, hasUser: !!user, listingId: listing?.id });
+    if (paymentMethod === 'cod') { clog.warn('COD selected, ignoring'); return; }
+    if (!user) { clog('no user, opening AuthModal'); setShowAuth(true); return; }
+    setErrorMsg(null);
 
-    if (!shippingAddress.fullName || !shippingAddress.email || !shippingAddress.address) {
-      alert("Please fill in all required shipping details.");
+    // Basic validation
+    const required: Array<[string, string]> = [
+      ['fullName', shippingAddress.fullName],
+      ['email', shippingAddress.email],
+      ['phone', shippingAddress.phone],
+      ['address', shippingAddress.address],
+      ['city', shippingAddress.city],
+      ['pincode', shippingAddress.pincode],
+    ];
+    const missing = required.filter(([, v]) => !v?.trim()).map(([k]) => k);
+    if (missing.length) {
+      setErrorMsg(`Please fill in: ${missing.join(', ')}`);
       return;
     }
 
-    // Generate a random order number for demo
-    const newOrderNumber = `ZKT-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
-    setOrderNumber(newOrderNumber);
-
+    setIsPaying(true);
+    const tCheckout = clog.time('full checkout');
+    let tCheckoutEnded = false;
+    const endCheckout = (extra: Record<string, unknown>) => { if (!tCheckoutEnded) { tCheckout.end(extra); tCheckoutEnded = true; } };
     try {
-      // In a real app, you would call your backend to create a Cashfree order session
-      // const response = await fetch('/api/create-cashfree-session', { ... });
-      // const { payment_session_id } = await response.json();
-      
-      // For demo purposes, we'll simulate the Cashfree popup
-      console.log("Initiating Cashfree Payment...");
-      
-      // Simulating a successful payment flow
-      // In reality, you'd call handleCashfreePayment(payment_session_id)
-      // and handle the callback/redirect
-      
+      // 1. Ask backend to create order + Cashfree session
+      const tOrder = clog.time('createCashfreeOrder');
+      const { order_number, payment_session_id } = await createCashfreeOrder({
+        listing_id: listing!.id,
+        buyer_id: user?.id,
+        buyer: {
+          name: shippingAddress.fullName,
+          email: shippingAddress.email,
+          phone: shippingAddress.phone,
+          address: shippingAddress.address,
+          city: shippingAddress.city,
+          pincode: shippingAddress.pincode,
+        },
+        billing: isBillingSameAsShipping
+          ? undefined
+          : {
+              name: billingAddress.fullName,
+              email: shippingAddress.email,
+              phone: shippingAddress.phone,
+              address: billingAddress.address,
+              city: billingAddress.city,
+              pincode: billingAddress.pincode,
+            },
+      });
+      tOrder.end({ order_number });
+
+      setOrderNumber(order_number);
+
+      // Persist this address as the buyer's default for next time.
+      if (user) {
+        await supabase.from('profiles').update({
+          full_name: profile?.full_name || shippingAddress.fullName,
+          phone: profile?.phone || shippingAddress.phone,
+          default_address: {
+            fullName: shippingAddress.fullName,
+            phone: shippingAddress.phone,
+            address: shippingAddress.address,
+            city: shippingAddress.city,
+            pincode: shippingAddress.pincode,
+          },
+        }).eq('id', user.id);
+        await refreshProfile();
+      }
+
+      // 2. Open Cashfree modal (business name shown will be "Zivanta")
+      const tPay = clog.time('cashfree modal');
+      const result: any = await handleCashfreePayment(payment_session_id);
+      tPay.end({ hasError: !!result?.error, hasPaymentDetails: !!result?.paymentDetails });
+
+      // The SDK resolves with { error } on failure, { paymentDetails } on success,
+      // or undefined when redirect mode. We poll our orders table to confirm.
+      if (result?.error) {
+        clog.warn('cashfree returned error', result.error);
+        setErrorMsg(result.error.message || 'Payment was cancelled or failed.');
+        setIsPaying(false);
+        return;
+      }
+
+      // 3. Verify final state from our DB (webhook should have flipped to 'paid')
+      // Poll up to ~10 seconds.
+      const tPoll = clog.time('webhook poll');
+      let confirmed = false;
+      for (let i = 0; i < 5; i++) {
+        await new Promise((r) => setTimeout(r, 2000));
+        const { data: ord } = await supabase
+          .from('orders')
+          .select('status')
+          .eq('order_number', order_number)
+          .single();
+        clog('poll attempt', { attempt: i + 1, status: ord?.status });
+        if (ord?.status === 'paid' || ord?.status === 'shipped' || ord?.status === 'delivered') {
+          confirmed = true;
+          break;
+        }
+        if (ord?.status === 'cancelled') {
+          tPoll.end({ confirmed: false, finalStatus: 'cancelled' });
+          endCheckout({ outcome: 'cancelled' });
+          setErrorMsg('Payment failed. Please try again.');
+          setIsPaying(false);
+          return;
+        }
+      }
+      tPoll.end({ confirmed });
+      endCheckout({ outcome: confirmed ? 'paid' : 'pending' });
+
+      // Even if the webhook hasn't fired yet (sandbox can be slow), the SDK
+      // returning without error means the user completed payment in the modal.
+      // Show the success screen — the webhook will reconcile shortly.
       setIsSuccess(true);
       window.scrollTo(0, 0);
-      
-      // Simulate sending emails
-      console.log(`Email sent to customer: ${shippingAddress.email} with order ${newOrderNumber}`);
-      console.log(`Order summary sent to seller for item: ${listing.title}`);
-      
-    } catch (error) {
-      console.error("Payment failed:", error);
-      alert("Payment failed. Please try again.");
+      if (!confirmed) {
+        clog.warn('order not yet confirmed in DB; webhook will reconcile shortly');
+      }
+    } catch (error: any) {
+      clog.error('handleCheckout THREW', error);
+      endCheckout({ outcome: 'error' });
+      setErrorMsg(error?.message || 'Payment failed. Please try again.');
+    } finally {
+      setIsPaying(false);
     }
   };
 
@@ -411,15 +524,19 @@ export function Checkout() {
               <span className="text-3xl font-black tracking-tighter">{formatCurrency(total)}</span>
             </div>
 
+            {errorMsg && (
+              <p className="text-[10px] font-bold uppercase tracking-widest text-red-600 -mb-4">{errorMsg}</p>
+            )}
             <button 
               onClick={handleCheckout}
-              disabled={paymentMethod === 'cod'}
+              disabled={paymentMethod === 'cod' || isPaying}
               className={cn(
-                "w-full py-6 text-xs font-black uppercase tracking-[0.4em] transition-all active:scale-[0.98]",
-                paymentMethod === 'cod' ? "bg-zinc-200 text-black/20 cursor-not-allowed" : "bg-black text-white hover:bg-zinc-800"
+                "w-full py-6 text-xs font-black uppercase tracking-[0.4em] transition-all active:scale-[0.98] flex items-center justify-center gap-3",
+                (paymentMethod === 'cod' || isPaying) ? "bg-zinc-200 text-black/20 cursor-not-allowed" : "bg-black text-white hover:bg-zinc-800"
               )}
             >
-              {paymentMethod === 'online' ? 'Place Order' : 'Select Online Payment'}
+              {isPaying && <Loader2 className="h-4 w-4 animate-spin" />}
+              <span>{isPaying ? 'Opening Payment...' : paymentMethod === 'online' ? 'Place Order' : 'Select Online Payment'}</span>
             </button>
 
             <div className="flex items-center justify-center gap-3 text-[9px] font-black uppercase tracking-[0.2em] text-black/30">
@@ -429,6 +546,7 @@ export function Checkout() {
           </div>
         </div>
       </div>
+      <AuthModal open={showAuth} onClose={() => setShowAuth(false)} message="Sign in to complete your purchase." />
     </div>
   );
 }

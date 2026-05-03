@@ -5,6 +5,9 @@ import { Listing } from '../types';
 import { ListingCard } from '../components/ListingCard';
 import { SlidersHorizontal, Loader2, X } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { log } from '../lib/log';
+
+const blog = log('browse');
 
 const CATEGORY_SIZES: Record<string, string[]> = {
   'Tops': ['XXS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', 'One Size'],
@@ -32,13 +35,17 @@ export function Browse() {
   const searchQuery = searchParams.get('search');
 
   React.useEffect(() => {
+    blog('useEffect fired', { categoryFilter, genderFilter, sizeTypeFilter, conditionFilter, brandFilter, minPrice, maxPrice, searchQuery });
+
     async function fetchListings() {
+      const t = blog.time('fetchListings');
       setLoading(true);
       try {
         let query = supabase
           .from('listings')
           .select('*')
           .eq('status', 'approved')
+          .or('is_sold.is.null,is_sold.eq.false')
           .order('created_at', { ascending: false });
 
         if (categoryFilter) query = query.eq('category', categoryFilter);
@@ -54,17 +61,17 @@ export function Browse() {
         }
         if (minPrice) query = query.gte('price', parseInt(minPrice));
         if (maxPrice) query = query.lte('price', parseInt(maxPrice));
-        
+
         if (searchQuery) {
           query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%,brand.ilike.%${searchQuery}%,category.ilike.%${searchQuery}%`);
         }
 
         const { data, error } = await query;
-
+        t.end({ count: data?.length, error });
         if (error) throw error;
         setListings(data || []);
       } catch (err: any) {
-        console.error('Error fetching listings:', err);
+        blog.error('fetchListings THREW', err);
         setError(err.message);
       } finally {
         setLoading(false);
@@ -72,7 +79,7 @@ export function Browse() {
     }
 
     fetchListings();
-  }, [categoryFilter, sizeTypeFilter, conditionFilter, brandFilter, minPrice, maxPrice, searchQuery]);
+  }, [categoryFilter, genderFilter, sizeTypeFilter, conditionFilter, brandFilter, minPrice, maxPrice, searchQuery]);
 
   const updateFilter = (key: string, value: string | null) => {
     if (value === null || value === 'all') {
