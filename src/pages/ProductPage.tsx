@@ -4,12 +4,13 @@ import { supabase } from '../lib/supabase';
 import { Listing } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { motion } from 'motion/react';
-import { Loader2, Truck, RotateCcw, ArrowLeft, ChevronLeft, ChevronRight, Grid, Layout, ShoppingBag, Check } from 'lucide-react';
+import { Loader2, Truck, RotateCcw, ArrowLeft, ChevronLeft, ChevronRight, Grid, Layout, ShoppingBag, Check, Share2 } from 'lucide-react';
 import { log } from '../lib/log';
 import { useCart } from '../lib/cart';
 import { useAuth } from '../lib/auth';
 import { AuthModal } from '../components/AuthModal';
 import { LaunchOfferBanner } from '../components/LaunchOfferBanner';
+import { ShareInstagramModal } from '../components/ShareInstagramModal';
 import { formatCurrency as fmt } from '../lib/utils';
 
 const plog = log('product');
@@ -40,6 +41,7 @@ export function ProductPage() {
   const [isZoomed, setIsZoomed] = React.useState(false);
   const [cartMsg, setCartMsg] = React.useState<string | null>(null);
   const [conflict, setConflict] = React.useState(false);
+  const [shareOpen, setShareOpen] = React.useState(false);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
@@ -366,6 +368,22 @@ export function ProductPage() {
               </div>
             </div>
 
+            {user?.id === listing.seller_id && (
+              <div className="mt-4 pt-6 border-t border-black/5 flex flex-col gap-3">
+                <span className="text-[9px] font-black uppercase tracking-[0.4em] text-black/40">Seller tools</span>
+                <button
+                  type="button"
+                  onClick={() => setShareOpen(true)}
+                  className="self-start inline-flex items-center gap-3 border border-black px-6 py-3 text-[10px] font-black uppercase tracking-[0.3em] hover:bg-black hover:text-white transition-colors"
+                >
+                  <Share2 className="h-3.5 w-3.5" /> Generate Instagram image
+                </button>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 leading-relaxed max-w-md">
+                  Only you can see this. Download a branded post or story image of your listing in one click.
+                </p>
+              </div>
+            )}
+
             <div className="mt-8 pt-8 border-t border-black/5">
               <p className="text-[9px] font-black uppercase tracking-[0.4em] text-black/40">
                 Product Code: {listing.sku || `ZV-${listing.id.slice(0, 8).toUpperCase()}`}
@@ -381,6 +399,9 @@ export function ProductPage() {
         onSuccess={authModal?.onSuccess}
         message={authModal?.message}
       />
+      {user?.id === listing.seller_id && (
+        <ShareInstagramModal open={shareOpen} onClose={() => setShareOpen(false)} listing={listing} />
+      )}
     </div>
   );
 }
