@@ -1,4 +1,4 @@
-# Cashfree integration — Zarketplace MVP
+# Cashfree integration - Zarketplace MVP
 
 This document explains exactly how money moves through the platform, what is automated today, and the upgrade paths to fully-automated split settlements.
 
@@ -17,7 +17,7 @@ This document explains exactly how money moves through the platform, what is aut
 | **Easy Split** | Auto-split a single payment between merchant and multiple vendors. Holds vendor share until released. | ⏸️ Documented as a future upgrade |
 | **Cashfree Payouts** | Send money to bank accounts / UPI VPAs from a Payouts wallet. | ⏸️ Optional automation for the "Release Payout" action |
 | **Refunds API** | Refund a captured payment. | ✅ Wired via `cashfree-refund` edge function |
-| Shipping | — | ❌ Cashfree has no shipping product. See `SHIPPING.md`. |
+| Shipping | - | ❌ Cashfree has no shipping product. See `SHIPPING.md`. |
 
 The credentials provided are **PG-only** (test). Easy Split and Payouts each require a separate signup/feature activation in the Cashfree dashboard.
 
@@ -61,11 +61,11 @@ The credentials provided are **PG-only** (test). Easy Split and Payouts each req
 ```
 
 ### Key files
-- `supabase/functions/create-order/index.ts` — creates Cashfree order in **sandbox** mode and returns `payment_session_id`.
-- `src/lib/cashfree.ts` — frontend SDK loader; uses `VITE_CASHFREE_ENV` to choose sandbox vs production.
-- `src/pages/Checkout.tsx` — opens the Cashfree modal. The modal title shows your business name "Zivanta" (configured in your Cashfree merchant profile, not in code).
-- `supabase/functions/cashfree-webhook/index.ts` — processes `PAYMENT_SUCCESS_WEBHOOK`, marks order paid, marks listing sold, snapshots seller payout details, fires confirmation emails.
-- `src/pages/Admin.tsx` → **Payouts** tab — shows pending/released/held payouts with destination UPI/bank details captured at listing time.
+- `supabase/functions/create-order/index.ts` - creates Cashfree order in **sandbox** mode and returns `payment_session_id`.
+- `src/lib/cashfree.ts` - frontend SDK loader; uses `VITE_CASHFREE_ENV` to choose sandbox vs production.
+- `src/pages/Checkout.tsx` - opens the Cashfree modal. The modal title shows your business name "Zivanta" (configured in your Cashfree merchant profile, not in code).
+- `supabase/functions/cashfree-webhook/index.ts` - processes `PAYMENT_SUCCESS_WEBHOOK`, marks order paid, marks listing sold, snapshots seller payout details, fires confirmation emails.
+- `src/pages/Admin.tsx` → **Payouts** tab - shows pending/released/held payouts with destination UPI/bank details captured at listing time.
 
 ### Daily ops checklist for finance
 
@@ -153,11 +153,11 @@ It will:
 3. Set `listings.is_sold = false` (re-list the item).
 4. Cancel the corresponding `seller_payouts` row.
 
-A small wrapper UI in admin would make this a button-click; not built for MVP — shout if needed.
+A small wrapper UI in admin would make this a button-click; not built for MVP - shout if needed.
 
 ---
 
-## 5. Future upgrade A — Cashfree Easy Split (full automation)
+## 5. Future upgrade A - Cashfree Easy Split (full automation)
 
 **When to do this:** Once you have a stable seller base and want to remove the manual transfer step.
 
@@ -174,7 +174,7 @@ I've already added the `cashfree_vendor_id` and `payout_method` columns so this 
 
 ---
 
-## 6. Future upgrade B — Cashfree Payouts (lighter automation)
+## 6. Future upgrade B - Cashfree Payouts (lighter automation)
 
 **When to do this:** If Easy Split's KYC requirements are too heavy but you still want one-click payouts.
 
@@ -184,7 +184,7 @@ I've already added the `cashfree_vendor_id` and `payout_method` columns so this 
 3. Replace the admin "Release" handler with a call to a new `release-payout` edge function that runs `POST /payouts/v1/requestTransfer`.
 4. Update `seller_payouts.payout_method = 'cashfree_payouts'` and `payout_reference` from the API response.
 
-This is simpler than Easy Split but money still pools first in your Cashfree balance — Payouts just automates the outbound leg.
+This is simpler than Easy Split but money still pools first in your Cashfree balance - Payouts just automates the outbound leg.
 
 ---
 

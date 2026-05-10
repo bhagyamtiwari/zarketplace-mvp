@@ -17,7 +17,7 @@ sbLog('init', {
   origin: typeof window !== 'undefined' ? window.location.origin : 'ssr',
 });
 
-// Connectivity probe — only in dev, fires once per page load.
+// Connectivity probe - only in dev, fires once per page load.
 if (import.meta.env.DEV && typeof window !== 'undefined' && supabaseUrl && supabaseAnonKey) {
   const probe = sbLog.time('probe /rest/v1/listings');
   fetch(`${supabaseUrl}/rest/v1/listings?select=id&limit=1`, {

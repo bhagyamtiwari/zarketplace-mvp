@@ -1,4 +1,4 @@
-# Authentication — Zarketplace MVP
+# Authentication - Zarketplace MVP
 
 **Mode:** Email magic link via Supabase Auth.
 **Roles:** every user is both a buyer AND a seller. Admin is a flag (`profiles.is_admin = true`).
@@ -45,7 +45,7 @@ The migration `20260503000007_fix_profiles_rls_recursion.sql` will auto-promote 
 
 For free local dev: Supabase ships with a built-in mailer that sends magic links. Check **Auth → Logs** if you can't find the email.
 
-For production: configure SMTP in **Auth → SMTP Settings** (or use Supabase's hosted email — works for low volume).
+For production: configure SMTP in **Auth → SMTP Settings** (or use Supabase's hosted email - works for low volume).
 
 ## Profile fields exposed on `useAuth()`
 

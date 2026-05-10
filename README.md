@@ -16,11 +16,11 @@ npm run dev
 
 ## Docs
 
-- **[`docs/SETUP.md`](docs/SETUP.md)** — full step-by-step setup, migrations, edge function deploys, smoke test
-- **[`docs/AUTH.md`](docs/AUTH.md)** — email magic-link auth, roles, RLS, admin promotion
-- **[`docs/CASHFREE.md`](docs/CASHFREE.md)** — payment + payout flow, refunds, marketplace upgrade paths
-- **[`docs/SHIPPING.md`](docs/SHIPPING.md)** — current shipping flow, Shiprocket upgrade plan
-- **[`docs/CHANGES.md`](docs/CHANGES.md)** — file-by-file changelog of MVP changes
+- **[`docs/SETUP.md`](docs/SETUP.md)** - full step-by-step setup, migrations, edge function deploys, smoke test
+- **[`docs/AUTH.md`](docs/AUTH.md)** - email magic-link auth, roles, RLS, admin promotion
+- **[`docs/CASHFREE.md`](docs/CASHFREE.md)** - payment + payout flow, refunds, marketplace upgrade paths
+- **[`docs/SHIPPING.md`](docs/SHIPPING.md)** - current shipping flow, Shiprocket upgrade plan
+- **[`docs/CHANGES.md`](docs/CHANGES.md)** - file-by-file changelog of MVP changes
 
 ## Architecture in 30 seconds
 

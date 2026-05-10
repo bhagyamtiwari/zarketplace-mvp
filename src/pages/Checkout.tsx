@@ -1,48 +1,104 @@
+// Single-stage UPI checkout. Buyer pays the seller directly via UPI then
+// proves the payment with a UTR or a receipt screenshot (one or both).
+//
+// Flow:
+//   1. Address - collect shipping. Creates one order row per cart item.
+//   2. Pay seller - show QR + deep-link, collect UTR + receipt upload.
+//   3. Success.
+
 import React from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { supabase } from '../lib/supabase';
-import { Listing } from '../types';
+import { CartItem, Listing } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
-import { Loader2, ArrowLeft, CreditCard, Truck, ShieldCheck, CheckCircle2, Package, Lock } from 'lucide-react';
-import { handleCashfreePayment, createCashfreeOrder } from '../lib/cashfree';
+import { Loader2, ArrowLeft, ShieldCheck, CheckCircle2, Package, Smartphone, Copy, Check } from 'lucide-react';
 import { useAuth } from '../lib/auth';
-import { AuthModal } from '../components/AuthModal';
+import { useCart } from '../lib/cart';
+import { RequireAuth } from '../components/RequireAuth';
+import { LaunchOfferBanner } from '../components/LaunchOfferBanner';
+import { PaymentProofInput, isValidUtr } from '../components/PaymentProofInput';
 import { log } from '../lib/log';
+import { sendEmail } from '../lib/email';
 
 const clog = log('checkout');
+const RESUME_KEY = 'zk_checkout_v2';
+
+type Step = 'address' | 'pay_seller' | 'success';
+
+interface ResumeState {
+  step: Step;
+  order_numbers: string[];
+  seller_vpa: string;
+  amount: number;
+}
+
+function makeUpiLink({ pa, pn, am, tn }: { pa: string; pn: string; am: number; tn: string }) {
+  const params = new URLSearchParams({ pa, pn, am: am.toFixed(2), cu: 'INR', tn });
+  return `upi://pay?${params.toString()}`;
+}
+function qrUrl(data: string) {
+  return `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=${encodeURIComponent(data)}`;
+}
+function snapshotFromListing(l: Listing): CartItem {
+  return {
+    listing_id: l.id, sku: l.sku, added_at: new Date().toISOString(),
+    title: l.title, brand: l.brand, price: l.price, sale_price: l.sale_price,
+    image_url: l.image_url, size: l.size,
+    seller_id: l.seller_id, seller_email: l.seller_email,
+    seller_upi_vpa: l.seller_upi_vpa, seller_display_name: l.seller_display_name,
+    shipping_mode: l.shipping_mode, shipping_cost: l.shipping_cost,
+  };
+}
 
 export function Checkout() {
+  return (
+    <RequireAuth message="Sign in to complete your purchase.">
+      <CheckoutInner />
+    </RequireAuth>
+  );
+}
+
+function CheckoutInner() {
   const { id } = useParams();
-  const navigate = useNavigate();
-  const { user, profile, loading: authLoading, refreshProfile } = useAuth();
-  const [listing, setListing] = React.useState<Listing | null>(null);
-  const [loading, setLoading] = React.useState(true);
-  const [paymentMethod, setPaymentMethod] = React.useState<'online' | 'cod'>('online');
-  const [isSuccess, setIsSuccess] = React.useState(false);
-  const [orderNumber, setOrderNumber] = React.useState('');
-  const [isBillingSameAsShipping, setIsBillingSameAsShipping] = React.useState(true);
-  const [isPaying, setIsPaying] = React.useState(false);
+  const { user, profile, refreshProfile } = useAuth();
+  const cart = useCart();
+
+  const [buyNowItems, setBuyNowItems] = React.useState<CartItem[] | null>(null);
+  const [loadingBuyNow, setLoadingBuyNow] = React.useState<boolean>(!!id);
+
+  React.useEffect(() => {
+    if (!id) { setBuyNowItems(null); setLoadingBuyNow(false); return; }
+    let cancelled = false;
+    (async () => {
+      setLoadingBuyNow(true);
+      try {
+        const { data, error } = await supabase.from('listings').select('*').eq('id', id).maybeSingle();
+        if (error) throw error;
+        if (cancelled) return;
+        if (!data) { setBuyNowItems([]); return; }
+        setBuyNowItems([snapshotFromListing(data as Listing)]);
+      } catch (err) {
+        clog.error('buy-now fetch failed', err);
+        if (!cancelled) setBuyNowItems([]);
+      } finally {
+        if (!cancelled) setLoadingBuyNow(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [id]);
+
+  const items: CartItem[] = id ? (buyNowItems ?? []) : cart.items;
+
+  const [step, setStep] = React.useState<Step>('address');
+  const [orderNumbers, setOrderNumbers] = React.useState<string[]>([]);
+  const [submitting, setSubmitting] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
-  const [showAuth, setShowAuth] = React.useState(false);
 
   const [shippingAddress, setShippingAddress] = React.useState({
-    fullName: '',
-    email: '',
-    phone: '',
-    address: '',
-    city: '',
-    pincode: ''
+    fullName: '', email: '', phone: '', address: '', city: '', pincode: '',
   });
 
-  const [billingAddress, setBillingAddress] = React.useState({
-    fullName: '',
-    address: '',
-    city: '',
-    pincode: ''
-  });
-
-  // Prefill from profile + saved default address whenever auth state settles.
   React.useEffect(() => {
     if (!user) return;
     const addr = (profile?.default_address ?? {}) as Record<string, string>;
@@ -57,28 +113,157 @@ export function Checkout() {
   }, [user, profile]);
 
   React.useEffect(() => {
-    async function fetchListing() {
-      if (!id) return;
-      try {
-        const { data, error } = await supabase
-          .from('listings')
-          .select('*')
-          .eq('id', id)
-          .single();
-
-        if (error) throw error;
-        setListing(data);
-      } catch (err) {
-        console.error('Error fetching listing:', err);
-      } finally {
-        setLoading(false);
+    try {
+      const raw = localStorage.getItem(RESUME_KEY);
+      if (!raw) return;
+      const r = JSON.parse(raw) as ResumeState;
+      if (r?.order_numbers?.length && r.step === 'pay_seller') {
+        setOrderNumbers(r.order_numbers);
+        setStep('pay_seller');
       }
+    } catch {}
+  }, []);
+
+  const subtotal = items.reduce((s, i) => s + (i.sale_price ?? i.price ?? 0), 0);
+  const shipping = items.reduce((s, i) => s + (i.shipping_mode === 'paid' ? (i.shipping_cost || 0) : 0), 0);
+  const total = subtotal + shipping;
+  const sellerVpa = items[0]?.seller_upi_vpa || '';
+  const sellerName = items[0]?.seller_display_name || items[0]?.brand || 'Seller';
+
+  const persistResume = (state: Partial<ResumeState>) => {
+    try {
+      const merged: ResumeState = {
+        step, order_numbers: orderNumbers, seller_vpa: sellerVpa, amount: total, ...state,
+      };
+      localStorage.setItem(RESUME_KEY, JSON.stringify(merged));
+    } catch {}
+  };
+  const clearResume = () => { try { localStorage.removeItem(RESUME_KEY); } catch {} };
+
+  const submitAddress = async () => {
+    setErrorMsg(null);
+    if (!user) return;
+    if (items.length === 0) { setErrorMsg('Your cart is empty.'); return; }
+    if (!sellerVpa) { setErrorMsg('Seller has not configured a UPI ID.'); return; }
+    const required: Array<[string, string]> = [
+      ['fullName', shippingAddress.fullName], ['email', shippingAddress.email],
+      ['phone', shippingAddress.phone], ['address', shippingAddress.address],
+      ['city', shippingAddress.city], ['pincode', shippingAddress.pincode],
+    ];
+    const missing = required.filter(([, v]) => !v?.trim()).map(([k]) => k);
+    if (missing.length) { setErrorMsg(`Please fill in: ${missing.join(', ')}`); return; }
+
+    setSubmitting(true);
+    try {
+      await supabase.from('profiles').update({
+        full_name: profile?.full_name || shippingAddress.fullName,
+        phone: profile?.phone || shippingAddress.phone,
+        default_address: shippingAddress,
+      }).eq('id', user.id);
+      await refreshProfile();
+
+      const rows = items.map((i) => {
+        const itemPrice = Number(i.sale_price ?? i.price ?? 0);
+        const itemShip = i.shipping_mode === 'paid' ? Number(i.shipping_cost || 0) : 0;
+        return {
+          listing_id: i.listing_id,
+          listing_sku: i.sku ?? null,
+          listing_title: i.title ?? null,
+          listing_image_url: i.image_url ?? null,
+          buyer_id: user.id,
+          buyer_email: shippingAddress.email.toLowerCase(),
+          buyer_name: shippingAddress.fullName,
+          buyer_phone: shippingAddress.phone,
+          seller_id: i.seller_id ?? null,
+          seller_email: (i.seller_email ?? '').toLowerCase() || null,
+          seller_upi_vpa_snapshot: i.seller_upi_vpa ?? null,
+          shipping_address: shippingAddress as unknown as Record<string, string>,
+          billing_address: shippingAddress as unknown as Record<string, string>,
+          amount: itemPrice,
+          shipping_cost: itemShip,
+          total_amount: itemPrice + itemShip,
+          status: 'awaiting_payment',
+        };
+      });
+
+      const { data, error } = await supabase.from('orders').insert(rows).select('order_number');
+      if (error) throw error;
+      const nums = (data ?? []).map((r: { order_number: string }) => r.order_number);
+
+      // Mark listings as sold the moment the order exists. They stay hidden
+      // through awaiting_payment / awaiting_verification / paid / shipped.
+      // Admin flips is_sold back to false if they cancel or refund.
+      const listingIds = items.map((i) => i.listing_id).filter(Boolean);
+      if (listingIds.length > 0) {
+        const { error: soldErr } = await supabase.from('listings').update({ is_sold: true }).in('id', listingIds);
+        if (soldErr) clog.warn('mark sold failed', soldErr);
+      }
+
+      setOrderNumbers(nums);
+      setStep('pay_seller');
+      persistResume({ step: 'pay_seller', order_numbers: nums });
+    } catch (err: any) {
+      clog.error('createOrders failed', err);
+      setErrorMsg(err?.message || 'Failed to create order.');
+    } finally {
+      setSubmitting(false);
     }
+  };
 
-    fetchListing();
-  }, [id]);
+  const submitProof = async (utr: string, file: File | null) => {
+    setErrorMsg(null);
+    if (!utr && !file) { setErrorMsg('Provide a UTR or upload a receipt.'); return; }
+    if (utr && !isValidUtr(utr)) { setErrorMsg('UTR must be 12 digits.'); return; }
+    if (!user) return;
+    setSubmitting(true);
+    try {
+      let receiptPath: string | null = null;
+      if (file) {
+        const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+        const orderNum = orderNumbers[0] || 'tmp';
+        const path = `receipts/${orderNum}/${crypto.randomUUID()}.${ext}`;
+        const { error: upErr } = await supabase.storage
+          .from('order-attachments').upload(path, file, { contentType: file.type });
+        if (upErr) throw upErr;
+        receiptPath = path;
+      }
 
-  if (loading) {
+      const { data: updated, error: updErr } = await supabase.from('orders').update({
+        payment_utr: utr || null,
+        payment_receipt_url: receiptPath,
+        payment_submitted_at: new Date().toISOString(),
+        status: 'awaiting_verification',
+      }).in('order_number', orderNumbers).select('id');
+      if (updErr) throw updErr;
+
+      // Listings were already marked sold at order creation; no-op here.
+
+      // Fire transactional emails (best effort - don't block checkout on
+      // failure). Resend free tier allows 2 req/s, so we serialize with a
+      // 600ms gap between calls. Runs in the background after setStep.
+      const ids = (updated ?? []).map((r: { id: string }) => r.id);
+      void (async () => {
+        const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+        for (const orderId of ids) {
+          await sendEmail({ template: 'order_notification_seller', order_id: orderId });
+          await sleep(600);
+          await sendEmail({ template: 'order_confirmation_buyer', order_id: orderId });
+          await sleep(600);
+        }
+      })();
+
+      setStep('success');
+      clearResume();
+      if (!id) await cart.clear();
+    } catch (err: any) {
+      clog.error('submitProof failed', err);
+      setErrorMsg(err?.message || 'Failed to submit proof.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loadingBuyNow) {
     return (
       <div className="flex h-[80vh] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-black/20" />
@@ -86,211 +271,38 @@ export function Checkout() {
     );
   }
 
-  if (!listing) {
+  if (items.length === 0 && step !== 'success') {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-20 text-center">
-        <h1 className="text-2xl font-black uppercase tracking-tighter">Listing not found</h1>
-        <button onClick={() => navigate('/browse')} className="mt-8 text-xs font-bold uppercase tracking-widest underline">
-          Back to marketplace
-        </button>
+      <div className="mx-auto max-w-2xl px-4 py-32 text-center flex flex-col items-center gap-8">
+        <h1 className="text-5xl font-black tracking-tighter uppercase">Nothing to check out</h1>
+        <p className="text-xs font-bold uppercase tracking-widest text-black/60 max-w-md">
+          Your cart is empty.
+        </p>
+        <Link to="/browse" className="bg-black px-12 py-5 text-xs font-black uppercase tracking-[0.4em] text-white hover:bg-zinc-800">
+          Browse
+        </Link>
       </div>
     );
   }
 
-  const subtotal = listing.sale_price || listing.price;
-  // Shipping is arranged directly between buyer and seller; we don't charge for it.
-  const shipping = 0;
-  const total = subtotal;
-
-  const handleCheckout = async () => {
-    clog('handleCheckout START', { paymentMethod, hasUser: !!user, listingId: listing?.id });
-    if (paymentMethod === 'cod') { clog.warn('COD selected, ignoring'); return; }
-    if (!user) { clog('no user, opening AuthModal'); setShowAuth(true); return; }
-    setErrorMsg(null);
-
-    // Basic validation
-    const required: Array<[string, string]> = [
-      ['fullName', shippingAddress.fullName],
-      ['email', shippingAddress.email],
-      ['phone', shippingAddress.phone],
-      ['address', shippingAddress.address],
-      ['city', shippingAddress.city],
-      ['pincode', shippingAddress.pincode],
-    ];
-    const missing = required.filter(([, v]) => !v?.trim()).map(([k]) => k);
-    if (missing.length) {
-      setErrorMsg(`Please fill in: ${missing.join(', ')}`);
-      return;
-    }
-
-    setIsPaying(true);
-    const tCheckout = clog.time('full checkout');
-    let tCheckoutEnded = false;
-    const endCheckout = (extra: Record<string, unknown>) => { if (!tCheckoutEnded) { tCheckout.end(extra); tCheckoutEnded = true; } };
-    try {
-      // 1. Ask backend to create order + Cashfree session
-      const tOrder = clog.time('createCashfreeOrder');
-      const { order_number, payment_session_id } = await createCashfreeOrder({
-        listing_id: listing!.id,
-        buyer_id: user?.id,
-        buyer: {
-          name: shippingAddress.fullName,
-          email: shippingAddress.email,
-          phone: shippingAddress.phone,
-          address: shippingAddress.address,
-          city: shippingAddress.city,
-          pincode: shippingAddress.pincode,
-        },
-        billing: isBillingSameAsShipping
-          ? undefined
-          : {
-              name: billingAddress.fullName,
-              email: shippingAddress.email,
-              phone: shippingAddress.phone,
-              address: billingAddress.address,
-              city: billingAddress.city,
-              pincode: billingAddress.pincode,
-            },
-      });
-      tOrder.end({ order_number });
-
-      setOrderNumber(order_number);
-
-      // Persist this address as the buyer's default for next time.
-      if (user) {
-        await supabase.from('profiles').update({
-          full_name: profile?.full_name || shippingAddress.fullName,
-          phone: profile?.phone || shippingAddress.phone,
-          default_address: {
-            fullName: shippingAddress.fullName,
-            phone: shippingAddress.phone,
-            address: shippingAddress.address,
-            city: shippingAddress.city,
-            pincode: shippingAddress.pincode,
-          },
-        }).eq('id', user.id);
-        await refreshProfile();
-      }
-
-      // 2. Open Cashfree modal (business name shown will be "Zivanta")
-      const tPay = clog.time('cashfree modal');
-      const result: any = await handleCashfreePayment(payment_session_id);
-      tPay.end({ hasError: !!result?.error, hasPaymentDetails: !!result?.paymentDetails });
-
-      // The SDK resolves with { error } on failure, { paymentDetails } on success,
-      // or undefined when redirect mode. We poll our orders table to confirm.
-      if (result?.error) {
-        clog.warn('cashfree returned error', result.error);
-        setErrorMsg(result.error.message || 'Payment was cancelled or failed.');
-        setIsPaying(false);
-        return;
-      }
-
-      // 3. Verify final state from our DB (webhook should have flipped to 'paid')
-      // Poll up to ~10 seconds.
-      const tPoll = clog.time('webhook poll');
-      let confirmed = false;
-      for (let i = 0; i < 5; i++) {
-        await new Promise((r) => setTimeout(r, 2000));
-        const { data: ord } = await supabase
-          .from('orders')
-          .select('status')
-          .eq('order_number', order_number)
-          .single();
-        clog('poll attempt', { attempt: i + 1, status: ord?.status });
-        if (ord?.status === 'paid' || ord?.status === 'shipped' || ord?.status === 'delivered') {
-          confirmed = true;
-          break;
-        }
-        if (ord?.status === 'cancelled') {
-          tPoll.end({ confirmed: false, finalStatus: 'cancelled' });
-          endCheckout({ outcome: 'cancelled' });
-          setErrorMsg('Payment failed. Please try again.');
-          setIsPaying(false);
-          return;
-        }
-      }
-      tPoll.end({ confirmed });
-      endCheckout({ outcome: confirmed ? 'paid' : 'pending' });
-
-      // Even if the webhook hasn't fired yet (sandbox can be slow), the SDK
-      // returning without error means the user completed payment in the modal.
-      // Show the success screen — the webhook will reconcile shortly.
-      setIsSuccess(true);
-      window.scrollTo(0, 0);
-      if (!confirmed) {
-        clog.warn('order not yet confirmed in DB; webhook will reconcile shortly');
-      }
-    } catch (error: any) {
-      clog.error('handleCheckout THREW', error);
-      endCheckout({ outcome: 'error' });
-      setErrorMsg(error?.message || 'Payment failed. Please try again.');
-    } finally {
-      setIsPaying(false);
-    }
-  };
-
-  if (isSuccess && listing) {
+  if (step === 'success') {
     return (
       <div className="mx-auto max-w-3xl px-4 py-32 text-center flex flex-col items-center gap-8">
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="h-24 w-24 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mb-4"
-        >
+        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+          className="h-24 w-24 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mb-4">
           <CheckCircle2 className="h-12 w-12" />
         </motion.div>
-        
-        <div className="flex flex-col gap-4">
-          <span className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-600">Payment Confirmed</span>
-          <h1 className="text-5xl font-black tracking-tighter uppercase">Order Successful</h1>
-          <p className="text-sm font-bold uppercase tracking-widest text-black/40">Order Number: {orderNumber}</p>
-        </div>
-
-        <div className="w-full bg-zinc-50 border border-black/5 p-10 flex flex-col gap-8 text-left mt-8">
-          <div className="flex items-center gap-4 border-b border-black/5 pb-6">
-            <Package className="h-5 w-5" />
-            <h2 className="text-xs font-black uppercase tracking-widest">Order Summary</h2>
-          </div>
-
-          <div className="flex gap-6">
-            <div className="h-24 w-18 bg-zinc-200 overflow-hidden border border-black/5">
-              <img src={listing.image_url} alt={listing.title} className="h-full w-full object-cover" />
-            </div>
-            <div className="flex flex-col justify-center gap-1">
-              <span className="text-[9px] font-black uppercase tracking-widest text-black">{listing.brand}</span>
-              <h3 className="text-xs font-bold uppercase tracking-widest">{listing.title}</h3>
-              <span className="text-[10px] font-black uppercase tracking-widest">{listing.size}</span>
-              <span className="text-xs font-black mt-2">{formatCurrency(total)}</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 pt-6 border-t border-black/5">
-            <div className="flex flex-col gap-3">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-black/40">Shipping To</h3>
-              <div className="text-xs font-bold uppercase tracking-widest leading-relaxed">
-                <p>{shippingAddress.fullName}</p>
-                <p>{shippingAddress.address}</p>
-                <p>{shippingAddress.city}, {shippingAddress.pincode}</p>
-                <p>{shippingAddress.phone}</p>
-              </div>
-            </div>
-            <div className="flex flex-col gap-3">
-              <h3 className="text-[10px] font-black uppercase tracking-widest text-black/40">Status</h3>
-              <div className="text-xs font-bold uppercase tracking-widest text-emerald-600">
-                Processing Order
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-4 w-full max-w-xs">
-          <Link to="/browse" className="w-full bg-black py-6 text-[11px] font-black uppercase tracking-[0.3em] text-white transition-all hover:bg-zinc-800 text-center">
-            Continue Shopping
-          </Link>
-          <p className="text-[9px] font-bold uppercase tracking-widest text-black/30 leading-relaxed">
-            A confirmation email has been sent to {shippingAddress.email}. The seller will be notified to ship your item.
-          </p>
+        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-600">Submitted for verification</span>
+        <h1 className="text-5xl font-black tracking-tighter uppercase">Order confirmed.</h1>
+        <p className="text-xs font-bold uppercase tracking-widest text-black/40">
+          Order{orderNumbers.length > 1 ? 's' : ''}: {orderNumbers.join(', ')}
+        </p>
+        <p className="text-[11px] font-bold uppercase tracking-widest text-black/60 max-w-md leading-relaxed">
+          The seller will verify your payment and ship within 24 hours. Track everything in My Orders.
+        </p>
+        <div className="flex gap-3">
+          <Link to="/browse" className="bg-black px-12 py-5 text-xs font-black uppercase tracking-[0.4em] text-white hover:bg-zinc-800">Continue Shopping</Link>
+          <Link to="/track-order" className="border border-black px-12 py-5 text-xs font-black uppercase tracking-[0.4em] text-black hover:bg-black hover:text-white">My Orders</Link>
         </div>
       </div>
     );
@@ -298,255 +310,250 @@ export function Checkout() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20">
-      <Link to={`/product/${listing.id}`} className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-12">
-        <ArrowLeft className="h-3 w-3" /> Back to Product
+      <Link to={id ? `/product/${id}` : '/cart'} className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-12">
+        <ArrowLeft className="h-3 w-3" /> Back
       </Link>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-20">
-        {/* Checkout Form */}
-        <div className="lg:col-span-7 flex flex-col gap-16">
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-3 mb-2">
-              <img src="/images/zarketplace-tp.png" alt="Zarketplace" className="h-6 w-auto" referrerPolicy="no-referrer" />
-              <span className="lowercase font-black tracking-tighter text-2xl">zarketplace</span>
-            </div>
-            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-black">Checkout</span>
-            <h1 className="text-5xl font-black tracking-tighter uppercase">Finalize Order</h1>
-          </div>
+      <StepHeader step={step} />
 
-          <div className="flex flex-col gap-12">
-            {/* Shipping Info */}
-            <section className="flex flex-col gap-8">
-              <h2 className="text-xs font-black uppercase tracking-widest border-b border-black pb-4">Shipping Information</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black uppercase tracking-widest text-black">Full Name</label>
-                  <input 
-                    type="text" 
-                    value={shippingAddress.fullName}
-                    onChange={(e) => setShippingAddress({...shippingAddress, fullName: e.target.value})}
-                    className="border-b border-black/10 py-3 text-sm font-bold focus:border-black focus:outline-none transition-all" 
-                    placeholder="John Doe" 
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black uppercase tracking-widest text-black">Email Address</label>
-                  <input 
-                    type="email" 
-                    value={shippingAddress.email}
-                    onChange={(e) => setShippingAddress({...shippingAddress, email: e.target.value})}
-                    className="border-b border-black/10 py-3 text-sm font-bold focus:border-black focus:outline-none transition-all" 
-                    placeholder="hello@example.com" 
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black uppercase tracking-widest text-black">Phone Number</label>
-                  <input 
-                    type="tel" 
-                    value={shippingAddress.phone}
-                    onChange={(e) => setShippingAddress({...shippingAddress, phone: e.target.value})}
-                    className="border-b border-black/10 py-3 text-sm font-bold focus:border-black focus:outline-none transition-all" 
-                    placeholder="+91 98765 43210" 
-                  />
-                </div>
-                <div className="md:col-span-2 flex flex-col gap-2">
-                  <label className="text-[9px] font-black uppercase tracking-widest text-black">Address</label>
-                  <input 
-                    type="text" 
-                    value={shippingAddress.address}
-                    onChange={(e) => setShippingAddress({...shippingAddress, address: e.target.value})}
-                    className="border-b border-black/10 py-3 text-sm font-bold focus:border-black focus:outline-none transition-all" 
-                    placeholder="House No, Street, Area" 
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black uppercase tracking-widest text-black">City</label>
-                  <input 
-                    type="text" 
-                    value={shippingAddress.city}
-                    onChange={(e) => setShippingAddress({...shippingAddress, city: e.target.value})}
-                    className="border-b border-black/10 py-3 text-sm font-bold focus:border-black focus:outline-none transition-all" 
-                    placeholder="Mumbai" 
-                  />
-                </div>
-                <div className="flex flex-col gap-2">
-                  <label className="text-[9px] font-black uppercase tracking-widest text-black">Pincode</label>
-                  <input 
-                    type="text" 
-                    value={shippingAddress.pincode}
-                    onChange={(e) => setShippingAddress({...shippingAddress, pincode: e.target.value})}
-                    className="border-b border-black/10 py-3 text-sm font-bold focus:border-black focus:outline-none transition-all" 
-                    placeholder="400001" 
-                  />
-                </div>
-              </div>
-            </section>
-
-            {/* Billing Info Toggle */}
-            <section className="flex flex-col gap-8">
-              <div className="flex items-center justify-between border-b border-black pb-4">
-                <h2 className="text-xs font-black uppercase tracking-widest">Billing Information</h2>
-                <button 
-                  onClick={() => setIsBillingSameAsShipping(!isBillingSameAsShipping)}
-                  className="flex items-center gap-3 group"
-                >
-                  <div className={cn(
-                    "h-4 w-4 border border-black flex items-center justify-center transition-all",
-                    isBillingSameAsShipping ? "bg-black" : "bg-transparent"
-                  )}>
-                    {isBillingSameAsShipping && <CheckCircle2 className="h-3 w-3 text-white" />}
-                  </div>
-                  <span className="text-[9px] font-black uppercase tracking-widest text-black/60 group-hover:text-black transition-colors">Same as shipping</span>
-                </button>
-              </div>
-
-              {!isBillingSameAsShipping && (
-                <motion.div 
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  className="grid grid-cols-1 md:grid-cols-2 gap-6 overflow-hidden"
-                >
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-black">Full Name</label>
-                    <input 
-                      type="text" 
-                      value={billingAddress.fullName}
-                      onChange={(e) => setBillingAddress({...billingAddress, fullName: e.target.value})}
-                      className="border-b border-black/10 py-3 text-sm font-bold focus:border-black focus:outline-none transition-all" 
-                      placeholder="John Doe" 
-                    />
-                  </div>
-                  <div className="md:col-span-2 flex flex-col gap-2">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-black">Address</label>
-                    <input 
-                      type="text" 
-                      value={billingAddress.address}
-                      onChange={(e) => setBillingAddress({...billingAddress, address: e.target.value})}
-                      className="border-b border-black/10 py-3 text-sm font-bold focus:border-black focus:outline-none transition-all" 
-                      placeholder="House No, Street, Area" 
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-black">City</label>
-                    <input 
-                      type="text" 
-                      value={billingAddress.city}
-                      onChange={(e) => setBillingAddress({...billingAddress, city: e.target.value})}
-                      className="border-b border-black/10 py-3 text-sm font-bold focus:border-black focus:outline-none transition-all" 
-                      placeholder="Mumbai" 
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <label className="text-[9px] font-black uppercase tracking-widest text-black">Pincode</label>
-                    <input 
-                      type="text" 
-                      value={billingAddress.pincode}
-                      onChange={(e) => setBillingAddress({...billingAddress, pincode: e.target.value})}
-                      className="border-b border-black/10 py-3 text-sm font-bold focus:border-black focus:outline-none transition-all" 
-                      placeholder="400001" 
-                    />
-                  </div>
-                </motion.div>
-              )}
-            </section>
-
-            {/* Payment Method */}
-            <section className="flex flex-col gap-8">
-              <h2 className="text-xs font-black uppercase tracking-widest border-b border-black pb-4">Payment Method</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <button 
-                  onClick={() => setPaymentMethod('online')}
-                  className={cn(
-                    "flex flex-col gap-4 p-6 border transition-all text-left",
-                    paymentMethod === 'online' ? "border-black bg-black text-white" : "border-black/5 bg-zinc-50 hover:border-black/20"
-                  )}
-                >
-                  <div className="flex justify-between items-center">
-                    <CreditCard className="h-5 w-5" />
-                    <div className="flex gap-2">
-                      <span className="text-[8px] font-black uppercase tracking-widest opacity-40">Cashfree</span>
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[10px] font-black uppercase tracking-widest">Online Payment</span>
-                    <span className="text-[9px] opacity-60">UPI, Cards, Netbanking</span>
-                  </div>
-                </button>
-
-                <div 
-                  className="flex flex-col gap-4 p-6 border border-black/5 bg-zinc-100/50 text-black/30 cursor-not-allowed text-left relative overflow-hidden"
-                >
-                  <div className="absolute top-2 right-2 bg-black/5 px-2 py-0.5 text-[7px] font-black uppercase tracking-widest">Unavailable</div>
-                  <Truck className="h-5 w-5 opacity-20" />
-                  <div className="flex flex-col gap-1">
-                    <span className="text-[10px] font-black uppercase tracking-widest">Cash on Delivery</span>
-                    <span className="text-[9px]">Currently disabled</span>
-                  </div>
-                </div>
-              </div>
-            </section>
-          </div>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-20 mt-12">
+        <div className="lg:col-span-7 flex flex-col gap-10">
+          {step === 'address' && (
+            <AddressStep addr={shippingAddress} onChange={setShippingAddress}
+              onSubmit={submitAddress} submitting={submitting} errorMsg={errorMsg} />
+          )}
+          {step === 'pay_seller' && (
+            <PayStep
+              vpa={sellerVpa} payeeName={sellerName} amount={total}
+              transactionNote={`ZKT-${orderNumbers[0] ?? ''}`}
+              onSubmit={submitProof} submitting={submitting} errorMsg={errorMsg}
+            />
+          )}
         </div>
 
-        {/* Order Summary */}
         <div className="lg:col-span-5">
-          <div className="sticky top-32 flex flex-col gap-10 p-10 bg-zinc-50 border border-black/5">
-            <h2 className="text-xs font-black uppercase tracking-widest">Order Summary</h2>
-            
-            <div className="flex gap-6">
-              <div className="h-24 w-18 bg-zinc-200 overflow-hidden border border-black/5">
-                <img src={listing.image_url} alt={listing.title} className="h-full w-full object-cover" />
-              </div>
-              <div className="flex flex-col justify-center gap-1">
-                <span className="text-[9px] font-black uppercase tracking-widest text-black">{listing.brand}</span>
-                <h3 className="text-xs font-bold uppercase tracking-widest">{listing.title}</h3>
-                <span className="text-[10px] font-black uppercase tracking-widest">{listing.size}</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-4 border-y border-black/5 py-8">
-              <div className="flex justify-between text-xs font-bold uppercase tracking-widest">
-                <span className="text-black">Subtotal</span>
-                <span>{formatCurrency(subtotal)}</span>
-              </div>
-              <div className="flex justify-between text-xs font-bold uppercase tracking-widest">
-                <span className="text-black">Shipping</span>
-                {shipping > 0 ? (
-                  <span>{formatCurrency(shipping)}</span>
-                ) : (
-                  <span className="text-emerald-600">Free</span>
-                )}
-              </div>
-            </div>
-
-            <div className="flex justify-between items-end">
-              <span className="text-xs font-black uppercase tracking-widest">Total</span>
-              <span className="text-3xl font-black tracking-tighter">{formatCurrency(total)}</span>
-            </div>
-
-            {errorMsg && (
-              <p className="text-[10px] font-bold uppercase tracking-widest text-red-600 -mb-4">{errorMsg}</p>
-            )}
-            <button 
-              onClick={handleCheckout}
-              disabled={paymentMethod === 'cod' || isPaying}
-              className={cn(
-                "w-full py-6 text-xs font-black uppercase tracking-[0.4em] transition-all active:scale-[0.98] flex items-center justify-center gap-3",
-                (paymentMethod === 'cod' || isPaying) ? "bg-zinc-200 text-black/20 cursor-not-allowed" : "bg-black text-white hover:bg-zinc-800"
-              )}
-            >
-              {isPaying && <Loader2 className="h-4 w-4 animate-spin" />}
-              <span>{isPaying ? 'Opening Payment...' : paymentMethod === 'online' ? 'Place Order' : 'Select Online Payment'}</span>
-            </button>
-
-            <div className="flex items-center justify-center gap-3 text-[9px] font-black uppercase tracking-[0.2em] text-black/30">
-              <ShieldCheck className="h-4 w-4" />
-              <span>Secure Transaction</span>
-            </div>
-          </div>
+          <Summary items={items} subtotal={subtotal} shipping={shipping} total={total} sellerVpa={sellerVpa} />
         </div>
       </div>
-      <AuthModal open={showAuth} onClose={() => setShowAuth(false)} message="Sign in to complete your purchase." />
+    </div>
+  );
+}
+
+function StepHeader({ step }: { step: Step }) {
+  const steps: Array<{ key: Step; label: string }> = [
+    { key: 'address', label: '1 · Address' },
+    { key: 'pay_seller', label: '2 · Pay seller' },
+  ];
+  const idx = steps.findIndex((s) => s.key === step);
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-3 mb-1">
+        <img src="/images/zarketplace-tp.png" alt="Zarketplace" className="h-6 w-auto" referrerPolicy="no-referrer" />
+        <span className="lowercase font-black tracking-tighter text-2xl">zarketplace</span>
+      </div>
+      <span className="text-[10px] font-black uppercase tracking-[0.4em] text-black">Checkout</span>
+      <h1 className="text-5xl font-black tracking-tighter uppercase">Finalize Order</h1>
+      <div className="flex gap-3 mt-4">
+        {steps.map((s, i) => (
+          <div key={s.key} className="flex items-center gap-3">
+            <div className={cn(
+              'px-4 py-2 text-[10px] font-black uppercase tracking-widest border',
+              i < idx ? 'bg-emerald-50 border-emerald-600 text-emerald-700' :
+              i === idx ? 'bg-black border-black text-white' :
+              'border-black/10 text-black/40',
+            )}>
+              {s.label}
+            </div>
+            {i < steps.length - 1 && <div className="h-px w-6 bg-black/20" />}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function AddressStep({
+  addr, onChange, onSubmit, submitting, errorMsg,
+}: {
+  addr: { fullName: string; email: string; phone: string; address: string; city: string; pincode: string };
+  onChange: (a: typeof addr) => void;
+  onSubmit: () => void;
+  submitting: boolean;
+  errorMsg: string | null;
+}) {
+  return (
+    <section className="flex flex-col gap-8">
+      <h2 className="text-xs font-black uppercase tracking-widest border-b border-black pb-4">Shipping Information</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Field label="Full Name" value={addr.fullName} onChange={(v) => onChange({ ...addr, fullName: v })} placeholder="John Doe" />
+        <Field label="Email Address" type="email" value={addr.email} onChange={(v) => onChange({ ...addr, email: v })} placeholder="hello@example.com" />
+        <Field label="Phone Number" type="tel" value={addr.phone} onChange={(v) => onChange({ ...addr, phone: v })} placeholder="+91 98765 43210" />
+        <Field label="Pincode" value={addr.pincode} onChange={(v) => onChange({ ...addr, pincode: v })} placeholder="400001" />
+        <div className="md:col-span-2">
+          <Field label="Address" value={addr.address} onChange={(v) => onChange({ ...addr, address: v })} placeholder="House No, Street, Area" />
+        </div>
+        <div className="md:col-span-2">
+          <Field label="City" value={addr.city} onChange={(v) => onChange({ ...addr, city: v })} placeholder="Mumbai" />
+        </div>
+      </div>
+      {errorMsg && <p className="text-[10px] font-bold uppercase tracking-widest text-red-600">{errorMsg}</p>}
+      <button type="button" onClick={onSubmit} disabled={submitting}
+        className="w-full bg-black py-6 text-xs font-black uppercase tracking-[0.4em] text-white hover:bg-zinc-800 disabled:opacity-50 flex items-center justify-center gap-3">
+        {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+        <span>Continue to Payment</span>
+      </button>
+    </section>
+  );
+}
+
+function Field({ label, value, onChange, placeholder, type = 'text' }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <label className="text-[9px] font-black uppercase tracking-widest text-black">{label}</label>
+      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+        className="border-b border-black/10 py-3 text-sm font-bold focus:border-black focus:outline-none transition-all" />
+    </div>
+  );
+}
+
+function PayStep({
+  vpa, payeeName, amount, transactionNote, onSubmit, submitting, errorMsg,
+}: {
+  vpa: string; payeeName: string; amount: number; transactionNote: string;
+  onSubmit: (utr: string, file: File | null) => void; submitting: boolean; errorMsg: string | null;
+}) {
+  const [utr, setUtr] = React.useState('');
+  const [file, setFile] = React.useState<File | null>(null);
+  const [copied, setCopied] = React.useState(false);
+  const link = makeUpiLink({ pa: vpa, pn: payeeName, am: amount, tn: transactionNote });
+  const qr = qrUrl(link);
+
+  const copyVpa = async () => {
+    try { await navigator.clipboard.writeText(vpa); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch {}
+  };
+
+  const canSubmit = !!file || isValidUtr(utr);
+
+  return (
+    <section className="flex flex-col gap-10">
+      <div className="flex flex-col gap-2 border-b border-black pb-4">
+        <h2 className="text-xs font-black uppercase tracking-widest">Pay the seller</h2>
+        <p className="text-[11px] text-black/60 font-medium leading-relaxed">
+          Scan, pay {formatCurrency(amount)}, and prove the payment below - UTR or screenshot.
+        </p>
+        <div className="mt-2"><LaunchOfferBanner variant="inline" /></div>
+      </div>
+
+      <div className="flex flex-col md:flex-row gap-8 items-start">
+        <div className="bg-zinc-50 border border-black/5 p-6 flex flex-col items-center gap-4 w-full md:w-auto">
+          <img src={qr} alt="UPI QR" className="h-60 w-60 bg-white" />
+          <div className="text-center">
+            <p className="text-[9px] font-black uppercase tracking-widest text-black/40">Pay To</p>
+            <p className="text-sm font-bold">{payeeName}</p>
+            <button onClick={copyVpa} className="mt-1 inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest underline">
+              {vpa} {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+            </button>
+          </div>
+          <div className="text-center">
+            <p className="text-[9px] font-black uppercase tracking-widest text-black/40">Amount</p>
+            <p className="text-3xl font-black tracking-tighter">{formatCurrency(amount)}</p>
+          </div>
+        </div>
+
+        <div className="flex-1 flex flex-col gap-4">
+          <a href={link}
+            className="w-full bg-black py-5 text-xs font-black uppercase tracking-[0.3em] text-white text-center hover:bg-zinc-800 flex items-center justify-center gap-3">
+            <Smartphone className="h-4 w-4" /> Open UPI App
+          </a>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 leading-relaxed">
+            On mobile this opens GPay / PhonePe / Paytm with the amount prefilled. On desktop, scan the QR.
+          </p>
+        </div>
+      </div>
+
+      {/* Visual link from QR to proof section */}
+      <div className="flex items-center gap-4">
+        <div className="h-px bg-black/10 flex-1" />
+        <span className="text-[10px] font-black uppercase tracking-widest text-black/40">After payment - submit proof</span>
+        <div className="h-px bg-black/10 flex-1" />
+      </div>
+
+      <div className="border border-black bg-zinc-50 p-6">
+        <PaymentProofInput utr={utr} onUtrChange={setUtr} file={file} onFileChange={setFile} />
+      </div>
+
+      {errorMsg && <p className="text-[10px] font-bold uppercase tracking-widest text-red-600">{errorMsg}</p>}
+
+      <button type="button" onClick={() => onSubmit(utr, file)}
+        disabled={submitting || !canSubmit}
+        className="w-full bg-black py-5 text-xs font-black uppercase tracking-[0.3em] text-white hover:bg-zinc-800 disabled:opacity-30 flex items-center justify-center gap-3">
+        {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+        <span>Submit payment proof</span>
+      </button>
+    </section>
+  );
+}
+
+function Summary({ items, subtotal, shipping, total, sellerVpa }: {
+  items: CartItem[]; subtotal: number; shipping: number; total: number; sellerVpa: string;
+}) {
+  return (
+    <div className="sticky top-32 flex flex-col gap-8 p-10 bg-zinc-50 border border-black/5">
+      <h2 className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
+        <Package className="h-4 w-4" /> Order Summary
+      </h2>
+      <LaunchOfferBanner variant="badge" className="self-start" />
+
+      <div className="flex flex-col gap-4 max-h-72 overflow-y-auto">
+        {items.map((i) => (
+          <div key={i.listing_id} className="flex gap-4">
+            <div className="h-20 w-16 bg-zinc-200 overflow-hidden border border-black/5 flex-shrink-0">
+              {i.image_url && <img src={i.image_url} alt={i.title} className="h-full w-full object-cover" />}
+            </div>
+            <div className="flex flex-col justify-center gap-0.5 min-w-0">
+              <span className="text-[9px] font-black uppercase tracking-widest text-black/60">{i.brand}</span>
+              <span className="text-xs font-bold uppercase tracking-widest truncate">{i.title}</span>
+              <span className="text-[10px] font-black uppercase tracking-widest text-black/60">Size {i.size}</span>
+              <span className="text-xs font-black mt-1">{formatCurrency(i.sale_price ?? i.price ?? 0)}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-3 border-y border-black/5 py-6">
+        <Row label="Subtotal" value={formatCurrency(subtotal)} />
+        <Row label="Shipping" value={shipping > 0 ? formatCurrency(shipping) : 'Free'} />
+        <Row label="Platform fee" value="₹0" />
+      </div>
+
+      <div className="flex justify-between items-end">
+        <span className="text-xs font-black uppercase tracking-widest">Total</span>
+        <span className="text-3xl font-black tracking-tighter">{formatCurrency(total)}</span>
+      </div>
+
+      {sellerVpa ? (
+        <p className="text-[9px] font-bold uppercase tracking-widest text-black/40 leading-relaxed">
+          Seller UPI: <span className="text-black">{sellerVpa}</span>
+        </p>
+      ) : (
+        <p className="text-[10px] font-bold uppercase tracking-widest text-red-600">Seller has not set a UPI ID.</p>
+      )}
+
+      <div className="flex items-center justify-center gap-3 text-[9px] font-black uppercase tracking-[0.2em] text-black/30">
+        <ShieldCheck className="h-4 w-4" />
+        <span>UTR-verified payments</span>
+      </div>
+    </div>
+  );
+}
+
+function Row({ label, value, dim }: { label: string; value: string; dim?: boolean }) {
+  return (
+    <div className={cn('flex justify-between text-xs font-bold uppercase tracking-widest', dim && 'text-black/40 text-[10px]')}>
+      <span>{label}</span>
+      <span>{value}</span>
     </div>
   );
 }

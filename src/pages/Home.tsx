@@ -7,6 +7,7 @@ import { Listing } from '../types';
 import { ListingCard } from '../components/ListingCard';
 import { cn } from '../lib/utils';
 import { log } from '../lib/log';
+import { LaunchOfferBanner } from '../components/LaunchOfferBanner';
 
 const hlog = log('home');
 
@@ -104,6 +105,11 @@ export function Home() {
           </motion.div>
         </div>
       </section>
+
+  {/* LAUNCH OFFER BANNER */}
+  <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full pt-16">
+    <LaunchOfferBanner variant="card" />
+  </section>
 
   {/* MARKETPLACE PREVIEW SECTION */}
 <section className="py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
@@ -254,7 +260,7 @@ export function Home() {
             {/* Right Side: Description Text */}
             <div className="flex flex-col gap-6 text-white/80 text-sm font-medium uppercase tracking-widest leading-relaxed max-w-md lg:mt-4">
               <p>We are building a centralized platform to bring structure and scale to India's fragmented resale economy, making sustainable fashion accessible to everyone.</p>
-              <p>The future of fashion is circular—unlocking the value in existing garments rather than just producing new ones.</p>
+              <p>The future of fashion is circular-unlocking the value in existing garments rather than just producing new ones.</p>
               <Link to="/about" className="text-[10px] font-black underline tracking-[0.2em] text-white hover:text-white/80 transition-colors mt-4 block">
                 Learn more about our mission
               </Link>

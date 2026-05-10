@@ -4,8 +4,13 @@ import { supabase } from '../lib/supabase';
 import { Listing } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { motion } from 'motion/react';
-import { Loader2, Truck, RotateCcw, Mail, Info, ArrowLeft, ChevronLeft, ChevronRight, Grid, Layout } from 'lucide-react';
+import { Loader2, Truck, RotateCcw, ArrowLeft, ChevronLeft, ChevronRight, Grid, Layout, ShoppingBag, Check } from 'lucide-react';
 import { log } from '../lib/log';
+import { useCart } from '../lib/cart';
+import { useAuth } from '../lib/auth';
+import { AuthModal } from '../components/AuthModal';
+import { LaunchOfferBanner } from '../components/LaunchOfferBanner';
+import { formatCurrency as fmt } from '../lib/utils';
 
 const plog = log('product');
 
@@ -17,15 +22,24 @@ const CONDITION_TIERS = [
   { name: 'Pristine', desc: 'Like new. Either never worn or worn once or twice with zero visible signs of wear. Tags may or may not be attached.' }
 ];
 
+// UUIDv4-ish detector. We accept either /product/:id (UUID) or /item/:sku.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function ProductPage() {
-  const { id } = useParams();
+  const params = useParams();
+  const slug = (params.sku || params.id || '').trim();
   const navigate = useNavigate();
+  const { add, has, forceAdd } = useCart();
+  const { user } = useAuth();
+  const [authModal, setAuthModal] = React.useState<null | { redirectTo: string; onSuccess?: () => void; message?: string }>(null);
   const [listing, setListing] = React.useState<Listing | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [currentImageIdx, setCurrentImageIdx] = React.useState(0);
   const [viewMode, setViewMode] = React.useState<'carousel' | 'grid'>('carousel');
   const [zoomPos, setZoomPos] = React.useState({ x: 0, y: 0 });
   const [isZoomed, setIsZoomed] = React.useState(false);
+  const [cartMsg, setCartMsg] = React.useState<string | null>(null);
+  const [conflict, setConflict] = React.useState(false);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
@@ -36,15 +50,16 @@ export function ProductPage() {
 
   React.useEffect(() => {
     async function fetchListing() {
-      if (!id) return;
-      const t = plog.time(`fetch ${id}`);
+      if (!slug) return;
+      const t = plog.time(`fetch ${slug}`);
       setLoading(true);
       try {
-        const { data, error } = await supabase
-          .from('listings')
-          .select('*')
-          .eq('id', id)
-          .single();
+        // SKU lookup is case-insensitive; UUID lookup uses .eq on id.
+        const isUuid = UUID_RE.test(slug);
+        const query = supabase.from('listings').select('*');
+        const { data, error } = isUuid
+          ? await query.eq('id', slug).maybeSingle()
+          : await query.ilike('sku', slug).maybeSingle();
         t.end({ found: !!data, error });
         if (error) throw error;
         setListing(data);
@@ -56,7 +71,7 @@ export function ProductPage() {
     }
 
     fetchListing();
-  }, [id]);
+  }, [slug]);
 
   if (loading) {
     return (
@@ -251,22 +266,84 @@ export function ProductPage() {
                 Sold Out
               </div>
             ) : (
-              <Link 
-                to={`/checkout/${listing.id}`}
-                className="w-full bg-black py-6 text-center text-xs font-black uppercase tracking-[0.3em] text-white transition-all hover:bg-zinc-800 active:scale-[0.98]"
-              >
-                Buy it now
-              </Link>
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!user) {
+                      setAuthModal({ redirectTo: `/checkout/${listing.id}`, message: 'Sign in to buy.' });
+                      return;
+                    }
+                    navigate(`/checkout/${listing.id}`);
+                  }}
+                  className="w-full bg-black py-6 text-center text-xs font-black uppercase tracking-[0.3em] text-white transition-all hover:bg-zinc-800 active:scale-[0.98]"
+                >
+                  Buy it now
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setCartMsg(null);
+                    if (!user) {
+                      const target = listing;
+                      setAuthModal({
+                        redirectTo: `/product/${listing.id}`,
+                        message: 'Sign in to add to cart.',
+                        onSuccess: async () => {
+                          const res = await add(target);
+                          if (res.ok) setCartMsg('Added to cart');
+                          else if ('reason' in res && res.reason === 'different_seller') setConflict(true);
+                        },
+                      });
+                      return;
+                    }
+                    const res = await add(listing);
+                    if (res.ok) setCartMsg('Added to cart');
+                    else if ('reason' in res && res.reason === 'different_seller') setConflict(true);
+                  }}
+                  className="w-full border border-black py-6 text-center text-xs font-black uppercase tracking-[0.3em] text-black transition-all hover:bg-black hover:text-white flex items-center justify-center gap-3"
+                >
+                  {has(listing.id) ? (
+                    <><Check className="h-4 w-4" /> In cart - view cart</>
+                  ) : (
+                    <><ShoppingBag className="h-4 w-4" /> Add to cart</>
+                  )}
+                </button>
+                {has(listing.id) && (
+                  <Link to="/cart" className="text-center text-[10px] font-black uppercase tracking-widest text-black/60 underline">
+                    Go to cart
+                  </Link>
+                )}
+                {cartMsg && <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600">{cartMsg}</p>}
+                {conflict && (
+                  <div className="border border-black/10 bg-zinc-50 p-4 flex flex-col gap-3">
+                    <p className="text-[10px] font-bold uppercase tracking-widest">
+                      Your cart already has items from another seller. Clear cart and add this?
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={async () => { await forceAdd(listing); setConflict(false); setCartMsg('Cart replaced'); }}
+                        className="flex-1 bg-black py-3 text-[10px] font-black uppercase tracking-widest text-white"
+                      >
+                        Clear & Add
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConflict(false)}
+                        className="flex-1 border border-black/10 py-3 text-[10px] font-black uppercase tracking-widest"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
-            <button 
-              disabled
-              className="w-full border border-black/5 py-6 text-center text-[10px] font-black uppercase tracking-[0.3em] text-black/20 cursor-not-allowed"
-            >
-              send offers coming soon
-            </button>
           </div>
 
           <div className="flex flex-col gap-8">
+            <LaunchOfferBanner variant="badge" className="self-start" />
             <div className="flex flex-col gap-4">
               <h3 className="text-[10px] font-black uppercase tracking-widest">Description</h3>
               <div className="flex flex-col gap-4">
@@ -277,7 +354,11 @@ export function ProductPage() {
             <div className="flex flex-col gap-4 pt-6 border-t border-black/5">
               <div className="flex items-center gap-4 text-[11px] font-black uppercase tracking-widest">
                 <Truck className="h-4 w-4 text-black" />
-                <span>India-wide shipping</span>
+                <span>
+                  {listing.shipping_mode === 'paid' && (listing.shipping_cost || 0) > 0
+                    ? `Shipping: ${fmt(listing.shipping_cost)}`
+                    : 'Free shipping'}
+                </span>
               </div>
               <div className="flex items-center gap-4 text-[11px] font-black uppercase tracking-widest">
                 <RotateCcw className="h-4 w-4 text-black" />
@@ -293,6 +374,13 @@ export function ProductPage() {
           </div>
         </div>
       </div>
+      <AuthModal
+        open={!!authModal}
+        onClose={() => setAuthModal(null)}
+        redirectTo={authModal?.redirectTo}
+        onSuccess={authModal?.onSuccess}
+        message={authModal?.message}
+      />
     </div>
   );
 }

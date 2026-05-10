@@ -1,4 +1,4 @@
-# Zarketplace MVP — Setup & Operations Guide
+# Zarketplace MVP - Setup & Operations Guide
 
 Read this in order. It walks through everything needed to take the codebase from a fresh clone to a fully working test deployment.
 
@@ -21,7 +21,7 @@ cp docs/env.example.txt .env.local
 ```
 Fill in `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. The anon key is at Supabase Dashboard → Project Settings → API.
 
-> **Never** put `CASHFREE_SECRET_KEY` or `SUPABASE_SERVICE_ROLE_KEY` in `.env.local` — they'd be shipped to the browser. Those go to **Edge Function secrets** only (Step 4).
+> **Never** put `CASHFREE_SECRET_KEY` or `SUPABASE_SERVICE_ROLE_KEY` in `.env.local` - they'd be shipped to the browser. Those go to **Edge Function secrets** only (Step 4).
 
 ## 3. Apply database migrations
 
@@ -62,7 +62,7 @@ supabase secrets set \
   ADMIN_RELEASE_TOKEN="$(openssl rand -hex 32)"
 ```
 
-`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are auto-injected by the platform — don't set them.
+`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are auto-injected by the platform - don't set them.
 
 If you skip `RESEND_API_KEY`, the `send-email` function logs each send to the `email_log` table with status `queued` and short-circuits without sending. Useful for local development.
 
@@ -100,8 +100,8 @@ Open http://localhost:3000.
    - `orders.status = 'paid'`
    - `listings.is_sold = true`
    - A `seller_payouts` row exists with `status = 'pending'` and your UPI in `destination_upi`.
-6. Check `/track-order?order=ZKT-…&email=you@example.com` — should show timeline.
-7. Visit `/seller-portal?email=you@example.com` — should show the sold listing and pending payout. Click **Add Tracking & Mark Shipped**, enter a fake AWB. Order flips to `shipped`.
+6. Check `/track-order?order=ZKT-…&email=you@example.com` - should show timeline.
+7. Visit `/seller-portal?email=you@example.com` - should show the sold listing and pending payout. Click **Add Tracking & Mark Shipped**, enter a fake AWB. Order flips to `shipped`.
 8. Back in `/admin → Payouts`, click **Release**, paste a fake UTR. Payout flips to `released`.
 
 If all 8 steps pass, the system is wired correctly.
@@ -116,8 +116,8 @@ If all 8 steps pass, the system is wired correctly.
 
 ## 10. Documentation index
 
-- [`docs/CASHFREE.md`](./CASHFREE.md) — payment + payout flow, refunds, Easy Split upgrade plan
-- [`docs/SHIPPING.md`](./SHIPPING.md) — current shipping flow + Shiprocket upgrade plan
-- [`docs/SETUP.md`](./SETUP.md) — this file
-- [`docs/CHANGES.md`](./CHANGES.md) — every file added/modified, in plain English
-- [`docs/env.example.txt`](./env.example.txt) — environment variable template
+- [`docs/CASHFREE.md`](./CASHFREE.md) - payment + payout flow, refunds, Easy Split upgrade plan
+- [`docs/SHIPPING.md`](./SHIPPING.md) - current shipping flow + Shiprocket upgrade plan
+- [`docs/SETUP.md`](./SETUP.md) - this file
+- [`docs/CHANGES.md`](./CHANGES.md) - every file added/modified, in plain English
+- [`docs/env.example.txt`](./env.example.txt) - environment variable template

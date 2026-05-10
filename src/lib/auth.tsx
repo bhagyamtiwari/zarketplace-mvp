@@ -25,10 +25,6 @@ export interface Profile {
   phone: string | null;
   is_admin: boolean;
   default_address: Record<string, string> | null;
-  seller_upi_vpa: string | null;
-  seller_bank_account: string | null;
-  seller_bank_ifsc: string | null;
-  seller_bank_holder: string | null;
 }
 
 interface AuthContextValue {
@@ -36,7 +32,13 @@ interface AuthContextValue {
   session: Session | null;
   profile: Profile | null;
   loading: boolean;
-  signIn: (email: string) => Promise<{ error: string | null }>;
+  emailVerified: boolean;
+  signInWithPassword: (email: string, password: string) => Promise<{ error: string | null }>;
+  signUpWithPassword: (
+    email: string,
+    password: string,
+  ) => Promise<{ error: string | null; needsConfirmation: boolean }>;
+  resendVerification: () => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -67,13 +69,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let mounted = true;
     alog('AuthProvider mounted, calling getSession()');
 
-    supabase.auth.getSession().then(async ({ data, error }) => {
-      alog('getSession returned', { hasSession: !!data.session, userId: data.session?.user?.id, error });
+    // Race getSession against a 4s timeout so the UI never blocks indefinitely
+    // when supabase-js can't reach the auth endpoint or a browser extension
+    // (SES lockdown, etc.) stalls the underlying lock.
+    const sessionPromise = supabase.auth.getSession();
+    const timeoutPromise = new Promise<{ timedOut: true }>((resolve) =>
+      setTimeout(() => resolve({ timedOut: true }), 4000),
+    );
+    Promise.race([sessionPromise, timeoutPromise]).then(async (result) => {
       if (!mounted) return;
+      if ('timedOut' in result) {
+        alog.warn('getSession timeout - proceeding as anon');
+        setLoading(false);
+        return;
+      }
+      const { data, error } = result;
+      alog('getSession returned', { hasSession: !!data.session, userId: data.session?.user?.id, error });
       setSession(data.session);
       if (data.session?.user) await loadProfile(data.session.user.id);
       setLoading(false);
-      alog('initial load complete, loading=false');
     }).catch((err) => {
       alog.error('getSession THREW', err);
       if (mounted) setLoading(false);
@@ -113,35 +127,76 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, [loadProfile]);
 
-  const signIn = React.useCallback(async (email: string) => {
+  const signInWithPassword = React.useCallback(async (email: string, password: string) => {
     const trimmed = email.trim().toLowerCase();
     if (!trimmed) return { error: 'Please enter your email.' };
-    alog('signIn called', { email: trimmed, redirectTo: `${window.location.origin}/auth/callback` });
-    const { error } = await supabase.auth.signInWithOtp({
-      email: trimmed,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-    });
-    if (error) alog.warn('signIn error', error.message);
-    else alog('signIn OTP sent');
+    if (!password) return { error: 'Please enter your password.' };
+    alog('signInWithPassword called', { email: trimmed });
+    const { error } = await supabase.auth.signInWithPassword({ email: trimmed, password });
+    if (error) alog.warn('signInWithPassword error', error.message);
+    else alog('signInWithPassword success');
     return { error: error?.message ?? null };
   }, []);
 
+  const signUpWithPassword = React.useCallback(async (email: string, password: string) => {
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed) return { error: 'Please enter your email.', needsConfirmation: false };
+    if (!password || password.length < 10)
+      return { error: 'Password must be at least 10 characters.', needsConfirmation: false };
+    alog('signUpWithPassword called', { email: trimmed });
+    const { data, error } = await supabase.auth.signUp({
+      email: trimmed,
+      password,
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    });
+    if (error) {
+      alog.warn('signUpWithPassword error', error.message);
+      return { error: error.message, needsConfirmation: false };
+    }
+    // If email confirmations are ON, session is null until the user clicks the link.
+    const needsConfirmation = !data.session;
+    alog('signUpWithPassword success', { needsConfirmation });
+    return { error: null, needsConfirmation };
+  }, []);
+
+  const resendVerification = React.useCallback(async () => {
+    const email = session?.user?.email;
+    if (!email) return { error: 'Not signed in.' };
+    alog('resendVerification called', { email });
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    });
+    if (error) alog.warn('resendVerification error', error.message);
+    return { error: error?.message ?? null };
+  }, [session]);
+
   const signOut = React.useCallback(async () => {
     alog('signOut called');
-    await supabase.auth.signOut();
+    // Clear local state first so the UI updates immediately even if the
+    // network call to Supabase is slow.
+    setSession(null);
     setProfile(null);
+    try { await supabase.auth.signOut(); } catch (err) { alog.warn('signOut error', err); }
   }, []);
 
   const refreshProfile = React.useCallback(async () => {
     if (session?.user) await loadProfile(session.user.id);
   }, [session, loadProfile]);
 
+  const user = session?.user ?? null;
+  const emailVerified = !!user?.email_confirmed_at;
+
   const value: AuthContextValue = {
-    user: session?.user ?? null,
+    user,
     session,
     profile,
     loading,
-    signIn,
+    emailVerified,
+    signInWithPassword,
+    signUpWithPassword,
+    resendVerification,
     signOut,
     refreshProfile,
   };

@@ -1,53 +1,109 @@
-// Sign-in modal: email -> magic link.
-// Used everywhere we need the user to log in (Sell, Checkout, SellerPortal, etc.)
+// Email + password only. No Google, no magic link.
+//  - Sign-in tab: email + password.
+//  - Sign-up tab: email + password + confirm password.
+// Passwords must be 10+ chars with a letter AND a digit.
+// On successful signup we log the user in immediately (assuming Supabase
+// "Confirm email" is OFF). A confirmation link is still emailed (best effort)
+// so the user can verify later; until then the profile shows "Unverified".
 
 import * as React from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, X, Loader2, CheckCircle2 } from 'lucide-react';
+import { Mail, X, Loader2, Lock } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { log } from '../lib/log';
 
 const mlog = log('authmodal');
 
+// Standard, pragmatic email regex.
+const EMAIL_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
+// 10+ chars, at least one letter AND one digit.
+const PASSWORD_RE = /^(?=.*[A-Za-z])(?=.*\d).{10,}$/;
+
 interface AuthModalProps {
   open: boolean;
   onClose: () => void;
-  message?: string; // optional context like "Sign in to list an item"
+  message?: string;
+  redirectTo?: string;
+  onSuccess?: () => void;
 }
 
-export function AuthModal({ open, onClose, message }: AuthModalProps) {
-  const { signIn } = useAuth();
+type Mode = 'signin' | 'signup';
+
+export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: AuthModalProps) {
+  const { signInWithPassword, signUpWithPassword } = useAuth();
+  const navigate = useNavigate();
+  const succeed = React.useCallback(() => {
+    onClose();
+    if (onSuccess) onSuccess();
+    if (redirectTo) navigate(redirectTo);
+  }, [onClose, onSuccess, redirectTo, navigate]);
+
+  const [mode, setMode] = React.useState<Mode>('signin');
   const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [confirmPassword, setConfirmPassword] = React.useState('');
   const [loading, setLoading] = React.useState(false);
-  const [sent, setSent] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [notice, setNotice] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (!open) {
       setEmail('');
-      setSent(false);
+      setPassword('');
+      setConfirmPassword('');
       setError(null);
+      setNotice(null);
       setLoading(false);
+      setMode('signin');
     }
   }, [open]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    mlog('submit', { email });
+  const emailValid = EMAIL_RE.test(email);
+  const passwordValid = PASSWORD_RE.test(password);
+  const confirmValid = mode === 'signin' ? true : password === confirmPassword;
+  const canSubmit =
+    emailValid && passwordValid && confirmValid && (mode === 'signin' || confirmPassword.length > 0);
+
+  const switchMode = (next: Mode) => {
+    setMode(next);
     setError(null);
-    setLoading(true);
-    const t = mlog.time('signIn');
-    const { error: err } = await signIn(email);
-    t.end({ error: err });
-    setLoading(false);
-    if (err) setError(err);
-    else setSent(true);
+    setNotice(null);
   };
 
-  // Render via portal to document.body so the modal escapes any ancestor with
-  // `backdrop-filter` / `transform` / `filter` (e.g. the navbar's backdrop-blur),
-  // which would otherwise become the containing block for `position: fixed`.
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setNotice(null);
+    if (!emailValid) { setError('Enter a valid email address.'); return; }
+    if (!passwordValid) { setError('Password must be 10+ characters and include a letter and a digit.'); return; }
+    if (mode === 'signup' && !confirmValid) { setError('Passwords do not match.'); return; }
+
+    setLoading(true);
+    try {
+      if (mode === 'signin') {
+        const t = mlog.time('signInWithPassword');
+        const { error: err } = await signInWithPassword(email, password);
+        t.end({ error: err });
+        if (err) setError(err);
+        else succeed();
+      } else {
+        const t = mlog.time('signUpWithPassword');
+        const { error: err, needsConfirmation } = await signUpWithPassword(email, password);
+        t.end({ error: err, needsConfirmation });
+        if (err) { setError(err); return; }
+        if (needsConfirmation) {
+          setNotice(`Account created. We sent a confirmation link to ${email}. You can sign in now; verification just adds a badge to your profile.`);
+        } else {
+          succeed();
+        }
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const content = (
     <AnimatePresence>
       {open && (
@@ -68,67 +124,128 @@ export function AuthModal({ open, onClose, message }: AuthModalProps) {
             <button
               onClick={onClose}
               className="absolute top-4 right-4 text-black/40 hover:text-black transition-colors"
+              aria-label="Close"
             >
               <X className="h-5 w-5" />
             </button>
 
-            {sent ? (
-              <div className="flex flex-col gap-6 items-center text-center">
-                <div className="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center">
-                  <CheckCircle2 className="h-8 w-8 text-emerald-600" />
-                </div>
-                <h2 className="text-2xl font-black uppercase tracking-tighter">Check your inbox</h2>
-                <p className="text-xs font-bold uppercase tracking-widest text-black/60 leading-relaxed">
-                  We sent a sign-in link to<br />
-                  <span className="text-black">{email}</span>
-                </p>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-black/40">
-                  The link will sign you in. You can close this window.
+            <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+              <div className="flex flex-col gap-2">
+                <h2 className="text-2xl font-black uppercase tracking-tighter">
+                  {mode === 'signup' ? 'Create Account' : 'Sign In'}
+                </h2>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-black/50">
+                  {message ?? (mode === 'signup'
+                    ? 'Email and password. No socials, no phone.'
+                    : 'Sign in with your email and password.')}
                 </p>
               </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-                <div className="flex flex-col gap-2">
-                  <h2 className="text-2xl font-black uppercase tracking-tighter">Sign In</h2>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-black/50">
-                    {message ?? 'No password. We email you a one-time link.'}
-                  </p>
-                </div>
 
+              <div className="grid grid-cols-2 gap-0 border border-black/10">
+                <button
+                  type="button"
+                  onClick={() => switchMode('signin')}
+                  className={`py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${
+                    mode === 'signin' ? 'bg-black text-white' : 'bg-white text-black/50 hover:text-black'
+                  }`}
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => switchMode('signup')}
+                  className={`py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${
+                    mode === 'signup' ? 'bg-black text-white' : 'bg-white text-black/50 hover:text-black'
+                  }`}
+                >
+                  Create Account
+                </button>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <label className="text-[10px] font-black uppercase tracking-widest">Email</label>
+                <div className="flex items-center border-b border-black/10 focus-within:border-black transition-colors">
+                  <Mail className="h-4 w-4 text-black/30 mr-3" />
+                  <input
+                    type="email"
+                    autoFocus
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                    className="flex-1 py-4 text-sm font-bold focus:outline-none placeholder:text-black/20"
+                  />
+                </div>
+                {email && !emailValid && (
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-red-600">Enter a valid email.</p>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <label className="text-[10px] font-black uppercase tracking-widest">Password</label>
+                <div className="flex items-center border-b border-black/10 focus-within:border-black transition-colors">
+                  <Lock className="h-4 w-4 text-black/30 mr-3" />
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder={mode === 'signup' ? 'At least 10 characters, a letter and a digit' : '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022'}
+                    autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                    className="flex-1 py-4 text-sm font-bold focus:outline-none placeholder:text-black/20"
+                  />
+                </div>
+                {mode === 'signup' && password && !passwordValid && (
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-red-600">
+                    10+ chars with a letter and a digit.
+                  </p>
+                )}
+              </div>
+
+              {mode === 'signup' && (
                 <div className="flex flex-col gap-3">
-                  <label className="text-[10px] font-black uppercase tracking-widest">Email Address</label>
+                  <label className="text-[10px] font-black uppercase tracking-widest">Confirm Password</label>
                   <div className="flex items-center border-b border-black/10 focus-within:border-black transition-colors">
-                    <Mail className="h-4 w-4 text-black/30 mr-3" />
+                    <Lock className="h-4 w-4 text-black/30 mr-3" />
                     <input
-                      type="email"
-                      autoFocus
+                      type="password"
                       required
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="you@example.com"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Retype password"
+                      autoComplete="new-password"
                       className="flex-1 py-4 text-sm font-bold focus:outline-none placeholder:text-black/20"
                     />
                   </div>
+                  {confirmPassword && !confirmValid && (
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-red-600">Passwords do not match.</p>
+                  )}
                 </div>
+              )}
 
-                {error && (
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-red-600">{error}</p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={loading || !email}
-                  className="w-full bg-black py-4 text-xs font-black uppercase tracking-[0.4em] text-white hover:bg-zinc-800 disabled:opacity-50 flex items-center justify-center gap-3"
-                >
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send Magic Link'}
-                </button>
-
-                <p className="text-[9px] font-bold uppercase tracking-widest text-black/30 text-center leading-relaxed">
-                  By signing in you agree to Zarketplace's terms.<br />
-                  Same account works for buying and selling.
+              {error && (
+                <p className="text-[10px] font-bold uppercase tracking-widest text-red-600">{error}</p>
+              )}
+              {notice && (
+                <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 bg-emerald-50 border border-emerald-200 p-3 leading-relaxed">
+                  {notice}
                 </p>
-              </form>
-            )}
+              )}
+
+              <button
+                type="submit"
+                disabled={loading || !canSubmit}
+                className="w-full bg-black py-4 text-xs font-black uppercase tracking-[0.4em] text-white hover:bg-zinc-800 disabled:opacity-50 flex items-center justify-center gap-3"
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === 'signup' ? 'Create Account' : 'Sign In'}
+              </button>
+
+              <p className="text-[9px] font-bold uppercase tracking-widest text-black/30 text-center leading-relaxed">
+                By continuing you agree to zarketplace's terms.<br />
+                Same account works for buying and selling.
+              </p>
+            </form>
           </motion.div>
         </motion.div>
       )}

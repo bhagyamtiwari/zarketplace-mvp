@@ -142,7 +142,6 @@ function buildEmail(
           <p><strong>Order #:</strong> ${esc(o.order_number)}<br/>
              <strong>Total:</strong> Rs. ${o.total_amount}</p>
           <a href="${trackUrl}" style="display:inline-block; background:#000; color:#fff; padding:14px 24px; text-decoration:none; font-weight:900; text-transform:uppercase; letter-spacing:2px; font-size:11px;">Track your order</a>
-          <p style="margin-top:32px; color:#888; font-size:11px;">— Team Zarketplace</p>
         </div>`,
       };
 

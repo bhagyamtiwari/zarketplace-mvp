@@ -25,7 +25,7 @@ export function Privacy() {
         </div>
 
         <div className="prose prose-zinc max-w-none flex flex-col gap-10 text-black leading-relaxed">
-          <p>This Privacy Policy explains how Zarketplace ("we", "us", or "our") collect, use, and share your personal information when you use our services, including visiting zarketplace.co or contacting us. By using our site or services, you agree to this policy. If you disagree, please don’t use our services. We may update this policy from time to time, and the latest version will always be on our site with the updated date.</p>
+          <p>This Privacy Policy explains how zarketplace ("we", "us", or "our") collect, use, and share your personal information when you use our services, including visiting zarketplace.co or contacting us. By using our site or services, you agree to this policy. If you disagree, please don’t use our services. We may update this policy from time to time, and the latest version will always be on our site with the updated date.</p>
 
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Information We Collect</h2>

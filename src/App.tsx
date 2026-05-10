@@ -15,6 +15,8 @@ import { TrackOrder } from './pages/TrackOrder';
 import { SellerPortal } from './pages/SellerPortal';
 import { AuthCallback } from './pages/AuthCallback';
 import { AuthProvider } from './lib/auth';
+import { CartProvider } from './lib/cart';
+import { Cart } from './pages/Cart';
 import { Instagram, Twitter, Facebook, ArrowUpRight } from 'lucide-react';
 
 import { ScrollToTop } from './components/ScrollToTop';
@@ -23,6 +25,7 @@ export default function App() {
   return (
     <Router>
       <AuthProvider>
+      <CartProvider>
       <ScrollToTop />
       <div className="min-h-screen bg-white font-sans text-black selection:bg-black selection:text-white">
         <Navbar />
@@ -31,11 +34,14 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/browse" element={<Browse />} />
             <Route path="/product/:id" element={<ProductPage />} />
+            <Route path="/item/:sku" element={<ProductPage />} />
             <Route path="/sell" element={<Sell />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/returns" element={<Returns />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/condition" element={<Condition />} />
+            <Route path="/cart" element={<Cart />} />
+            <Route path="/checkout" element={<Checkout />} />
             <Route path="/checkout/:id" element={<Checkout />} />
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
@@ -64,7 +70,7 @@ export default function App() {
                     </li>
                     <li><Link to="/sell" className="hover:text-black/80 transition-colors">Sell</Link></li>
                     <li><Link to="/seller-portal" className="hover:text-black/80 transition-colors">Seller Portal</Link></li>
-                    <li><Link to="/track-order" className="hover:text-black/80 transition-colors">Track Order</Link></li>
+                    <li><Link to="/track-order" className="hover:text-black/80 transition-colors">My Orders</Link></li>
                     <li><Link to="/about" className="hover:text-black/80 transition-colors">About</Link></li>
                     <li><Link to="/contact" className="hover:text-black/80 transition-colors">Contact</Link></li>
                   </ul>
@@ -92,18 +98,19 @@ export default function App() {
 
             <div className="mt-32 pt-12 border-t border-black/5 flex flex-col items-center gap-12 text-center">
               <p className="text-[8px] font-bold uppercase tracking-widest text-black leading-relaxed max-w-4xl">
-                Zarketplace is a resale and P2P/C2C marketplace. We are not affiliated with, associated with, or endorsed by the brands on our platform and claim no rights to their trademarks or intellectual property. For inquiries, contact us at contact@zarketplace.com
+                zarketplace is a resale and P2P/C2C marketplace. We are not affiliated with, associated with, or endorsed by the brands on our platform and claim no rights to their trademarks or intellectual property. For inquiries, contact us at contact@zarketplace.com
               </p>
               
               <div className="flex flex-col md:flex-row justify-end w-full items-center gap-8">
-                <p className="text-[9px] font-black uppercase tracking-[0.4em] text-black">
-                  © 2026 ZARKETPLACE. ALL RIGHTS RESERVED.
+                <p className="text-[9px] font-black tracking-[0.4em] text-black">
+                  © 2026 zarketplace. all rights reserved.
                 </p>
               </div>
             </div>
           </div>
         </footer>
       </div>
+      </CartProvider>
       </AuthProvider>
     </Router>
   );

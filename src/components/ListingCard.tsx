@@ -9,7 +9,7 @@ interface ListingCardProps {
 
 export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
   return (
-    <Link to={`/product/${listing.id}`} className="group flex flex-col gap-4">
+    <Link to={listing.sku ? `/item/${listing.sku.toLowerCase()}` : `/product/${listing.id}`} className="group flex flex-col gap-4">
       <div className="relative aspect-[3/4] overflow-hidden bg-zinc-50 rounded-sm border border-black/5">
         <img
           src={listing.image_url || 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?q=80&w=600'}

@@ -22,10 +22,10 @@ type Tag =
   | 'product'
   | 'sell'
   | 'checkout'
-  | 'cashfree'
   | 'track'
   | 'seller'
-  | 'admin';
+  | 'admin'
+  | 'cart';
 
 interface Logger {
   (...args: unknown[]): void;
@@ -43,7 +43,7 @@ export function log(tag: Tag): Logger {
     if (ENABLED) console.warn(prefix, ...args);
   };
   fn.error = (...args: unknown[]) => {
-    // Errors stay even in prod — they're useful in Sentry/etc.
+    // Errors stay even in prod - they're useful in Sentry/etc.
     console.error(prefix, ...args);
   };
   fn.time = (label: string) => {

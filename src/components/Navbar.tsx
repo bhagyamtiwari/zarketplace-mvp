@@ -1,9 +1,10 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, User, Menu, X, Plus, LogOut, LayoutGrid, Package } from 'lucide-react';
+import { Search, User, Menu, X, Plus, LogOut, LayoutGrid, Package, ShoppingBag } from 'lucide-react';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../lib/auth';
+import { useCart } from '../lib/cart';
 import { AuthModal } from './AuthModal';
 
 export function Navbar() {
@@ -15,7 +16,9 @@ export function Navbar() {
   const [showAuth, setShowAuth] = React.useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, emailVerified, resendVerification, signOut } = useAuth();
+  const [verifyNotice, setVerifyNotice] = React.useState<string | null>(null);
+  const { count: cartCount } = useCart();
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -100,15 +103,6 @@ export function Navbar() {
                   Sell
                 </Link>
 
-                <Link
-                  to="/track-order"
-                  className={cn(
-                    "relative text-[10px] font-black uppercase tracking-[0.3em] transition-colors hover:text-black",
-                    location.pathname === '/track-order' ? "text-black" : "text-black hover:text-black/80"
-                  )}
-                >
-                  Track Order
-                </Link>
               </div>
             </div>
           </div>
@@ -140,6 +134,28 @@ export function Navbar() {
                   </motion.form>
                 )}
               </div>
+              {user ? (
+                <Link
+                  to="/cart"
+                  className="relative p-2 text-black hover:text-black/80 transition-colors"
+                  aria-label="Cart"
+                >
+                  <ShoppingBag className="h-4 w-4" />
+                  {cartCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 rounded-full bg-black text-white text-[9px] font-black flex items-center justify-center">
+                      {cartCount}
+                    </span>
+                  )}
+                </Link>
+              ) : (
+                <button
+                  onClick={() => setShowAuth(true)}
+                  className="relative p-2 text-black hover:text-black/80 transition-colors"
+                  aria-label="Cart"
+                >
+                  <ShoppingBag className="h-4 w-4" />
+                </button>
+              )}
               <Link to="/sell" className="bg-black px-8 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-white transition-all hover:scale-105 active:scale-95">
                 List Item
               </Link>
@@ -159,15 +175,45 @@ export function Navbar() {
                       animate={{ opacity: 1, y: 0 }}
                       className="absolute right-0 top-full w-64 bg-white border border-black/5 shadow-2xl p-6 flex flex-col gap-4"
                     >
-                      <div className="flex flex-col gap-1 pb-3 border-b border-black/5">
+                      <div className="flex flex-col gap-2 pb-3 border-b border-black/5">
                         <p className="text-[9px] font-black uppercase tracking-widest text-black/40">Signed in as</p>
                         <p className="text-xs font-bold truncate">{profile?.email ?? user.email}</p>
+                        {emailVerified ? (
+                          <span className="self-start text-[9px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1">
+                            Email Verified
+                          </span>
+                        ) : (
+                          <div className="flex flex-col gap-2">
+                            <span className="self-start text-[9px] font-black uppercase tracking-widest bg-amber-50 text-amber-700 border border-amber-200 px-2 py-1">
+                              Email Unverified
+                            </span>
+                            <button
+                              onClick={async () => {
+                                setVerifyNotice(null);
+                                const { error } = await resendVerification();
+                                setVerifyNotice(error ? error : 'Verification email sent.');
+                              }}
+                              className="self-start text-[10px] font-black uppercase tracking-widest underline hover:text-black/60"
+                            >
+                              Resend verification
+                            </button>
+                            {verifyNotice && (
+                              <p className="text-[9px] font-bold uppercase tracking-widest text-black/50">{verifyNotice}</p>
+                            )}
+                          </div>
+                        )}
                       </div>
-                      <Link to="/seller-portal" onClick={() => setIsAccountOpen(false)} className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest hover:text-black/60">
-                        <LayoutGrid className="h-3.5 w-3.5" /> Seller Portal
+                      <Link to="/track-order" onClick={() => setIsAccountOpen(false)} className="flex flex-col gap-0.5 hover:text-black/60">
+                        <span className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest">
+                          <Package className="h-3.5 w-3.5" /> My Purchases
+                        </span>
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-black/40 ml-6">Items you bought</span>
                       </Link>
-                      <Link to="/track-order" onClick={() => setIsAccountOpen(false)} className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest hover:text-black/60">
-                        <Package className="h-3.5 w-3.5" /> My Orders
+                      <Link to="/seller-portal" onClick={() => setIsAccountOpen(false)} className="flex flex-col gap-0.5 hover:text-black/60">
+                        <span className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest">
+                          <LayoutGrid className="h-3.5 w-3.5" /> Seller Portal
+                        </span>
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-black/40 ml-6">Items you sold</span>
                       </Link>
                       {profile?.is_admin && (
                         <Link to="/admin" onClick={() => setIsAccountOpen(false)} className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest hover:text-black/60">
@@ -208,7 +254,11 @@ export function Navbar() {
         <div className="md:hidden border-t border-black/5 bg-white px-4 py-4 space-y-4">
           <Link to="/browse" className="block text-lg font-medium" onClick={() => setIsMenuOpen(false)}>Buy</Link>
           <Link to="/sell" className="block text-lg font-medium" onClick={() => setIsMenuOpen(false)}>Sell</Link>
-          <Link to="/track-order" className="block text-lg font-medium" onClick={() => setIsMenuOpen(false)}>Track Order</Link>
+          {user && (
+            <Link to="/cart" className="block text-lg font-medium" onClick={() => setIsMenuOpen(false)}>
+              Cart{cartCount > 0 ? ` (${cartCount})` : ''}
+            </Link>
+          )}
           {user ? (
             <>
               <Link to="/seller-portal" className="block text-lg font-medium" onClick={() => setIsMenuOpen(false)}>Seller Portal</Link>
