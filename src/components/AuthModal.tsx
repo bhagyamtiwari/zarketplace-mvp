@@ -2,9 +2,15 @@
 //  - Sign-in tab: email + password.
 //  - Sign-up tab: email + password + confirm password.
 // Passwords must be 10+ chars with a letter AND a digit.
-// On successful signup we log the user in immediately (assuming Supabase
-// "Confirm email" is OFF). A confirmation link is still emailed (best effort)
-// so the user can verify later; until then the profile shows "Unverified".
+//
+// Signup behavior is driven by Supabase's "Confirm email" project setting:
+//   - When ON  : signup creates the account but does not return a session.
+//                The user MUST click the verification link in their email
+//                before they can sign in. We show that instruction here.
+//   - When OFF : signup returns a session and we log the user in immediately;
+//                a verification link is still emailed for the badge.
+// We detect which mode is active via the `needsConfirmation` flag returned
+// from `signUpWithPassword` and branch the UX accordingly.
 
 import * as React from 'react';
 import { createPortal } from 'react-dom';
@@ -94,7 +100,8 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
         t.end({ error: err, needsConfirmation });
         if (err) { setError(err); return; }
         if (needsConfirmation) {
-          setNotice(`Account created. We sent a confirmation link to ${email}. You can sign in now; verification just adds a badge to your profile.`);
+          setMode('signin');
+          setNotice(`Account created. We sent a verification link to ${email}. Click the link in your inbox, then sign in here.`);
         } else {
           succeed();
         }

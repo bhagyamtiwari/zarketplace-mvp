@@ -29,7 +29,7 @@ export default function App() {
       <AuthProvider>
       <CartProvider>
       <ScrollToTop />
-      <div className="min-h-screen bg-white font-sans text-black selection:bg-black selection:text-white">
+      <div className="min-h-screen bg-white font-sans text-black selection:bg-black selection:text-white overflow-x-clip">
         <Navbar />
         <main className="pt-20">
           <Routes>
