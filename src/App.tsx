@@ -18,6 +18,8 @@ import { AuthProvider } from './lib/auth';
 import { CartProvider } from './lib/cart';
 import { Cart } from './pages/Cart';
 import { Instagram, Twitter, Facebook, ArrowUpRight } from 'lucide-react';
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 import { ScrollToTop } from './components/ScrollToTop';
 
@@ -112,6 +114,8 @@ export default function App() {
       </div>
       </CartProvider>
       </AuthProvider>
+      <Analytics />
+      <SpeedInsights />
     </Router>
   );
 }
