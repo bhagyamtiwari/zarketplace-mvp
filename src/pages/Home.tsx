@@ -106,10 +106,8 @@ export function Home() {
         </div>
       </section>
 
-  {/* LAUNCH OFFER BANNER */}
-  <section className="px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full pt-16">
-    <LaunchOfferBanner variant="card" />
-  </section>
+  {/* LAUNCH NEWS TICKER - infinite right-to-left scroll, headline-style */}
+  <LaunchOfferBanner variant="ticker" />
 
   {/* MARKETPLACE PREVIEW SECTION */}
 <section className="py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">

@@ -1,7 +1,10 @@
-// ShareInstagramModal - lets a seller download a polished Instagram-ready
-// image of their listing (square 1:1 or story 9:16) with @zarketplace branding.
-// The card is rendered offscreen at full pixel resolution and captured via
-// html-to-image. A scaled-down preview is shown to the user.
+// ShareInstagramModal - lets a seller download polished Instagram-ready
+// images of their listing. Supports:
+//   - Square (1:1, 1080x1080) feed posts and Story (9:16, 1080x1920)
+//   - Multiple hero images: the seller picks which listing photo to feature,
+//     or hits "Download all" to get one image per listing photo
+//   - QR code linking to the product URL, plus @zarketplace branding overlaid
+//     on the photo and inside the info panel
 
 import * as React from 'react';
 import { toPng } from 'html-to-image';
@@ -11,19 +14,28 @@ import QRCode from 'react-qr-code';
 import { Listing } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 
-function productUrl(listing: Listing): string {
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://zarketplace.com';
-  // Prefer pretty SKU URL when available; fall back to UUID.
-  const path = listing.sku ? `/item/${listing.sku}` : `/product/${listing.id}`;
-  return `${origin}${path}`;
-}
-
 type Format = 'square' | 'story';
 
-const DIMS: Record<Format, { w: number; h: number; previewScale: number }> = {
-  square: { w: 1080, h: 1080, previewScale: 0.34 },
-  story: { w: 1080, h: 1920, previewScale: 0.22 },
+// Card dimensions and layout split between hero image and info panel.
+const LAYOUTS: Record<Format, {
+  w: number; h: number;
+  imageH: number;  // height of the hero image area
+  panelH: number;  // height of the info panel (== h - imageH)
+  previewScale: number;
+}> = {
+  square: { w: 1080, h: 1080, imageH: 620, panelH: 460, previewScale: 0.34 },
+  story:  { w: 1080, h: 1920, imageH: 1180, panelH: 740, previewScale: 0.22 },
 };
+
+// Always points at the production domain regardless of where the seller
+// generates the image (localhost dev, preview deploys, etc.). The whole point
+// of this image is to drive scanners to the live site.
+const PUBLIC_SITE_URL = 'https://zarketplace.com';
+
+function productUrl(listing: Listing): string {
+  const path = listing.sku ? `/item/${listing.sku}` : `/product/${listing.id}`;
+  return `${PUBLIC_SITE_URL}${path}`;
+}
 
 interface Props {
   open: boolean;
@@ -33,41 +45,81 @@ interface Props {
 
 export function ShareInstagramModal({ open, onClose, listing }: Props) {
   const [format, setFormat] = React.useState<Format>('square');
-  const [downloading, setDownloading] = React.useState(false);
+  const [imageIdx, setImageIdx] = React.useState(0);
+  const [downloading, setDownloading] = React.useState<'one' | 'all' | null>(null);
   const cardRef = React.useRef<HTMLDivElement>(null);
 
-  const download = async () => {
-    if (!cardRef.current) return;
-    setDownloading(true);
+  const allImages = React.useMemo(() => {
+    const arr = (listing.image_urls && listing.image_urls.length > 0) ? listing.image_urls : [listing.image_url];
+    return arr.filter(Boolean);
+  }, [listing]);
+
+  // Reset image picker when modal re-opens.
+  React.useEffect(() => { if (open) setImageIdx(0); }, [open]);
+
+  async function captureCurrent(): Promise<string> {
+    if (!cardRef.current) throw new Error('card not mounted');
+    return await toPng(cardRef.current, {
+      cacheBust: true,
+      pixelRatio: 1,
+      width: LAYOUTS[format].w,
+      height: LAYOUTS[format].h,
+      style: { transform: 'none', transformOrigin: 'top left' },
+    });
+  }
+
+  function triggerDownload(dataUrl: string, suffix: string) {
+    const a = document.createElement('a');
+    const safeTitle = (listing.title || 'listing').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40);
+    a.href = dataUrl;
+    a.download = `zarketplace-${safeTitle}-${suffix}.png`;
+    a.click();
+  }
+
+  const downloadOne = async () => {
+    setDownloading('one');
     try {
-      const dataUrl = await toPng(cardRef.current, {
-        cacheBust: true,
-        pixelRatio: 1,
-        width: DIMS[format].w,
-        height: DIMS[format].h,
-        // Force the captured element to render at full size regardless of CSS scaling.
-        style: { transform: 'none', transformOrigin: 'top left' },
-      });
-      const a = document.createElement('a');
-      const safeTitle = (listing.title || 'listing').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40);
-      a.href = dataUrl;
-      a.download = `zarketplace-${safeTitle}-${format}.png`;
-      a.click();
-    } catch (err) {
-      console.error('share image generation failed', err);
-      alert('Could not generate the image. Try again, and make sure the listing image has finished loading.');
+      const url = await captureCurrent();
+      triggerDownload(url, `${format}-${imageIdx + 1}`);
+    } catch (e) {
+      console.error('share image failed', e);
+      alert('Could not generate the image. Wait for the photo to finish loading and try again.');
     } finally {
-      setDownloading(false);
+      setDownloading(null);
+    }
+  };
+
+  const downloadAll = async () => {
+    setDownloading('all');
+    try {
+      // Iterate, render each image as the hero, capture, download.
+      for (let i = 0; i < allImages.length; i++) {
+        setImageIdx(i);
+        // Wait two animation frames so React commits + the <img> swaps.
+        await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        // Allow the new image to fetch/decode.
+        await new Promise((r) => setTimeout(r, 300));
+        const url = await captureCurrent();
+        triggerDownload(url, `${format}-${i + 1}`);
+        // Tiny gap so browsers don't dedupe rapid downloads.
+        await new Promise((r) => setTimeout(r, 250));
+      }
+    } catch (e) {
+      console.error('bulk share image failed', e);
+      alert('Bulk download failed partway through. Try downloading them one at a time.');
+    } finally {
+      setDownloading(null);
     }
   };
 
   if (!open) return null;
+  const layout = LAYOUTS[format];
 
   return (
     <AnimatePresence>
       <motion.div
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 overflow-y-auto"
+        className="fixed inset-0 z-50 bg-black/60 flex items-start sm:items-center justify-center p-4 overflow-y-auto"
         onClick={onClose}
       >
         <motion.div
@@ -79,12 +131,12 @@ export function ShareInstagramModal({ open, onClose, listing }: Props) {
             <X className="h-4 w-4" />
           </button>
 
-          <div className="p-8 flex flex-col gap-6">
+          <div className="p-6 sm:p-8 flex flex-col gap-6">
             <div className="flex flex-col gap-1">
               <span className="text-[10px] font-black uppercase tracking-[0.4em] text-black/50">Share to Instagram</span>
               <h2 className="text-2xl font-black tracking-tighter uppercase">Generate post image</h2>
               <p className="text-[11px] font-bold uppercase tracking-widest text-black/40 leading-relaxed max-w-xl">
-                Download a branded image of this listing and post it on Instagram. Tag @zarketplace so we can repost.
+                Branded post and story templates with QR code. Tag @zarketplace in your caption.
               </p>
             </div>
 
@@ -101,43 +153,71 @@ export function ShareInstagramModal({ open, onClose, listing }: Props) {
               ))}
             </div>
 
-            {/* Preview - scaled-down version of the actual card */}
-            <div className="bg-zinc-100 p-6 flex justify-center">
+            {/* Image picker (only if multiple photos) */}
+            {allImages.length > 1 && (
+              <div className="flex flex-col gap-3">
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-black/60">
+                  Hero photo  ({imageIdx + 1}/{allImages.length})
+                </span>
+                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                  {allImages.map((src, i) => (
+                    <button key={i} onClick={() => setImageIdx(i)}
+                      className={cn(
+                        'relative aspect-square w-20 flex-shrink-0 overflow-hidden border-2 transition-all',
+                        imageIdx === i ? 'border-black' : 'border-transparent opacity-50 hover:opacity-100',
+                      )}>
+                      <img src={src} alt="" className="h-full w-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Preview */}
+            <div className="bg-zinc-100 p-4 sm:p-6 flex justify-center">
               <div
                 style={{
-                  width: DIMS[format].w * DIMS[format].previewScale,
-                  height: DIMS[format].h * DIMS[format].previewScale,
+                  width: layout.w * layout.previewScale,
+                  height: layout.h * layout.previewScale,
                 }}
                 className="relative overflow-hidden shadow-xl"
               >
                 <div
                   style={{
-                    transform: `scale(${DIMS[format].previewScale})`,
+                    transform: `scale(${layout.previewScale})`,
                     transformOrigin: 'top left',
-                    width: DIMS[format].w,
-                    height: DIMS[format].h,
+                    width: layout.w,
+                    height: layout.h,
                   }}
                 >
-                  <ShareCard ref={cardRef} listing={listing} format={format} />
+                  <ShareCard
+                    ref={cardRef}
+                    listing={listing}
+                    heroImage={allImages[imageIdx]}
+                    format={format}
+                  />
                 </div>
               </div>
             </div>
 
+            {/* Actions */}
             <div className="flex flex-col sm:flex-row gap-3">
-              <button onClick={download} disabled={downloading}
+              <button onClick={downloadOne} disabled={downloading !== null}
                 className="flex-1 bg-black text-white py-4 text-[10px] font-black uppercase tracking-[0.3em] hover:bg-zinc-800 disabled:opacity-50 inline-flex items-center justify-center gap-2">
-                {downloading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                {downloading ? 'Generating...' : 'Download PNG'}
+                {downloading === 'one' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                {downloading === 'one' ? 'Generating...' : `Download this ${format}`}
               </button>
-              <button onClick={onClose}
-                className="border border-black px-8 py-4 text-[10px] font-black uppercase tracking-[0.3em] hover:bg-black hover:text-white">
-                Done
-              </button>
+              {allImages.length > 1 && (
+                <button onClick={downloadAll} disabled={downloading !== null}
+                  className="flex-1 border border-black py-4 text-[10px] font-black uppercase tracking-[0.3em] hover:bg-black hover:text-white disabled:opacity-50 inline-flex items-center justify-center gap-2">
+                  {downloading === 'all' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  {downloading === 'all' ? 'Downloading all...' : `Download all ${allImages.length}`}
+                </button>
+              )}
             </div>
 
             <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 leading-relaxed">
-              Tip: post it as a single-image feed post or story. Mention <span className="text-black">@zarketplace</span> in
-              your caption and add the link in your bio so people can shop directly.
+              Caption tip: <span className="text-black">Just listed on @zarketplace - link in bio. Scan the QR to shop direct.</span>
             </p>
           </div>
         </motion.div>
@@ -146,102 +226,139 @@ export function ShareInstagramModal({ open, onClose, listing }: Props) {
   );
 }
 
-// The actual share card. Rendered at full pixel size; the modal scales it down
-// for preview. html-to-image captures the inner DOM verbatim.
-const ShareCard = React.forwardRef<HTMLDivElement, { listing: Listing; format: Format }>(
-  function ShareCard({ listing, format }, ref) {
-    const w = DIMS[format].w;
-    const h = DIMS[format].h;
-    const isStory = format === 'story';
-    const imageHeight = isStory ? 1280 : 720;
-    const price = listing.sale_price ?? listing.price;
-    const hasSale = !!listing.sale_price && listing.sale_price < listing.price;
+// ============================================================================
+// ShareCard - the actual image rendered at full pixel size for capture.
+// ============================================================================
 
-    return (
-      <div
-        ref={ref}
-        style={{
-          width: w,
-          height: h,
+const ShareCard = React.forwardRef<HTMLDivElement, {
+  listing: Listing;
+  heroImage: string;
+  format: Format;
+}>(function ShareCard({ listing, heroImage, format }, ref) {
+  const layout = LAYOUTS[format];
+  const isStory = format === 'story';
+  const price = listing.sale_price ?? listing.price;
+  const hasSale = !!listing.sale_price && listing.sale_price < listing.price;
+
+  // Type-safety for line-clamp via plain CSS.
+  const titleClamp: React.CSSProperties = {
+    display: '-webkit-box',
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: 'vertical',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+  };
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        width: layout.w,
+        height: layout.h,
+        background: '#fff',
+        fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+        color: '#000',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
+      {/* HERO IMAGE AREA */}
+      <div style={{
+        width: layout.w, height: layout.imageH,
+        position: 'relative', background: '#f4f4f5', flexShrink: 0,
+      }}>
+        <img
+          src={heroImage}
+          crossOrigin="anonymous"
+          alt=""
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        />
+
+        {/* Top-left: brand chip (white tile) */}
+        <div style={{
+          position: 'absolute', top: 32, left: 32,
           background: '#fff',
-          fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-          color: '#000',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-        }}
-      >
-        {/* Image area */}
-        <div style={{ width: w, height: imageHeight, position: 'relative', background: '#f4f4f5', flexShrink: 0 }}>
-          <img
-            src={listing.image_url}
-            crossOrigin="anonymous"
-            alt=""
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-          />
-          {/* Top-left brand chip */}
-          <div style={{
-            position: 'absolute', top: 36, left: 36,
-            background: '#fff', padding: '14px 20px',
-            fontSize: 18, fontWeight: 900, letterSpacing: 4,
-            textTransform: 'uppercase',
-          }}>
-            {listing.brand || 'zarketplace'}
-          </div>
-          {/* Top-right sale flag */}
-          {hasSale && (
-            <div style={{
-              position: 'absolute', top: 36, right: 36,
-              background: '#dc2626', color: '#fff', padding: '14px 20px',
-              fontSize: 18, fontWeight: 900, letterSpacing: 4,
-              textTransform: 'uppercase',
-            }}>
-              On sale
-            </div>
-          )}
+          padding: '12px 18px',
+          fontSize: 16, fontWeight: 900, letterSpacing: 4,
+          textTransform: 'uppercase',
+        }}>
+          {listing.brand || 'preloved'}
         </div>
 
-        {/* Info panel - black */}
+        {/* Top-right: @zarketplace watermark on image area */}
+        <div style={{
+          position: 'absolute', top: 32, right: 32,
+          background: '#000', color: '#fff',
+          padding: '12px 18px',
+          fontSize: 16, fontWeight: 900, letterSpacing: 3,
+        }}>
+          @zarketplace
+        </div>
+
+        {/* Sale flag on left below brand chip */}
+        {hasSale && (
+          <div style={{
+            position: 'absolute', top: 96, left: 32,
+            background: '#dc2626', color: '#fff',
+            padding: '10px 16px',
+            fontSize: 14, fontWeight: 900, letterSpacing: 4,
+            textTransform: 'uppercase',
+          }}>
+            On Sale
+          </div>
+        )}
+      </div>
+
+      {/* INFO PANEL (BLACK) */}
+      <div style={{
+        width: layout.w, height: layout.panelH,
+        background: '#000', color: '#fff',
+        padding: isStory ? 56 : 44,
+        display: 'flex', flexDirection: 'column',
+        boxSizing: 'border-box',
+        flexShrink: 0,
+      }}>
+        {/* TOP ROW: title + meta on left, QR on right */}
         <div style={{
           flex: 1,
-          background: '#000',
-          color: '#fff',
-          padding: isStory ? '64px 56px 56px' : '52px 56px 44px',
           display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'space-between',
+          gap: 32,
+          alignItems: 'flex-start',
+          minHeight: 0,
         }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {/* Left text column */}
+          <div style={{
+            flex: 1, display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0,
+          }}>
             <h1 style={{
-              fontSize: isStory ? 88 : 72,
+              fontSize: isStory ? 76 : 60,
               fontWeight: 900,
-              letterSpacing: -2,
+              letterSpacing: -1.5,
               textTransform: 'uppercase',
               lineHeight: 0.95,
               margin: 0,
-              wordBreak: 'break-word',
+              ...titleClamp,
+              WebkitLineClamp: 2,
             }}>
-              {truncate(listing.title, isStory ? 60 : 50)}
+              {listing.title}
             </h1>
 
-            {/* Meta row: size · condition */}
             <div style={{
-              display: 'flex', gap: 16, flexWrap: 'wrap',
-              fontSize: 18, fontWeight: 800, letterSpacing: 4, textTransform: 'uppercase',
+              display: 'flex', gap: 12, flexWrap: 'wrap',
+              fontSize: 14, fontWeight: 800, letterSpacing: 3, textTransform: 'uppercase',
             }}>
               {listing.size && <span style={chipStyle}>Size {listing.size}</span>}
               {listing.condition && <span style={chipStyle}>{listing.condition}</span>}
             </div>
 
-            {/* Price */}
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 20, marginTop: 8 }}>
-              <span style={{ fontSize: isStory ? 120 : 96, fontWeight: 900, letterSpacing: -3 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginTop: 'auto' }}>
+              <span style={{ fontSize: isStory ? 96 : 76, fontWeight: 900, letterSpacing: -2, lineHeight: 1 }}>
                 {formatCurrency(price)}
               </span>
               {hasSale && (
                 <span style={{
-                  fontSize: 36, fontWeight: 800, color: '#a3a3a3',
-                  textDecoration: 'line-through',
+                  fontSize: 28, fontWeight: 800, color: '#a3a3a3', textDecoration: 'line-through',
                 }}>
                   {formatCurrency(listing.price)}
                 </span>
@@ -249,63 +366,54 @@ const ShareCard = React.forwardRef<HTMLDivElement, { listing: Listing; format: F
             </div>
           </div>
 
-          {/* Footer branding + QR */}
+          {/* Right QR column */}
           <div style={{
-            marginTop: 40,
-            paddingTop: 32,
-            borderTop: '2px solid rgba(255,255,255,0.15)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-end',
-            gap: 32,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, flexShrink: 0,
           }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <span style={{ fontSize: 28, fontWeight: 900, letterSpacing: -1, textTransform: 'lowercase' }}>
-                zarketplace.com
-              </span>
-              <span style={{ fontSize: 14, fontWeight: 800, letterSpacing: 4, textTransform: 'uppercase', opacity: 0.6 }}>
-                Shop preloved fashion
-              </span>
-              <span style={{
-                marginTop: 8, fontSize: 16, fontWeight: 900, letterSpacing: 2,
-                padding: '10px 16px', border: '2px solid #fff', alignSelf: 'flex-start',
-              }}>
-                @zarketplace
-              </span>
+            <div style={{ background: '#fff', padding: 12, lineHeight: 0 }}>
+              <QRCode
+                value={productUrl(listing)}
+                size={isStory ? 200 : 160}
+                bgColor="#ffffff"
+                fgColor="#000000"
+                level="M"
+              />
             </div>
-            {/* QR code: white tile so the dark QR contrasts cleanly on black panel. */}
-            <div style={{
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, flexShrink: 0,
+            <span style={{
+              fontSize: 11, fontWeight: 900, letterSpacing: 3, textTransform: 'uppercase', opacity: 0.8,
             }}>
-              <div style={{ background: '#fff', padding: 14, lineHeight: 0 }}>
-                <QRCode
-                  value={productUrl(listing)}
-                  size={isStory ? 220 : 180}
-                  bgColor="#ffffff"
-                  fgColor="#000000"
-                  level="M"
-                />
-              </div>
-              <span style={{
-                fontSize: 12, fontWeight: 900, letterSpacing: 3,
-                textTransform: 'uppercase', opacity: 0.7,
-              }}>
-                Scan to shop
-              </span>
-            </div>
+              Scan to shop
+            </span>
           </div>
         </div>
+
+        {/* BOTTOM ROW: branding strip */}
+        <div style={{
+          marginTop: 28,
+          paddingTop: 22,
+          borderTop: '2px solid rgba(255,255,255,0.18)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 16,
+        }}>
+          <span style={{
+            fontSize: isStory ? 28 : 22, fontWeight: 900, letterSpacing: -0.5, textTransform: 'lowercase',
+          }}>
+            zarketplace.com
+          </span>
+          <span style={{
+            fontSize: 12, fontWeight: 800, letterSpacing: 4, textTransform: 'uppercase', opacity: 0.55,
+          }}>
+            Shop preloved fashion
+          </span>
+        </div>
       </div>
-    );
-  },
-);
+    </div>
+  );
+});
 
 const chipStyle: React.CSSProperties = {
   border: '2px solid rgba(255,255,255,0.25)',
-  padding: '10px 18px',
+  padding: '8px 14px',
 };
-
-function truncate(s: string | null | undefined, n: number) {
-  if (!s) return '';
-  return s.length <= n ? s : s.slice(0, n - 1).trimEnd() + '...';
-}

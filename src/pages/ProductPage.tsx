@@ -263,7 +263,18 @@ export function ProductPage() {
           </div>
 
           <div className="flex flex-col gap-4">
-            {listing.is_sold ? (
+            {listing.status !== 'approved' ? (
+              <div className="w-full border border-amber-200 bg-amber-50 px-6 py-6 flex flex-col gap-2">
+                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-700">
+                  {listing.status === 'pending' ? 'Pending admin approval' : 'Listing not available'}
+                </span>
+                <p className="text-[11px] font-bold uppercase tracking-widest text-amber-700/80 leading-relaxed">
+                  {user?.id === listing.seller_id
+                    ? 'Your listing is awaiting admin approval. It will be visible on browse and purchasable once approved. Until then, no one (including you) can buy or add it to cart.'
+                    : 'This listing is not yet available to purchase.'}
+                </p>
+              </div>
+            ) : listing.is_sold ? (
               <div className="w-full bg-zinc-100 py-6 text-center text-xs font-black uppercase tracking-[0.3em] text-black/40 cursor-not-allowed border border-black/5">
                 Sold Out
               </div>
@@ -345,7 +356,6 @@ export function ProductPage() {
           </div>
 
           <div className="flex flex-col gap-8">
-            <LaunchOfferBanner variant="badge" className="self-start" />
             <div className="flex flex-col gap-4">
               <h3 className="text-[10px] font-black uppercase tracking-widest">Description</h3>
               <div className="flex flex-col gap-4">
@@ -366,6 +376,7 @@ export function ProductPage() {
                 <RotateCcw className="h-4 w-4 text-black" />
                 <Link to="/returns" className="underline">Returns & Cancellations Policy</Link>
               </div>
+              <LaunchOfferBanner variant="product-row" />
             </div>
 
             {user?.id === listing.seller_id && (

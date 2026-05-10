@@ -214,7 +214,7 @@ function SellInner() {
       </div>
 
       <div className="mb-12">
-        <LaunchOfferBanner variant="card" />
+        <LaunchOfferBanner variant="pricing" />
       </div>
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-16">

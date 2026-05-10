@@ -190,14 +190,10 @@ function CheckoutInner() {
       if (error) throw error;
       const nums = (data ?? []).map((r: { order_number: string }) => r.order_number);
 
-      // Mark listings as sold the moment the order exists. They stay hidden
-      // through awaiting_payment / awaiting_verification / paid / shipped.
-      // Admin flips is_sold back to false if they cancel or refund.
-      const listingIds = items.map((i) => i.listing_id).filter(Boolean);
-      if (listingIds.length > 0) {
-        const { error: soldErr } = await supabase.from('listings').update({ is_sold: true }).in('id', listingIds);
-        if (soldErr) clog.warn('mark sold failed', soldErr);
-      }
+      // We do NOT mark listings sold here. If the buyer abandons checkout
+      // (closes the tab, cancels the UPI app, doesn't upload proof), the
+      // listing must remain available for other buyers. Sold state is set
+      // only when payment proof is submitted (see submitProof below).
 
       setOrderNumbers(nums);
       setStep('pay_seller');
@@ -233,10 +229,16 @@ function CheckoutInner() {
         payment_receipt_url: receiptPath,
         payment_submitted_at: new Date().toISOString(),
         status: 'awaiting_verification',
-      }).in('order_number', orderNumbers).select('id');
+      }).in('order_number', orderNumbers).select('id, listing_id');
       if (updErr) throw updErr;
 
-      // Listings were already marked sold at order creation; no-op here.
+      // NOW mark the listings sold - buyer has actually submitted payment
+      // proof. Admin flips is_sold back to false on cancel/refund.
+      const listingIds = (updated ?? []).map((r: { listing_id: string | null }) => r.listing_id).filter(Boolean) as string[];
+      if (listingIds.length > 0) {
+        const { error: soldErr } = await supabase.from('listings').update({ is_sold: true }).in('id', listingIds);
+        if (soldErr) clog.warn('mark sold failed', soldErr);
+      }
 
       // Fire transactional emails (best effort - don't block checkout on
       // failure). Resend free tier allows 2 req/s, so we serialize with a
