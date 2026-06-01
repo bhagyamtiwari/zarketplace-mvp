@@ -85,13 +85,14 @@ export function About() {
           </section>
         </div>
 
-         <div className="flex flex-col gap-4 text-black leading-relaxed">
+        <div className="flex flex-col gap-4 text-black leading-relaxed">
           <section className="flex flex-col gap-6">
             <div className="flex flex-col gap-6 text-sm font-medium uppercase tracking-widest">
-              <p> zarketplace is an ADNIZ Private Limited project. </p>
+              <p>zarketplace is an ADNIZ Private Limited project.</p>
             </div>
           </section>
-           
+        </div>
+
         <div className="mt-12 pt-12 border-t border-black/5">
           <Link to="/sell" className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest border-b-2 border-black pb-1">
             Start Selling with us <ArrowUpRight className="h-4 w-4" />
