@@ -40,7 +40,7 @@ export function Navbar() {
         <div className="flex h-20 items-center justify-between">
           <div className="flex items-center gap-12">
             <Link to="/" className="flex items-center gap-3 group">
-              <img src="/images/zarketplace-tp.png" alt="Zarketplace" className="h-8 w-auto group-hover:scale-110 transition-transform" referrerPolicy="no-referrer" />
+              <img src="/images/zarketplace-tp.png" alt="zarketplace" className="h-8 w-auto group-hover:scale-110 transition-transform" referrerPolicy="no-referrer" />
               <span className="lowercase font-black tracking-tighter text-3xl">zarketplace</span>
             </Link>
             <div className="hidden md:block">

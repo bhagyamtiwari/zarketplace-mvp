@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Listing, ListingStatus, Order, OrderStatus } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
-import { Loader2, Check, X, ExternalLink } from 'lucide-react';
+import { Loader2, Check, X, ExternalLink, Trash2 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
 import { log } from '../lib/log';
@@ -122,6 +122,18 @@ function AdminInner() {
     } finally { setActioningId(null); }
   };
 
+  const handleListingDelete = async (id: string, title: string) => {
+    if (!confirm(`Permanently delete "${title}"? This cannot be undone. Existing orders keep their record.`)) return;
+    setActioningId(id);
+    try {
+      const { error } = await supabase.from('listings').delete().eq('id', id);
+      if (error) throw error;
+      setListings(listings.filter((l) => l.id !== id));
+    } catch (err: any) {
+      alert(err?.message ?? 'Failed to delete listing.');
+    } finally { setActioningId(null); }
+  };
+
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
       <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-8">
@@ -150,7 +162,7 @@ function AdminInner() {
       ) : listings.length === 0 ? (
         <Empty>Queue is empty</Empty>
       ) : (
-        <ListingsTable listings={listings} actioningId={actioningId} onAction={handleListingAction} />
+        <ListingsTable listings={listings} actioningId={actioningId} onAction={handleListingAction} onDelete={handleListingDelete} />
       ))}
 
       {tab === 'orders' && <OrdersPanel orders={orders} loading={loading} onUpdate={updateOrderStatus} />}
@@ -168,8 +180,10 @@ function Empty({ children }: { children: React.ReactNode }) {
   </div>;
 }
 
-function ListingsTable({ listings, actioningId, onAction }: {
-  listings: Listing[]; actioningId: string | null; onAction: (id: string, status: ListingStatus) => void;
+function ListingsTable({ listings, actioningId, onAction, onDelete }: {
+  listings: Listing[]; actioningId: string | null;
+  onAction: (id: string, status: ListingStatus) => void;
+  onDelete: (id: string, title: string) => void;
 }) {
   return (
     <div className="overflow-x-auto">
@@ -228,6 +242,10 @@ function ListingsTable({ listings, actioningId, onAction }: {
                   <Link to={`/product/${listing.id}`} className="h-10 w-10 flex items-center justify-center rounded-full bg-black/5 text-black hover:bg-black hover:text-white" title="View">
                     <ExternalLink className="h-4 w-4" />
                   </Link>
+                  <button onClick={() => onDelete(listing.id, listing.title)} disabled={actioningId === listing.id}
+                    className="h-10 w-10 flex items-center justify-center rounded-full bg-red-50 text-red-600 hover:bg-red-600 hover:text-white disabled:opacity-50" title="Delete">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </div>
               </td>
             </tr>

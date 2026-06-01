@@ -60,7 +60,7 @@ export default function App() {
             <div className="flex flex-col md:flex-row justify-between items-start gap-20">
               <div className="flex flex-col gap-6">
                 <Link to="/" className="flex items-center gap-3 group">
-                  <img src="/images/zarketplace-tp.png" alt="Zarketplace" className="h-10 w-auto" referrerPolicy="no-referrer" />
+                  <img src="/images/zarketplace-tp.png" alt="zarketplace" className="h-10 w-auto" referrerPolicy="no-referrer" />
                   <span className="lowercase font-black tracking-tighter text-3xl">zarketplace</span>
                 </Link>
               </div>

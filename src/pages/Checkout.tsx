@@ -272,13 +272,17 @@ function CheckoutInner() {
           className="h-24 w-24 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mb-4">
           <CheckCircle2 className="h-12 w-12" />
         </motion.div>
-        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-600">Order placed</span>
-        <h1 className="text-5xl font-black tracking-tighter uppercase">Thank you!</h1>
+        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-600">Order confirmed</span>
+        <h1 className="text-5xl font-black tracking-tighter uppercase">Your order has been confirmed</h1>
         <p className="text-xs font-bold uppercase tracking-widest text-black/40">
           Order{orderNumbers.length > 1 ? 's' : ''}: {orderNumbers.join(', ')}
         </p>
         <p className="text-[11px] font-bold uppercase tracking-widest text-black/60 max-w-md leading-relaxed">
-          We'll verify your payment shortly. Once confirmed, the seller will be notified to ship your item. Track everything in My Orders.
+          We're approving your payment. Once confirmed, the seller will be notified to ship your item. Track everything in My Orders.
+        </p>
+        <p className="text-[11px] font-bold uppercase tracking-widest text-black/60 max-w-md leading-relaxed">
+          For any questions or concerns, email{' '}
+          <a href="mailto:contact@zarketplace.com" className="text-black underline">contact@zarketplace.com</a>.
         </p>
         <div className="flex gap-3">
           <Link to="/browse" className="bg-black px-12 py-5 text-xs font-black uppercase tracking-[0.4em] text-white hover:bg-zinc-800">Continue Shopping</Link>
@@ -328,7 +332,7 @@ function StepHeader({ step }: { step: Step }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center gap-3 mb-1">
-        <img src="/images/zarketplace-tp.png" alt="Zarketplace" className="h-6 w-auto" referrerPolicy="no-referrer" />
+        <img src="/images/zarketplace-tp.png" alt="zarketplace" className="h-6 w-auto" referrerPolicy="no-referrer" />
         <span className="lowercase font-black tracking-tighter text-2xl">zarketplace</span>
       </div>
       <span className="text-[10px] font-black uppercase tracking-[0.4em] text-black">Checkout</span>
@@ -418,10 +422,30 @@ function PayStep({
       <div className="flex flex-col gap-2 border-b border-black pb-4">
         <h2 className="text-xs font-black uppercase tracking-widest">Complete Payment</h2>
         <p className="text-[11px] text-black/60 font-medium leading-relaxed">
-          Scan the QR code or tap "Open UPI App" to pay {formatCurrency(amount)} to {ADMIN_UPI_NAME} ({ADMIN_LEGAL_NAME}).
-          Once paid, confirm your order below.
+          Pay {formatCurrency(amount)} to {ADMIN_UPI_NAME} ({ADMIN_LEGAL_NAME}) using any UPI app.
         </p>
         <div className="mt-2"><LaunchOfferBanner variant="inline" /></div>
+      </div>
+
+      <div className="border border-black/10 bg-zinc-50 p-6 flex flex-col gap-4">
+        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-black/60">How to pay</p>
+        <ol className="flex flex-col gap-3">
+          {[
+            'On your phone? Open your UPI app (GPay / PhonePe / Paytm) and scan the QR code below.',
+            'On a laptop / desktop? Screenshot or save the QR code, then open it in your UPI app on your phone and pay.',
+            'Or tap the "Open UPI App" button below to launch your payment app with the amount pre-filled.',
+          ].map((text, i) => (
+            <li key={i} className="flex gap-3 text-[11px] font-bold text-black/70 leading-relaxed">
+              <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center bg-black text-white text-[10px] font-black">{i + 1}</span>
+              <span>{text}</span>
+            </li>
+          ))}
+        </ol>
+        <p className="text-[11px] font-black text-black bg-yellow-50 border border-black/10 p-3 leading-relaxed">
+          Important: after paying, come back to this page and tap "Confirm Order &amp; Payment" below
+          (and add any comments or requests for the seller). Your payment is only registered and
+          acknowledged once you confirm here.
+        </p>
       </div>
 
       <div className="flex flex-col md:flex-row gap-8 items-start">

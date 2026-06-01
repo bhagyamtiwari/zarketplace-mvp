@@ -43,7 +43,7 @@ export function Contact() {
       <div className="flex flex-col gap-16">
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-3 mb-2">
-            <img src="/images/zarketplace-tp.png" alt="Zarketplace" className="h-6 w-auto" referrerPolicy="no-referrer" />
+            <img src="/images/zarketplace-tp.png" alt="zarketplace" className="h-6 w-auto" referrerPolicy="no-referrer" />
             <span className="lowercase font-black tracking-tighter text-2xl">zarketplace</span>
           </div>
           <span className="text-[10px] font-black uppercase tracking-[0.4em] text-black">Contact</span>

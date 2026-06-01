@@ -14,7 +14,7 @@
 //
 // Required env vars:
 //   - RESEND_API_KEY        (sign up at resend.com — free tier covers MVP)
-//   - EMAIL_FROM            e.g. "Zarketplace <orders@zarketplace.com>"
+//   - EMAIL_FROM            e.g. "zarketplace <orders@zarketplace.com>"
 //                           Until your domain is verified in Resend, you can
 //                           use "onboarding@resend.dev" for testing.
 //   - PUBLIC_SITE_URL       e.g. https://zarketplace.com

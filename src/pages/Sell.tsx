@@ -206,7 +206,7 @@ function SellInner() {
     <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-32">
       <div className="mb-12 flex flex-col gap-4">
         <div className="flex items-center gap-3 mb-2">
-          <img src="/images/zarketplace-tp.png" alt="Zarketplace" className="h-8 w-auto" referrerPolicy="no-referrer" />
+          <img src="/images/zarketplace-tp.png" alt="zarketplace" className="h-8 w-auto" referrerPolicy="no-referrer" />
           <span className="lowercase font-black tracking-tighter text-3xl">zarketplace</span>
         </div>
         <span className="text-[10px] font-black uppercase tracking-[0.4em] text-black">Sell with us</span>

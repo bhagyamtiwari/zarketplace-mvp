@@ -10,7 +10,7 @@ import { supabase } from '../lib/supabase';
 import { Listing, Order, OrderStatus } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import {
-  Loader2, X, Edit3, Upload, ExternalLink,
+  Loader2, X, Edit3, Upload, ExternalLink, Trash2,
 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
@@ -38,6 +38,26 @@ function SellerInner() {
   const [listings, setListings] = React.useState<Listing[]>([]);
   const [orders, setOrders] = React.useState<Order[]>([]);
   const [error, setError] = React.useState<string | null>(null);
+  const [deletingId, setDeletingId] = React.useState<string | null>(null);
+
+  const deleteListing = async (l: Listing) => {
+    const warn = l.is_sold
+      ? `"${l.title}" has already been sold. Deleting removes the listing from your portal but keeps the order record. Continue?`
+      : `Delete "${l.title}"? This permanently removes the listing and cannot be undone.`;
+    if (!window.confirm(warn)) return;
+    setDeletingId(l.id);
+    setError(null);
+    try {
+      const { error: delErr } = await supabase.from('listings').delete().eq('id', l.id);
+      if (delErr) throw delErr;
+      setListings((prev) => prev.filter((x) => x.id !== l.id));
+    } catch (err: any) {
+      splog.error('deleteListing', err);
+      setError(err?.message ?? 'Failed to delete listing');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const fetchAll = React.useCallback(async () => {
     if (!user) return;
@@ -101,7 +121,7 @@ function SellerInner() {
       <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 mb-12 max-w-2xl leading-relaxed">
         {tab === 'listings'
           ? 'Items you have put up for sale on zarketplace. Active items appear on browse; sold items move below once a buyer purchases them.'
-          : 'Orders for items YOU sold. Once a buyer places an order, add tracking and ship. Zarketplace verifies payment and pays you once shipped. (For orders YOU placed as a buyer, see "My Orders" in your profile menu.)'}
+          : 'Orders for items YOU sold. Once a buyer places an order, add tracking and ship. zarketplace verifies payment and pays you once shipped. (For orders YOU placed as a buyer, see "My Orders" in your profile menu.)'}
       </p>
 
       {error && (
@@ -115,8 +135,8 @@ function SellerInner() {
         <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-black/20" /></div>
       ) : tab === 'listings' ? (
         <div className="flex flex-col gap-12">
-          <ListingsTable title="Active" subtitle="Live on browse" rows={activeListings} />
-          <ListingsTable title="Sold" subtitle="Removed from browse, awaiting fulfilment or completed" rows={soldListings} />
+          <ListingsTable title="Active" subtitle="Live on browse" rows={activeListings} onDelete={deleteListing} deletingId={deletingId} />
+          <ListingsTable title="Sold" subtitle="Removed from browse, awaiting fulfilment or completed" rows={soldListings} onDelete={deleteListing} deletingId={deletingId} />
         </div>
       ) : (
         <OrdersList rows={incomingOrders} onUpdated={fetchAll} />
@@ -137,7 +157,10 @@ function StatCard({ label, value, accent }: { label: string; value: string; acce
   );
 }
 
-function ListingsTable({ title, subtitle, rows }: { title: string; subtitle?: string; rows: Listing[] }) {
+function ListingsTable({ title, subtitle, rows, onDelete, deletingId }: {
+  title: string; subtitle?: string; rows: Listing[];
+  onDelete: (l: Listing) => void; deletingId: string | null;
+}) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-baseline gap-3">
@@ -156,6 +179,7 @@ function ListingsTable({ title, subtitle, rows }: { title: string; subtitle?: st
               <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Status</th>
               <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Price</th>
               <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40 text-right">Listed</th>
+              <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40 text-right">Actions</th>
             </tr></thead>
             <tbody>
               {rows.map((l) => (
@@ -169,6 +193,16 @@ function ListingsTable({ title, subtitle, rows }: { title: string; subtitle?: st
                   <td className="py-4 px-3 text-xs font-black">{formatCurrency(Number(l.sale_price ?? l.price))}</td>
                   <td className="py-4 px-3 text-[10px] font-bold uppercase tracking-widest text-black/40 text-right">
                     {new Date(l.created_at).toLocaleDateString()}
+                  </td>
+                  <td className="py-4 px-3 text-right">
+                    <button
+                      onClick={() => onDelete(l)}
+                      disabled={deletingId === l.id}
+                      title="Delete listing"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-red-50 text-red-600 hover:bg-red-600 hover:text-white disabled:opacity-50"
+                    >
+                      {deletingId === l.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -227,7 +261,7 @@ function OrderRow({ order, onUpdated }: { order: Order; onUpdated: () => void })
 
       {order.status === 'awaiting_verification' && (
         <div className="bg-amber-50 border border-amber-200 p-4 text-[10px] font-bold uppercase tracking-widest text-amber-700 leading-relaxed">
-          Payment is being verified by Zarketplace. Please add tracking and ship the item.
+          Payment is being verified by zarketplace. Please add tracking and ship the item.
           You will receive your payout once shipping is confirmed.
         </div>
       )}

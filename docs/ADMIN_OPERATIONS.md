@@ -129,7 +129,33 @@ from public.orders o
 where o.order_number = 'ZKT-12345' and l.id = o.listing_id;
 ```
 
-### 6. Managing admins
+### 6. Deleting a listing
+Sellers can delete their own listings from the Seller Portal, and admins can
+delete any listing from the Admin Portal → Listings tab (trash icon). Deletes
+are permanent. The `orders.listing_id` foreign key is `ON DELETE SET NULL`, so
+**any existing order keeps its snapshot** (title, SKU, image, amounts) — the
+sale history is preserved; only the live listing is removed. Cart entries
+referencing it are removed automatically.
+
+```sql
+-- Delete one listing by SKU
+delete from public.listings where sku = 'ZV-12345';
+
+-- Delete one listing by id
+delete from public.listings where id = '<listing-uuid>';
+
+-- Bulk: delete all of a seller's UNSOLD listings (careful!)
+delete from public.listings
+where seller_email = 'seller@example.com' and is_sold = false;
+```
+
+If you'd rather hide a listing than delete it (keeps it editable/restorable),
+set its status instead — this pulls it from Browse without losing the row:
+```sql
+update public.listings set status = 'rejected' where sku = 'ZV-12345';
+```
+
+### 7. Managing admins
 ```sql
 -- Grant admin
 update public.profiles set is_admin = true  where email = 'someone@example.com';

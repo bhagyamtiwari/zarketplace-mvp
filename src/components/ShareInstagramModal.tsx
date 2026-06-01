@@ -399,13 +399,15 @@ const ShareCard = React.forwardRef<HTMLDivElement, {
         }}>
           <span style={{
             fontSize: isStory ? 28 : 22, fontWeight: 900, letterSpacing: -0.5, textTransform: 'lowercase',
+            flexShrink: 0,
           }}>
             zarketplace.com
           </span>
           <span style={{
-            fontSize: 12, fontWeight: 800, letterSpacing: 4, textTransform: 'uppercase', opacity: 0.55,
+            fontSize: isStory ? 17 : 14, fontWeight: 800, letterSpacing: 0.3, textTransform: 'none',
+            opacity: 0.6, textAlign: 'right', whiteSpace: 'nowrap',
           }}>
-            Shop preloved fashion
+            {"gen-z's marketplace | buy & sell pre-owned fashion"}
           </span>
         </div>
       </div>

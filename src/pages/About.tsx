@@ -21,7 +21,7 @@ export function About() {
       >
         <div className="flex flex-col gap-4 text-center items-center">
           <div className="flex items-center gap-3 mb-4">
-            <img src="/images/zarketplace-tp.png" alt="Zarketplace" className="h-8 w-auto" referrerPolicy="no-referrer" />
+            <img src="/images/zarketplace-tp.png" alt="zarketplace" className="h-8 w-auto" referrerPolicy="no-referrer" />
             <span className="lowercase font-black tracking-tighter text-3xl">zarketplace</span>
           </div>
           <span className="text-[10px] font-black uppercase tracking-[0.4em] text-black">Our Mission</span>
