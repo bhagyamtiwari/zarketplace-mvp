@@ -18,8 +18,8 @@
 //   - PUBLIC_SITE_URL       e.g. https://zarketplace.com
 //   - SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (auto-injected)
 //
-// This function is invoked from cashfree-webhook and from seller portal
-// tracking updates. It can also be called directly with auth.
+// Invoked from checkout (buyer confirmation) and seller portal (tracking
+// updates). Can also be called directly with auth.
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -132,11 +132,11 @@ function buildEmail(
     case "order_confirmation_buyer":
       return {
         to: o.buyer_email,
-        subject: `Order confirmed · ${o.order_number}`,
+        subject: `Order placed · ${o.order_number}`,
         html: `<div style="${baseStyle}">
-          <h1 style="font-weight:900; text-transform:uppercase; letter-spacing:-1px;">Order confirmed</h1>
+          <h1 style="font-weight:900; text-transform:uppercase; letter-spacing:-1px;">Order placed</h1>
           <p>Hi ${esc(o.buyer_name)},</p>
-          <p>Thanks for your order on Zarketplace! Your payment has been received and the seller has been notified to ship your item.</p>
+          <p>Thanks for your order on Zarketplace! We're verifying your payment. Once confirmed, the seller will be notified to ship your item.</p>
           <h3 style="margin-top:24px;">${esc(o.listing_title)}</h3>
           <p style="color:#666; font-size:13px;">SKU: ${esc(o.listing_sku)}</p>
           <p><strong>Order #:</strong> ${esc(o.order_number)}<br/>
@@ -154,10 +154,9 @@ function buildEmail(
           <p>Your item <strong>${esc(o.listing_title)}</strong> has been purchased.</p>
           <p><strong>Order #:</strong> ${esc(o.order_number)}<br/>
              <strong>Buyer:</strong> ${esc(o.buyer_name)}<br/>
-             <strong>Payout (after platform fee):</strong> Rs. ${o.seller_payout_amount}</p>
-          <p>Please ship the item promptly and update the tracking number in your seller portal.</p>
+             <strong>Amount:</strong> Rs. ${o.total_amount}</p>
+          <p>Please ship the item promptly and update the tracking number in your seller portal. Your payout will be released once shipping is confirmed.</p>
           <a href="${sellerUrl}" style="display:inline-block; background:#000; color:#fff; padding:14px 24px; text-decoration:none; font-weight:900; text-transform:uppercase; letter-spacing:2px; font-size:11px;">Open seller portal</a>
-          <p style="margin-top:32px; color:#888; font-size:11px;">Payouts are released after delivery is confirmed by the team.</p>
         </div>`,
       };
 
@@ -168,7 +167,7 @@ function buildEmail(
         html: `<div style="${baseStyle}">
           <h1 style="font-weight:900; text-transform:uppercase;">Shipped!</h1>
           <p>Hi ${esc(o.buyer_name)}, your item is on its way.</p>
-          <p><strong>Courier:</strong> ${esc(o.courier_name ?? "")}<br/>
+          <p><strong>Courier:</strong> ${esc(o.courier ?? "")}<br/>
              <strong>Tracking #:</strong> ${esc(o.tracking_number ?? "")}</p>
           <a href="${trackUrl}" style="display:inline-block; background:#000; color:#fff; padding:14px 24px; text-decoration:none; font-weight:900; text-transform:uppercase; letter-spacing:2px; font-size:11px;">Track order</a>
         </div>`,
@@ -177,11 +176,11 @@ function buildEmail(
     case "payout_released_seller":
       return {
         to: o.seller_email,
-        subject: `Payout released · Rs. ${o.seller_payout_amount}`,
+        subject: `Payout released · Rs. ${o.total_amount}`,
         html: `<div style="${baseStyle}">
           <h1 style="font-weight:900; text-transform:uppercase;">Payout released</h1>
-          <p>Your payout of <strong>Rs. ${o.seller_payout_amount}</strong> for order ${esc(o.order_number)} has been released.</p>
-          <a href="${sellerUrl}" style="display:inline-block; background:#000; color:#fff; padding:14px 24px; text-decoration:none; font-weight:900; text-transform:uppercase; letter-spacing:2px; font-size:11px;">View payouts</a>
+          <p>Your payout of <strong>Rs. ${o.total_amount}</strong> for order ${esc(o.order_number)} has been released to your UPI.</p>
+          <a href="${sellerUrl}" style="display:inline-block; background:#000; color:#fff; padding:14px 24px; text-decoration:none; font-weight:900; text-transform:uppercase; letter-spacing:2px; font-size:11px;">View seller portal</a>
         </div>`,
       };
 

@@ -1,6 +1,6 @@
 // Admin portal: listings approval, orders verification, user management.
-// Payouts/campaigns are gone in the no-fees launch - sellers receive funds
-// directly from buyers, so the platform is no longer in the payment loop.
+// MVP: buyer pays admin UPI. Admin verifies payment manually (e.g. in UPI
+// app), marks "paid", then pays the seller once shipping is confirmed.
 
 import React from 'react';
 import { Link } from 'react-router-dom';
@@ -263,7 +263,7 @@ function OrdersPanel({ orders, loading, onUpdate }: {
             <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Buyer</th>
             <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Seller</th>
             <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Total</th>
-            <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Proof</th>
+            <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Confirmed</th>
             <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Status</th>
             <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40 text-right">Actions</th>
           </tr></thead>
@@ -275,7 +275,7 @@ function OrdersPanel({ orders, loading, onUpdate }: {
                 </td>
                 <td className="py-4 px-3 text-xs font-bold">{o.listing_title}<br /><span className="text-[10px] font-normal text-black/40">{o.listing_sku}</span></td>
                 <td className="py-4 px-3 text-[10px] font-bold">{o.buyer_name}<br /><span className="text-black/40">{o.buyer_email}</span></td>
-                <td className="py-4 px-3 text-[10px] font-bold">{o.seller_email}<br /><span className="text-black/40 font-mono">{o.seller_upi_vpa_snapshot}</span></td>
+                <td className="py-4 px-3 text-[10px] font-bold">{o.seller_email}<br /><span className="font-mono font-black text-black">{o.seller_upi_vpa_snapshot}</span></td>
                 <td className="py-4 px-3 text-xs font-black">{formatCurrency(Number(o.total_amount))}</td>
                 <td className="py-4 px-3 text-[10px] leading-relaxed">
                   <ProofCell utr={o.payment_utr} receiptPath={o.payment_receipt_url} submittedAt={o.payment_submitted_at} />
@@ -305,30 +305,14 @@ function OrdersPanel({ orders, loading, onUpdate }: {
   );
 }
 
-function ProofCell({ utr, receiptPath, submittedAt }: {
+function ProofCell({ submittedAt }: {
   utr: string | null; receiptPath: string | null; submittedAt: string | null;
 }) {
-  const [signedUrl, setSignedUrl] = React.useState<string | null>(null);
-  React.useEffect(() => {
-    if (!receiptPath) return;
-    let cancelled = false;
-    supabase.storage.from('order-attachments').createSignedUrl(receiptPath, 60 * 60).then(({ data }) => {
-      if (!cancelled) setSignedUrl(data?.signedUrl ?? null);
-    });
-    return () => { cancelled = true; };
-  }, [receiptPath]);
-
   return (
     <div className="flex flex-col gap-1">
-      {utr ? <span className="font-mono">UTR: {utr}</span> : <span className="text-black/30">No UTR</span>}
-      {signedUrl ? (
-        <a href={signedUrl} target="_blank" rel="noreferrer" className="inline-block">
-          <img src={signedUrl} alt="receipt" className="h-12 w-12 object-cover border border-black/10 hover:border-black" />
-        </a>
-      ) : receiptPath ? (
-        <span className="text-black/40">Loading…</span>
-      ) : null}
-      {submittedAt && <span className="text-black/40">{new Date(submittedAt).toLocaleString()}</span>}
+      {submittedAt
+        ? <span className="text-black/60">Buyer confirmed {new Date(submittedAt).toLocaleString()}</span>
+        : <span className="text-black/30">Not yet</span>}
     </div>
   );
 }
