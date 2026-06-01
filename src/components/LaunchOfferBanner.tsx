@@ -21,7 +21,7 @@ interface Props {
 // Headline phrases used by the news-ticker variant. Mix punchy + informative.
 const TICKER_PHRASES = [
   '0% PLATFORM FEES',
-  'LIST FREE  -  GET PAID DIRECT',
+  'LIST FREE  -  0% SELLER COMMISSION',
   'LIMITED LAUNCH OFFER',
   'KEEP 100% OF EVERY SALE',
   'STANDARD 10-15% FEES RETURN AFTER LAUNCH',

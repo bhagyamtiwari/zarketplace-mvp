@@ -1,9 +1,8 @@
 // SellerPortal - seller-facing dashboard.
 // Listings (active/sold) + sold orders. For each sold order, the seller can:
-//   - View buyer's payment proof (UTR + receipt) via signed URL.
 //   - Add tracking (URL required, courier/number/photo optional) to ship.
 //   - Edit tracking after submission.
-// No payouts panel: in the no-fees launch the buyer pays the seller directly.
+// MVP: buyer pays admin UPI; admin verifies and pays seller after shipping.
 
 import * as React from 'react';
 import { Link } from 'react-router-dom';
@@ -11,7 +10,7 @@ import { supabase } from '../lib/supabase';
 import { Listing, Order, OrderStatus } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import {
-  Loader2, X, Eye, EyeOff, Copy, Check, Edit3, Upload, ExternalLink,
+  Loader2, X, Edit3, Upload, ExternalLink,
 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
@@ -102,7 +101,7 @@ function SellerInner() {
       <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 mb-12 max-w-2xl leading-relaxed">
         {tab === 'listings'
           ? 'Items you have put up for sale on zarketplace. Active items appear on browse; sold items move below once a buyer purchases them.'
-          : 'Orders for items YOU sold - buyers waiting on you to verify payment and ship. (For orders YOU placed as a buyer, see "My Orders" in your profile menu.)'}
+          : 'Orders for items YOU sold. Once a buyer places an order, add tracking and ship. Zarketplace verifies payment and pays you once shipped. (For orders YOU placed as a buyer, see "My Orders" in your profile menu.)'}
       </p>
 
       {error && (
@@ -193,7 +192,6 @@ function OrdersList({ rows, onUpdated }: { rows: Order[]; onUpdated: () => void 
 }
 
 function OrderRow({ order, onUpdated }: { order: Order; onUpdated: () => void }) {
-  const [showProof, setShowProof] = React.useState(false);
   const [editing, setEditing] = React.useState(false);
   return (
     <div className="border border-black/5 bg-white p-6 flex flex-col gap-4">
@@ -227,14 +225,12 @@ function OrderRow({ order, onUpdated }: { order: Order; onUpdated: () => void })
         </div>
       </div>
 
-      <div className="pt-4 border-t border-black/5 flex flex-col gap-3">
-        <button onClick={() => setShowProof((v) => !v)}
-          className="self-start inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest underline">
-          {showProof ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-          See Payment Details
-        </button>
-        {showProof && <PaymentDetails order={order} />}
-      </div>
+      {order.status === 'awaiting_verification' && (
+        <div className="bg-amber-50 border border-amber-200 p-4 text-[10px] font-bold uppercase tracking-widest text-amber-700 leading-relaxed">
+          Payment is being verified by Zarketplace. Please add tracking and ship the item.
+          You will receive your payout once shipping is confirmed.
+        </div>
+      )}
 
       <div className="pt-4 border-t border-black/5">
         {order.status === 'awaiting_verification' || order.status === 'paid' || (order.status === 'shipped' && editing) ? (
@@ -254,52 +250,6 @@ function OrderRow({ order, onUpdated }: { order: Order; onUpdated: () => void })
           </div>
         ) : null}
       </div>
-    </div>
-  );
-}
-
-function PaymentDetails({ order }: { order: Order }) {
-  const [signedUrl, setSignedUrl] = React.useState<string | null>(null);
-  const [copied, setCopied] = React.useState(false);
-  React.useEffect(() => {
-    if (!order.payment_receipt_url) return;
-    let cancelled = false;
-    supabase.storage.from('order-attachments').createSignedUrl(order.payment_receipt_url, 3600).then(({ data }) => {
-      if (!cancelled) setSignedUrl(data?.signedUrl ?? null);
-    });
-    return () => { cancelled = true; };
-  }, [order.payment_receipt_url]);
-
-  const copyUtr = async () => {
-    if (!order.payment_utr) return;
-    try { await navigator.clipboard.writeText(order.payment_utr); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch {}
-  };
-
-  return (
-    <div className="bg-zinc-50 border border-black/10 p-4 flex flex-col gap-3">
-      <div className="flex items-center gap-3">
-        <span className="text-[9px] font-black uppercase tracking-widest text-black/40">UTR</span>
-        {order.payment_utr ? (
-          <button onClick={copyUtr} className="font-mono text-xs font-bold inline-flex items-center gap-2 hover:text-black">
-            {order.payment_utr} {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-          </button>
-        ) : <span className="text-[10px] text-black/40">Not provided</span>}
-      </div>
-      {signedUrl ? (
-        <a href={signedUrl} target="_blank" rel="noreferrer" className="block">
-          <img src={signedUrl} alt="receipt" className="max-h-72 object-contain border border-black/10 bg-white" />
-        </a>
-      ) : order.payment_receipt_url ? (
-        <span className="text-[10px] text-black/40">Loading receipt…</span>
-      ) : null}
-      {order.payment_submitted_at && (
-        <span className="text-[10px] font-bold uppercase tracking-widest text-black/40">
-          Submitted {new Date(order.payment_submitted_at).toLocaleString()}
-        </span>
-      )}
-      <p className="text-[10px] font-bold uppercase tracking-widest text-black/60 leading-relaxed border-t border-black/5 pt-3">
-        Verify the payment landed in your UPI app before you ship.
-      </p>
     </div>
   );
 }

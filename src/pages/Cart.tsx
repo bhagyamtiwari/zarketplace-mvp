@@ -135,7 +135,7 @@ function CartInner() {
               Checkout <ArrowRight className="h-4 w-4" />
             </button>
             <p className="text-[9px] font-bold uppercase tracking-widest text-black/40 leading-relaxed text-center">
-              Pay the seller directly via UPI on the next page.
+              Pay securely via UPI on the next page.
             </p>
           </div>
         </div>
