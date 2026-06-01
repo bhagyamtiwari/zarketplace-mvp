@@ -1,7 +1,6 @@
 // TrackOrder - buyer's "My Orders" page. Auth required. Lists every order
 // where buyer_id = auth.uid() (RLS enforces this). Each row shows:
 //  - status timeline (Ordered → Verified → Shipped)
-//  - the buyer's own payment proof (UTR + receipt thumbnail)
 //  - tracking section (link, courier, number, package photo) once available
 
 import * as React from 'react';
@@ -9,7 +8,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Order, OrderStatus } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
-import { Loader2, Truck, CheckCircle2, Clock, ExternalLink, Copy, Check } from 'lucide-react';
+import { Loader2, Truck, CheckCircle2, Clock, ExternalLink } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
 import { log } from '../lib/log';
@@ -62,7 +61,7 @@ function TrackInner() {
         <span className="text-[10px] font-black uppercase tracking-[0.4em] text-black">My Orders</span>
         <h1 className="text-5xl font-black tracking-tighter uppercase">My Purchases</h1>
         <p className="text-xs font-bold uppercase tracking-widest text-black/40 max-w-xl leading-relaxed">
-          Items YOU bought from sellers on zarketplace. Track payment verification and shipping here.
+          Items YOU bought on zarketplace. Track payment verification and shipping here.
           (For items YOU sold, open the Seller Portal.)
         </p>
         {orders.length > 0 && (
@@ -143,45 +142,8 @@ function OrderCard({ order }: { order: Order }) {
         </div>
       )}
 
-      {/* Payment proof (buyer's own) */}
-      <PaymentProof order={order} />
-
       {/* Tracking */}
       <Tracking order={order} />
-    </div>
-  );
-}
-
-function PaymentProof({ order }: { order: Order }) {
-  const [signedUrl, setSignedUrl] = React.useState<string | null>(null);
-  const [copied, setCopied] = React.useState(false);
-  React.useEffect(() => {
-    if (!order.payment_receipt_url) return;
-    let cancelled = false;
-    supabase.storage.from('order-attachments').createSignedUrl(order.payment_receipt_url, 3600).then(({ data }) => {
-      if (!cancelled) setSignedUrl(data?.signedUrl ?? null);
-    });
-    return () => { cancelled = true; };
-  }, [order.payment_receipt_url]);
-
-  if (!order.payment_utr && !order.payment_receipt_url) return null;
-  const copyUtr = async () => {
-    if (!order.payment_utr) return;
-    try { await navigator.clipboard.writeText(order.payment_utr); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch {}
-  };
-  return (
-    <div className="border-t border-black/5 pt-4 flex flex-col gap-2">
-      <span className="text-[10px] font-black uppercase tracking-widest text-black/40">Your Payment Proof</span>
-      {order.payment_utr && (
-        <button onClick={copyUtr} className="self-start font-mono text-xs inline-flex items-center gap-2 hover:underline">
-          UTR: {order.payment_utr} {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-        </button>
-      )}
-      {signedUrl && (
-        <a href={signedUrl} target="_blank" rel="noreferrer">
-          <img src={signedUrl} alt="receipt" className="h-20 w-20 object-cover border border-black/10" />
-        </a>
-      )}
     </div>
   );
 }
@@ -216,7 +178,7 @@ function Tracking({ order }: { order: Order }) {
       ) : (
         <div className="bg-zinc-50 border border-black/5 p-4">
           <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 leading-relaxed">
-            Tracking unavailable. Waiting for the seller to ship and add tracking. We'll email you the moment they do.
+            Tracking unavailable. We're verifying your payment. Once confirmed, the seller will ship and add tracking. We'll email you the moment they do.
           </p>
         </div>
       )}

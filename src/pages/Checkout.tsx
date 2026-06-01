@@ -1,9 +1,10 @@
-// Single-stage UPI checkout. Buyer pays the seller directly via UPI then
-// proves the payment with a UTR or a receipt screenshot (one or both).
+// MVP checkout: single admin UPI. Buyer pays the full amount to the platform
+// UPI (9220190649@ybl). Admin manually verifies and pays the seller once
+// shipping is confirmed.
 //
 // Flow:
 //   1. Address - collect shipping. Creates one order row per cart item.
-//   2. Pay seller - show QR + deep-link, collect UTR + receipt upload.
+//   2. Pay - show QR + deep-link for admin UPI. Buyer confirms payment.
 //   3. Success.
 
 import React from 'react';
@@ -17,19 +18,20 @@ import { useAuth } from '../lib/auth';
 import { useCart } from '../lib/cart';
 import { RequireAuth } from '../components/RequireAuth';
 import { LaunchOfferBanner } from '../components/LaunchOfferBanner';
-import { PaymentProofInput, isValidUtr } from '../components/PaymentProofInput';
 import { log } from '../lib/log';
 import { sendEmail } from '../lib/email';
 
 const clog = log('checkout');
-const RESUME_KEY = 'zk_checkout_v2';
+const RESUME_KEY = 'zk_checkout_v3';
 
-type Step = 'address' | 'pay_seller' | 'success';
+const ADMIN_UPI_VPA = '9220190649@ybl';
+const ADMIN_UPI_NAME = 'Zarketplace';
+
+type Step = 'address' | 'pay' | 'success';
 
 interface ResumeState {
   step: Step;
   order_numbers: string[];
-  seller_vpa: string;
   amount: number;
 }
 
@@ -117,9 +119,9 @@ function CheckoutInner() {
       const raw = localStorage.getItem(RESUME_KEY);
       if (!raw) return;
       const r = JSON.parse(raw) as ResumeState;
-      if (r?.order_numbers?.length && r.step === 'pay_seller') {
+      if (r?.order_numbers?.length && r.step === 'pay') {
         setOrderNumbers(r.order_numbers);
-        setStep('pay_seller');
+        setStep('pay');
       }
     } catch {}
   }, []);
@@ -127,13 +129,11 @@ function CheckoutInner() {
   const subtotal = items.reduce((s, i) => s + (i.sale_price ?? i.price ?? 0), 0);
   const shipping = items.reduce((s, i) => s + (i.shipping_mode === 'paid' ? (i.shipping_cost || 0) : 0), 0);
   const total = subtotal + shipping;
-  const sellerVpa = items[0]?.seller_upi_vpa || '';
-  const sellerName = items[0]?.seller_display_name || items[0]?.brand || 'Seller';
 
   const persistResume = (state: Partial<ResumeState>) => {
     try {
       const merged: ResumeState = {
-        step, order_numbers: orderNumbers, seller_vpa: sellerVpa, amount: total, ...state,
+        step, order_numbers: orderNumbers, amount: total, ...state,
       };
       localStorage.setItem(RESUME_KEY, JSON.stringify(merged));
     } catch {}
@@ -144,7 +144,6 @@ function CheckoutInner() {
     setErrorMsg(null);
     if (!user) return;
     if (items.length === 0) { setErrorMsg('Your cart is empty.'); return; }
-    if (!sellerVpa) { setErrorMsg('Seller has not configured a UPI ID.'); return; }
     const required: Array<[string, string]> = [
       ['fullName', shippingAddress.fullName], ['email', shippingAddress.email],
       ['phone', shippingAddress.phone], ['address', shippingAddress.address],
@@ -190,14 +189,9 @@ function CheckoutInner() {
       if (error) throw error;
       const nums = (data ?? []).map((r: { order_number: string }) => r.order_number);
 
-      // We do NOT mark listings sold here. If the buyer abandons checkout
-      // (closes the tab, cancels the UPI app, doesn't upload proof), the
-      // listing must remain available for other buyers. Sold state is set
-      // only when payment proof is submitted (see submitProof below).
-
       setOrderNumbers(nums);
-      setStep('pay_seller');
-      persistResume({ step: 'pay_seller', order_numbers: nums });
+      setStep('pay');
+      persistResume({ step: 'pay', order_numbers: nums });
     } catch (err: any) {
       clog.error('createOrders failed', err);
       setErrorMsg(err?.message || 'Failed to create order.');
@@ -206,43 +200,24 @@ function CheckoutInner() {
     }
   };
 
-  const submitProof = async (utr: string, file: File | null) => {
+  const confirmPayment = async () => {
     setErrorMsg(null);
-    if (!utr && !file) { setErrorMsg('Provide a UTR or upload a receipt.'); return; }
-    if (utr && !isValidUtr(utr)) { setErrorMsg('UTR must be 12 digits.'); return; }
     if (!user) return;
     setSubmitting(true);
     try {
-      let receiptPath: string | null = null;
-      if (file) {
-        const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
-        const orderNum = orderNumbers[0] || 'tmp';
-        const path = `receipts/${orderNum}/${crypto.randomUUID()}.${ext}`;
-        const { error: upErr } = await supabase.storage
-          .from('order-attachments').upload(path, file, { contentType: file.type });
-        if (upErr) throw upErr;
-        receiptPath = path;
-      }
-
       const { data: updated, error: updErr } = await supabase.from('orders').update({
-        payment_utr: utr || null,
-        payment_receipt_url: receiptPath,
+        payment_utr: 'ADMIN_VERIFY',
         payment_submitted_at: new Date().toISOString(),
         status: 'awaiting_verification',
       }).in('order_number', orderNumbers).select('id, listing_id');
       if (updErr) throw updErr;
 
-      // NOW mark the listings sold - buyer has actually submitted payment
-      // proof. Admin flips is_sold back to false on cancel/refund.
       const listingIds = (updated ?? []).map((r: { listing_id: string | null }) => r.listing_id).filter(Boolean) as string[];
       if (listingIds.length > 0) {
         const { error: soldErr } = await supabase.from('listings').update({ is_sold: true }).in('id', listingIds);
         if (soldErr) clog.warn('mark sold failed', soldErr);
       }
 
-      // Fire transactional emails (best effort - don't block checkout on
-      // failure). Resend free tier allows 2 req/s, so we serialize with a
-      // 600ms gap between calls. Runs in the background after setStep.
       const ids = (updated ?? []).map((r: { id: string }) => r.id);
       void (async () => {
         const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -258,8 +233,8 @@ function CheckoutInner() {
       clearResume();
       if (!id) await cart.clear();
     } catch (err: any) {
-      clog.error('submitProof failed', err);
-      setErrorMsg(err?.message || 'Failed to submit proof.');
+      clog.error('confirmPayment failed', err);
+      setErrorMsg(err?.message || 'Failed to confirm payment.');
     } finally {
       setSubmitting(false);
     }
@@ -273,7 +248,7 @@ function CheckoutInner() {
     );
   }
 
-  if (items.length === 0 && step !== 'success') {
+  if (items.length === 0 && step !== 'success' && step !== 'pay') {
     return (
       <div className="mx-auto max-w-2xl px-4 py-32 text-center flex flex-col items-center gap-8">
         <h1 className="text-5xl font-black tracking-tighter uppercase">Nothing to check out</h1>
@@ -294,13 +269,13 @@ function CheckoutInner() {
           className="h-24 w-24 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mb-4">
           <CheckCircle2 className="h-12 w-12" />
         </motion.div>
-        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-600">Submitted for verification</span>
-        <h1 className="text-5xl font-black tracking-tighter uppercase">Order confirmed.</h1>
+        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-600">Order placed</span>
+        <h1 className="text-5xl font-black tracking-tighter uppercase">Thank you!</h1>
         <p className="text-xs font-bold uppercase tracking-widest text-black/40">
           Order{orderNumbers.length > 1 ? 's' : ''}: {orderNumbers.join(', ')}
         </p>
         <p className="text-[11px] font-bold uppercase tracking-widest text-black/60 max-w-md leading-relaxed">
-          The seller will verify your payment and ship within 24 hours. Track everything in My Orders.
+          We'll verify your payment shortly. Once confirmed, the seller will be notified to ship your item. Track everything in My Orders.
         </p>
         <div className="flex gap-3">
           <Link to="/browse" className="bg-black px-12 py-5 text-xs font-black uppercase tracking-[0.4em] text-white hover:bg-zinc-800">Continue Shopping</Link>
@@ -324,17 +299,17 @@ function CheckoutInner() {
             <AddressStep addr={shippingAddress} onChange={setShippingAddress}
               onSubmit={submitAddress} submitting={submitting} errorMsg={errorMsg} />
           )}
-          {step === 'pay_seller' && (
+          {step === 'pay' && (
             <PayStep
-              vpa={sellerVpa} payeeName={sellerName} amount={total}
+              amount={total}
               transactionNote={`ZKT-${orderNumbers[0] ?? ''}`}
-              onSubmit={submitProof} submitting={submitting} errorMsg={errorMsg}
+              onConfirm={confirmPayment} submitting={submitting} errorMsg={errorMsg}
             />
           )}
         </div>
 
         <div className="lg:col-span-5">
-          <Summary items={items} subtotal={subtotal} shipping={shipping} total={total} sellerVpa={sellerVpa} />
+          <Summary items={items} subtotal={subtotal} shipping={shipping} total={total} />
         </div>
       </div>
     </div>
@@ -344,7 +319,7 @@ function CheckoutInner() {
 function StepHeader({ step }: { step: Step }) {
   const steps: Array<{ key: Step; label: string }> = [
     { key: 'address', label: '1 · Address' },
-    { key: 'pay_seller', label: '2 · Pay seller' },
+    { key: 'pay', label: '2 · Payment' },
   ];
   const idx = steps.findIndex((s) => s.key === step);
   return (
@@ -421,29 +396,26 @@ function Field({ label, value, onChange, placeholder, type = 'text' }: {
 }
 
 function PayStep({
-  vpa, payeeName, amount, transactionNote, onSubmit, submitting, errorMsg,
+  amount, transactionNote, onConfirm, submitting, errorMsg,
 }: {
-  vpa: string; payeeName: string; amount: number; transactionNote: string;
-  onSubmit: (utr: string, file: File | null) => void; submitting: boolean; errorMsg: string | null;
+  amount: number; transactionNote: string;
+  onConfirm: () => void; submitting: boolean; errorMsg: string | null;
 }) {
-  const [utr, setUtr] = React.useState('');
-  const [file, setFile] = React.useState<File | null>(null);
   const [copied, setCopied] = React.useState(false);
-  const link = makeUpiLink({ pa: vpa, pn: payeeName, am: amount, tn: transactionNote });
+  const link = makeUpiLink({ pa: ADMIN_UPI_VPA, pn: ADMIN_UPI_NAME, am: amount, tn: transactionNote });
   const qr = qrUrl(link);
 
   const copyVpa = async () => {
-    try { await navigator.clipboard.writeText(vpa); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch {}
+    try { await navigator.clipboard.writeText(ADMIN_UPI_VPA); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch {}
   };
-
-  const canSubmit = !!file || isValidUtr(utr);
 
   return (
     <section className="flex flex-col gap-10">
       <div className="flex flex-col gap-2 border-b border-black pb-4">
-        <h2 className="text-xs font-black uppercase tracking-widest">Pay the seller</h2>
+        <h2 className="text-xs font-black uppercase tracking-widest">Complete Payment</h2>
         <p className="text-[11px] text-black/60 font-medium leading-relaxed">
-          Scan, pay {formatCurrency(amount)}, and prove the payment below - UTR or screenshot.
+          Scan the QR code or tap "Open UPI App" to pay {formatCurrency(amount)} to Zarketplace.
+          Once paid, tap "I've Paid" below to confirm your order.
         </p>
         <div className="mt-2"><LaunchOfferBanner variant="inline" /></div>
       </div>
@@ -453,9 +425,9 @@ function PayStep({
           <img src={qr} alt="UPI QR" className="h-60 w-60 bg-white" />
           <div className="text-center">
             <p className="text-[9px] font-black uppercase tracking-widest text-black/40">Pay To</p>
-            <p className="text-sm font-bold">{payeeName}</p>
+            <p className="text-sm font-bold">{ADMIN_UPI_NAME}</p>
             <button onClick={copyVpa} className="mt-1 inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest underline">
-              {vpa} {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+              {ADMIN_UPI_VPA} {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
             </button>
           </div>
           <div className="text-center">
@@ -475,31 +447,31 @@ function PayStep({
         </div>
       </div>
 
-      {/* Visual link from QR to proof section */}
-      <div className="flex items-center gap-4">
-        <div className="h-px bg-black/10 flex-1" />
-        <span className="text-[10px] font-black uppercase tracking-widest text-black/40">After payment - submit proof</span>
-        <div className="h-px bg-black/10 flex-1" />
-      </div>
-
-      <div className="border border-black bg-zinc-50 p-6">
-        <PaymentProofInput utr={utr} onUtrChange={setUtr} file={file} onFileChange={setFile} />
+      <div className="border border-black/10 bg-zinc-50 p-6 flex flex-col gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-[9px] font-black uppercase tracking-widest text-black/40">Ref:</span>
+          <span className="text-[10px] font-black uppercase tracking-widest">{transactionNote}</span>
+        </div>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-black/60 leading-relaxed">
+          After paying via your UPI app, tap the button below to confirm. Our team will verify
+          the payment and notify the seller to ship your item.
+        </p>
       </div>
 
       {errorMsg && <p className="text-[10px] font-bold uppercase tracking-widest text-red-600">{errorMsg}</p>}
 
-      <button type="button" onClick={() => onSubmit(utr, file)}
-        disabled={submitting || !canSubmit}
+      <button type="button" onClick={onConfirm}
+        disabled={submitting}
         className="w-full bg-black py-5 text-xs font-black uppercase tracking-[0.3em] text-white hover:bg-zinc-800 disabled:opacity-30 flex items-center justify-center gap-3">
         {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-        <span>Submit payment proof</span>
+        <span>I've Paid — Confirm Order</span>
       </button>
     </section>
   );
 }
 
-function Summary({ items, subtotal, shipping, total, sellerVpa }: {
-  items: CartItem[]; subtotal: number; shipping: number; total: number; sellerVpa: string;
+function Summary({ items, subtotal, shipping, total }: {
+  items: CartItem[]; subtotal: number; shipping: number; total: number;
 }) {
   return (
     <div className="sticky top-32 flex flex-col gap-8 p-10 bg-zinc-50 border border-black/5">
@@ -535,17 +507,9 @@ function Summary({ items, subtotal, shipping, total, sellerVpa }: {
         <span className="text-3xl font-black tracking-tighter">{formatCurrency(total)}</span>
       </div>
 
-      {sellerVpa ? (
-        <p className="text-[9px] font-bold uppercase tracking-widest text-black/40 leading-relaxed">
-          Seller UPI: <span className="text-black">{sellerVpa}</span>
-        </p>
-      ) : (
-        <p className="text-[10px] font-bold uppercase tracking-widest text-red-600">Seller has not set a UPI ID.</p>
-      )}
-
       <div className="flex items-center justify-center gap-3 text-[9px] font-black uppercase tracking-[0.2em] text-black/30">
         <ShieldCheck className="h-4 w-4" />
-        <span>UTR-verified payments</span>
+        <span>Secure UPI payment</span>
       </div>
     </div>
   );

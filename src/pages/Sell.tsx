@@ -1,9 +1,9 @@
-// Sell page (clean-slate). Single screen form to create a listing.
-// New per-listing requirements (no fees launch):
-//   * UPI VPA collected twice with paste blocked on the confirm field.
+// Sell page. Single screen form to create a listing.
+// Per-listing requirements:
+//   * UPI VPA collected twice with paste blocked on the confirm field
+//     (admin pays seller to this UPI after shipping is confirmed).
 //   * Instagram handle entered with a fixed `https://www.instagram.com/`
 //     prefix; we persist the full URL.
-//   * No bank fields, no QR upload - checkout auto-generates a QR from VPA.
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -359,7 +359,7 @@ function SellInner() {
             <div className="flex flex-col gap-1">
               <label className="text-[10px] font-black uppercase tracking-widest">Your UPI ID *</label>
               <p className="text-[9px] font-bold uppercase tracking-widest text-black/40">
-                Buyers will pay this UPI directly. Type it twice - paste is disabled on the second field to prevent typos.
+                Your payout UPI - we'll send your earnings here after the buyer's order ships. Type it twice - paste is disabled on the second field to prevent typos.
               </p>
             </div>
             <UpiVpaInput value={vpa} onChange={(v, valid) => { setVpa(v); setVpaValid(valid); }} />
