@@ -7,6 +7,7 @@ import { Sell } from './pages/Sell';
 import { Admin } from './pages/Admin';
 import { Returns } from './pages/Returns';
 import { Privacy } from './pages/Privacy';
+import { Trademark } from './pages/Trademark';
 import { Condition } from './pages/Condition';
 import { Checkout } from './pages/Checkout';
 import { About } from './pages/About';
@@ -41,6 +42,7 @@ export default function App() {
             <Route path="/admin" element={<Admin />} />
             <Route path="/returns" element={<Returns />} />
             <Route path="/privacy" element={<Privacy />} />
+            <Route path="/trademark" element={<Trademark />} />
             <Route path="/condition" element={<Condition />} />
             <Route path="/cart" element={<Cart />} />
             <Route path="/checkout" element={<Checkout />} />
@@ -84,6 +86,7 @@ export default function App() {
                     <li><Link to="/returns" className="hover:text-black/80 transition-colors">Returns</Link></li>
                     <li><Link to="/privacy" className="hover:text-black/80 transition-colors">Privacy</Link></li>
                     <li><Link to="/condition" className="hover:text-black/80 transition-colors">Item Condition</Link></li>
+                    <li><Link to="/trademark" className="hover:text-black/80 transition-colors">Trademark &amp; Brand Notice</Link></li>
                   </ul>
                 </div>
 

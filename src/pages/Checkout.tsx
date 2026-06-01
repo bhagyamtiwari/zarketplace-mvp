@@ -1,6 +1,6 @@
 // MVP checkout: single admin UPI. Buyer pays the full amount to the platform
-// UPI (9220190649@ybl). Admin manually verifies and pays the seller once
-// shipping is confirmed.
+// UPI (9220190649@idfcbank, ADNIZ Private Limited). Admin manually verifies and
+// pays the seller once shipping is confirmed.
 //
 // Flow:
 //   1. Address - collect shipping. Creates one order row per cart item.
@@ -24,8 +24,10 @@ import { sendEmail } from '../lib/email';
 const clog = log('checkout');
 const RESUME_KEY = 'zk_checkout_v3';
 
-const ADMIN_UPI_VPA = '9220190649@ybl';
-const ADMIN_UPI_NAME = 'Zarketplace';
+const ADMIN_UPI_VPA = '9220190649@idfcbank';
+// Brand name shown to the buyer, and the legal entity that holds the account.
+const ADMIN_UPI_NAME = 'zarketplace';
+const ADMIN_LEGAL_NAME = 'ADNIZ Private Limited';
 
 type Step = 'address' | 'pay' | 'success';
 
@@ -200,7 +202,7 @@ function CheckoutInner() {
     }
   };
 
-  const confirmPayment = async () => {
+  const confirmPayment = async (buyerNote: string) => {
     setErrorMsg(null);
     if (!user) return;
     setSubmitting(true);
@@ -208,6 +210,7 @@ function CheckoutInner() {
       const { data: updated, error: updErr } = await supabase.from('orders').update({
         payment_utr: 'ADMIN_VERIFY',
         payment_submitted_at: new Date().toISOString(),
+        buyer_note: buyerNote.trim() || null,
         status: 'awaiting_verification',
       }).in('order_number', orderNumbers).select('id, listing_id');
       if (updErr) throw updErr;
@@ -399,10 +402,11 @@ function PayStep({
   amount, transactionNote, onConfirm, submitting, errorMsg,
 }: {
   amount: number; transactionNote: string;
-  onConfirm: () => void; submitting: boolean; errorMsg: string | null;
+  onConfirm: (note: string) => void; submitting: boolean; errorMsg: string | null;
 }) {
   const [copied, setCopied] = React.useState(false);
-  const link = makeUpiLink({ pa: ADMIN_UPI_VPA, pn: ADMIN_UPI_NAME, am: amount, tn: transactionNote });
+  const [note, setNote] = React.useState('');
+  const link = makeUpiLink({ pa: ADMIN_UPI_VPA, pn: ADMIN_LEGAL_NAME, am: amount, tn: transactionNote });
   const qr = qrUrl(link);
 
   const copyVpa = async () => {
@@ -414,8 +418,8 @@ function PayStep({
       <div className="flex flex-col gap-2 border-b border-black pb-4">
         <h2 className="text-xs font-black uppercase tracking-widest">Complete Payment</h2>
         <p className="text-[11px] text-black/60 font-medium leading-relaxed">
-          Scan the QR code or tap "Open UPI App" to pay {formatCurrency(amount)} to Zarketplace.
-          Once paid, tap "I've Paid" below to confirm your order.
+          Scan the QR code or tap "Open UPI App" to pay {formatCurrency(amount)} to {ADMIN_UPI_NAME} ({ADMIN_LEGAL_NAME}).
+          Once paid, confirm your order below.
         </p>
         <div className="mt-2"><LaunchOfferBanner variant="inline" /></div>
       </div>
@@ -426,6 +430,7 @@ function PayStep({
           <div className="text-center">
             <p className="text-[9px] font-black uppercase tracking-widest text-black/40">Pay To</p>
             <p className="text-sm font-bold">{ADMIN_UPI_NAME}</p>
+            <p className="text-[11px] font-bold text-black/70">{ADMIN_LEGAL_NAME}</p>
             <button onClick={copyVpa} className="mt-1 inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest underline">
               {ADMIN_UPI_VPA} {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
             </button>
@@ -447,24 +452,42 @@ function PayStep({
         </div>
       </div>
 
-      <div className="border border-black/10 bg-zinc-50 p-6 flex flex-col gap-3">
+      <div className="border border-black/10 bg-zinc-50 p-6 flex flex-col gap-4">
         <div className="flex items-center gap-2">
           <span className="text-[9px] font-black uppercase tracking-widest text-black/40">Ref:</span>
           <span className="text-[10px] font-black uppercase tracking-widest">{transactionNote}</span>
         </div>
-        <p className="text-[10px] font-bold uppercase tracking-widest text-black/60 leading-relaxed">
-          After paying via your UPI app, tap the button below to confirm. Our team will verify
-          the payment and notify the seller to ship your item.
+        <p className="text-[11px] font-bold text-black/70 leading-relaxed">
+          Please make sure your payment has gone through — either in your UPI app on mobile, or on
+          your bank/web payment screen.
         </p>
+        <div className="flex flex-col gap-2">
+          <label htmlFor="buyer-note" className="text-[9px] font-black uppercase tracking-widest text-black/40">
+            Any comments or specific requests for the seller? (optional)
+          </label>
+          <textarea
+            id="buyer-note"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={3}
+            maxLength={1000}
+            placeholder="e.g. please pack securely, deliver after 6pm…"
+            className="w-full border border-black/10 bg-white p-3 text-sm font-medium leading-relaxed focus:border-black focus:outline-none transition-all resize-y"
+          />
+          <p className="text-[10px] font-medium text-black/40 leading-relaxed">
+            Please note: the seller may or may not be able to fulfill all requests or concerns —
+            that's up to them.
+          </p>
+        </div>
       </div>
 
       {errorMsg && <p className="text-[10px] font-bold uppercase tracking-widest text-red-600">{errorMsg}</p>}
 
-      <button type="button" onClick={onConfirm}
+      <button type="button" onClick={() => onConfirm(note)}
         disabled={submitting}
         className="w-full bg-black py-5 text-xs font-black uppercase tracking-[0.3em] text-white hover:bg-zinc-800 disabled:opacity-30 flex items-center justify-center gap-3">
         {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-        <span>I've Paid — Confirm Order</span>
+        <span>Confirm Order &amp; Payment</span>
       </button>
     </section>
   );

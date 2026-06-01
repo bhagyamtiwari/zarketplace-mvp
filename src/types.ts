@@ -80,6 +80,7 @@ export interface Order {
   payment_utr: string | null;
   payment_receipt_url: string | null;
   payment_submitted_at: string | null;
+  buyer_note: string | null;
   status: OrderStatus;
   tracking_url: string | null;
   tracking_number: string | null;

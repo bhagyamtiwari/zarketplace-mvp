@@ -4,11 +4,13 @@
 //   Sends transactional emails via Resend (default) given a template name and
 //   an order_id. Logs every send to `email_log`.
 //
-// Templates supported:
+// Templates supported (each lives in its own file under ./templates/, wired up
+// in ./templates/index.ts — editing one template never touches the others):
 //   - order_confirmation_buyer
 //   - order_notification_seller
 //   - tracking_update_buyer
 //   - payout_released_seller
+//   - custom
 //
 // Required env vars:
 //   - RESEND_API_KEY        (sign up at resend.com — free tier covers MVP)
@@ -24,6 +26,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { buildEmail } from "./templates/index.ts";
 
 interface SendEmailRequest {
   template: string;
@@ -116,96 +119,4 @@ function json(payload: unknown, status = 200) {
     status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
-}
-
-function buildEmail(
-  template: string,
-  ctx: { order: any; extra?: Record<string, unknown>; siteUrl: string },
-): { to: string; subject: string; html: string } {
-  const o = ctx.order ?? {};
-  const trackUrl = `${ctx.siteUrl}/track-order?order=${o.order_number}&email=${encodeURIComponent(o.buyer_email ?? "")}`;
-  const sellerUrl = `${ctx.siteUrl}/seller-portal?email=${encodeURIComponent(o.seller_email ?? "")}`;
-
-  const baseStyle = `font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color:#111; max-width:560px; margin:0 auto; padding:32px;`;
-
-  switch (template) {
-    case "order_confirmation_buyer":
-      return {
-        to: o.buyer_email,
-        subject: `Order placed · ${o.order_number}`,
-        html: `<div style="${baseStyle}">
-          <h1 style="font-weight:900; text-transform:uppercase; letter-spacing:-1px;">Order placed</h1>
-          <p>Hi ${esc(o.buyer_name)},</p>
-          <p>Thanks for your order on Zarketplace! We're verifying your payment. Once confirmed, the seller will be notified to ship your item.</p>
-          <h3 style="margin-top:24px;">${esc(o.listing_title)}</h3>
-          <p style="color:#666; font-size:13px;">SKU: ${esc(o.listing_sku)}</p>
-          <p><strong>Order #:</strong> ${esc(o.order_number)}<br/>
-             <strong>Total:</strong> Rs. ${o.total_amount}</p>
-          <a href="${trackUrl}" style="display:inline-block; background:#000; color:#fff; padding:14px 24px; text-decoration:none; font-weight:900; text-transform:uppercase; letter-spacing:2px; font-size:11px;">Track your order</a>
-        </div>`,
-      };
-
-    case "order_notification_seller":
-      return {
-        to: o.seller_email,
-        subject: `New sale · ${o.listing_title}`,
-        html: `<div style="${baseStyle}">
-          <h1 style="font-weight:900; text-transform:uppercase; letter-spacing:-1px;">You made a sale!</h1>
-          <p>Your item <strong>${esc(o.listing_title)}</strong> has been purchased.</p>
-          <p><strong>Order #:</strong> ${esc(o.order_number)}<br/>
-             <strong>Buyer:</strong> ${esc(o.buyer_name)}<br/>
-             <strong>Amount:</strong> Rs. ${o.total_amount}</p>
-          <p>Please ship the item promptly and update the tracking number in your seller portal. Your payout will be released once shipping is confirmed.</p>
-          <a href="${sellerUrl}" style="display:inline-block; background:#000; color:#fff; padding:14px 24px; text-decoration:none; font-weight:900; text-transform:uppercase; letter-spacing:2px; font-size:11px;">Open seller portal</a>
-        </div>`,
-      };
-
-    case "tracking_update_buyer":
-      return {
-        to: o.buyer_email,
-        subject: `Your order has shipped · ${o.order_number}`,
-        html: `<div style="${baseStyle}">
-          <h1 style="font-weight:900; text-transform:uppercase;">Shipped!</h1>
-          <p>Hi ${esc(o.buyer_name)}, your item is on its way.</p>
-          <p><strong>Courier:</strong> ${esc(o.courier ?? "")}<br/>
-             <strong>Tracking #:</strong> ${esc(o.tracking_number ?? "")}</p>
-          <a href="${trackUrl}" style="display:inline-block; background:#000; color:#fff; padding:14px 24px; text-decoration:none; font-weight:900; text-transform:uppercase; letter-spacing:2px; font-size:11px;">Track order</a>
-        </div>`,
-      };
-
-    case "payout_released_seller":
-      return {
-        to: o.seller_email,
-        subject: `Payout released · Rs. ${o.total_amount}`,
-        html: `<div style="${baseStyle}">
-          <h1 style="font-weight:900; text-transform:uppercase;">Payout released</h1>
-          <p>Your payout of <strong>Rs. ${o.total_amount}</strong> for order ${esc(o.order_number)} has been released to your UPI.</p>
-          <a href="${sellerUrl}" style="display:inline-block; background:#000; color:#fff; padding:14px 24px; text-decoration:none; font-weight:900; text-transform:uppercase; letter-spacing:2px; font-size:11px;">View seller portal</a>
-        </div>`,
-      };
-
-    case "custom":
-      // Used by admin email campaigns — caller passes { subject, html } in extra
-      return {
-        to: (ctx.extra?.to as string) ?? "",
-        subject: (ctx.extra?.subject as string) ?? "Zarketplace",
-        html: (ctx.extra?.html as string) ?? "",
-      };
-
-    default:
-      return {
-        to: (ctx.extra?.to as string) ?? "",
-        subject: "Notification from Zarketplace",
-        html: `<div style="${baseStyle}"><p>${esc(JSON.stringify(ctx.extra))}</p></div>`,
-      };
-  }
-}
-
-function esc(v: unknown): string {
-  if (v == null) return "";
-  return String(v)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
 }

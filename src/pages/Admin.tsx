@@ -274,7 +274,15 @@ function OrdersPanel({ orders, loading, onUpdate }: {
                   {o.order_number}<br /><span className="text-black/40">{new Date(o.created_at).toLocaleDateString()}</span>
                 </td>
                 <td className="py-4 px-3 text-xs font-bold">{o.listing_title}<br /><span className="text-[10px] font-normal text-black/40">{o.listing_sku}</span></td>
-                <td className="py-4 px-3 text-[10px] font-bold">{o.buyer_name}<br /><span className="text-black/40">{o.buyer_email}</span></td>
+                <td className="py-4 px-3 text-[10px] font-bold">
+                  {o.buyer_name}<br /><span className="text-black/40">{o.buyer_email}</span>
+                  {o.buyer_note && (
+                    <p className="mt-2 max-w-[200px] whitespace-pre-wrap font-medium normal-case tracking-normal text-black/70 border-l-2 border-black/20 pl-2">
+                      <span className="block text-[8px] font-black uppercase tracking-widest text-black/40">Buyer note</span>
+                      {o.buyer_note}
+                    </p>
+                  )}
+                </td>
                 <td className="py-4 px-3 text-[10px] font-bold">{o.seller_email}<br /><span className="font-mono font-black text-black">{o.seller_upi_vpa_snapshot}</span></td>
                 <td className="py-4 px-3 text-xs font-black">{formatCurrency(Number(o.total_amount))}</td>
                 <td className="py-4 px-3 text-[10px] leading-relaxed">
