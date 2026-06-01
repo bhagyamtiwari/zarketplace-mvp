@@ -2,7 +2,7 @@
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
 </div>
 
-# zarketplace MVP final public
+# zarketplace MVP final
 
 Resale marketplace for pre-owned fashion. React + Vite frontend, Supabase backend, Cashfree payments.
 
