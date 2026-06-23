@@ -58,7 +58,7 @@ serve(async (req) => {
 
     const { data: orders, error: ordersErr } = await supabase
       .from("orders")
-      .select("id, order_number, buyer_id, status, total_amount, razorpay_order_id, checkout_group_id")
+      .select("id, order_number, buyer_id, status, total_amount, razorpay_order_id, checkout_group_id, listing_id")
       .in("order_number", body.order_numbers);
     if (ordersErr) throw ordersErr;
     if (!orders || orders.length !== body.order_numbers.length) {
@@ -69,6 +69,28 @@ serve(async (req) => {
     }
     if (orders.some((o) => o.status !== "awaiting_payment" && o.status !== "payment_failed")) {
       return json({ error: "One or more orders are not awaiting payment" }, 409);
+    }
+
+    // Retry-path guard: an order can sit in payment_failed (a prior failed
+    // attempt, or its reservation lapsing) while the listing itself gets
+    // bought by someone else in the meantime. Re-verify availability before
+    // letting a retry resume — otherwise this would be the same double-sale
+    // bug as the original missing reservation lock, just reached via retry
+    // instead of two fresh concurrent checkouts.
+    const listingIds = orders.map((o) => o.listing_id).filter(Boolean) as string[];
+    if (listingIds.length > 0) {
+      const { data: listings, error: listingsErr } = await supabase
+        .from("listings")
+        .select("id, is_sold, status")
+        .in("id", listingIds);
+      if (listingsErr) throw listingsErr;
+      const unavailable = (listings ?? []).filter((l) => l.is_sold || l.status !== "approved");
+      if (unavailable.length > 0) {
+        const unavailableIds = new Set(unavailable.map((l) => l.id));
+        const affectedOrderIds = orders.filter((o) => unavailableIds.has(o.listing_id)).map((o) => o.id);
+        await supabase.from("orders").update({ status: "cancelled" }).in("id", affectedOrderIds);
+        return json({ error: "One or more items in this order are no longer available" }, 409);
+      }
     }
 
     // Idempotency: reuse an existing Razorpay order if every row in this
