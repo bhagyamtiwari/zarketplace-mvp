@@ -98,58 +98,28 @@ async function handleCaptured(supabase: ReturnType<typeof createClient>, payment
   // The reservation lock (see migration 20260623000006) prevents two FRESH
   // checkouts for the same listing at once, but a retried order can still
   // race a different buyer's fresh reservation and both reach this point
-  // with a captured payment. The only fully atomic guarantee against that
-  // is here: claim the listing with a conditional update, and only the
-  // request that actually flips is_sold from false to true gets to fulfil
-  // the order. This should essentially never fire in practice, but if it
-  // does, money has genuinely been captured twice for one item and the
-  // loser must be refunded — never silently marked paid.
-  const fulfilled: any[] = [];
-  const conflicted: any[] = [];
+  // with a captured payment. The fully atomic guarantee against that lives
+  // in fulfill_captured_payment (see migration 20260623000008): claiming
+  // the listing and marking the order paid happen in one Postgres
+  // transaction, so a crash here can never leave a listing claimed without
+  // its order being marked paid (which would otherwise make a retry wrongly
+  // think a different buyer had claimed it). Each order is processed
+  // independently — one RPC call commits fully or not at all.
   for (const order of toProcess) {
-    if (order.listing_id) {
-      const { data: claimed, error: claimErr } = await supabase
-        .from("listings")
-        .update({ is_sold: true })
-        .eq("id", order.listing_id)
-        .eq("is_sold", false)
-        .select("id");
-      if (claimErr) throw claimErr;
-      if (!claimed || claimed.length === 0) {
-        conflicted.push(order);
-        continue;
-      }
-    }
-    fulfilled.push(order);
-  }
+    const { data: result, error: rpcErr } = await supabase.rpc("fulfill_captured_payment", {
+      p_order_id: order.id,
+      p_payment_id: payment.id,
+    });
+    if (rpcErr) throw rpcErr;
 
-  if (fulfilled.length > 0) {
-    const { error: updErr } = await supabase
-      .from("orders")
-      .update({
-        status: "paid",
-        razorpay_payment_id: payment.id,
-        payment_submitted_at: new Date().toISOString(),
-      })
-      .in("id", fulfilled.map((o: any) => o.id))
-      .neq("status", "paid"); // never overwrite an already-paid row
-    if (updErr) throw updErr;
-
-    for (const order of fulfilled) {
+    if (result === "paid") {
       await sendOrderEmail(supabase, { ...order, status: "paid", razorpay_payment_id: payment.id }, "payment_confirmed_buyer");
       await sendOrderEmail(supabase, { ...order, status: "paid", razorpay_payment_id: payment.id }, "order_notification_seller");
-    }
-  }
-
-  if (conflicted.length > 0) {
-    const { error: updErr } = await supabase
-      .from("orders")
-      .update({ status: "payment_conflict", razorpay_payment_id: payment.id })
-      .in("id", conflicted.map((o: any) => o.id))
-      .neq("status", "paid");
-    if (updErr) throw updErr;
-
-    for (const order of conflicted) {
+    } else {
+      // Money was genuinely captured twice for one one-of-one item — should
+      // essentially never happen given the reservation lock, but if it does,
+      // never silently treat it as a normal sale. Needs a manual refund via
+      // the Razorpay dashboard until automatic refunds are built.
       console.error(
         "razorpay-webhook: PAYMENT CONFLICT — item already sold, manual refund needed via Razorpay dashboard",
         { orderId: order.id, orderNumber: order.order_number, listingId: order.listing_id, paymentId: payment.id },
