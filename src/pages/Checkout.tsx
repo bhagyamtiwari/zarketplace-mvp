@@ -1,11 +1,11 @@
-// MVP checkout: single admin UPI. Buyer pays the full amount to the platform
-// UPI (9220190649@idfcbank, ADNIZ Private Limited). Admin manually verifies and
-// pays the seller once shipping is confirmed.
-//
-// Flow:
+// Checkout via Razorpay. Payment status is never set by this page — only the
+// razorpay-webhook edge function (verified server-side) ever writes
+// orders.status = 'paid' / 'payment_failed'. This page only:
 //   1. Address - collect shipping. Creates one order row per cart item.
-//   2. Pay - show QR + deep-link for admin UPI. Buyer confirms payment.
-//   3. Success.
+//   2. Pay - asks create-razorpay-order for a Razorpay order, opens
+//      Razorpay Checkout, then polls the order rows until the webhook has
+//      flipped their status (or the buyer cancels/it fails).
+//   3. Success / Failed.
 
 import React from 'react';
 import { useParams, Link } from 'react-router-dom';
@@ -13,23 +13,26 @@ import { motion } from 'motion/react';
 import { supabase } from '../lib/supabase';
 import { CartItem, Listing } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
-import { Loader2, ArrowLeft, ShieldCheck, CheckCircle2, Package, Smartphone, Copy, Check } from 'lucide-react';
+import { Loader2, ArrowLeft, ShieldCheck, CheckCircle2, XCircle, Package } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { useCart } from '../lib/cart';
 import { RequireAuth } from '../components/RequireAuth';
 import { LaunchOfferBanner } from '../components/LaunchOfferBanner';
 import { log } from '../lib/log';
-import { sendEmail } from '../lib/email';
 
 const clog = log('checkout');
 const RESUME_KEY = 'zk_checkout_v3';
 
-const ADMIN_UPI_VPA = '9220190649@idfcbank';
-// Brand name shown to the buyer, and the legal entity that holds the account.
-const ADMIN_UPI_NAME = 'zarketplace';
-const ADMIN_LEGAL_NAME = 'ADNIZ Private Limited';
+declare global {
+  interface Window {
+    Razorpay: new (options: Record<string, unknown>) => {
+      open: () => void;
+      on: (event: string, handler: (...args: unknown[]) => void) => void;
+    };
+  }
+}
 
-type Step = 'address' | 'pay' | 'success';
+type Step = 'address' | 'pay' | 'confirming' | 'success' | 'failed';
 
 interface ResumeState {
   step: Step;
@@ -37,13 +40,6 @@ interface ResumeState {
   amount: number;
 }
 
-function makeUpiLink({ pa, pn, am, tn }: { pa: string; pn: string; am: number; tn: string }) {
-  const params = new URLSearchParams({ pa, pn, am: am.toFixed(2), cu: 'INR', tn });
-  return `upi://pay?${params.toString()}`;
-}
-function qrUrl(data: string) {
-  return `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=${encodeURIComponent(data)}`;
-}
 function snapshotFromListing(l: Listing): CartItem {
   return {
     listing_id: l.id, sku: l.sku, added_at: new Date().toISOString(),
@@ -121,9 +117,9 @@ function CheckoutInner() {
       const raw = localStorage.getItem(RESUME_KEY);
       if (!raw) return;
       const r = JSON.parse(raw) as ResumeState;
-      if (r?.order_numbers?.length && r.step === 'pay') {
+      if (r?.order_numbers?.length && ['pay', 'confirming', 'failed'].includes(r.step)) {
         setOrderNumbers(r.order_numbers);
-        setStep('pay');
+        setStep(r.step);
       }
     } catch {}
   }, []);
@@ -202,43 +198,95 @@ function CheckoutInner() {
     }
   };
 
-  const confirmPayment = async (buyerNote: string) => {
+  // Polls the order rows until razorpay-webhook has flipped their status.
+  // The webhook is the only thing that ever writes 'paid'/'payment_failed' —
+  // this never trusts Razorpay Checkout's client-side success callback on
+  // its own.
+  const waitForConfirmation = React.useCallback(async () => {
+    const POLL_INTERVAL_MS = 2000;
+    const POLL_MAX_ATTEMPTS = 30; // ~60s
+    let result: 'paid' | 'payment_failed' | 'timeout' = 'timeout';
+    for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS; attempt++) {
+      const { data } = await supabase.from('orders').select('status').in('order_number', orderNumbers);
+      const statuses = (data ?? []).map((r: { status: string }) => r.status);
+      if (statuses.length > 0 && statuses.every((s) => s === 'paid')) { result = 'paid'; break; }
+      if (statuses.some((s) => s === 'payment_failed')) { result = 'payment_failed'; break; }
+      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+    }
+
+    if (result === 'paid') {
+      setStep('success');
+      clearResume();
+      if (!id) await cart.clear();
+    } else if (result === 'payment_failed') {
+      setErrorMsg('Payment failed. You can try again.');
+      setStep('failed');
+      persistResume({ step: 'failed' });
+    } else {
+      setErrorMsg('Still confirming your payment with the bank. Check My Orders in a minute, or try again.');
+      setStep('failed');
+      persistResume({ step: 'failed' });
+    }
+    setSubmitting(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderNumbers, id]);
+
+  React.useEffect(() => {
+    if (step === 'confirming') void waitForConfirmation();
+  }, [step, waitForConfirmation]);
+
+  const startPayment = async (buyerNote: string) => {
     setErrorMsg(null);
     if (!user) return;
     setSubmitting(true);
     try {
-      const { data: updated, error: updErr } = await supabase.from('orders').update({
-        payment_utr: 'ADMIN_VERIFY',
-        payment_submitted_at: new Date().toISOString(),
-        buyer_note: buyerNote.trim() || null,
-        status: 'awaiting_verification',
-      }).in('order_number', orderNumbers).select('id, listing_id');
-      if (updErr) throw updErr;
-
-      const listingIds = (updated ?? []).map((r: { listing_id: string | null }) => r.listing_id).filter(Boolean) as string[];
-      if (listingIds.length > 0) {
-        const { error: soldErr } = await supabase.from('listings').update({ is_sold: true }).in('id', listingIds);
-        if (soldErr) clog.warn('mark sold failed', soldErr);
+      if (buyerNote.trim()) {
+        await supabase.from('orders').update({ buyer_note: buyerNote.trim() }).in('order_number', orderNumbers);
       }
 
-      const ids = (updated ?? []).map((r: { id: string }) => r.id);
-      void (async () => {
-        const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-        for (const orderId of ids) {
-          await sendEmail({ template: 'order_notification_seller', order_id: orderId });
-          await sleep(600);
-          await sendEmail({ template: 'order_confirmation_buyer', order_id: orderId });
-          await sleep(600);
-        }
-      })();
+      const { data, error } = await supabase.functions.invoke('create-razorpay-order', {
+        body: { order_numbers: orderNumbers },
+      });
+      if (error) throw error;
+      const { razorpay_order_id, amount, currency, key_id } = data as {
+        razorpay_order_id: string; amount: number; currency: string; key_id: string;
+      };
 
-      setStep('success');
-      clearResume();
-      if (!id) await cart.clear();
+      const rzp = new window.Razorpay({
+        key: key_id,
+        amount,
+        currency,
+        order_id: razorpay_order_id,
+        name: 'zarketplace',
+        description: `Order ${orderNumbers.join(', ')}`,
+        prefill: {
+          name: shippingAddress.fullName,
+          email: shippingAddress.email,
+          contact: shippingAddress.phone,
+        },
+        notes: { order_numbers: orderNumbers.join(',') },
+        handler: () => {
+          // Razorpay says the payment went through, but we don't trust that
+          // claim on its own — move to a waiting screen until the webhook
+          // (server-verified) confirms it.
+          setStep('confirming');
+          persistResume({ step: 'confirming' });
+        },
+        modal: {
+          ondismiss: () => {
+            setSubmitting(false);
+            setErrorMsg('Payment was not completed. You can try again.');
+          },
+        },
+      });
+      rzp.on('payment.failed', () => {
+        setSubmitting(false);
+        setErrorMsg('Payment failed. You can try again.');
+      });
+      rzp.open();
     } catch (err: any) {
-      clog.error('confirmPayment failed', err);
-      setErrorMsg(err?.message || 'Failed to confirm payment.');
-    } finally {
+      clog.error('startPayment failed', err);
+      setErrorMsg(err?.message || 'Failed to start payment.');
       setSubmitting(false);
     }
   };
@@ -251,7 +299,7 @@ function CheckoutInner() {
     );
   }
 
-  if (items.length === 0 && step !== 'success' && step !== 'pay') {
+  if (items.length === 0 && step === 'address') {
     return (
       <div className="mx-auto max-w-2xl px-4 py-32 text-center flex flex-col items-center gap-8">
         <h1 className="text-5xl font-black tracking-tighter uppercase">Nothing to check out</h1>
@@ -272,13 +320,13 @@ function CheckoutInner() {
           className="h-24 w-24 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mb-4">
           <CheckCircle2 className="h-12 w-12" />
         </motion.div>
-        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-600">Order confirmed</span>
+        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-600">Payment confirmed</span>
         <h1 className="text-5xl font-black tracking-tighter uppercase">Your order has been confirmed</h1>
         <p className="text-xs font-bold uppercase tracking-widest text-black/40">
           Order{orderNumbers.length > 1 ? 's' : ''}: {orderNumbers.join(', ')}
         </p>
         <p className="text-[11px] font-bold uppercase tracking-widest text-black/60 max-w-md leading-relaxed">
-          We're approving your payment. Once confirmed, the seller will be notified to ship your item. Track everything in My Orders.
+          Your payment has been received. The seller has been notified to ship your item. Track everything in My Orders.
         </p>
         <p className="text-[11px] font-bold uppercase tracking-widest text-black/60 max-w-md leading-relaxed">
           For any questions or concerns, email{' '}
@@ -286,6 +334,42 @@ function CheckoutInner() {
         </p>
         <div className="flex gap-3">
           <Link to="/browse" className="bg-black px-12 py-5 text-xs font-black uppercase tracking-[0.4em] text-white hover:bg-zinc-800">Continue Shopping</Link>
+          <Link to="/track-order" className="border border-black px-12 py-5 text-xs font-black uppercase tracking-[0.4em] text-black hover:bg-black hover:text-white">My Orders</Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 'confirming') {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-32 text-center flex flex-col items-center gap-8">
+        <Loader2 className="h-16 w-16 animate-spin text-black/20" />
+        <h1 className="text-3xl font-black tracking-tighter uppercase">Confirming your payment…</h1>
+        <p className="text-[11px] font-bold uppercase tracking-widest text-black/60 max-w-md leading-relaxed">
+          This usually takes a few seconds. Please don't close this tab.
+        </p>
+      </div>
+    );
+  }
+
+  if (step === 'failed') {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-32 text-center flex flex-col items-center gap-8">
+        <div className="h-24 w-24 bg-red-50 text-red-600 rounded-full flex items-center justify-center mb-4">
+          <XCircle className="h-12 w-12" />
+        </div>
+        <h1 className="text-4xl font-black tracking-tighter uppercase">Payment not confirmed</h1>
+        <p className="text-[11px] font-bold uppercase tracking-widest text-black/60 max-w-md leading-relaxed">
+          {errorMsg || 'We could not confirm your payment. No charge was completed for a failed attempt.'}
+        </p>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => { setErrorMsg(null); setStep('pay'); persistResume({ step: 'pay' }); }}
+            className="bg-black px-12 py-5 text-xs font-black uppercase tracking-[0.4em] text-white hover:bg-zinc-800"
+          >
+            Try Again
+          </button>
           <Link to="/track-order" className="border border-black px-12 py-5 text-xs font-black uppercase tracking-[0.4em] text-black hover:bg-black hover:text-white">My Orders</Link>
         </div>
       </div>
@@ -307,10 +391,9 @@ function CheckoutInner() {
               onSubmit={submitAddress} submitting={submitting} errorMsg={errorMsg} />
           )}
           {step === 'pay' && (
-            <PayStep
+            <RazorpayPayStep
               amount={total}
-              transactionNote={`ZKT-${orderNumbers[0] ?? ''}`}
-              onConfirm={confirmPayment} submitting={submitting} errorMsg={errorMsg}
+              onPay={startPayment} submitting={submitting} errorMsg={errorMsg}
             />
           )}
         </div>
@@ -402,117 +485,58 @@ function Field({ label, value, onChange, placeholder, type = 'text' }: {
   );
 }
 
-function PayStep({
-  amount, transactionNote, onConfirm, submitting, errorMsg,
+function RazorpayPayStep({
+  amount, onPay, submitting, errorMsg,
 }: {
-  amount: number; transactionNote: string;
-  onConfirm: (note: string) => void; submitting: boolean; errorMsg: string | null;
+  amount: number; onPay: (note: string) => void; submitting: boolean; errorMsg: string | null;
 }) {
-  const [copied, setCopied] = React.useState(false);
   const [note, setNote] = React.useState('');
-  const link = makeUpiLink({ pa: ADMIN_UPI_VPA, pn: ADMIN_LEGAL_NAME, am: amount, tn: transactionNote });
-  const qr = qrUrl(link);
-
-  const copyVpa = async () => {
-    try { await navigator.clipboard.writeText(ADMIN_UPI_VPA); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch {}
-  };
 
   return (
     <section className="flex flex-col gap-10">
       <div className="flex flex-col gap-2 border-b border-black pb-4">
         <h2 className="text-xs font-black uppercase tracking-widest">Complete Payment</h2>
         <p className="text-[11px] text-black/60 font-medium leading-relaxed">
-          Pay {formatCurrency(amount)} to {ADMIN_UPI_NAME} ({ADMIN_LEGAL_NAME}) using any UPI app.
+          Pay {formatCurrency(amount)} securely via Razorpay — cards, UPI, netbanking and wallets all supported.
         </p>
         <div className="mt-2"><LaunchOfferBanner variant="inline" /></div>
       </div>
 
-      <div className="border border-black/10 bg-zinc-50 p-6 flex flex-col gap-4">
-        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-black/60">How to pay</p>
-        <ol className="flex flex-col gap-3">
-          {[
-            'On your phone? Open your UPI app (GPay / PhonePe / Paytm) and scan the QR code below.',
-            'On a laptop / desktop? Screenshot or save the QR code, then open it in your UPI app on your phone and pay.',
-            'Or tap the "Open UPI App" button below to launch your payment app with the amount pre-filled.',
-          ].map((text, i) => (
-            <li key={i} className="flex gap-3 text-[11px] font-bold text-black/70 leading-relaxed">
-              <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center bg-black text-white text-[10px] font-black">{i + 1}</span>
-              <span>{text}</span>
-            </li>
-          ))}
-        </ol>
-        <p className="text-[11px] font-black text-black bg-yellow-50 border border-black/10 p-3 leading-relaxed">
-          Important: after paying, come back to this page and tap "Confirm Order &amp; Payment" below
-          (and add any comments or requests for the seller). Your payment is only registered and
-          acknowledged once you confirm here.
-        </p>
+      <div className="bg-zinc-50 border border-black/5 p-6 flex flex-col items-center gap-4">
+        <p className="text-[9px] font-black uppercase tracking-widest text-black/40">Amount Due</p>
+        <p className="text-4xl font-black tracking-tighter">{formatCurrency(amount)}</p>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-8 items-start">
-        <div className="bg-zinc-50 border border-black/5 p-6 flex flex-col items-center gap-4 w-full md:w-auto">
-          <img src={qr} alt="UPI QR" className="h-60 w-60 bg-white" />
-          <div className="text-center">
-            <p className="text-[9px] font-black uppercase tracking-widest text-black/40">Pay To</p>
-            <p className="text-sm font-bold">{ADMIN_UPI_NAME}</p>
-            <p className="text-[11px] font-bold text-black/70">{ADMIN_LEGAL_NAME}</p>
-            <button onClick={copyVpa} className="mt-1 inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest underline">
-              {ADMIN_UPI_VPA} {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-            </button>
-          </div>
-          <div className="text-center">
-            <p className="text-[9px] font-black uppercase tracking-widest text-black/40">Amount</p>
-            <p className="text-3xl font-black tracking-tighter">{formatCurrency(amount)}</p>
-          </div>
-        </div>
-
-        <div className="flex-1 flex flex-col gap-4">
-          <a href={link}
-            className="w-full bg-black py-5 text-xs font-black uppercase tracking-[0.3em] text-white text-center hover:bg-zinc-800 flex items-center justify-center gap-3">
-            <Smartphone className="h-4 w-4" /> Open UPI App
-          </a>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 leading-relaxed">
-            On mobile this opens GPay / PhonePe / Paytm with the amount prefilled. On desktop, scan the QR.
-          </p>
-        </div>
-      </div>
-
-      <div className="border border-black/10 bg-zinc-50 p-6 flex flex-col gap-4">
-        <div className="flex items-center gap-2">
-          <span className="text-[9px] font-black uppercase tracking-widest text-black/40">Ref:</span>
-          <span className="text-[10px] font-black uppercase tracking-widest">{transactionNote}</span>
-        </div>
-        <p className="text-[11px] font-bold text-black/70 leading-relaxed">
-          Please make sure your payment has gone through — either in your UPI app on mobile, or on
-          your bank/web payment screen.
+      <div className="flex flex-col gap-2">
+        <label htmlFor="buyer-note" className="text-[9px] font-black uppercase tracking-widest text-black/40">
+          Any comments or specific requests for the seller? (optional)
+        </label>
+        <textarea
+          id="buyer-note"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          rows={3}
+          maxLength={1000}
+          placeholder="e.g. please pack securely, deliver after 6pm…"
+          className="w-full border border-black/10 bg-white p-3 text-sm font-medium leading-relaxed focus:border-black focus:outline-none transition-all resize-y"
+        />
+        <p className="text-[10px] font-medium text-black/40 leading-relaxed">
+          Please note: the seller may or may not be able to fulfill all requests or concerns — that's up to them.
         </p>
-        <div className="flex flex-col gap-2">
-          <label htmlFor="buyer-note" className="text-[9px] font-black uppercase tracking-widest text-black/40">
-            Any comments or specific requests for the seller? (optional)
-          </label>
-          <textarea
-            id="buyer-note"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            rows={3}
-            maxLength={1000}
-            placeholder="e.g. please pack securely, deliver after 6pm…"
-            className="w-full border border-black/10 bg-white p-3 text-sm font-medium leading-relaxed focus:border-black focus:outline-none transition-all resize-y"
-          />
-          <p className="text-[10px] font-medium text-black/40 leading-relaxed">
-            Please note: the seller may or may not be able to fulfill all requests or concerns —
-            that's up to them.
-          </p>
-        </div>
       </div>
 
       {errorMsg && <p className="text-[10px] font-bold uppercase tracking-widest text-red-600">{errorMsg}</p>}
 
-      <button type="button" onClick={() => onConfirm(note)}
+      <button type="button" onClick={() => onPay(note)}
         disabled={submitting}
         className="w-full bg-black py-5 text-xs font-black uppercase tracking-[0.3em] text-white hover:bg-zinc-800 disabled:opacity-30 flex items-center justify-center gap-3">
         {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-        <span>Confirm Order &amp; Payment</span>
+        <span>Pay {formatCurrency(amount)}</span>
       </button>
+      <div className="flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] text-black/30">
+        <ShieldCheck className="h-4 w-4" />
+        <span>Payments secured by Razorpay</span>
+      </div>
     </section>
   );
 }
