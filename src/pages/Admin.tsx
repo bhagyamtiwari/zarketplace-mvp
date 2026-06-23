@@ -26,7 +26,7 @@ interface AdminProfile {
 }
 
 const ORDER_STATUSES: OrderStatus[] = [
-  'awaiting_payment', 'awaiting_verification', 'paid', 'shipped', 'cancelled', 'refunded',
+  'awaiting_payment', 'awaiting_verification', 'paid', 'payment_failed', 'shipped', 'cancelled', 'refunded',
 ];
 
 export function Admin() {

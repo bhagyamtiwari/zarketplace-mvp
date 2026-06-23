@@ -54,6 +54,7 @@ export type OrderStatus =
   | 'awaiting_payment'
   | 'awaiting_verification'
   | 'paid'
+  | 'payment_failed'
   | 'shipped'
   | 'cancelled'
   | 'refunded';

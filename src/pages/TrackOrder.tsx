@@ -190,6 +190,7 @@ function StatusPill({ status }: { status: OrderStatus }) {
   const map: Record<string, string> = {
     awaiting_payment: 'border-zinc-300 text-zinc-600',
     awaiting_verification: 'border-amber-500 text-amber-700',
+    payment_failed: 'border-red-500 text-red-700',
     paid: 'border-blue-500 text-blue-700',
     shipped: 'border-emerald-500 text-emerald-700',
     cancelled: 'border-red-300 text-red-600',
