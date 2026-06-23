@@ -16,7 +16,6 @@ export type EmailTemplate =
 interface SendEmailArgs {
   template: EmailTemplate;
   order_id?: string;
-  to?: string;
   extra?: Record<string, unknown>;
 }
 

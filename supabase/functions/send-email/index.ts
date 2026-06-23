@@ -21,7 +21,14 @@
 //   - SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (auto-injected)
 //
 // Invoked from checkout (buyer confirmation) and seller portal (tracking
-// updates). Can also be called directly with auth.
+// updates).
+//
+// Authorization: every caller must send a valid Supabase Authorization
+// header. Order-bound templates may only be requested by that order's
+// buyer, that order's seller, or an admin. The `custom` template (free-form
+// subject/html/recipient) is admin-only. The recipient address is always
+// derived from the order itself — callers cannot redirect an email to an
+// address of their choosing.
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -31,9 +38,15 @@ import { buildEmail } from "./templates/index.ts";
 interface SendEmailRequest {
   template: string;
   order_id?: string;
-  to?: string; // override
   extra?: Record<string, unknown>;
 }
+
+const ORDER_BOUND_TEMPLATES = new Set([
+  "order_confirmation_buyer",
+  "order_notification_seller",
+  "tracking_update_buyer",
+  "payout_released_seller",
+]);
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -46,11 +59,39 @@ serve(async (req) => {
     const SITE_URL = Deno.env.get("PUBLIC_SITE_URL") ?? "https://zarketplace.com";
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) return json({ error: "Missing Authorization header" }, 401);
+    const jwt = authHeader.replace(/^Bearer\s+/i, "");
+
+    const callerClient = createClient(SUPABASE_URL, ANON_KEY, {
+      global: { headers: { Authorization: `Bearer ${jwt}` } },
+    });
+    const { data: callerData, error: callerErr } = await callerClient.auth.getUser();
+    if (callerErr || !callerData?.user) return json({ error: "Invalid or expired session" }, 401);
+    const callerId = callerData.user.id;
 
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
+    const { data: callerProfile } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", callerId)
+      .single();
+    const isAdmin = callerProfile?.is_admin === true;
+
     const body = (await req.json()) as SendEmailRequest;
 
     if (!body.template) return json({ error: "template required" }, 400);
+
+    if (body.template === "custom") {
+      if (!isAdmin) return json({ error: "Forbidden" }, 403);
+    } else if (ORDER_BOUND_TEMPLATES.has(body.template)) {
+      if (!body.order_id) return json({ error: "order_id required" }, 400);
+    } else {
+      return json({ error: "Unknown template" }, 400);
+    }
 
     let order: any = null;
     if (body.order_id) {
@@ -60,10 +101,14 @@ serve(async (req) => {
         .eq("id", body.order_id)
         .single();
       order = data;
+
+      if (!order) return json({ error: "Order not found" }, 404);
+      const isParty = order.buyer_id === callerId || order.seller_id === callerId;
+      if (!isParty && !isAdmin) return json({ error: "Forbidden" }, 403);
     }
 
     const built = buildEmail(body.template, { order, extra: body.extra, siteUrl: SITE_URL });
-    const recipient = body.to ?? built.to;
+    const recipient = built.to;
 
     if (!recipient) return json({ error: "no recipient" }, 400);
 
