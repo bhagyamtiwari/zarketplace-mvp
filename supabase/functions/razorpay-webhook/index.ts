@@ -86,9 +86,13 @@ async function handleCaptured(supabase: ReturnType<typeof createClient>, payment
   }
 
   // Idempotent: only act on rows this exact payment hasn't already been
-  // recorded against. A duplicate delivery of the same event ends up with
-  // an empty list here and is a clean no-op.
-  const toProcess = orders.filter((o: any) => !(o.status === "paid" && o.razorpay_payment_id === payment.id));
+  // recorded against — whether it ended up fulfilled (paid) or lost a
+  // conflict (payment_conflict). A duplicate delivery of the same event
+  // ends up with an empty list here and is a clean no-op (no re-sent
+  // emails, no re-attempted listing claim).
+  const alreadyProcessed = (o: any) =>
+    o.razorpay_payment_id === payment.id && (o.status === "paid" || o.status === "payment_conflict");
+  const toProcess = orders.filter((o: any) => !alreadyProcessed(o));
   if (toProcess.length === 0) return;
 
   // The reservation lock (see migration 20260623000006) prevents two FRESH
