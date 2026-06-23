@@ -286,7 +286,19 @@ function CheckoutInner() {
       rzp.open();
     } catch (err: any) {
       clog.error('startPayment failed', err);
-      setErrorMsg(err?.message || 'Failed to start payment.');
+      const status = err?.context?.status;
+      if (status === 403 || status === 404 || status === 409) {
+        // create-razorpay-order rejected these order_numbers — most likely
+        // stale resume state left over from an earlier session/account on
+        // this browser. Clear it and restart fresh rather than getting
+        // stuck retrying something that can never succeed.
+        clearResume();
+        setOrderNumbers([]);
+        setStep('address');
+        setErrorMsg('Your previous checkout session was invalid or expired. Please start again.');
+      } else {
+        setErrorMsg(err?.message || 'Failed to start payment.');
+      }
       setSubmitting(false);
     }
   };
