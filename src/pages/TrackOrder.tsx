@@ -191,6 +191,7 @@ function StatusPill({ status }: { status: OrderStatus }) {
     awaiting_payment: 'border-zinc-300 text-zinc-600',
     awaiting_verification: 'border-amber-500 text-amber-700',
     payment_failed: 'border-red-500 text-red-700',
+    payment_conflict: 'border-orange-500 text-orange-700',
     paid: 'border-blue-500 text-blue-700',
     shipped: 'border-emerald-500 text-emerald-700',
     cancelled: 'border-red-300 text-red-600',

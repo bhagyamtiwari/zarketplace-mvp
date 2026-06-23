@@ -91,26 +91,67 @@ async function handleCaptured(supabase: ReturnType<typeof createClient>, payment
   const toProcess = orders.filter((o: any) => !(o.status === "paid" && o.razorpay_payment_id === payment.id));
   if (toProcess.length === 0) return;
 
-  const { error: updErr } = await supabase
-    .from("orders")
-    .update({
-      status: "paid",
-      razorpay_payment_id: payment.id,
-      payment_submitted_at: new Date().toISOString(),
-    })
-    .eq("razorpay_order_id", payment.order_id)
-    .neq("status", "paid"); // never overwrite an already-paid row (e.g. duplicate webhook for a different payment_id)
-  if (updErr) throw updErr;
-
-  const listingIds = toProcess.map((o: any) => o.listing_id).filter(Boolean);
-  if (listingIds.length > 0) {
-    const { error: soldErr } = await supabase.from("listings").update({ is_sold: true }).in("id", listingIds);
-    if (soldErr) console.warn("razorpay-webhook: mark sold failed", soldErr);
+  // The reservation lock (see migration 20260623000006) prevents two FRESH
+  // checkouts for the same listing at once, but a retried order can still
+  // race a different buyer's fresh reservation and both reach this point
+  // with a captured payment. The only fully atomic guarantee against that
+  // is here: claim the listing with a conditional update, and only the
+  // request that actually flips is_sold from false to true gets to fulfil
+  // the order. This should essentially never fire in practice, but if it
+  // does, money has genuinely been captured twice for one item and the
+  // loser must be refunded — never silently marked paid.
+  const fulfilled: any[] = [];
+  const conflicted: any[] = [];
+  for (const order of toProcess) {
+    if (order.listing_id) {
+      const { data: claimed, error: claimErr } = await supabase
+        .from("listings")
+        .update({ is_sold: true })
+        .eq("id", order.listing_id)
+        .eq("is_sold", false)
+        .select("id");
+      if (claimErr) throw claimErr;
+      if (!claimed || claimed.length === 0) {
+        conflicted.push(order);
+        continue;
+      }
+    }
+    fulfilled.push(order);
   }
 
-  for (const order of toProcess) {
-    await sendOrderEmail(supabase, { ...order, status: "paid", razorpay_payment_id: payment.id }, "payment_confirmed_buyer");
-    await sendOrderEmail(supabase, { ...order, status: "paid", razorpay_payment_id: payment.id }, "order_notification_seller");
+  if (fulfilled.length > 0) {
+    const { error: updErr } = await supabase
+      .from("orders")
+      .update({
+        status: "paid",
+        razorpay_payment_id: payment.id,
+        payment_submitted_at: new Date().toISOString(),
+      })
+      .in("id", fulfilled.map((o: any) => o.id))
+      .neq("status", "paid"); // never overwrite an already-paid row
+    if (updErr) throw updErr;
+
+    for (const order of fulfilled) {
+      await sendOrderEmail(supabase, { ...order, status: "paid", razorpay_payment_id: payment.id }, "payment_confirmed_buyer");
+      await sendOrderEmail(supabase, { ...order, status: "paid", razorpay_payment_id: payment.id }, "order_notification_seller");
+    }
+  }
+
+  if (conflicted.length > 0) {
+    const { error: updErr } = await supabase
+      .from("orders")
+      .update({ status: "payment_conflict", razorpay_payment_id: payment.id })
+      .in("id", conflicted.map((o: any) => o.id))
+      .neq("status", "paid");
+    if (updErr) throw updErr;
+
+    for (const order of conflicted) {
+      console.error(
+        "razorpay-webhook: PAYMENT CONFLICT — item already sold, manual refund needed via Razorpay dashboard",
+        { orderId: order.id, orderNumber: order.order_number, listingId: order.listing_id, paymentId: payment.id },
+      );
+      await sendOrderEmail(supabase, { ...order, status: "payment_conflict", razorpay_payment_id: payment.id }, "payment_conflict_buyer");
+    }
   }
 }
 

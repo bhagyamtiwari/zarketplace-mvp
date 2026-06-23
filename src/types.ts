@@ -55,6 +55,7 @@ export type OrderStatus =
   | 'awaiting_verification'
   | 'paid'
   | 'payment_failed'
+  | 'payment_conflict'
   | 'shipped'
   | 'cancelled'
   | 'refunded';
