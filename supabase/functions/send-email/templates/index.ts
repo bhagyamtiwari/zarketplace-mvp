@@ -5,6 +5,8 @@ import { orderConfirmationBuyer } from "./order-confirmation-buyer.ts";
 import { orderNotificationSeller } from "./order-notification-seller.ts";
 import { trackingUpdateBuyer } from "./tracking-update-buyer.ts";
 import { payoutReleasedSeller } from "./payout-released-seller.ts";
+import { paymentConfirmedBuyer } from "./payment-confirmed-buyer.ts";
+import { paymentFailedBuyer } from "./payment-failed-buyer.ts";
 import { custom } from "./custom.ts";
 
 type TemplateFn = (ctx: EmailContext) => EmailContent;
@@ -14,6 +16,8 @@ const TEMPLATES: Record<string, TemplateFn> = {
   order_notification_seller: orderNotificationSeller,
   tracking_update_buyer: trackingUpdateBuyer,
   payout_released_seller: payoutReleasedSeller,
+  payment_confirmed_buyer: paymentConfirmedBuyer,
+  payment_failed_buyer: paymentFailedBuyer,
   custom: custom,
 };
 
