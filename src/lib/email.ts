@@ -11,6 +11,7 @@ export type EmailTemplate =
   | 'order_confirmation_buyer'
   | 'order_notification_seller'
   | 'tracking_update_buyer'
+  | 'payout_released_seller'
   | 'custom';
 
 interface SendEmailArgs {

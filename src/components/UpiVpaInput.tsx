@@ -4,7 +4,7 @@
 // receives the normalized VPA string via onChange.
 
 import * as React from 'react';
-import { Check, AlertTriangle } from 'lucide-react';
+import { Check, AlertTriangle, Info } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 const VPA_REGEX = /^[A-Za-z0-9._\-]{2,256}@[A-Za-z]{2,64}$/;
@@ -78,8 +78,9 @@ export function UpiVpaInput({ value, onChange, disabled }: Props) {
         )}
       </div>
 
-      <div className="border border-yellow-400 bg-yellow-50 p-4">
-        <p className="text-[10px] font-bold uppercase tracking-widest leading-relaxed">
+      <div className="flex items-start gap-3 bg-zinc-50 border border-black/5 p-4">
+        <Info className="h-3.5 w-3.5 text-black/30 mt-0.5 shrink-0" />
+        <p className="text-[10px] font-bold uppercase tracking-widest leading-relaxed text-black/50">
           UPI ID and Instagram are locked to this listing once submitted. Make sure they're correct - we can't change them later.
         </p>
       </div>

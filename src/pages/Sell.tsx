@@ -6,7 +6,7 @@
 //     prefix; we persist the full URL.
 
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'motion/react';
 import { Loader2, CheckCircle2, X, Plus } from 'lucide-react';
@@ -15,17 +15,17 @@ import { RequireAuth } from '../components/RequireAuth';
 import { LaunchOfferBanner } from '../components/LaunchOfferBanner';
 import { UpiVpaInput, VPA_REGEX } from '../components/UpiVpaInput';
 import { log } from '../lib/log';
+import { useDocumentTitle } from '../lib/useDocumentTitle';
 import { cn } from '../lib/utils';
 
 const slog = log('sell');
 
 const CATEGORY_SIZES: Record<string, string[]> = {
   'Tops': ['XXS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', 'One Size'],
-  'Outerwear': ['XXS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', 'One Size'],
   'Bottoms': ['28', '30', '32', '34', '36', '38', '40', '42', '44', 'One Size'],
-  'Shoes': ['UK 5', 'UK 6', 'UK 7', 'UK 8', 'UK 9', 'UK 10', 'UK 11', 'UK 12', 'UK 13'],
+  'Outerwear': ['XXS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', 'One Size'],
   'Accessories': ['One Size'],
-  'Miscellaneous': ['One Size'],
+  'Shoes': ['UK 5', 'UK 6', 'UK 7', 'UK 8', 'UK 9', 'UK 10', 'UK 11', 'UK 12', 'UK 13'],
 };
 
 const CONDITIONS = [
@@ -40,6 +40,8 @@ const IG_HANDLE_REGEX = /^[A-Za-z0-9._]{1,30}$/;
 const MAX_IMAGES = 8;
 
 export function Sell() {
+  useDocumentTitle('Sell');
+
   return (
     <RequireAuth message="Sign in to list an item.">
       <SellInner />
@@ -60,9 +62,31 @@ function SellInner() {
   const [shippingMode, setShippingMode] = React.useState<'free' | 'paid'>('free');
   const [priceVal, setPriceVal] = React.useState<string>('');
   const [salePriceVal, setSalePriceVal] = React.useState<string>('');
+  const [fullName, setFullName] = React.useState<string>('');
+  const [phone, setPhone] = React.useState<string>('');
   const [igHandle, setIgHandle] = React.useState<string>('');
   const [vpa, setVpa] = React.useState<string>('');
   const [vpaValid, setVpaValid] = React.useState<boolean>(false);
+  const [vpaPrefilled, setVpaPrefilled] = React.useState(false);
+
+  // Prefill UPI ID from the seller's saved profile so they don't have to
+  // retype it on every listing. Profile loads asynchronously after mount,
+  // so this runs once it arrives; the `key` below forces UpiVpaInput to
+  // remount and pick up the prefilled value (its own state only seeds once).
+  React.useEffect(() => {
+    if (!vpaPrefilled && profile?.default_upi_vpa) {
+      setVpa(profile.default_upi_vpa);
+      setVpaValid(VPA_REGEX.test(profile.default_upi_vpa));
+      setVpaPrefilled(true);
+    }
+  }, [profile, vpaPrefilled]);
+
+  // Prefill name/phone from the saved profile so the seller never has to
+  // retype information they already entered in My Profile.
+  React.useEffect(() => {
+    setFullName((prev) => prev || profile?.full_name || '');
+    setPhone((prev) => prev || profile?.phone || '');
+  }, [profile]);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
   const igValid = IG_HANDLE_REGEX.test(igHandle);
@@ -104,6 +128,8 @@ function SellInner() {
     e.preventDefault();
     setErrorMsg(null);
     if (!user) { setErrorMsg('Sign in first.'); return; }
+    if (!fullName.trim()) { setErrorMsg('Enter your full name.'); return; }
+    if (!phone.trim()) { setErrorMsg('Enter your phone number.'); return; }
     if (imageFiles.length === 0) { setErrorMsg('Upload at least one image.'); return; }
     if (!vpaValid || !VPA_REGEX.test(vpa)) { setErrorMsg('Please enter a valid UPI ID twice.'); return; }
     if (!igValid) { setErrorMsg('Enter a valid Instagram handle (letters, numbers, _ or ., max 30).'); return; }
@@ -131,6 +157,12 @@ function SellInner() {
     setLoading(true);
     const tFull = slog.time('full submit');
     try {
+      await supabase.from('profiles').update({
+        full_name: fullName.trim(),
+        phone: phone.trim(),
+        default_upi_vpa: vpa,
+      }).eq('id', user.id);
+
       const uploadedUrls: string[] = [];
       for (let i = 0; i < imageFiles.length; i++) {
         const file = imageFiles[i];
@@ -159,7 +191,7 @@ function SellInner() {
         image_urls: uploadedUrls,
         seller_id: user.id,
         seller_email: user.email,
-        seller_display_name: profile?.full_name ?? null,
+        seller_display_name: fullName.trim() || null,
         seller_instagram,
         seller_upi_vpa: vpa,
         shipping_mode: shippingMode,
@@ -180,7 +212,7 @@ function SellInner() {
 
   if (submitted) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-32 text-center flex flex-col items-center">
+      <div className="mx-auto max-w-2xl px-4 pt-24 sm:pt-32 pb-20 sm:pb-32 text-center flex flex-col items-center">
         <div className="flex h-24 w-24 items-center justify-center rounded-full bg-black text-white mb-8">
           <CheckCircle2 className="h-12 w-12" />
         </div>
@@ -191,7 +223,7 @@ function SellInner() {
         <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
           <button onClick={() => navigate('/browse')}
             className="bg-black px-12 py-5 text-xs font-black uppercase tracking-widest text-white hover:bg-zinc-800">
-            Browse
+            Browse All
           </button>
           <button onClick={() => { setSubmitted(false); setImageFiles([]); setImagePreviews([]); }}
             className="border border-black px-12 py-5 text-xs font-black uppercase tracking-widest text-black hover:bg-black hover:text-white">
@@ -203,13 +235,13 @@ function SellInner() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-32">
+    <div className="flex flex-col">
+      <div className="pt-20">
+        <LaunchOfferBanner variant="ticker" />
+      </div>
+
+      <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 pb-20">
       <div className="mb-12 flex flex-col gap-4">
-        <div className="flex items-center gap-3 mb-2">
-          <img src="/images/zarketplace-tp.png" alt="zarketplace" className="h-8 w-auto" referrerPolicy="no-referrer" />
-          <span className="lowercase font-black tracking-tighter text-3xl">zarketplace</span>
-        </div>
-        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-black">Sell with us</span>
         <h1 className="text-6xl font-black tracking-tighter uppercase leading-none">Create Listing</h1>
       </div>
 
@@ -219,34 +251,51 @@ function SellInner() {
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-16">
         {/* Image Upload */}
-        <div className="lg:col-span-5">
+        <div className="lg:col-span-5 lg:sticky lg:top-28 lg:self-start">
           <label className="block text-[10px] font-black uppercase tracking-widest mb-4">Item Images</label>
-          <div className="grid grid-cols-2 gap-4">
-            {imagePreviews.map((preview, idx) => (
-              <div key={idx} className="relative aspect-[3/4] w-full overflow-hidden bg-zinc-50 border border-black/5 group">
-                <img src={preview} alt={`Preview ${idx + 1}`} className="h-full w-full object-cover" />
-                <button type="button" onClick={() => removeImage(idx)}
-                  className="absolute top-2 right-2 bg-black p-2 text-white hover:bg-zinc-800 transition-all opacity-0 group-hover:opacity-100">
-                  <X className="h-3 w-3" />
-                </button>
+          {imagePreviews.length === 0 ? (
+            <label className="flex aspect-[4/3] w-full cursor-pointer flex-col items-center justify-center gap-4 bg-zinc-50 border border-dashed border-black/15 hover:border-black/40 transition-all group">
+              <div className="h-16 w-16 rounded-full border border-black/10 flex items-center justify-center group-hover:border-black/30 transition-all">
+                <Plus className="h-6 w-6 text-black/30 group-hover:text-black" />
               </div>
-            ))}
-            {imagePreviews.length < MAX_IMAGES && (
-              <label className="flex aspect-[3/4] w-full cursor-pointer flex-col items-center justify-center gap-4 bg-zinc-50 border border-dashed border-black/10 hover:border-black/30 transition-all group">
-                <div className="h-12 w-12 rounded-full border border-black/10 flex items-center justify-center group-hover:border-black/30 transition-all">
-                  <Plus className="h-5 w-5 text-black/20 group-hover:text-black" />
+              <span className="text-xs font-black uppercase tracking-widest text-black">Upload Photos</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-black/40">Tap to choose up to {MAX_IMAGES} HD shots</span>
+              <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} multiple />
+            </label>
+          ) : (
+            <div className="grid grid-cols-2 gap-4">
+              {imagePreviews.map((preview, idx) => (
+                <div key={idx} className="relative aspect-[3/4] w-full overflow-hidden bg-zinc-50 border border-black/5 group">
+                  <img src={preview} alt={`Preview ${idx + 1}`} className="h-full w-full object-cover" />
+                  {idx === 0 && (
+                    <span className="absolute top-2 left-2 bg-black px-2 py-1 text-[8px] font-black uppercase tracking-widest text-white">Cover</span>
+                  )}
+                  <button type="button" onClick={() => removeImage(idx)}
+                    className="absolute top-2 right-2 bg-black p-2 text-white hover:bg-zinc-800 transition-all opacity-0 group-hover:opacity-100">
+                    <X className="h-3 w-3" />
+                  </button>
                 </div>
-                <span className="text-[10px] font-black uppercase tracking-widest text-black">Upload</span>
-                <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} multiple />
-              </label>
-            )}
-          </div>
+              ))}
+              {imagePreviews.length < MAX_IMAGES && (
+                <label className="flex aspect-[3/4] w-full cursor-pointer flex-col items-center justify-center gap-4 bg-zinc-50 border border-dashed border-black/10 hover:border-black/30 transition-all group">
+                  <div className="h-12 w-12 rounded-full border border-black/10 flex items-center justify-center group-hover:border-black/30 transition-all">
+                    <Plus className="h-5 w-5 text-black/20 group-hover:text-black" />
+                  </div>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-black">Upload</span>
+                  <input type="file" accept="image/*" className="hidden" onChange={handleImageChange} multiple />
+                </label>
+              )}
+            </div>
+          )}
           <p className="mt-6 text-[10px] text-black font-black uppercase tracking-widest leading-relaxed">
             {imagePreviews.length}/{MAX_IMAGES} photos · HD shots only.
           </p>
         </div>
 
-        <div className="lg:col-span-7 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-10">
+        <div className="lg:col-span-7 flex flex-col gap-10">
+          <div className="flex flex-col gap-6">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 border-b border-black/5 pb-3">Item Details</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-10">
           <div className="flex flex-col gap-3">
             <label className="text-[10px] font-black uppercase tracking-widest">Item Name *</label>
             <input name="title" type="text" placeholder="e.g. Vintage 90s Biker Jacket" required
@@ -258,7 +307,12 @@ function SellInner() {
             <input name="brand" type="text" placeholder="e.g. Levi's" required
               className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20" />
           </div>
+            </div>
+          </div>
 
+          <div className="flex flex-col gap-6">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 border-b border-black/5 pb-3">Pricing</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-10">
           <div className="flex flex-col gap-3">
             <label className="text-[10px] font-black uppercase tracking-widest">Price (INR) *</label>
             <input name="price" type="number" min="1" value={priceVal}
@@ -290,7 +344,12 @@ function SellInner() {
               </>
             )}
           </div>
+            </div>
+          </div>
 
+          <div className="flex flex-col gap-6">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 border-b border-black/5 pb-3">Category & Sizing</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-10">
           <div className="flex flex-col gap-3">
             <label className="text-[10px] font-black uppercase tracking-widest">Gender *</label>
             <select name="gender" required
@@ -309,11 +368,10 @@ function SellInner() {
               className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none bg-white appearance-none">
               <option value="">Select Category</option>
               <option value="Tops">Tops</option>
-              <option value="Outerwear">Outerwear</option>
               <option value="Bottoms">Bottoms</option>
+              <option value="Outerwear">Outerwear</option>
               <option value="Accessories">Accessories</option>
               <option value="Shoes">Shoes</option>
-              <option value="Miscellaneous">Miscellaneous</option>
             </select>
           </div>
 
@@ -329,6 +387,27 @@ function SellInner() {
           <div className="flex flex-col gap-3">
             <label className="text-[10px] font-black uppercase tracking-widest">Size Detail (Optional)</label>
             <input name="size" type="text" placeholder="e.g. 34x30 or Oversized fit"
+              className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20" />
+          </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-6">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 border-b border-black/5 pb-3">Your Details</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-10">
+          <div className="flex flex-col gap-3">
+            <label className="text-[10px] font-black uppercase tracking-widest">Full Name *</label>
+            <input name="full_name" type="text" required value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="Jashok Dumar"
+              className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20" />
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <label className="text-[10px] font-black uppercase tracking-widest">Phone Number *</label>
+            <input name="phone" type="tel" required value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+91 98765 43210"
               className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20" />
           </div>
 
@@ -354,21 +433,26 @@ function SellInner() {
               </p>
             )}
           </div>
-
-          <div className="md:col-span-2 flex flex-col gap-6 pt-10 border-t border-black/5">
-            <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-black uppercase tracking-widest">Your UPI ID *</label>
-              <p className="text-[9px] font-bold uppercase tracking-widest text-black/40">
-                Your payout UPI - we'll send your earnings here after the buyer's order ships. Type it twice - paste is disabled on the second field to prevent typos.
-              </p>
             </div>
-            <UpiVpaInput value={vpa} onChange={(v, valid) => { setVpa(v); setVpaValid(valid); }} />
           </div>
 
-          <div className="md:col-span-2 flex flex-col gap-6 pt-10 border-t border-black/5">
+          <div className="flex flex-col gap-6">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 border-b border-black/5 pb-3">Payout</h3>
             <div className="flex flex-col gap-1">
-              <label className="text-[10px] font-black uppercase tracking-widest">Shipping</label>
-              <p className="text-[9px] font-bold uppercase tracking-widest text-black/40">
+              <label className="text-[10px] font-black uppercase tracking-widest">Your UPI ID *</label>
+              <p className="text-[10px] font-bold text-black/40 leading-relaxed">
+                We'll send your earnings to this UPI ID once the buyer's order ships. Use the same ID you'd share to receive money on GPay, PhonePe, or Paytm (it looks like <span className="font-mono">name@upi</span> or <span className="font-mono">phonenumber@bank</span>). Type it twice so a typo doesn't send your payout to the wrong place.
+              </p>
+            </div>
+            <React.Fragment key={vpaPrefilled ? 'prefilled' : 'empty'}>
+              <UpiVpaInput value={vpa} onChange={(v, valid) => { setVpa(v); setVpaValid(valid); }} />
+            </React.Fragment>
+          </div>
+
+          <div className="flex flex-col gap-6">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 border-b border-black/5 pb-3">Shipping</h3>
+            <div className="flex flex-col gap-1">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-black/40">
                 Choose free shipping (you cover postage) or paid shipping (buyer pays the amount you set).
               </p>
             </div>
@@ -398,7 +482,8 @@ function SellInner() {
             )}
           </div>
 
-          <div className="md:col-span-2 flex flex-col gap-4">
+          <div className="flex flex-col gap-6">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 border-b border-black/5 pb-3">Condition & Description</h3>
             <div className="flex items-center gap-2">
               <label className="text-[10px] font-black uppercase tracking-widest">Condition *</label>
               <button type="button"
@@ -436,28 +521,32 @@ function SellInner() {
                 </label>
               ))}
             </div>
-          </div>
 
-          <div className="md:col-span-2 flex flex-col gap-3">
-            <label className="text-[10px] font-black uppercase tracking-widest">Description *</label>
-            <textarea name="description" rows={4} required
-              placeholder="Tell buyers about the fit, original retail, material, any flaws - every relevant detail."
-              className="border border-black/10 p-6 text-sm font-medium focus:border-black focus:outline-none resize-none transition-all placeholder:text-black/20" />
+            <div className="flex flex-col gap-3 pt-4">
+              <label className="text-[10px] font-black uppercase tracking-widest">Description *</label>
+              <textarea name="description" rows={4} required
+                placeholder="Tell buyers about the fit, original retail, material, any flaws - every relevant detail."
+                className="border border-black/10 p-6 text-sm font-medium focus:border-black focus:outline-none resize-none transition-all placeholder:text-black/20" />
+            </div>
           </div>
 
           {errorMsg && (
-            <p className="md:col-span-2 text-[10px] font-bold uppercase tracking-widest text-red-600">{errorMsg}</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-red-600">{errorMsg}</p>
           )}
 
-          <div className="md:col-span-2 pt-10 border-t border-black/5">
+          <div className="pt-10 border-t border-black/5">
             <button type="submit"
               disabled={loading || salePriceInvalid || !vpaValid || !igValid || imageFiles.length === 0}
               className="w-full bg-black py-6 text-xs font-black uppercase tracking-[0.4em] text-white transition-all hover:bg-zinc-800 disabled:opacity-50 flex items-center justify-center gap-4">
               {loading ? (<><Loader2 className="h-5 w-5 animate-spin" /><span>Submitting...</span></>) : (<span>Submit Listing for Approval</span>)}
             </button>
+            <p className="mt-6 text-center text-[10px] font-bold uppercase tracking-widest text-black/30">
+              We want to hear from you. <Link to="/contact" className="underline text-black/50 hover:text-black">Share your thoughts</Link>
+            </p>
           </div>
         </div>
       </form>
+      </div>
     </div>
   );
 }

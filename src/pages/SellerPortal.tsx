@@ -7,23 +7,26 @@
 import * as React from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Listing, Order, OrderStatus } from '../types';
+import { Listing, Order, OrderStatus, SellerPayout } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import {
-  Loader2, X, Edit3, Upload, ExternalLink, Trash2,
+  Loader2, Edit3, Upload, ExternalLink, Trash2,
 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
-import { LaunchOfferBanner } from '../components/LaunchOfferBanner';
+import { StatusBadge } from '../components/StatusBadge';
 import { log } from '../lib/log';
+import { useDocumentTitle } from '../lib/useDocumentTitle';
 import { sendEmail } from '../lib/email';
 
 const splog = log('seller');
 
-type Tab = 'listings' | 'orders';
+type Tab = 'listings' | 'orders' | 'payouts';
 const COURIERS = ['Delhivery', 'BlueDart', 'India Post', 'DTDC', 'Ekart', 'Other'];
 
 export function SellerPortal() {
+  useDocumentTitle('Seller Portal');
+
   return (
     <RequireAuth message="Sign in to access the seller portal.">
       <SellerInner />
@@ -37,6 +40,7 @@ function SellerInner() {
   const [loading, setLoading] = React.useState(false);
   const [listings, setListings] = React.useState<Listing[]>([]);
   const [orders, setOrders] = React.useState<Order[]>([]);
+  const [payouts, setPayouts] = React.useState<SellerPayout[]>([]);
   const [error, setError] = React.useState<string | null>(null);
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
 
@@ -63,13 +67,15 @@ function SellerInner() {
     if (!user) return;
     setLoading(true); setError(null);
     try {
-      const [{ data: l, error: le }, { data: o, error: oe }] = await Promise.all([
+      const [{ data: l, error: le }, { data: o, error: oe }, { data: p, error: pe }] = await Promise.all([
         supabase.from('listings').select('*').eq('seller_id', user.id).order('created_at', { ascending: false }),
         supabase.from('orders').select('*').eq('seller_id', user.id).order('created_at', { ascending: false }),
+        supabase.from('seller_payouts').select('*').eq('seller_id', user.id).order('created_at', { ascending: false }),
       ]);
-      if (le) throw le; if (oe) throw oe;
+      if (le) throw le; if (oe) throw oe; if (pe) throw pe;
       setListings((l as Listing[]) ?? []);
       setOrders((o as Order[]) ?? []);
+      setPayouts((p as SellerPayout[]) ?? []);
     } catch (err: any) {
       splog.error('fetchAll', err);
       setError(err?.message ?? 'Failed to load seller data');
@@ -83,132 +89,179 @@ function SellerInner() {
   const incomingOrders = orders.filter((o) =>
     o.status === 'awaiting_verification' || o.status === 'paid' || o.status === 'shipped',
   );
+  const awaitingPayouts = payouts.filter((p) => p.status === 'awaiting_payout');
+
+  const NAV: Array<{ key: Tab; label: string; count: number; needsAction: boolean }> = [
+    { key: 'listings', label: 'My Listings', count: listings.length, needsAction: false },
+    { key: 'orders', label: 'Sales', count: orders.length, needsAction: incomingOrders.length > 0 },
+    { key: 'payouts', label: 'Payouts', count: payouts.length, needsAction: awaitingPayouts.length > 0 },
+  ];
+
+  const TAB_META: Record<Tab, { title: string; description: string }> = {
+    listings: { title: 'My Listings', description: 'Items you have put up for sale. Active items appear on browse; sold items move below once a buyer purchases them.' },
+    orders: { title: 'Sales', description: 'Orders for items you sold. Add tracking once a buyer pays, and your payout is released once it ships.' },
+    payouts: { title: 'Payouts', description: 'What you’re owed and what you’ve already been paid.' },
+  };
 
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
-        <div>
-          <span className="text-[10px] font-black uppercase tracking-[0.4em] text-black">Seller Portal</span>
-          <h1 className="text-5xl font-black tracking-tighter uppercase">Dashboard</h1>
-          <p className="text-xs font-bold uppercase tracking-widest text-black/40 mt-2">{user?.email}</p>
+    <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-28 pb-14 sm:pb-20">
+      <div className="flex flex-col md:flex-row gap-10 md:gap-14">
+        {/* Sidebar */}
+        <aside className="md:w-[220px] md:shrink-0 md:border-r md:border-black/10 md:pr-10 flex flex-col gap-8">
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="text-sm font-black uppercase tracking-tight truncate">{user?.email?.split('@')[0]}</span>
+            <span className="text-[10px] font-bold text-black/40 truncate">{user?.email}</span>
+          </div>
+
+          <nav className="flex flex-col">
+            {NAV.map((item) => (
+              <button
+                key={item.key}
+                onClick={() => setTab(item.key)}
+                className={cn(
+                  'flex items-center justify-between py-3 text-[11px] font-black uppercase tracking-widest border-b border-black/5 text-left transition-colors',
+                  tab === item.key ? 'text-black' : 'text-black/40 hover:text-black',
+                )}
+              >
+                <span>{item.label}</span>
+                <span className={cn(item.needsAction && 'font-black underline')}>{item.count}</span>
+              </button>
+            ))}
+          </nav>
+
+          <div className="flex flex-col gap-2.5">
+            <span className="text-[9px] font-black uppercase tracking-[0.25em] text-black/30">Listings</span>
+            <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-widest">
+              <span className="text-black/60">Active</span>
+              <span>{activeListings.length}</span>
+            </div>
+            <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-widest">
+              <span className="text-black/60">Sold</span>
+              <span>{soldListings.length}</span>
+            </div>
+          </div>
+
+          <Link
+            to="/sell"
+            className="border border-black py-3 text-center text-[10px] font-black uppercase tracking-[0.3em] hover:bg-black hover:text-white transition-colors"
+          >
+            List an item
+          </Link>
+        </aside>
+
+        {/* Main panel */}
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-col gap-1.5 mb-10">
+            <h1 className="text-3xl font-black tracking-tighter uppercase">{TAB_META[tab].title}</h1>
+            <p className="text-[11px] font-bold uppercase tracking-widest text-black/40 max-w-xl leading-relaxed">
+              {TAB_META[tab].description}
+            </p>
+          </div>
+
+          {error && (
+            <p className="text-xs font-bold uppercase tracking-widest text-red-700 border-b border-red-200 pb-4 mb-8">{error}</p>
+          )}
+
+          {loading ? (
+            <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-black/20" /></div>
+          ) : tab === 'listings' ? (
+            <div className="flex flex-col gap-10">
+              <ListingsTable title="Active" rows={activeListings} onDelete={deleteListing} deletingId={deletingId} />
+              <ListingsTable title="Sold" rows={soldListings} onDelete={deleteListing} deletingId={deletingId} />
+            </div>
+          ) : tab === 'orders' ? (
+            <OrdersList rows={incomingOrders} onUpdated={fetchAll} />
+          ) : (
+            <PayoutsView payouts={payouts} orders={orders} />
+          )}
         </div>
-        <LaunchOfferBanner variant="badge" className="self-start" />
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-12">
-        <StatCard label="Active Listings" value={activeListings.length.toString()} />
-        <StatCard label="Items Sold" value={soldListings.length.toString()} />
-        <StatCard label="Incoming Orders" value={incomingOrders.length.toString()} accent="amber" />
-      </div>
-
-      <div className="flex gap-1 border-b border-black/10 mb-4">
-        {([
-          ['listings', 'My Listings', listings.length],
-          ['orders', 'Sales (Orders to fulfil)', incomingOrders.length],
-        ] as const).map(([k, label, count]) => (
-          <button key={k} onClick={() => setTab(k)} className={cn(
-            'px-6 py-4 text-[10px] font-black uppercase tracking-[0.3em] transition-colors border-b-2 -mb-px inline-flex items-center gap-2',
-            tab === k ? 'border-black text-black' : 'border-transparent text-black/40 hover:text-black',
-          )}>
-            <span>{label}</span>
-            <span className={cn(
-              'inline-flex items-center justify-center min-w-[1.5rem] h-5 px-1.5 text-[9px] font-black rounded-full',
-              tab === k ? 'bg-black text-white' : 'bg-zinc-200 text-black/60',
-            )}>{count}</span>
-          </button>
-        ))}
-      </div>
-      <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 mb-12 max-w-2xl leading-relaxed">
-        {tab === 'listings'
-          ? 'Items you have put up for sale on zarketplace. Active items appear on browse; sold items move below once a buyer purchases them.'
-          : 'Orders for items YOU sold. Once a buyer places an order, add tracking and ship. zarketplace verifies payment and pays you once shipped. (For orders YOU placed as a buyer, see "My Orders" in your profile menu.)'}
-      </p>
-
-      {error && (
-        <div className="border border-red-200 bg-red-50 p-4 mb-8 flex items-center gap-3">
-          <X className="h-4 w-4 text-red-600" />
-          <p className="text-xs font-bold uppercase tracking-widest text-red-700">{error}</p>
-        </div>
-      )}
-
-      {loading ? (
-        <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-black/20" /></div>
-      ) : tab === 'listings' ? (
-        <div className="flex flex-col gap-12">
-          <ListingsTable title="Active" subtitle="Live on browse" rows={activeListings} onDelete={deleteListing} deletingId={deletingId} />
-          <ListingsTable title="Sold" subtitle="Removed from browse, awaiting fulfilment or completed" rows={soldListings} onDelete={deleteListing} deletingId={deletingId} />
-        </div>
-      ) : (
-        <OrdersList rows={incomingOrders} onUpdated={fetchAll} />
-      )}
     </div>
   );
 }
 
-function StatCard({ label, value, accent }: { label: string; value: string; accent?: 'amber' | 'emerald' }) {
-  return (
-    <div className={cn('border p-6 flex flex-col gap-2',
-      accent === 'amber' && 'bg-amber-50 border-amber-200',
-      accent === 'emerald' && 'bg-emerald-50 border-emerald-200',
-      !accent && 'bg-zinc-50 border-black/5')}>
-      <span className="text-[9px] font-black uppercase tracking-widest text-black/50">{label}</span>
-      <span className="text-2xl font-black tracking-tighter">{value}</span>
-    </div>
-  );
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 mb-4">{children}</h3>;
 }
 
-function ListingsTable({ title, subtitle, rows, onDelete, deletingId }: {
-  title: string; subtitle?: string; rows: Listing[];
+function ListingsTable({ title, rows, onDelete, deletingId }: {
+  title: string; rows: Listing[];
   onDelete: (l: Listing) => void; deletingId: string | null;
 }) {
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-baseline gap-3">
-        <h3 className="text-[10px] font-black uppercase tracking-[0.3em]">{title}</h3>
-        <span className="inline-flex items-center justify-center min-w-[1.5rem] h-5 px-1.5 text-[9px] font-black rounded-full bg-zinc-200 text-black/60">{rows.length}</span>
-        {subtitle && <span className="text-[10px] font-bold uppercase tracking-widest text-black/30">{subtitle}</span>}
-      </div>
+    <div>
+      <SectionLabel>{title}</SectionLabel>
       {rows.length === 0 ? (
-        <div className="border border-black/5 bg-zinc-50 p-12 text-center text-xs font-bold uppercase tracking-widest text-black/30">No items.</div>
+        <p className="text-[11px] font-bold uppercase tracking-widest text-black/30 pb-4">No items.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead><tr className="border-b border-black/10">
-              <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Item</th>
-              <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">SKU</th>
-              <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Status</th>
-              <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Price</th>
-              <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40 text-right">Listed</th>
-              <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40 text-right">Actions</th>
-            </tr></thead>
-            <tbody>
-              {rows.map((l) => (
-                <tr key={l.id} className="border-b border-black/5">
-                  <td className="py-4 px-3"><Link to={`/product/${l.id}`} className="flex items-center gap-3 hover:underline">
-                    <div className="h-12 w-9 bg-zinc-100 overflow-hidden flex-shrink-0"><img src={l.image_url} alt="" className="h-full w-full object-cover" /></div>
-                    <span className="text-xs font-black uppercase tracking-tight">{l.title}</span>
-                  </Link></td>
-                  <td className="py-4 px-3 text-[10px] font-bold uppercase tracking-widest text-black/60">{l.sku ?? '-'}</td>
-                  <td className="py-4 px-3 text-[10px] font-black uppercase tracking-widest">{l.is_sold ? 'Sold' : l.status}</td>
-                  <td className="py-4 px-3 text-xs font-black">{formatCurrency(Number(l.sale_price ?? l.price))}</td>
-                  <td className="py-4 px-3 text-[10px] font-bold uppercase tracking-widest text-black/40 text-right">
-                    {new Date(l.created_at).toLocaleDateString()}
-                  </td>
-                  <td className="py-4 px-3 text-right">
-                    <button
-                      onClick={() => onDelete(l)}
-                      disabled={deletingId === l.id}
-                      title="Delete listing"
-                      className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-red-50 text-red-600 hover:bg-red-600 hover:text-white disabled:opacity-50"
-                    >
-                      {deletingId === l.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <>
+          {/* Mobile card layout */}
+          <div className="flex flex-col sm:hidden">
+            {rows.map((l) => (
+              <div key={l.id} className="py-4 border-b border-black/5 flex gap-3">
+                <Link to={`/product/${l.id}`} className="h-16 w-12 bg-zinc-100 overflow-hidden flex-shrink-0">
+                  <img src={l.image_url} alt="" className="h-full w-full object-cover" />
+                </Link>
+                <div className="flex-1 min-w-0 flex flex-col gap-1">
+                  <Link to={`/product/${l.id}`} className="text-xs font-black uppercase tracking-tight truncate hover:underline">{l.title}</Link>
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-black/40">SKU {l.sku ?? '-'} · {new Date(l.created_at).toLocaleDateString()}</span>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-sm font-black">{formatCurrency(Number(l.sale_price ?? l.price))}</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-black/50">{l.is_sold ? 'Sold' : l.status}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => onDelete(l)}
+                  disabled={deletingId === l.id}
+                  title="Delete listing"
+                  className="self-start text-black/30 hover:text-black disabled:opacity-50 shrink-0"
+                >
+                  {deletingId === l.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop table */}
+          <div className="hidden sm:block overflow-x-auto">
+            <table className="w-full text-left">
+              <thead><tr className="border-b border-black/10">
+                <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Item</th>
+                <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">SKU</th>
+                <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Status</th>
+                <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Price</th>
+                <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40 text-right">Listed</th>
+                <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40 text-right"></th>
+              </tr></thead>
+              <tbody>
+                {rows.map((l) => (
+                  <tr key={l.id} className="border-b border-black/5">
+                    <td className="py-3 px-3"><Link to={`/product/${l.id}`} className="flex items-center gap-3 hover:underline">
+                      <div className="h-12 w-9 bg-zinc-100 overflow-hidden flex-shrink-0"><img src={l.image_url} alt="" className="h-full w-full object-cover" /></div>
+                      <span className="text-xs font-black uppercase tracking-tight">{l.title}</span>
+                    </Link></td>
+                    <td className="py-3 px-3 text-[10px] font-bold uppercase tracking-widest text-black/60">{l.sku ?? '-'}</td>
+                    <td className="py-3 px-3 text-[10px] font-black uppercase tracking-widest">{l.is_sold ? 'Sold' : l.status}</td>
+                    <td className="py-3 px-3 text-xs font-black">{formatCurrency(Number(l.sale_price ?? l.price))}</td>
+                    <td className="py-3 px-3 text-[10px] font-bold uppercase tracking-widest text-black/40 text-right">
+                      {new Date(l.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="py-3 px-3 text-right">
+                      <button
+                        onClick={() => onDelete(l)}
+                        disabled={deletingId === l.id}
+                        title="Delete listing"
+                        className="text-black/30 hover:text-black disabled:opacity-50"
+                      >
+                        {deletingId === l.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );
@@ -216,7 +269,7 @@ function ListingsTable({ title, subtitle, rows, onDelete, deletingId }: {
 
 function OrdersList({ rows, onUpdated }: { rows: Order[]; onUpdated: () => void }) {
   if (rows.length === 0) {
-    return <div className="border border-black/5 bg-zinc-50 p-12 text-center text-xs font-bold uppercase tracking-widest text-black/30">No orders yet.</div>;
+    return <p className="text-[11px] font-bold uppercase tracking-widest text-black/30">No sales yet.</p>;
   }
   return (
     <div className="flex flex-col gap-4">
@@ -228,7 +281,7 @@ function OrdersList({ rows, onUpdated }: { rows: Order[]; onUpdated: () => void 
 function OrderRow({ order, onUpdated }: { order: Order; onUpdated: () => void }) {
   const [editing, setEditing] = React.useState(false);
   return (
-    <div className="border border-black/5 bg-white p-6 flex flex-col gap-4">
+    <div className="bg-zinc-50 border border-black/5 p-6 flex flex-col gap-4">
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-4">
           {order.listing_image_url && (
@@ -244,7 +297,7 @@ function OrderRow({ order, onUpdated }: { order: Order; onUpdated: () => void })
         </div>
         <div className="flex flex-col items-end gap-2">
           <span className="text-sm font-black">{formatCurrency(Number(order.total_amount))}</span>
-          <StatusPill status={order.status} />
+          <StatusBadge status={order.status} audience="seller" />
         </div>
       </div>
 
@@ -260,10 +313,9 @@ function OrderRow({ order, onUpdated }: { order: Order; onUpdated: () => void })
       </div>
 
       {order.status === 'awaiting_verification' && (
-        <div className="bg-amber-50 border border-amber-200 p-4 text-[10px] font-bold uppercase tracking-widest text-amber-700 leading-relaxed">
-          Payment is being verified by zarketplace. Please add tracking and ship the item.
-          You will receive your payout once shipping is confirmed.
-        </div>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-black/60 leading-relaxed border-t border-black/5 pt-4">
+          Payment is being verified by zarketplace. Add tracking and ship the item; your payout is released once shipping is confirmed.
+        </p>
       )}
 
       <div className="pt-4 border-t border-black/5">
@@ -320,10 +372,10 @@ function TrackingForm({ order, onSaved }: { order: Order; onSaved: () => void })
         setErr('Tracking URL must start with http:// or https://'); return;
       }
       if (!parsed.hostname.includes('.') || parsed.hostname === 'localhost') {
-        setErr('Tracking URL must point to the courier\u2019s website.'); return;
+        setErr('Tracking URL must point to the courier’s website.'); return;
       }
     } catch {
-      setErr('That doesn\u2019t look like a valid URL. Paste the full courier tracking link.'); return;
+      setErr('That doesn’t look like a valid URL. Paste the full courier tracking link.'); return;
     }
     setSaving(true);
     try {
@@ -353,6 +405,18 @@ function TrackingForm({ order, onSaved }: { order: Order; onSaved: () => void })
       const justShipped = update.status === 'shipped';
       if (justShipped) {
         void sendEmail({ template: 'tracking_update_buyer', order_id: order.id });
+        // Create the payout ledger row the moment the item ships. Best
+        // effort: a failure here shouldn't block the seller from having
+        // marked the order shipped, but it would mean no payout record
+        // exists, so we surface it loudly in the console for now.
+        if (order.seller_id) {
+          const { error: payoutErr } = await supabase.from('seller_payouts').insert({
+            seller_id: order.seller_id,
+            order_id: order.id,
+            amount: Number(order.total_amount),
+          });
+          if (payoutErr) splog.error('seller_payouts insert failed', payoutErr);
+        }
       }
 
       onSaved();
@@ -406,23 +470,63 @@ function TrackingForm({ order, onSaved }: { order: Order; onSaved: () => void })
       </div>
       {err && <p className="text-[10px] font-bold uppercase tracking-widest text-red-600">{err}</p>}
       <button onClick={save} disabled={saving}
-        className="self-start bg-black text-white px-6 py-3 text-[10px] font-black uppercase tracking-[0.3em] hover:bg-zinc-800 disabled:opacity-50">
+        className="self-start border border-black px-6 py-3 text-[10px] font-black uppercase tracking-[0.3em] hover:bg-black hover:text-white disabled:opacity-50">
         {saving ? 'Saving…' : 'Save & mark shipped'}
       </button>
     </div>
   );
 }
 
-function StatusPill({ status }: { status: OrderStatus }) {
-  const map: Record<string, string> = {
-    awaiting_payment: 'bg-zinc-100 text-zinc-600',
-    awaiting_verification: 'bg-amber-100 text-amber-700',
-    payment_failed: 'bg-red-100 text-red-700',
-    payment_conflict: 'bg-orange-100 text-orange-700',
-    paid: 'bg-blue-100 text-blue-700',
-    shipped: 'bg-emerald-100 text-emerald-700',
-    cancelled: 'bg-red-100 text-red-700',
-    refunded: 'bg-red-50 text-red-600',
-  };
-  return <span className={cn('px-3 py-1 text-[9px] font-black uppercase tracking-widest', map[status])}>{status.replace(/_/g, ' ')}</span>;
+function PayoutsView({ payouts, orders }: { payouts: SellerPayout[]; orders: Order[] }) {
+  const orderById = React.useMemo(() => new Map(orders.map((o) => [o.id, o])), [orders]);
+  const awaiting = payouts.filter((p) => p.status === 'awaiting_payout');
+  const paidOut = payouts.filter((p) => p.status === 'paid_out');
+
+  return (
+    <div className="flex flex-col gap-10">
+      <PayoutTable title="Awaiting Payout" rows={awaiting} orderById={orderById} />
+      <PayoutTable title="Paid Out" rows={paidOut} orderById={orderById} />
+    </div>
+  );
+}
+
+function PayoutTable({ title, rows, orderById }: {
+  title: string; rows: SellerPayout[]; orderById: Map<string, Order>;
+}) {
+  return (
+    <div>
+      <SectionLabel>{title}</SectionLabel>
+      {rows.length === 0 ? (
+        <p className="text-[11px] font-bold uppercase tracking-widest text-black/30 pb-4">No payouts.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead><tr className="border-b border-black/10">
+              <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Order</th>
+              <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Amount</th>
+              <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Shipped</th>
+              <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40 text-right">Paid On</th>
+            </tr></thead>
+            <tbody>
+              {rows.map((p) => {
+                const order = orderById.get(p.order_id);
+                return (
+                  <tr key={p.id} className="border-b border-black/5">
+                    <td className="py-3 px-3 text-xs font-black uppercase tracking-tight">{order?.listing_title ?? order?.order_number ?? p.order_id.slice(0, 8)}</td>
+                    <td className="py-3 px-3 text-xs font-black">{formatCurrency(p.amount)}</td>
+                    <td className="py-3 px-3 text-[10px] font-bold uppercase tracking-widest text-black/60">
+                      {new Date(p.created_at).toLocaleDateString()}
+                    </td>
+                    <td className="py-3 px-3 text-[10px] font-bold uppercase tracking-widest text-black/60 text-right">
+                      {p.paid_at ? new Date(p.paid_at).toLocaleDateString() : '-'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
 }

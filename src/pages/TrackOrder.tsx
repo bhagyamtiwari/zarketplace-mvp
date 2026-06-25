@@ -12,17 +12,22 @@ import { Loader2, Truck, CheckCircle2, Clock, ExternalLink } from 'lucide-react'
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
 import { log } from '../lib/log';
+import { StatusBadge } from '../components/StatusBadge';
+import { EmptyState } from '../components/EmptyState';
+import { useDocumentTitle } from '../lib/useDocumentTitle';
 
 const tlog = log('track');
 
 const STATUS_STEPS: { key: OrderStatus; label: string; icon: any }[] = [
   { key: 'awaiting_payment', label: 'Ordered', icon: Clock },
-  { key: 'awaiting_verification', label: 'Pending', icon: Clock },
-  { key: 'paid', label: 'Verified', icon: CheckCircle2 },
-  { key: 'shipped', label: 'Shipped', icon: Truck },
+  { key: 'awaiting_verification', label: 'Confirming Payment', icon: Clock },
+  { key: 'paid', label: 'Order Confirmed', icon: CheckCircle2 },
+  { key: 'shipped', label: 'On Its Way', icon: Truck },
 ];
 
 export function TrackOrder() {
+  useDocumentTitle('My Orders');
+
   return (
     <RequireAuth message="Sign in to view your orders.">
       <TrackInner />
@@ -52,30 +57,15 @@ function TrackInner() {
 
   React.useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
-  const activeCount = orders.filter((o) => o.status !== 'cancelled' && o.status !== 'refunded' && o.status !== 'shipped').length;
-  const completedCount = orders.filter((o) => o.status === 'shipped').length;
-
   return (
-    <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 py-20">
+    <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-28 pb-14 sm:pb-20">
       <div className="flex flex-col gap-4 mb-12">
-        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-black">My Orders</span>
-        <h1 className="text-5xl font-black tracking-tighter uppercase">My Purchases</h1>
+        <h1 className="text-5xl font-black tracking-tighter uppercase">My Orders</h1>
         <p className="text-xs font-bold uppercase tracking-widest text-black/40 max-w-xl leading-relaxed">
-          Items YOU bought on zarketplace. Track payment verification and shipping here.
-          (For items YOU sold, open the Seller Portal.)
+          Items you've bought. Track payment and shipping.
+          <br />
+          For items you've sold, open the Seller Portal.
         </p>
-        {orders.length > 0 && (
-          <div className="flex items-center gap-3 mt-2">
-            <span className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest">
-              <span className="inline-flex items-center justify-center min-w-[1.5rem] h-5 px-1.5 text-[9px] font-black rounded-full bg-amber-100 text-amber-700">{activeCount}</span>
-              Active
-            </span>
-            <span className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest">
-              <span className="inline-flex items-center justify-center min-w-[1.5rem] h-5 px-1.5 text-[9px] font-black rounded-full bg-emerald-100 text-emerald-700">{completedCount}</span>
-              Shipped
-            </span>
-          </div>
-        )}
       </div>
 
       {loading ? (
@@ -83,12 +73,15 @@ function TrackInner() {
       ) : err ? (
         <div className="border border-red-200 bg-red-50 p-6 text-xs font-bold uppercase tracking-widest text-red-700">{err}</div>
       ) : orders.length === 0 ? (
-        <div className="border border-black/5 bg-zinc-50 p-12 text-center">
-          <p className="text-xs font-bold uppercase tracking-widest text-black/40 mb-6">No orders yet.</p>
-          <Link to="/browse" className="bg-black px-8 py-3 text-[10px] font-black uppercase tracking-[0.3em] text-white hover:bg-zinc-800">
-            Browse the drop
-          </Link>
-        </div>
+        <EmptyState
+          action={
+            <Link to="/browse" className="bg-black px-8 py-3 text-[10px] font-black uppercase tracking-[0.3em] text-white hover:bg-zinc-800">
+              Browse All
+            </Link>
+          }
+        >
+          No orders yet.
+        </EmptyState>
       ) : (
         <div className="flex flex-col gap-8">
           {orders.map((o) => <React.Fragment key={o.id}><OrderCard order={o} /></React.Fragment>)}
@@ -116,7 +109,7 @@ function OrderCard({ order }: { order: Order }) {
             {new Date(order.created_at).toLocaleDateString()} · {formatCurrency(Number(order.total_amount))}
           </span>
         </div>
-        <StatusPill status={order.status} />
+        <StatusBadge status={order.status} audience="buyer" />
       </div>
 
       {/* Timeline */}
@@ -166,7 +159,7 @@ function Tracking({ order }: { order: Order }) {
         <div className="flex flex-col gap-2">
           <a href={order.tracking_url} target="_blank" rel="noreferrer"
             className="self-start inline-flex items-center gap-2 bg-black text-white px-5 py-3 text-[10px] font-black uppercase tracking-[0.3em] hover:bg-zinc-800">
-            <ExternalLink className="h-3 w-3" /> Track package →
+            <ExternalLink className="h-3 w-3" /> Track package
           </a>
           {(order.courier || order.tracking_number) && (
             <span className="text-[10px] font-bold uppercase tracking-widest text-black/60">
@@ -175,10 +168,16 @@ function Tracking({ order }: { order: Order }) {
           )}
           {pkgUrl && <img src={pkgUrl} alt="package" className="h-20 w-20 object-cover border border-black/10" />}
         </div>
+      ) : order.status === 'paid' ? (
+        <div className="bg-zinc-50 border border-black/5 p-4">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 leading-relaxed">
+            Tracking information is not available yet. Your seller has been notified of your order and payment details, and will update shipment information soon. We'll email you as soon as tracking details are added.
+          </p>
+        </div>
       ) : (
         <div className="bg-zinc-50 border border-black/5 p-4">
           <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 leading-relaxed">
-            Tracking unavailable. We're verifying your payment. Once confirmed, the seller will ship and add tracking. We'll email you the moment they do.
+            Tracking unavailable. We're still verifying your payment. Once confirmed, the seller will ship and add tracking. We'll email you the moment they do.
           </p>
         </div>
       )}
@@ -186,16 +185,3 @@ function Tracking({ order }: { order: Order }) {
   );
 }
 
-function StatusPill({ status }: { status: OrderStatus }) {
-  const map: Record<string, string> = {
-    awaiting_payment: 'border-zinc-300 text-zinc-600',
-    awaiting_verification: 'border-amber-500 text-amber-700',
-    payment_failed: 'border-red-500 text-red-700',
-    payment_conflict: 'border-orange-500 text-orange-700',
-    paid: 'border-blue-500 text-blue-700',
-    shipped: 'border-emerald-500 text-emerald-700',
-    cancelled: 'border-red-300 text-red-600',
-    refunded: 'border-red-300 text-red-600',
-  };
-  return <span className={cn('text-[9px] font-black uppercase tracking-widest px-2 py-1 border self-start', map[status])}>{status.replace(/_/g, ' ')}</span>;
-}

@@ -1,6 +1,7 @@
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { useDocumentTitle } from '../lib/useDocumentTitle';
 
 export const CONDITION_TIERS = [
   { 
@@ -26,30 +27,35 @@ export const CONDITION_TIERS = [
 ];
 
 export function Condition() {
+  useDocumentTitle('Conditions Guide');
+
   return (
-    <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 pt-32 pb-20">
+    <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
       <Link to="/" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black/40 hover:text-black mb-12">
         <ArrowLeft className="h-3 w-3" /> Back to Home
       </Link>
 
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="flex flex-col gap-12"
       >
         <div className="flex flex-col gap-4">
-          <span className="text-[10px] font-black uppercase tracking-[0.4em] text-black/40">Standards</span>
-          <h1 className="text-5xl font-black tracking-tighter uppercase">Item Condition</h1>
+          <h1 className="text-5xl font-black tracking-tighter uppercase">Conditions Guide</h1>
           <p className="text-sm font-black uppercase tracking-widest text-black">How every piece is graded</p>
         </div>
 
-        <div className="prose prose-zinc max-w-none flex flex-col gap-10 text-black leading-relaxed">
+        <div className="flex flex-col gap-10 text-black leading-relaxed">
           <div className="flex flex-col gap-4">
-            <p className="text-sm font-black uppercase tracking-widest">every item is listed under one of five condition tiers. this allows for complete transparency so you know exactly what you're getting.</p>
-            <p className="text-xs font-bold uppercase tracking-widest text-black">
-              * Please note: Conditions are filled in by the sellers. While we require sellers follow our criteria strictly, condition can be subjective.
-            </p>
+            <p className="text-sm font-medium uppercase tracking-widest leading-relaxed">every item is listed under one of five condition tiers. this allows for complete transparency so you know exactly what you're getting.</p>
           </div>
+
+          <section className="p-8 bg-black text-white flex flex-col gap-4">
+            <h3 className="text-sm font-black uppercase tracking-widest">Please note</h3>
+            <p className="text-xs font-bold uppercase tracking-widest leading-relaxed">
+              Conditions are filled in by sellers. While we require sellers to follow our criteria strictly, condition assessments can still be subjective.
+            </p>
+          </section>
 
           <div className="grid grid-cols-1 gap-4">
             {CONDITION_TIERS.map(tier => (

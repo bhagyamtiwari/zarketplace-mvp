@@ -25,7 +25,8 @@ type Tag =
   | 'track'
   | 'seller'
   | 'admin'
-  | 'cart';
+  | 'cart'
+  | 'account';
 
 interface Logger {
   (...args: unknown[]): void;

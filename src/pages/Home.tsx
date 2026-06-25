@@ -35,8 +35,13 @@ export function Home() {
 
   return (
     <div className="flex flex-col bg-white">
+   {/* LAUNCH TICKER - desktop only, sits at the very top of the page below the fixed nav */}
+   <div className="hidden md:block pt-20">
+     <LaunchOfferBanner variant="ticker" />
+   </div>
+
    {/* HERO SECTION */}
-   <section className="relative min-h-screen flex flex-col justify-center items-center overflow-hidden bg-black text-white px-4 pt-20">
+   <section className="relative min-h-screen flex flex-col justify-center items-center overflow-hidden bg-black text-white px-4 pt-24 md:pt-12">
         
         <motion.div 
           style={{ y: backgroundY }}
@@ -58,33 +63,30 @@ export function Home() {
             className="flex flex-col items-center"
           >
             <div className="overflow-hidden mb-8">
-              <motion.h1 
+              <motion.h1
                 initial={{ y: "100%" }}
                 animate={{ y: 0 }}
                 transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
                 className="text-[13vw] md:text-[8vw] font-black leading-[0.9] tracking-tighter uppercase max-w-5xl"
               >
-                <span className="text-white">RIP dm2buy</span> <br />
-                <span className="text-white">& dm4price.</span>
+                <span className="text-white">Rest in peace</span> <br />
+                <span className="text-white">dm4price.</span>
               </motion.h1>
             </div>
-            
 
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.5 }}
-              className="flex flex-col items-center gap-4 mb-16"
+              className="flex flex-col items-center gap-4 mb-10 sm:mb-16"
             >
-              {/* Mobile 16px, Desktop text-s */}
-              <p className="text-[16px] md:text-s font-black uppercase tracking-[0.3em] md:tracking-[0.4em] text-white">
+              <p className="text-[18px] md:text-base font-black uppercase tracking-[0.3em] md:tracking-[0.4em] text-white">
                 gen-z's marketplace
               </p>
-              
-              {/* Mobile 14px, Desktop text-s */}
-              <p className="text-[14px] md:text-s font-black uppercase tracking-[0.3em] md:tracking-[0.4em] text-white">
-                <span className="block md:inline">buy & sell</span> 
-                <span className="hidden md:inline"> </span> 
+
+              <p className="text-base md:text-base font-black uppercase tracking-[0.3em] md:tracking-[0.4em] text-white">
+                <span className="block md:inline">buy & sell</span>
+                <span className="hidden md:inline"> </span>
                 <span className="block md:inline">pre-owned fashion</span>
               </p>
             </motion.div>
@@ -106,29 +108,29 @@ export function Home() {
         </div>
       </section>
 
-  {/* LAUNCH NEWS TICKER - infinite right-to-left scroll, headline-style */}
-  <LaunchOfferBanner variant="ticker" />
+  {/* LAUNCH NEWS TICKER - mobile only, desktop version sits above the hero */}
+  <div className="md:hidden">
+    <LaunchOfferBanner variant="ticker" />
+  </div>
 
   {/* MARKETPLACE PREVIEW SECTION */}
-<section className="py-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
-  <div className="flex flex-col md:flex-row md:items-end justify-between gap-12 mb-20">
-    <div className="flex flex-col gap-4">
-      <h2 className="text-6xl md:text-8xl font-black tracking-tighter uppercase leading-none">
-        Available<br />now.
-      </h2>
-    </div>
+<section className="pt-6 sm:pt-10 pb-16 sm:pb-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
+  <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 sm:gap-6 mb-8 sm:mb-10">
+    <h2 className="text-5xl sm:text-7xl md:text-8xl font-black tracking-tighter uppercase leading-none">
+      Available now.
+    </h2>
 
-    <Link 
-      to="/browse" 
-      className="group flex items-center gap-3 text-xs font-black uppercase tracking-[0.3em] border-b-2 border-black pb-2"
+    <Link
+      to="/browse"
+      className="group flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] border-b-2 border-black pb-1 self-start sm:self-auto"
     >
-      View All 
+      View All
       <ArrowUpRight className="h-5 w-5 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
     </Link>
   </div>
 
   {previewListings.length > 0 ? (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-16">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-10 md:gap-y-12">
       {previewListings.map((listing) => (
         <ListingCard key={listing.id} listing={listing} />
       ))}
@@ -142,89 +144,85 @@ export function Home() {
   )}
 </section>
 
-{/* PROBLEM / SOLUTION SECTION - 20% (Shared with others) */}
-<section className="py-24 bg-zinc-50 border-y border-black/5">
+{/* RESALE WITHOUT THE FRICTION */}
+<section className="py-16 sm:py-24 bg-zinc-50 border-y border-black/5">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          {/* Reduced gap from 24 to 8 on mobile to bring list closer to the intro text */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-24">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-24 lg:items-center">
             <div className="lg:col-span-5 flex flex-col gap-6">
               <h2 className="text-4xl md:text-6xl font-black tracking-tighter uppercase leading-[0.9]">
                 Resale, <br />
                 without the friction.
               </h2>
-              <div className="flex flex-col gap-4 text-black leading-relaxed text-sm font-black uppercase tracking-widest">
-                <p>WE are building the infrastructure for the next generation of re-commerce in India.</p>
-              </div>
             </div>
-            
-            <div className="lg:col-span-7 flex flex-col gap-12">
-              {/* Reduced gap from 12 to 8 on mobile to bring individual items closer together */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
-                <div className="flex flex-col gap-2">
-                  <h4 className="text-lg font-black uppercase tracking-tight">Discover new pieces</h4>
-                  <p className="text-xs font-bold uppercase tracking-widest text-black/40">listings from sellers across India.</p>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <h4 className="text-lg font-black uppercase tracking-tight">List your items</h4>
-                  <p className="text-xs font-bold uppercase tracking-widest text-black/40">Upload a piece in minutes.</p>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <h4 className="text-lg font-black uppercase tracking-tight">Sell faster</h4>
-                  <p className="text-xs font-bold uppercase tracking-widest text-black/40">Reach buyers looking for exactly what you have.</p>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <h4 className="text-lg font-black uppercase tracking-tight">Secure Payments</h4>
-                  <p className="text-xs font-bold uppercase tracking-widest text-black/40">Safe and reliable transactions for every order.</p>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <h4 className="text-lg font-black uppercase tracking-tight">Verified Sellers</h4>
-                  <p className="text-xs font-bold uppercase tracking-widest text-black/40">Shop with confidence from trusted community members.</p>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <h4 className="text-lg font-black uppercase tracking-tight">Expanding everyday</h4>
-                  <p className="text-xs font-bold uppercase tracking-widest text-black/40">More categories and collectibles coming soon.</p>
-                </div>
+
+            <div className="lg:col-span-7 flex flex-col gap-12 justify-center">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-8">
+                {[
+                  'Secure payments',
+                  'Tracked shipping',
+                  'Seller payouts',
+                  'Verified listings',
+                  'No "DM for price"',
+                  'Low seller fees',
+                ].map((item) => (
+                  <div key={item} className="flex items-center gap-3">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-black text-white text-[10px] font-black">✓</span>
+                    <span className="text-xs sm:text-sm font-bold uppercase tracking-widest">{item}</span>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* SUSTAINABILITY SECTION */}
-      <section className="relative py-24 px-4 sm:px-6 lg:px-8 overflow-hidden bg-black text-white">
+{/* SUSTAINABILITY SECTION */}
+<section className="relative py-16 sm:py-24 px-4 sm:px-6 lg:px-8 overflow-hidden bg-black text-white">
         <div className="absolute inset-0 opacity-40">
-          <img 
-            src="/images/dump.png" 
-            className="w-full h-full object-cover opacity-90" 
-            alt="Sustainability background" 
+          <img
+            src="/images/dump.png"
+            className="w-full h-full object-cover opacity-90"
+            alt="Sustainability background"
           />
         </div>
-        <div className="relative z-10 max-w-7xl mx-auto flex flex-col gap-8">
-          <h2 className="text-5xl md:text-7xl font-black tracking-tighter uppercase leading-[0.85]">
-            Save the world. <br />
-            Save your pocket.
-          </h2>
+        <div className="relative z-10 max-w-7xl mx-auto flex flex-col items-center sm:items-start gap-8 text-center sm:text-left">
+          <div className="flex flex-col gap-2">
+            <h2 className="text-5xl md:text-7xl font-black tracking-tighter uppercase leading-[0.85]">
+              Reduce waste,
+            </h2>
+            <p className="text-4xl md:text-6xl font-serif italic tracking-tight lowercase leading-tight">
+              buy pre-loved.
+            </p>
+          </div>
           <div className="flex flex-col gap-4 text-sm font-medium uppercase tracking-widest text-white leading-relaxed max-w-2xl">
-            <p>we connect resellers, IG thrift stores, and everyday sellers in one place, making it easy to buy and sell pre-owned clothing across India.</p>
+            <p>Keep clothes in circulation and out of landfills.</p>
           </div>
+          <a
+            href="https://www.youtube.com/@zarketplace"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group relative overflow-hidden bg-white px-12 py-5 text-[11px] font-black uppercase tracking-[0.4em] text-black transition-all hover:scale-105 active:scale-95 shadow-[0_0_30px_rgba(255,255,255,0.3)]"
+          >
+            Why This Matters
+          </a>
         </div>
       </section>
 
-      {/* SELLER SECTION */}
-      <section className="relative py-24 px-4 sm:px-6 lg:px-8 overflow-hidden bg-black text-white">
+{/* SELLER / F*CK FAST FASHION SECTION */}
+<section className="relative py-16 sm:py-24 px-4 sm:px-6 lg:px-8 overflow-hidden bg-black text-white border-t border-white/10">
         <div className="absolute inset-0 opacity-40">
-          <img 
-            src="/images/red.png" 
-            className="w-full h-full object-cover opacity-90" 
-            alt="Seller background" 
+          <img
+            src="/images/red.png"
+            className="w-full h-full object-cover opacity-90"
+            alt="Seller background"
           />
         </div>
-        <div className="relative z-10 max-w-7xl mx-auto flex flex-col items-end gap-8 px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col gap-2 items-end">
-            <h2 className="text-5xl md:text-8xl font-black tracking-tighter uppercase leading-[0.85] text-right">
+        <div className="relative z-10 max-w-7xl mx-auto flex flex-col items-center sm:items-end gap-10 sm:gap-8 px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col gap-2 items-center sm:items-end">
+            <h2 className="text-5xl md:text-8xl font-black tracking-tighter uppercase leading-[0.85] text-center sm:text-right">
               F*ck Fast Fashion!
             </h2>
-            <p className="text-2xl md:text-5xl font-serif italic tracking-tight text-right lowercase leading-tight">
+            <p className="text-2xl md:text-5xl font-serif italic tracking-tight text-center sm:text-right lowercase leading-tight">
               sell ur thrifted finds here.
             </p>
           </div>
@@ -233,20 +231,21 @@ export function Home() {
           </Link>
         </div>
       </section>
-{/* CULTURE / RESALE MESSAGE */}
-<section className="relative py-24 bg-black text-white overflow-hidden border-t border-white/5">
+
+{/* CULTURE / MISSION SECTION */}
+<section className="relative py-16 sm:py-24 bg-black text-white overflow-hidden border-t border-white/5">
         {/* Background Image Layer */}
         <div className="absolute inset-0 z-0">
-          <img 
-            src="/images/denim.jpg" 
-            className="w-full h-full object-cover opacity-40" 
-            alt="Culture" 
+          <img
+            src="/images/denim.jpg"
+            className="w-full h-full object-cover opacity-40"
+            alt="Culture"
           />
           <div className="absolute inset-0 bg-black/40" />
         </div>
 
         <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col lg:flex-row items-start justify-between gap-12 lg:gap-20">
+          <div className="flex flex-col items-center text-center lg:flex-row lg:items-start lg:text-left justify-between gap-12 lg:gap-20">
             {/* Left Side: Heading */}
             <div className="w-full lg:max-w-xl">
               <h2 className="text-5xl md:text-7xl font-black tracking-tighter uppercase leading-[0.85]">
@@ -256,11 +255,10 @@ export function Home() {
             </div>
 
             {/* Right Side: Description Text */}
-            <div className="flex flex-col gap-6 text-white/80 text-sm font-medium uppercase tracking-widest leading-relaxed max-w-md lg:mt-4">
-              <p>We are building a centralized platform to bring structure and scale to India's fragmented resale economy, making sustainable fashion accessible to everyone.</p>
-              <p>The future of fashion is circular-unlocking the value in existing garments rather than just producing new ones.</p>
-              <Link to="/about" className="text-[10px] font-black underline tracking-[0.2em] text-white hover:text-white/80 transition-colors mt-4 block">
-                Learn more about our mission
+            <div className="flex flex-col items-center lg:items-start gap-6 text-white/80 text-sm font-medium uppercase tracking-widest leading-relaxed max-w-md lg:mt-4">
+              <p>resellers, IG thrift stores and everyday sellers all in one place.</p>
+              <Link to="/about" className="group relative overflow-hidden bg-white px-8 py-4 text-[11px] font-black uppercase tracking-[0.3em] text-black transition-all hover:scale-105 active:scale-95 shadow-[0_0_30px_rgba(255,255,255,0.3)] mt-4">
+                Learn About Our Mission
               </Link>
             </div>
           </div>

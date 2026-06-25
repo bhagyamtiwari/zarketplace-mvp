@@ -16,15 +16,15 @@ import { formatCurrency, cn } from '../lib/utils';
 
 type Format = 'square' | 'story';
 
-// Card dimensions and layout split between hero image and info panel.
+// Card dimensions. The hero image is full-bleed; the info panel is a
+// semi-transparent dark overlay anchored to the bottom of the card.
 const LAYOUTS: Record<Format, {
   w: number; h: number;
-  imageH: number;  // height of the hero image area
-  panelH: number;  // height of the info panel (== h - imageH)
+  panelH: number;  // height of the bottom overlay panel
   previewScale: number;
 }> = {
-  square: { w: 1080, h: 1080, imageH: 620, panelH: 460, previewScale: 0.34 },
-  story:  { w: 1080, h: 1920, imageH: 1180, panelH: 740, previewScale: 0.22 },
+  square: { w: 1080, h: 1080, panelH: 460, previewScale: 0.34 },
+  story:  { w: 1080, h: 1920, panelH: 680, previewScale: 0.22 },
 };
 
 // Always points at the production domain regardless of where the seller
@@ -136,7 +136,9 @@ export function ShareInstagramModal({ open, onClose, listing }: Props) {
               <span className="text-[10px] font-black uppercase tracking-[0.4em] text-black/50">Share to Instagram</span>
               <h2 className="text-2xl font-black tracking-tighter uppercase">Generate post image</h2>
               <p className="text-[11px] font-bold uppercase tracking-widest text-black/40 leading-relaxed max-w-xl">
-                Branded post and story templates with QR code. Tag @zarketplace in your caption.
+                Download a branded post or story image of your listing in one click.
+                <br />
+                Only you can see this.
               </p>
             </div>
 
@@ -255,69 +257,43 @@ const ShareCard = React.forwardRef<HTMLDivElement, {
       style={{
         width: layout.w,
         height: layout.h,
-        background: '#fff',
+        position: 'relative',
+        background: '#000',
         fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         color: '#000',
-        display: 'flex',
-        flexDirection: 'column',
         overflow: 'hidden',
       }}
     >
-      {/* HERO IMAGE AREA */}
-      <div style={{
-        width: layout.w, height: layout.imageH,
-        position: 'relative', background: '#f4f4f5', flexShrink: 0,
-      }}>
-        <img
-          src={heroImage}
-          crossOrigin="anonymous"
-          alt=""
-          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-        />
+      {/* FULL-BLEED HERO IMAGE */}
+      <img
+        src={heroImage}
+        crossOrigin="anonymous"
+        alt=""
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+      />
 
-        {/* Top-left: brand chip (white tile) */}
+      {/* Sale flag, top-left */}
+      {hasSale && (
         <div style={{
           position: 'absolute', top: 32, left: 32,
-          background: '#fff',
-          padding: '12px 18px',
-          fontSize: 16, fontWeight: 900, letterSpacing: 4,
+          background: '#dc2626', color: '#fff',
+          padding: '10px 16px',
+          fontSize: 14, fontWeight: 900, letterSpacing: 4,
           textTransform: 'uppercase',
         }}>
-          {listing.brand || 'preloved'}
+          On Sale
         </div>
+      )}
 
-        {/* Top-right: @zarketplace watermark on image area */}
-        <div style={{
-          position: 'absolute', top: 32, right: 32,
-          background: '#000', color: '#fff',
-          padding: '12px 18px',
-          fontSize: 16, fontWeight: 900, letterSpacing: 3,
-        }}>
-          @zarketplace
-        </div>
-
-        {/* Sale flag on left below brand chip */}
-        {hasSale && (
-          <div style={{
-            position: 'absolute', top: 96, left: 32,
-            background: '#dc2626', color: '#fff',
-            padding: '10px 16px',
-            fontSize: 14, fontWeight: 900, letterSpacing: 4,
-            textTransform: 'uppercase',
-          }}>
-            On Sale
-          </div>
-        )}
-      </div>
-
-      {/* INFO PANEL (BLACK) */}
+      {/* INFO PANEL: translucent dark overlay anchored to the bottom of the
+          full-bleed image, so the photo stays visible underneath. */}
       <div style={{
-        width: layout.w, height: layout.panelH,
-        background: '#000', color: '#fff',
+        position: 'absolute', left: 0, right: 0, bottom: 0,
+        height: layout.panelH,
+        background: 'rgba(0,0,0,0.7)', color: '#fff',
         padding: isStory ? 56 : 44,
         display: 'flex', flexDirection: 'column',
         boxSizing: 'border-box',
-        flexShrink: 0,
       }}>
         {/* TOP ROW: title + meta on left, QR on right */}
         <div style={{
@@ -332,7 +308,7 @@ const ShareCard = React.forwardRef<HTMLDivElement, {
             flex: 1, display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0,
           }}>
             <h1 style={{
-              fontSize: isStory ? 76 : 60,
+              fontSize: isStory ? 64 : 50,
               fontWeight: 900,
               letterSpacing: -1.5,
               textTransform: 'uppercase',
@@ -345,20 +321,20 @@ const ShareCard = React.forwardRef<HTMLDivElement, {
             </h1>
 
             <div style={{
-              display: 'flex', gap: 12, flexWrap: 'wrap',
-              fontSize: 14, fontWeight: 800, letterSpacing: 3, textTransform: 'uppercase',
+              display: 'flex', gap: 14, flexWrap: 'wrap',
+              fontSize: isStory ? 22 : 18, fontWeight: 800, letterSpacing: 3, textTransform: 'uppercase',
             }}>
               {listing.size && <span style={chipStyle}>Size {listing.size}</span>}
               {listing.condition && <span style={chipStyle}>{listing.condition}</span>}
             </div>
 
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginTop: 'auto' }}>
-              <span style={{ fontSize: isStory ? 96 : 76, fontWeight: 900, letterSpacing: -2, lineHeight: 1 }}>
+              <span style={{ fontSize: isStory ? 60 : 48, fontWeight: 900, letterSpacing: -1.5, lineHeight: 1 }}>
                 {formatCurrency(price)}
               </span>
               {hasSale && (
                 <span style={{
-                  fontSize: 28, fontWeight: 800, color: '#a3a3a3', textDecoration: 'line-through',
+                  fontSize: 22, fontWeight: 800, color: '#a3a3a3', textDecoration: 'line-through',
                 }}>
                   {formatCurrency(listing.price)}
                 </span>
@@ -368,7 +344,7 @@ const ShareCard = React.forwardRef<HTMLDivElement, {
 
           {/* Right QR column */}
           <div style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, flexShrink: 0,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, flexShrink: 0,
           }}>
             <div style={{ background: '#fff', padding: 12, lineHeight: 0 }}>
               <QRCode
@@ -387,27 +363,26 @@ const ShareCard = React.forwardRef<HTMLDivElement, {
           </div>
         </div>
 
-        {/* BOTTOM ROW: branding strip */}
+        {/* BOTTOM ROW: centered logo + wordmark */}
         <div style={{
           marginTop: 28,
           paddingTop: 22,
           borderTop: '2px solid rgba(255,255,255,0.18)',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 16,
+          justifyContent: 'center',
+          gap: 12,
         }}>
+          <img
+            src="/images/zarketplace-dark.png"
+            alt=""
+            crossOrigin="anonymous"
+            style={{ height: isStory ? 32 : 26, width: 'auto' }}
+          />
           <span style={{
-            fontSize: isStory ? 28 : 22, fontWeight: 900, letterSpacing: -0.5, textTransform: 'lowercase',
-            flexShrink: 0,
+            fontSize: isStory ? 36 : 30, fontWeight: 900, letterSpacing: -0.5, textTransform: 'lowercase',
           }}>
-            zarketplace.com
-          </span>
-          <span style={{
-            fontSize: isStory ? 17 : 14, fontWeight: 800, letterSpacing: 0.3, textTransform: 'none',
-            opacity: 0.6, textAlign: 'right', whiteSpace: 'nowrap',
-          }}>
-            {"gen-z's marketplace | buy & sell pre-owned fashion"}
+            zarketplace
           </span>
         </div>
       </div>

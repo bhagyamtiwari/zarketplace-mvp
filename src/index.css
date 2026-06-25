@@ -1,4 +1,7 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+/* Fonts are loaded directly in index.html's <head>, not via @import here -
+   that lets the browser start fetching them immediately instead of waiting
+   for this stylesheet to be injected by JS, which minimizes visible
+   font-swap reflow on first load. */
 @import "tailwindcss";
 
 @theme {
@@ -12,11 +15,28 @@
   }
 }
 
+/* iOS Safari auto-zooms the whole page when a focused form field renders
+   text smaller than 16px. Force a 16px floor on mobile so tapping any
+   input/select/textarea never triggers that zoom, regardless of the
+   component's own (often smaller) text size class. */
+@media (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
 @layer utilities {
   .bg-gradient-dark {
     background: linear-gradient(180deg, #000000 0%, #1a1a1a 100%);
   }
   .bg-gradient-soft {
     background: linear-gradient(180deg, #ffffff 0%, #f9f9f9 100%);
+  }
+  .scrollbar-hide {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
   }
 }

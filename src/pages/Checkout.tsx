@@ -13,11 +13,10 @@ import { motion } from 'motion/react';
 import { supabase } from '../lib/supabase';
 import { CartItem, Listing } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
-import { Loader2, ArrowLeft, ShieldCheck, CheckCircle2, XCircle, Package } from 'lucide-react';
+import { Loader2, ArrowLeft, ArrowRight, ShieldCheck, CheckCircle2, XCircle, Package } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { useCart } from '../lib/cart';
 import { RequireAuth } from '../components/RequireAuth';
-import { LaunchOfferBanner } from '../components/LaunchOfferBanner';
 import { log } from '../lib/log';
 
 const clog = log('checkout');
@@ -38,6 +37,7 @@ interface ResumeState {
   step: Step;
   order_numbers: string[];
   amount: number;
+  reservation_expires_at?: string | null;
 }
 
 function snapshotFromListing(l: Listing): CartItem {
@@ -91,12 +91,22 @@ function CheckoutInner() {
   const items: CartItem[] = id ? (buyNowItems ?? []) : cart.items;
 
   const [step, setStep] = React.useState<Step>('address');
+
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [step]);
+
   const [orderNumbers, setOrderNumbers] = React.useState<string[]>([]);
+  const [reservationExpiresAt, setReservationExpiresAt] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
   const [shippingAddress, setShippingAddress] = React.useState({
-    fullName: '', email: '', phone: '', address: '', city: '', pincode: '',
+    fullName: '', email: '', phone: '', address: '', landmark: '', city: '', pincode: '',
+  });
+  const [billingSameAsShipping, setBillingSameAsShipping] = React.useState(true);
+  const [billingAddress, setBillingAddress] = React.useState({
+    fullName: '', address: '', landmark: '', city: '', pincode: '',
   });
 
   React.useEffect(() => {
@@ -107,6 +117,7 @@ function CheckoutInner() {
       email: user.email ?? prev.email,
       phone: prev.phone || profile?.phone || addr.phone || '',
       address: prev.address || addr.address || '',
+      landmark: prev.landmark || addr.landmark || '',
       city: prev.city || addr.city || '',
       pincode: prev.pincode || addr.pincode || '',
     }));
@@ -120,6 +131,7 @@ function CheckoutInner() {
       if (r?.order_numbers?.length && ['pay', 'confirming', 'failed'].includes(r.step)) {
         setOrderNumbers(r.order_numbers);
         setStep(r.step);
+        if (r.reservation_expires_at) setReservationExpiresAt(r.reservation_expires_at);
       }
     } catch {}
   }, []);
@@ -131,7 +143,8 @@ function CheckoutInner() {
   const persistResume = (state: Partial<ResumeState>) => {
     try {
       const merged: ResumeState = {
-        step, order_numbers: orderNumbers, amount: total, ...state,
+        step, order_numbers: orderNumbers, amount: total,
+        reservation_expires_at: reservationExpiresAt, ...state,
       };
       localStorage.setItem(RESUME_KEY, JSON.stringify(merged));
     } catch {}
@@ -147,6 +160,12 @@ function CheckoutInner() {
       ['phone', shippingAddress.phone], ['address', shippingAddress.address],
       ['city', shippingAddress.city], ['pincode', shippingAddress.pincode],
     ];
+    if (!billingSameAsShipping) {
+      required.push(
+        ['billing fullName', billingAddress.fullName], ['billing address', billingAddress.address],
+        ['billing city', billingAddress.city], ['billing pincode', billingAddress.pincode],
+      );
+    }
     const missing = required.filter(([, v]) => !v?.trim()).map(([k]) => k);
     if (missing.length) { setErrorMsg(`Please fill in: ${missing.join(', ')}`); return; }
 
@@ -158,6 +177,10 @@ function CheckoutInner() {
         default_address: shippingAddress,
       }).eq('id', user.id);
       await refreshProfile();
+
+      const billingToSave = billingSameAsShipping
+        ? shippingAddress
+        : { ...billingAddress, email: shippingAddress.email, phone: shippingAddress.phone };
 
       const rows = items.map((i) => {
         const itemPrice = Number(i.sale_price ?? i.price ?? 0);
@@ -175,7 +198,7 @@ function CheckoutInner() {
           seller_email: (i.seller_email ?? '').toLowerCase() || null,
           seller_upi_vpa_snapshot: i.seller_upi_vpa ?? null,
           shipping_address: shippingAddress as unknown as Record<string, string>,
-          billing_address: shippingAddress as unknown as Record<string, string>,
+          billing_address: billingToSave as unknown as Record<string, string>,
           amount: itemPrice,
           shipping_cost: itemShip,
           total_amount: itemPrice + itemShip,
@@ -183,13 +206,15 @@ function CheckoutInner() {
         };
       });
 
-      const { data, error } = await supabase.from('orders').insert(rows).select('order_number');
+      const { data, error } = await supabase.from('orders').insert(rows).select('order_number, reservation_expires_at');
       if (error) throw error;
       const nums = (data ?? []).map((r: { order_number: string }) => r.order_number);
+      const expiresAt = (data ?? [])[0]?.reservation_expires_at ?? null;
 
       setOrderNumbers(nums);
+      setReservationExpiresAt(expiresAt);
       setStep('pay');
-      persistResume({ step: 'pay', order_numbers: nums });
+      persistResume({ step: 'pay', order_numbers: nums, reservation_expires_at: expiresAt });
     } catch (err: any) {
       clog.error('createOrders failed', err);
       setErrorMsg(err?.message || 'Failed to create order.');
@@ -235,15 +260,11 @@ function CheckoutInner() {
     if (step === 'confirming') void waitForConfirmation();
   }, [step, waitForConfirmation]);
 
-  const startPayment = async (buyerNote: string) => {
+  const startPayment = async () => {
     setErrorMsg(null);
     if (!user) return;
     setSubmitting(true);
     try {
-      if (buyerNote.trim()) {
-        await supabase.from('orders').update({ buyer_note: buyerNote.trim() }).in('order_number', orderNumbers);
-      }
-
       const { data, error } = await supabase.functions.invoke('create-razorpay-order', {
         body: { order_numbers: orderNumbers },
       });
@@ -313,7 +334,7 @@ function CheckoutInner() {
 
   if (items.length === 0 && step === 'address') {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-32 text-center flex flex-col items-center gap-8">
+      <div className="mx-auto max-w-2xl px-4 pt-24 sm:pt-32 pb-20 sm:pb-32 text-center flex flex-col items-center gap-8">
         <h1 className="text-5xl font-black tracking-tighter uppercase">Nothing to check out</h1>
         <p className="text-xs font-bold uppercase tracking-widest text-black/60 max-w-md">
           Your cart is empty.
@@ -327,7 +348,7 @@ function CheckoutInner() {
 
   if (step === 'success') {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-32 text-center flex flex-col items-center gap-8">
+      <div className="mx-auto max-w-3xl px-4 pt-24 sm:pt-32 pb-20 sm:pb-32 text-center flex flex-col items-center gap-8">
         <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
           className="h-24 w-24 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mb-4">
           <CheckCircle2 className="h-12 w-12" />
@@ -354,7 +375,7 @@ function CheckoutInner() {
 
   if (step === 'confirming') {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-32 text-center flex flex-col items-center gap-8">
+      <div className="mx-auto max-w-3xl px-4 pt-24 sm:pt-32 pb-20 sm:pb-32 text-center flex flex-col items-center gap-8">
         <Loader2 className="h-16 w-16 animate-spin text-black/20" />
         <h1 className="text-3xl font-black tracking-tighter uppercase">Confirming your payment…</h1>
         <p className="text-[11px] font-bold uppercase tracking-widest text-black/60 max-w-md leading-relaxed">
@@ -366,7 +387,7 @@ function CheckoutInner() {
 
   if (step === 'failed') {
     return (
-      <div className="mx-auto max-w-3xl px-4 py-32 text-center flex flex-col items-center gap-8">
+      <div className="mx-auto max-w-3xl px-4 pt-24 sm:pt-32 pb-20 sm:pb-32 text-center flex flex-col items-center gap-8">
         <div className="h-24 w-24 bg-red-50 text-red-600 rounded-full flex items-center justify-center mb-4">
           <XCircle className="h-12 w-12" />
         </div>
@@ -389,73 +410,111 @@ function CheckoutInner() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-20">
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-28 pb-16 sm:pb-20">
       <Link to={id ? `/product/${id}` : '/cart'} className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-12">
         <ArrowLeft className="h-3 w-3" /> Back
       </Link>
 
-      <StepHeader step={step} />
+      <StepHeader
+        step={step}
+        onGoToAddress={() => { setStep('address'); persistResume({ step: 'address' }); }}
+        onGoToPay={orderNumbers.length > 0 ? () => { setStep('pay'); persistResume({ step: 'pay' }); } : undefined}
+      />
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-20 mt-12">
-        <div className="lg:col-span-7 flex flex-col gap-10">
-          {step === 'address' && (
-            <AddressStep addr={shippingAddress} onChange={setShippingAddress}
-              onSubmit={submitAddress} submitting={submitting} errorMsg={errorMsg} />
-          )}
-          {step === 'pay' && (
-            <RazorpayPayStep
-              amount={total}
-              onPay={startPayment} submitting={submitting} errorMsg={errorMsg}
+      {step === 'address' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-20 mt-8 sm:mt-14">
+          <div className="lg:col-span-7 flex flex-col gap-10">
+            <AddressStep
+              addr={shippingAddress} onChange={setShippingAddress}
+              billingSame={billingSameAsShipping} onBillingSameChange={setBillingSameAsShipping}
+              billingAddr={billingAddress} onBillingChange={setBillingAddress}
+              onSubmit={submitAddress} submitting={submitting} errorMsg={errorMsg}
             />
-          )}
+          </div>
+          <div className="lg:col-span-5">
+            <Summary items={items} subtotal={subtotal} shipping={shipping} total={total} />
+          </div>
         </div>
+      )}
 
-        <div className="lg:col-span-5">
-          <Summary items={items} subtotal={subtotal} shipping={shipping} total={total} />
+      {step === 'pay' && (
+        <div className="max-w-xl mx-auto mt-8 sm:mt-14">
+          <RazorpayPayStep
+            items={items}
+            subtotal={subtotal} shipping={shipping} amount={total}
+            reservationExpiresAt={reservationExpiresAt}
+            onPay={startPayment} submitting={submitting} errorMsg={errorMsg}
+            onExpire={() => {
+              clearResume();
+              setOrderNumbers([]);
+              setReservationExpiresAt(null);
+              setStep('address');
+              setErrorMsg('Your reservation expired. Please check out again to hold this item.');
+            }}
+          />
         </div>
-      </div>
+      )}
     </div>
   );
 }
 
-function StepHeader({ step }: { step: Step }) {
-  const steps: Array<{ key: Step; label: string }> = [
-    { key: 'address', label: '1 · Address' },
-    { key: 'pay', label: '2 · Payment' },
+function StepHeader({ step, onGoToAddress, onGoToPay }: {
+  step: Step;
+  onGoToAddress: () => void;
+  onGoToPay?: () => void;
+}) {
+  const steps: Array<{ key: Step; label: string; onClick?: () => void }> = [
+    { key: 'address', label: '1 · Address', onClick: step === 'pay' ? onGoToAddress : undefined },
+    { key: 'pay', label: '2 · Payment', onClick: step === 'address' ? onGoToPay : undefined },
   ];
   const idx = steps.findIndex((s) => s.key === step);
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-3 mb-1">
-        <img src="/images/zarketplace-tp.png" alt="zarketplace" className="h-6 w-auto" referrerPolicy="no-referrer" />
-        <span className="lowercase font-black tracking-tighter text-2xl">zarketplace</span>
+    <div className="flex flex-col gap-5">
+      <div className="flex items-center gap-3">
+        <span className="text-xs font-black uppercase tracking-[0.4em] text-black">Checkout</span>
+        <span className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-emerald-700">
+          <ShieldCheck className="h-3 w-3" /> Secure
+        </span>
       </div>
-      <span className="text-[10px] font-black uppercase tracking-[0.4em] text-black">Checkout</span>
-      <h1 className="text-5xl font-black tracking-tighter uppercase">Finalize Order</h1>
-      <div className="flex gap-3 mt-4">
+      <h1 className="text-4xl sm:text-6xl font-black tracking-tighter uppercase">Finalize Order</h1>
+      <div className="flex items-center gap-4 mt-6">
         {steps.map((s, i) => (
-          <div key={s.key} className="flex items-center gap-3">
-            <div className={cn(
-              'px-4 py-2 text-[10px] font-black uppercase tracking-widest border',
-              i < idx ? 'bg-emerald-50 border-emerald-600 text-emerald-700' :
-              i === idx ? 'bg-black border-black text-white' :
-              'border-black/10 text-black/40',
-            )}>
+          <React.Fragment key={s.key}>
+            <button
+              type="button"
+              disabled={!s.onClick}
+              onClick={s.onClick}
+              className={cn(
+                'px-6 py-3 text-xs font-black uppercase tracking-widest border transition-colors',
+                i === idx ? 'bg-black border-black text-white' :
+                s.onClick ? 'border-black/20 text-black hover:border-black cursor-pointer' :
+                'border-black/10 text-black/30',
+              )}
+            >
               {s.label}
-            </div>
-            {i < steps.length - 1 && <div className="h-px w-6 bg-black/20" />}
-          </div>
+            </button>
+            {i < steps.length - 1 && (
+              <ArrowRight className={cn('h-5 w-5', idx > i ? 'text-black' : 'text-black/20')} />
+            )}
+          </React.Fragment>
         ))}
       </div>
     </div>
   );
 }
 
+type ShippingAddr = { fullName: string; email: string; phone: string; address: string; landmark: string; city: string; pincode: string };
+type BillingAddr = { fullName: string; address: string; landmark: string; city: string; pincode: string };
+
 function AddressStep({
-  addr, onChange, onSubmit, submitting, errorMsg,
+  addr, onChange, billingSame, onBillingSameChange, billingAddr, onBillingChange, onSubmit, submitting, errorMsg,
 }: {
-  addr: { fullName: string; email: string; phone: string; address: string; city: string; pincode: string };
-  onChange: (a: typeof addr) => void;
+  addr: ShippingAddr;
+  onChange: (a: ShippingAddr) => void;
+  billingSame: boolean;
+  onBillingSameChange: (v: boolean) => void;
+  billingAddr: BillingAddr;
+  onBillingChange: (a: BillingAddr) => void;
   onSubmit: () => void;
   submitting: boolean;
   errorMsg: string | null;
@@ -464,86 +523,160 @@ function AddressStep({
     <section className="flex flex-col gap-8">
       <h2 className="text-xs font-black uppercase tracking-widest border-b border-black pb-4">Shipping Information</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Field label="Full Name" value={addr.fullName} onChange={(v) => onChange({ ...addr, fullName: v })} placeholder="John Doe" />
+        <Field label="Full Name" value={addr.fullName} onChange={(v) => onChange({ ...addr, fullName: v })} placeholder="Jashok Dumar" />
         <Field label="Email Address" type="email" value={addr.email} onChange={(v) => onChange({ ...addr, email: v })} placeholder="hello@example.com" />
-        <Field label="Phone Number" type="tel" value={addr.phone} onChange={(v) => onChange({ ...addr, phone: v })} placeholder="+91 98765 43210" />
-        <Field label="Pincode" value={addr.pincode} onChange={(v) => onChange({ ...addr, pincode: v })} placeholder="400001" />
+        <Field label="Phone Number" type="tel" inputMode="tel" value={addr.phone} onChange={(v) => onChange({ ...addr, phone: v })} placeholder="+91 98765 43210" />
+        <Field label="Pincode" inputMode="numeric" maxLength={6} value={addr.pincode} onChange={(v) => onChange({ ...addr, pincode: v.replace(/\D/g, '') })} placeholder="400001" />
         <div className="md:col-span-2">
           <Field label="Address" value={addr.address} onChange={(v) => onChange({ ...addr, address: v })} placeholder="House No, Street, Area" />
+        </div>
+        <div className="md:col-span-2">
+          <Field label="Landmark (Optional)" value={addr.landmark} onChange={(v) => onChange({ ...addr, landmark: v })} placeholder="(near Gate No. 4)" />
         </div>
         <div className="md:col-span-2">
           <Field label="City" value={addr.city} onChange={(v) => onChange({ ...addr, city: v })} placeholder="Mumbai" />
         </div>
       </div>
+
+      <div className="flex flex-col gap-6 pt-6 border-t border-black/5">
+        <div className="flex items-center justify-between border-b border-black pb-4">
+          <h2 className="text-xs font-black uppercase tracking-widest">Billing Address</h2>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={billingSame}
+              onChange={(e) => onBillingSameChange(e.target.checked)}
+              className="h-4 w-4 accent-black"
+            />
+            <span className="text-[10px] font-black uppercase tracking-widest">Same as shipping address</span>
+          </label>
+        </div>
+
+        {!billingSame && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="md:col-span-2">
+              <Field label="Full Name" value={billingAddr.fullName} onChange={(v) => onBillingChange({ ...billingAddr, fullName: v })} placeholder="Jashok Dumar" />
+            </div>
+            <Field label="Pincode" inputMode="numeric" maxLength={6} value={billingAddr.pincode} onChange={(v) => onBillingChange({ ...billingAddr, pincode: v.replace(/\D/g, '') })} placeholder="400001" />
+            <Field label="City" value={billingAddr.city} onChange={(v) => onBillingChange({ ...billingAddr, city: v })} placeholder="Mumbai" />
+            <div className="md:col-span-2">
+              <Field label="Address" value={billingAddr.address} onChange={(v) => onBillingChange({ ...billingAddr, address: v })} placeholder="House No, Street, Area" />
+            </div>
+            <div className="md:col-span-2">
+              <Field label="Landmark (Optional)" value={billingAddr.landmark} onChange={(v) => onBillingChange({ ...billingAddr, landmark: v })} placeholder="(near Gate No. 4)" />
+            </div>
+          </div>
+        )}
+      </div>
+
       {errorMsg && <p className="text-[10px] font-bold uppercase tracking-widest text-red-600">{errorMsg}</p>}
       <button type="button" onClick={onSubmit} disabled={submitting}
         className="w-full bg-black py-6 text-xs font-black uppercase tracking-[0.4em] text-white hover:bg-zinc-800 disabled:opacity-50 flex items-center justify-center gap-3">
         {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
         <span>Continue to Payment</span>
       </button>
+      <div className="flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] text-black/30">
+        <ShieldCheck className="h-4 w-4" />
+        <span>Your details are only shared with the seller for delivery</span>
+      </div>
     </section>
   );
 }
 
-function Field({ label, value, onChange, placeholder, type = 'text' }: {
+function Field({ label, value, onChange, placeholder, type = 'text', inputMode, maxLength }: {
   label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode']; maxLength?: number;
 }) {
   return (
     <div className="flex flex-col gap-2">
       <label className="text-[9px] font-black uppercase tracking-widest text-black">{label}</label>
       <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+        inputMode={inputMode} maxLength={maxLength}
         className="border-b border-black/10 py-3 text-sm font-bold focus:border-black focus:outline-none transition-all" />
     </div>
   );
 }
 
+function useCountdown(expiresAt: string | null, onExpire?: () => void) {
+  const [secondsLeft, setSecondsLeft] = React.useState<number | null>(null);
+  React.useEffect(() => {
+    if (!expiresAt) { setSecondsLeft(null); return; }
+    const tick = () => {
+      const diff = Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000));
+      setSecondsLeft(diff);
+      if (diff === 0) onExpire?.();
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expiresAt]);
+  return secondsLeft;
+}
+
+function formatCountdown(seconds: number) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
 function RazorpayPayStep({
-  amount, onPay, submitting, errorMsg,
+  items, subtotal, shipping, amount, reservationExpiresAt, onPay, onExpire, submitting, errorMsg,
 }: {
-  amount: number; onPay: (note: string) => void; submitting: boolean; errorMsg: string | null;
+  items: CartItem[]; subtotal: number; shipping: number; amount: number;
+  reservationExpiresAt: string | null; onPay: () => void;
+  onExpire?: () => void; submitting: boolean; errorMsg: string | null;
 }) {
-  const [note, setNote] = React.useState('');
+  const secondsLeft = useCountdown(reservationExpiresAt, onExpire);
 
   return (
-    <section className="flex flex-col gap-10">
-      <div className="flex flex-col gap-2 border-b border-black pb-4">
-        <h2 className="text-xs font-black uppercase tracking-widest">Complete Payment</h2>
-        <p className="text-[11px] text-black/60 font-medium leading-relaxed">
-          Pay {formatCurrency(amount)} securely via Razorpay — cards, UPI, netbanking and wallets all supported.
-        </p>
-        <div className="mt-2"><LaunchOfferBanner variant="inline" /></div>
-      </div>
-
-      <div className="bg-zinc-50 border border-black/5 p-6 flex flex-col items-center gap-4">
-        <p className="text-[9px] font-black uppercase tracking-widest text-black/40">Amount Due</p>
-        <p className="text-4xl font-black tracking-tighter">{formatCurrency(amount)}</p>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <label htmlFor="buyer-note" className="text-[9px] font-black uppercase tracking-widest text-black/40">
-          Any comments or specific requests for the seller? (optional)
-        </label>
-        <textarea
-          id="buyer-note"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          rows={3}
-          maxLength={1000}
-          placeholder="e.g. please pack securely, deliver after 6pm…"
-          className="w-full border border-black/10 bg-white p-3 text-sm font-medium leading-relaxed focus:border-black focus:outline-none transition-all resize-y"
-        />
-        <p className="text-[10px] font-medium text-black/40 leading-relaxed">
-          Please note: the seller may or may not be able to fulfill all requests or concerns — that's up to them.
+    <section className="flex flex-col gap-8 p-10 bg-zinc-50 border border-black/5">
+      <div className="flex flex-col gap-2 text-center">
+        <h2 className="text-sm font-black uppercase tracking-widest">Order Summary</h2>
+        <p className="text-xs text-black/60 font-medium leading-relaxed">
+          Pay securely. Cards, UPI, netbanking and wallets all supported.
         </p>
       </div>
 
-      {errorMsg && <p className="text-[10px] font-bold uppercase tracking-widest text-red-600">{errorMsg}</p>}
+      {secondsLeft !== null && (
+        <div className="flex items-center justify-between border border-black bg-black text-white px-6 py-4">
+          <span className="text-[10px] font-black uppercase tracking-[0.2em]">Reserved for you</span>
+          <span className="text-sm font-black tabular-nums">{formatCountdown(secondsLeft)}</span>
+        </div>
+      )}
 
-      <button type="button" onClick={() => onPay(note)}
+      <div className="flex flex-col gap-4">
+        {items.map((i) => (
+          <div key={i.listing_id} className="flex gap-4 items-center">
+            <div className="h-20 w-16 bg-zinc-200 overflow-hidden border border-black/5 flex-shrink-0">
+              {i.image_url && <img src={i.image_url} alt={i.title} className="h-full w-full object-cover" />}
+            </div>
+            <div className="flex flex-col justify-center gap-0.5 min-w-0 flex-1">
+              <span className="text-xs font-bold uppercase tracking-widest truncate">{i.title}</span>
+              {i.size && <span className="text-[10px] font-black uppercase tracking-widest text-black/40">Size {i.size}</span>}
+            </div>
+            <span className="text-sm font-black shrink-0">{formatCurrency(i.sale_price ?? i.price ?? 0)}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-3 border-y border-black/10 py-6">
+        <Row label="Item price" value={formatCurrency(subtotal)} />
+        <Row label="Shipping" value={shipping > 0 ? formatCurrency(shipping) : 'Free'} />
+      </div>
+
+      <div className="flex justify-between items-end">
+        <span className="text-sm font-black uppercase tracking-widest">Total</span>
+        <span className="text-4xl font-black tracking-tighter">{formatCurrency(amount)}</span>
+      </div>
+
+      {errorMsg && <p className="text-[10px] font-bold uppercase tracking-widest text-red-600 text-center">{errorMsg}</p>}
+
+      <button type="button" onClick={onPay}
         disabled={submitting}
-        className="w-full bg-black py-5 text-xs font-black uppercase tracking-[0.3em] text-white hover:bg-zinc-800 disabled:opacity-30 flex items-center justify-center gap-3">
+        className="w-full bg-black py-6 text-sm font-black uppercase tracking-[0.3em] text-white hover:bg-zinc-800 disabled:opacity-30 flex items-center justify-center gap-3">
         {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-        <span>Pay {formatCurrency(amount)}</span>
+        <span>Place Secure Order</span>
       </button>
       <div className="flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] text-black/30">
         <ShieldCheck className="h-4 w-4" />
@@ -553,15 +686,23 @@ function RazorpayPayStep({
   );
 }
 
-function Summary({ items, subtotal, shipping, total }: {
+function Summary({ items, subtotal, shipping, total, reservationExpiresAt }: {
   items: CartItem[]; subtotal: number; shipping: number; total: number;
+  reservationExpiresAt?: string | null;
 }) {
+  const secondsLeft = useCountdown(reservationExpiresAt ?? null);
   return (
     <div className="sticky top-32 flex flex-col gap-8 p-10 bg-zinc-50 border border-black/5">
       <h2 className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
         <Package className="h-4 w-4" /> Order Summary
       </h2>
-      <LaunchOfferBanner variant="badge" className="self-start" />
+
+      {secondsLeft !== null && (
+        <div className="flex items-center justify-between border border-black px-4 py-3 -mt-2">
+          <span className="text-[9px] font-black uppercase tracking-[0.2em]">Reserved for you</span>
+          <span className="text-xs font-black tabular-nums">{formatCountdown(secondsLeft)}</span>
+        </div>
+      )}
 
       <div className="flex flex-col gap-4 max-h-72 overflow-y-auto">
         {items.map((i) => (
@@ -580,9 +721,8 @@ function Summary({ items, subtotal, shipping, total }: {
       </div>
 
       <div className="flex flex-col gap-3 border-y border-black/5 py-6">
-        <Row label="Subtotal" value={formatCurrency(subtotal)} />
+        <Row label="Item price" value={formatCurrency(subtotal)} />
         <Row label="Shipping" value={shipping > 0 ? formatCurrency(shipping) : 'Free'} />
-        <Row label="Platform fee" value="₹0" />
       </div>
 
       <div className="flex justify-between items-end">
@@ -592,7 +732,7 @@ function Summary({ items, subtotal, shipping, total }: {
 
       <div className="flex items-center justify-center gap-3 text-[9px] font-black uppercase tracking-[0.2em] text-black/30">
         <ShieldCheck className="h-4 w-4" />
-        <span>Secure UPI payment</span>
+        <span>Secure payment</span>
       </div>
     </div>
   );

@@ -93,3 +93,15 @@ export interface Order {
   created_at: string;
   updated_at: string;
 }
+
+export type PayoutStatus = 'awaiting_payout' | 'paid_out';
+
+export interface SellerPayout {
+  id: string;
+  seller_id: string;
+  order_id: string;
+  amount: number;
+  status: PayoutStatus;
+  created_at: string;
+  paid_at: string | null;
+}

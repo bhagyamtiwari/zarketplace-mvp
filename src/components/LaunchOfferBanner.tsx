@@ -150,32 +150,38 @@ export function LaunchOfferBanner({ variant, className }: Props) {
       <div className="flex items-center shrink-0">
         {TICKER_PHRASES.map((phrase, i) => (
           <React.Fragment key={i}>
-            <span className="flex items-center gap-3 px-8 py-3 text-[12px] sm:text-sm font-black uppercase tracking-[0.3em] whitespace-nowrap">
-              <Sparkles className="h-3.5 w-3.5" />
+            <span className="flex items-center px-8 py-3 text-[11px] sm:text-xs font-black uppercase tracking-[0.3em] whitespace-nowrap">
               {phrase}
             </span>
-            <span aria-hidden className="text-black/40 select-none">/</span>
+            <span aria-hidden className="text-white/30 select-none">|</span>
           </React.Fragment>
         ))}
       </div>
     );
-    return (
+    const stripeBand = (
       <div
-        className={cn(
-          'w-full overflow-hidden bg-yellow-300 text-black border-y-2 border-black',
-          className,
-        )}
-        role="marquee"
-        aria-label="Launch offer"
-      >
-        <motion.div
-          className="flex w-max"
-          animate={{ x: ['0%', '-50%'] }}
-          transition={{ ease: 'linear', duration: 28, repeat: Infinity }}
-        >
-          {strip}
-          {strip}
-        </motion.div>
+        aria-hidden
+        className="h-2 w-full"
+        style={{
+          backgroundImage:
+            'repeating-linear-gradient(45deg, #000 0, #000 10px, #fff 10px, #fff 20px)',
+        }}
+      />
+    );
+    return (
+      <div className={cn('w-full', className)} role="marquee" aria-label="Launch offer">
+        {stripeBand}
+        <div className="w-full overflow-hidden bg-black text-white">
+          <motion.div
+            className="flex w-max"
+            animate={{ x: ['0%', '-50%'] }}
+            transition={{ ease: 'linear', duration: 28, repeat: Infinity }}
+          >
+            {strip}
+            {strip}
+          </motion.div>
+        </div>
+        {stripeBand}
       </div>
     );
   }

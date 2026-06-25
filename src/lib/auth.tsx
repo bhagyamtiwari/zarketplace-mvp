@@ -25,6 +25,7 @@ export interface Profile {
   phone: string | null;
   is_admin: boolean;
   default_address: Record<string, string> | null;
+  default_upi_vpa: string | null;
 }
 
 interface AuthContextValue {

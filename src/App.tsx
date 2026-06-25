@@ -1,5 +1,6 @@
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
+import { Footer } from './components/Footer';
 import { Home } from './pages/Home';
 import { Browse } from './pages/Browse';
 import { ProductPage } from './pages/ProductPage';
@@ -14,11 +15,17 @@ import { About } from './pages/About';
 import { Contact } from './pages/Contact';
 import { TrackOrder } from './pages/TrackOrder';
 import { SellerPortal } from './pages/SellerPortal';
+import { Account } from './pages/Account';
+import { Faq } from './pages/Faq';
+import { ShippingPolicy } from './pages/ShippingPolicy';
+import { SellerPolicy } from './pages/SellerPolicy';
+import { RefundPolicy } from './pages/RefundPolicy';
+import { Terms } from './pages/Terms';
+import { GrievanceOfficer } from './pages/GrievanceOfficer';
 import { AuthCallback } from './pages/AuthCallback';
 import { AuthProvider } from './lib/auth';
 import { CartProvider } from './lib/cart';
 import { Cart } from './pages/Cart';
-import { Instagram, Twitter, Facebook, ArrowUpRight } from 'lucide-react';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 
@@ -32,7 +39,7 @@ export default function App() {
       <ScrollToTop />
       <div className="min-h-screen bg-white font-sans text-black selection:bg-black selection:text-white overflow-x-clip">
         <Navbar />
-        <main className="pt-20">
+        <main>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/browse" element={<Browse />} />
@@ -42,8 +49,11 @@ export default function App() {
             <Route path="/admin" element={<Admin />} />
             <Route path="/returns" element={<Returns />} />
             <Route path="/privacy" element={<Privacy />} />
-            <Route path="/trademark" element={<Trademark />} />
-            <Route path="/condition" element={<Condition />} />
+            <Route path="/trademark-notice" element={<Trademark />} />
+            <Route path="/trademark" element={<Navigate to="/trademark-notice" replace />} />
+            <Route path="/conditions-guide" element={<Condition />} />
+            <Route path="/condition" element={<Navigate to="/conditions-guide" replace />} />
+            <Route path="/grievance-officer" element={<GrievanceOfficer />} />
             <Route path="/cart" element={<Cart />} />
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/checkout/:id" element={<Checkout />} />
@@ -51,69 +61,17 @@ export default function App() {
             <Route path="/contact" element={<Contact />} />
             <Route path="/track-order" element={<TrackOrder />} />
             <Route path="/seller-portal" element={<SellerPortal />} />
+            <Route path="/account" element={<Account />} />
+            <Route path="/faq" element={<Faq />} />
+            <Route path="/shipping-policy" element={<ShippingPolicy />} />
+            <Route path="/seller-policy" element={<SellerPolicy />} />
+            <Route path="/refund-policy" element={<RefundPolicy />} />
+            <Route path="/terms" element={<Terms />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
           </Routes>
         </main>
-        
-        <footer className="bg-white text-black py-32 border-t border-black/5">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <div className="flex flex-col md:flex-row justify-between items-start gap-20">
-              <div className="flex flex-col gap-6">
-                <Link to="/" className="flex items-center gap-3 group">
-                  <img src="/images/zarketplace-tp.png" alt="zarketplace" className="h-10 w-auto" referrerPolicy="no-referrer" />
-                  <span className="lowercase font-black tracking-tighter text-3xl">zarketplace</span>
-                </Link>
-              </div>
 
-              <div className="flex flex-wrap md:flex-nowrap gap-16 md:gap-24 md:ml-auto">
-                <div className="flex flex-col gap-6 text-left">
-                  <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-black">Navigation</h4>
-                  <ul className="text-xs font-black uppercase tracking-widest space-y-4">
-                    <li className="relative">
-                      <Link to="/browse" className="hover:text-black/80 transition-colors">Buy</Link>
-                    </li>
-                    <li><Link to="/sell" className="hover:text-black/80 transition-colors">Sell</Link></li>
-                    <li><Link to="/seller-portal" className="hover:text-black/80 transition-colors">Seller Portal</Link></li>
-                    <li><Link to="/track-order" className="hover:text-black/80 transition-colors">My Orders</Link></li>
-                    <li><Link to="/about" className="hover:text-black/80 transition-colors">About</Link></li>
-                    <li><Link to="/contact" className="hover:text-black/80 transition-colors">Contact</Link></li>
-                  </ul>
-                </div>
-
-                <div className="flex flex-col gap-6 text-left">
-                  <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-black">Legal</h4>
-                  <ul className="text-xs font-black uppercase tracking-widest space-y-4">
-                    <li><Link to="/returns" className="hover:text-black/80 transition-colors">Returns</Link></li>
-                    <li><Link to="/privacy" className="hover:text-black/80 transition-colors">Privacy</Link></li>
-                    <li><Link to="/condition" className="hover:text-black/80 transition-colors">Item Condition</Link></li>
-                    <li><Link to="/trademark" className="hover:text-black/80 transition-colors">Trademark &amp; Brand Notice</Link></li>
-                  </ul>
-                </div>
-
-                <div className="flex flex-col gap-6 text-left">
-                  <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-black">Social</h4>
-                  <ul className="text-xs font-black uppercase tracking-widest space-y-4">
-                    <li><a href="https://x.com/zarketplace" target="_blank" rel="noopener noreferrer" className="hover:text-black/80 transition-colors">X/Twitter</a></li>
-                    <li><a href="https://www.instagram.com/zarketplace" target="_blank" rel="noopener noreferrer" className="hover:text-black/80 transition-colors">Instagram</a></li>
-                    <li><a href="https://www.youtube.com/@zarketplace" target="_blank" rel="noopener noreferrer" className="hover:text-black/80 transition-colors">YouTube</a></li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-32 pt-12 border-t border-black/5 flex flex-col items-center gap-12 text-center">
-              <p className="text-[8px] font-bold uppercase tracking-widest text-black leading-relaxed max-w-4xl">
-                zarketplace is a resale and P2P/C2C marketplace. We are not affiliated with, associated with, or endorsed by the brands on our platform and claim no rights to their trademarks or intellectual property. For inquiries, contact us at contact@zarketplace.com
-              </p>
-              
-              <div className="flex flex-col md:flex-row justify-end w-full items-center gap-8">
-                <p className="text-[9px] font-black tracking-[0.4em] text-black">
-                  © 2026 zarketplace. all rights reserved.
-                </p>
-              </div>
-            </div>
-          </div>
-        </footer>
+        <Footer />
       </div>
       </CartProvider>
       </AuthProvider>

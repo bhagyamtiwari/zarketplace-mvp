@@ -1,6 +1,8 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, User, Menu, X, Plus, LogOut, LayoutGrid, Package, ShoppingBag } from 'lucide-react';
+import { Search, User, Menu, X, ArrowRight, LogOut, LayoutGrid, Package, ShoppingBag } from 'lucide-react';
+import { AnimatePresence } from 'motion/react';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../lib/auth';
@@ -29,19 +31,24 @@ export function Navbar() {
     }
   };
 
-  const browseCategories = {
-    Men: ['Tops', 'Bottoms', 'Outerwear', 'Accessories', 'Shoes'],
-    Women: ['Tops', 'Bottoms', 'Outerwear', 'Accessories', 'Shoes']
-  };
+  const GENDERS = ['Men', 'Women', 'Unisex'];
+
+  // Lock background scroll while the mobile drawer is open.
+  React.useEffect(() => {
+    if (!isMenuOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [isMenuOpen]);
 
   return (
     <nav className="fixed top-0 z-50 w-full border-b border-black/5 bg-white/80 backdrop-blur-xl">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-20 items-center justify-between">
           <div className="flex items-center gap-12">
-            <Link to="/" className="flex items-center gap-3 group">
-              <img src="/images/zarketplace-tp.png" alt="zarketplace" className="h-8 w-auto group-hover:scale-110 transition-transform" referrerPolicy="no-referrer" />
-              <span className="lowercase font-black tracking-tighter text-3xl">zarketplace</span>
+            <Link to="/" className="flex items-center gap-2 group">
+              <img src="/images/zarketplace-tp.png" alt="zarketplace" className="h-6 w-auto group-hover:scale-110 transition-transform" referrerPolicy="no-referrer" />
+              <span className="lowercase font-black tracking-tighter text-xl">zarketplace</span>
             </Link>
             <div className="hidden md:block">
               <div className="flex items-baseline space-x-10">
@@ -61,33 +68,20 @@ export function Navbar() {
                   </Link>
                   
                   {isBrowseOpen && (
-                    <motion.div 
+                    <motion.div
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="absolute left-0 top-full w-[400px] bg-white border border-black/5 shadow-2xl p-8 grid grid-cols-2 gap-8"
+                      className="absolute left-0 top-full w-48 bg-white border border-black/5 shadow-2xl p-4 flex flex-col gap-1"
                     >
-                      {Object.entries(browseCategories).map(([gender, cats]) => (
-                        <div key={gender} className="flex flex-col gap-4">
-                          <Link 
-                            to={`/browse?gender=${gender}`}
-                            className="text-[10px] font-black uppercase tracking-[0.3em] border-b border-black/5 pb-2"
-                            onClick={() => setIsBrowseOpen(false)}
-                          >
-                            {gender}
-                          </Link>
-                          <div className="flex flex-col gap-2">
-                            {cats.map(cat => (
-                              <Link
-                                key={cat}
-                                to={`/browse?gender=${gender}&category=${cat}`}
-                                className="text-[9px] font-bold uppercase tracking-widest text-black/60 hover:text-black transition-colors"
-                                onClick={() => setIsBrowseOpen(false)}
-                              >
-                                {cat}
-                              </Link>
-                            ))}
-                          </div>
-                        </div>
+                      {GENDERS.map((gender) => (
+                        <Link
+                          key={gender}
+                          to={`/browse?gender=${gender}`}
+                          className="px-3 py-3 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-zinc-50 transition-colors"
+                          onClick={() => setIsBrowseOpen(false)}
+                        >
+                          {gender}
+                        </Link>
                       ))}
                     </motion.div>
                   )}
@@ -215,6 +209,9 @@ export function Navbar() {
                         </span>
                         <span className="text-[9px] font-bold uppercase tracking-widest text-black/40 ml-6">Items you sold</span>
                       </Link>
+                      <Link to="/account" onClick={() => setIsAccountOpen(false)} className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest hover:text-black/60">
+                        <User className="h-3.5 w-3.5" /> My Profile
+                      </Link>
                       {profile?.is_admin && (
                         <Link to="/admin" onClick={() => setIsAccountOpen(false)} className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest hover:text-black/60">
                           <User className="h-3.5 w-3.5" /> Admin
@@ -249,32 +246,126 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* Mobile menu */}
-      {isMenuOpen && (
-        <div className="md:hidden border-t border-black/5 bg-white px-4 py-4 space-y-4">
-          <Link to="/browse" className="block text-lg font-medium" onClick={() => setIsMenuOpen(false)}>Buy</Link>
-          <Link to="/sell" className="block text-lg font-medium" onClick={() => setIsMenuOpen(false)}>Sell</Link>
-          {user && (
-            <Link to="/cart" className="block text-lg font-medium" onClick={() => setIsMenuOpen(false)}>
-              Cart{cartCount > 0 ? ` (${cartCount})` : ''}
-            </Link>
-          )}
-          {user ? (
-            <>
-              <Link to="/seller-portal" className="block text-lg font-medium" onClick={() => setIsMenuOpen(false)}>Seller Portal</Link>
-              {profile?.is_admin && <Link to="/admin" className="block text-lg font-medium" onClick={() => setIsMenuOpen(false)}>Admin</Link>}
-              <button onClick={async () => { await signOut(); setIsMenuOpen(false); navigate('/'); }} className="block text-lg font-medium text-red-600">Sign Out</button>
-            </>
-          ) : (
-            <button onClick={() => { setShowAuth(true); setIsMenuOpen(false); }} className="block text-lg font-medium">Sign In</button>
-          )}
-          <Link to="/sell" className="flex w-full items-center justify-center gap-2 rounded-lg bg-black py-3 text-white" onClick={() => setIsMenuOpen(false)}>
-            <Plus className="h-5 w-5" />
-            <span>List Item</span>
-          </Link>
-        </div>
+      {/* Mobile side drawer - portaled to body so it's never affected by the
+          nav's own backdrop-blur/stacking context (backdrop-filter on an
+          ancestor can break position:fixed descendants in some browsers). */}
+      {createPortal(
+      <AnimatePresence>
+        {isMenuOpen && [
+          <motion.div
+            key="drawer-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsMenuOpen(false)}
+            className="md:hidden fixed inset-0 z-40 bg-black/40"
+          />,
+          <motion.div
+            key="drawer-panel"
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '100%' }}
+            transition={{ type: 'tween', duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+            className="md:hidden fixed inset-y-0 right-0 z-50 w-full max-w-xs bg-white border-l border-black/5 flex flex-col"
+          >
+              <div className="flex items-center justify-between h-20 px-4 border-b border-black/5 shrink-0">
+                <Link to="/" className="flex items-center gap-2" onClick={() => setIsMenuOpen(false)}>
+                  <img src="/images/zarketplace-tp.png" alt="zarketplace" className="h-6 w-auto" referrerPolicy="no-referrer" />
+                  <span className="lowercase font-black tracking-tighter text-xl">zarketplace</span>
+                </Link>
+                <button className="p-2" onClick={() => setIsMenuOpen(false)} aria-label="Close menu">
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-1">
+                <DrawerSection title="Marketplace">
+                  <DrawerLink to="/browse" onClick={() => setIsMenuOpen(false)}>Buy</DrawerLink>
+                  <DrawerLink to="/sell" onClick={() => setIsMenuOpen(false)}>Sell</DrawerLink>
+                  <DrawerLink to="/cart" onClick={() => setIsMenuOpen(false)} badge={cartCount > 0 ? cartCount : undefined}>Cart</DrawerLink>
+                </DrawerSection>
+
+                {user && (
+                  <DrawerSection title="My Account">
+                    <DrawerLink to="/track-order" onClick={() => setIsMenuOpen(false)}>My Orders</DrawerLink>
+                    <DrawerLink to="/account" onClick={() => setIsMenuOpen(false)}>My Profile</DrawerLink>
+                    <DrawerLink to="/seller-portal" onClick={() => setIsMenuOpen(false)}>Seller Portal</DrawerLink>
+                    {profile?.is_admin && <DrawerLink to="/admin" onClick={() => setIsMenuOpen(false)}>Admin</DrawerLink>}
+                  </DrawerSection>
+                )}
+
+                <DrawerSection title="Help">
+                  <DrawerLink to="/faq" onClick={() => setIsMenuOpen(false)}>FAQ</DrawerLink>
+                  <DrawerLink to="/contact" onClick={() => setIsMenuOpen(false)}>Contact</DrawerLink>
+                </DrawerSection>
+
+                {user ? (
+                  <div className="mt-3 pt-5 border-t border-black/5 flex flex-col gap-1">
+                    <p className="text-[9px] font-black uppercase tracking-widest text-black/40">Signed in as</p>
+                    <p className="text-xs font-bold truncate mb-3">{profile?.email ?? user.email}</p>
+                    <button
+                      onClick={async () => { await signOut(); setIsMenuOpen(false); navigate('/'); }}
+                      className="flex items-center justify-between py-3 text-[11px] font-black uppercase tracking-[0.3em] text-red-600"
+                    >
+                      <span>Sign Out</span>
+                      <LogOut className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { setShowAuth(true); setIsMenuOpen(false); }}
+                    className="flex items-center justify-between py-4 text-[11px] font-black uppercase tracking-[0.3em] text-black border-t border-black/5 mt-3"
+                  >
+                    <span>Sign In</span>
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+
+              <div className="px-4 py-4 border-t border-black/5 shrink-0">
+                <Link
+                  to="/sell"
+                  className="flex w-full items-center justify-center gap-3 bg-black py-5 text-[11px] font-black uppercase tracking-[0.3em] text-white"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  List Item
+                </Link>
+              </div>
+            </motion.div>,
+        ]}
+      </AnimatePresence>,
+      document.body,
       )}
       <AuthModal open={showAuth} onClose={() => setShowAuth(false)} />
     </nav>
+  );
+}
+
+function DrawerSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="pb-3 mb-3 border-b border-black/5">
+      <p className="text-[9px] font-black uppercase tracking-[0.3em] text-black/40 mb-1">{title}</p>
+      {children}
+    </div>
+  );
+}
+
+function DrawerLink({ to, onClick, badge, children }: { to: string; onClick: () => void; badge?: number; children: React.ReactNode }) {
+  return (
+    <Link
+      to={to}
+      onClick={onClick}
+      className="flex items-center justify-between py-4 text-[11px] font-black uppercase tracking-[0.3em] text-black hover:text-black/60 transition-colors"
+    >
+      <span className="flex items-center gap-2">
+        {children}
+        {!!badge && (
+          <span className="h-4 min-w-4 px-1 rounded-full bg-black text-white text-[9px] font-black flex items-center justify-center">
+            {badge}
+          </span>
+        )}
+      </span>
+      <ArrowRight className="h-3.5 w-3.5 text-black/30" />
+    </Link>
   );
 }

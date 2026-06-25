@@ -5,16 +5,18 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Listing, ListingStatus, Order, OrderStatus } from '../types';
+import { Listing, ListingStatus, Order, OrderStatus, SellerPayout } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { Loader2, Check, X, ExternalLink, Trash2 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
+import { StatusBadge } from '../components/StatusBadge';
 import { log } from '../lib/log';
+import { sendEmail } from '../lib/email';
 
 const adlog = log('admin');
 
-type AdminTab = 'listings' | 'orders' | 'users';
+type AdminTab = 'listings' | 'orders' | 'payouts' | 'users';
 
 interface AdminProfile {
   id: string;
@@ -41,6 +43,7 @@ function AdminInner() {
   const { user } = useAuth();
   const [listings, setListings] = React.useState<Listing[]>([]);
   const [orders, setOrders] = React.useState<Order[]>([]);
+  const [payouts, setPayouts] = React.useState<SellerPayout[]>([]);
   const [users, setUsers] = React.useState<AdminProfile[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [actioningId, setActioningId] = React.useState<string | null>(null);
@@ -64,6 +67,26 @@ function AdminInner() {
       const { data } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
       setOrders((data as Order[]) ?? []);
     } finally { setLoading(false); }
+  };
+
+  const fetchPayouts = async () => {
+    setLoading(true);
+    try {
+      const { data } = await supabase.from('seller_payouts').select('*').order('created_at', { ascending: false });
+      setPayouts((data as SellerPayout[]) ?? []);
+    } finally { setLoading(false); }
+  };
+
+  const markPaidOut = async (id: string) => {
+    const { error } = await supabase.from('seller_payouts')
+      .update({ status: 'paid_out', paid_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) { alert(error.message); return; }
+    const payout = payouts.find((p) => p.id === id);
+    if (payout?.order_id) {
+      void sendEmail({ template: 'payout_released_seller', order_id: payout.order_id });
+    }
+    fetchPayouts();
   };
 
   const fetchUsers = async () => {
@@ -105,9 +128,17 @@ function AdminInner() {
     fetchOrders();
   };
 
+  const refresh = () => {
+    if (tab === 'listings') fetchPendingListings();
+    if (tab === 'orders') fetchOrders();
+    if (tab === 'payouts') fetchPayouts();
+    if (tab === 'users') fetchUsers();
+  };
+
   React.useEffect(() => {
     if (tab === 'listings') fetchPendingListings();
     else if (tab === 'orders') fetchOrders();
+    else if (tab === 'payouts') { fetchPayouts(); fetchOrders(); }
     else if (tab === 'users') fetchUsers();
   }, [tab]);
 
@@ -134,50 +165,80 @@ function AdminInner() {
     } finally { setActioningId(null); }
   };
 
+  const awaitingVerification = orders.filter((o) => o.status === 'awaiting_verification').length;
+  const awaitingPayouts = payouts.filter((p) => p.status === 'awaiting_payout').length;
+
+  const NAV: Array<{ key: AdminTab; label: string; count: number; needsAction: boolean }> = [
+    { key: 'listings', label: 'Listings', count: listings.length, needsAction: listings.length > 0 },
+    { key: 'orders', label: 'Orders', count: orders.length, needsAction: awaitingVerification > 0 },
+    { key: 'payouts', label: 'Payouts', count: payouts.length, needsAction: awaitingPayouts > 0 },
+    { key: 'users', label: 'Users', count: users.length, needsAction: false },
+  ];
+
+  const TAB_TITLE: Record<AdminTab, string> = {
+    listings: 'Listings Queue',
+    orders: 'Orders',
+    payouts: 'Payouts',
+    users: 'Users',
+  };
+
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-      <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-8">
-        <div>
-          <span className="text-[10px] font-black uppercase tracking-[0.4em] text-black/40">Admin Portal</span>
-          <h1 className="text-5xl font-black tracking-tighter uppercase">Operations</h1>
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-28 pb-14 sm:pb-20">
+      <div className="flex flex-col md:flex-row gap-10 md:gap-14">
+        {/* Sidebar */}
+        <aside className="md:w-[220px] md:shrink-0 md:border-r md:border-black/10 md:pr-10 flex flex-col gap-8">
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="text-sm font-black uppercase tracking-tight">Admin</span>
+            <span className="text-[10px] font-bold text-black/40 truncate">{user?.email}</span>
+          </div>
+
+          <nav className="flex flex-col">
+            {NAV.map((item) => (
+              <button
+                key={item.key}
+                onClick={() => setTab(item.key)}
+                className={cn(
+                  'flex items-center justify-between py-3 text-[11px] font-black uppercase tracking-widest border-b border-black/5 text-left transition-colors',
+                  tab === item.key ? 'text-black' : 'text-black/40 hover:text-black',
+                )}
+              >
+                <span>{item.label}</span>
+                <span className={cn(item.needsAction && 'font-black underline')}>{item.count}</span>
+              </button>
+            ))}
+          </nav>
+
+          <button
+            onClick={refresh}
+            className="border border-black py-3 text-center text-[10px] font-black uppercase tracking-[0.3em] hover:bg-black hover:text-white transition-colors"
+          >
+            Refresh
+          </button>
+        </aside>
+
+        {/* Main panel */}
+        <div className="flex-1 min-w-0">
+          <h1 className="text-3xl font-black tracking-tighter uppercase mb-10">{TAB_TITLE[tab]}</h1>
+
+          {tab === 'listings' && (loading ? (
+            <Spinner />
+          ) : listings.length === 0 ? (
+            <p className="text-[11px] font-bold uppercase tracking-widest text-black/30">Queue is empty.</p>
+          ) : (
+            <ListingsTable listings={listings} actioningId={actioningId} onAction={handleListingAction} onDelete={handleListingDelete} />
+          ))}
+
+          {tab === 'orders' && <OrdersPanel orders={orders} loading={loading} onUpdate={updateOrderStatus} />}
+          {tab === 'payouts' && <PayoutsPanel payouts={payouts} orders={orders} loading={loading} onMarkPaid={markPaidOut} />}
+          {tab === 'users' && <UsersPanel users={users} loading={loading} currentUserId={user!.id} onToggleAdmin={toggleAdmin} />}
         </div>
-        <button
-          onClick={() => { if (tab === 'listings') fetchPendingListings(); if (tab === 'orders') fetchOrders(); if (tab === 'users') fetchUsers(); }}
-          className="border border-black/10 px-8 py-4 text-[10px] font-black uppercase tracking-widest hover:border-black">
-          Refresh
-        </button>
       </div>
-
-      <div className="flex gap-1 border-b border-black/10 mb-12 overflow-x-auto">
-        {([['listings', 'Listings'], ['orders', 'Orders'], ['users', 'Users']] as const).map(([k, label]) => (
-          <button key={k} onClick={() => setTab(k)} className={cn(
-            'px-6 py-4 text-[10px] font-black uppercase tracking-[0.3em] transition-colors border-b-2 -mb-px whitespace-nowrap',
-            tab === k ? 'border-black text-black' : 'border-transparent text-black/40 hover:text-black',
-          )}>{label}</button>
-        ))}
-      </div>
-
-      {tab === 'listings' && (loading ? (
-        <Spinner />
-      ) : listings.length === 0 ? (
-        <Empty>Queue is empty</Empty>
-      ) : (
-        <ListingsTable listings={listings} actioningId={actioningId} onAction={handleListingAction} onDelete={handleListingDelete} />
-      ))}
-
-      {tab === 'orders' && <OrdersPanel orders={orders} loading={loading} onUpdate={updateOrderStatus} />}
-      {tab === 'users' && <UsersPanel users={users} loading={loading} currentUserId={user!.id} onToggleAdmin={toggleAdmin} />}
     </div>
   );
 }
 
 function Spinner() {
   return <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-black/20" /></div>;
-}
-function Empty({ children }: { children: React.ReactNode }) {
-  return <div className="flex h-64 flex-col items-center justify-center gap-6 border border-black/5 bg-zinc-50">
-    <p className="text-xs font-black text-black/30 uppercase tracking-[0.2em]">{children}</p>
-  </div>;
 }
 
 function ListingsTable({ listings, actioningId, onAction, onDelete }: {
@@ -190,60 +251,60 @@ function ListingsTable({ listings, actioningId, onAction, onDelete }: {
       <table className="w-full text-left border-collapse">
         <thead>
           <tr className="border-b border-black/10">
-            <th className="py-6 px-4 text-[10px] font-black uppercase tracking-widest text-black/40">Item</th>
-            <th className="py-6 px-4 text-[10px] font-black uppercase tracking-widest text-black/40">Details</th>
-            <th className="py-6 px-4 text-[10px] font-black uppercase tracking-widest text-black/40">Price</th>
-            <th className="py-6 px-4 text-[10px] font-black uppercase tracking-widest text-black/40">Seller</th>
-            <th className="py-6 px-4 text-[10px] font-black uppercase tracking-widest text-black/40 text-right">Actions</th>
+            <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Item</th>
+            <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Details</th>
+            <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Price</th>
+            <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Seller</th>
+            <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40 text-right">Actions</th>
           </tr>
         </thead>
         <tbody>
           {listings.map((listing) => (
-            <tr key={listing.id} className="border-b border-black/5 hover:bg-black/[0.01] transition-colors">
-              <td className="py-6 px-4">
-                <div className="flex items-center gap-6">
-                  <div className="h-20 w-16 flex-shrink-0 overflow-hidden bg-zinc-100 border border-black/5">
+            <tr key={listing.id} className="border-b border-black/5">
+              <td className="py-4 px-3">
+                <div className="flex items-center gap-4">
+                  <div className="h-16 w-12 flex-shrink-0 overflow-hidden bg-zinc-100 border border-black/5">
                     <img src={listing.image_url} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                   </div>
                   <div>
-                    <p className="font-black text-sm uppercase tracking-tight">{listing.title}</p>
+                    <p className="font-black text-xs uppercase tracking-tight">{listing.title}</p>
                     <p className="text-[10px] text-black/40 font-bold uppercase tracking-widest">{listing.brand}</p>
                   </div>
                 </div>
               </td>
-              <td className="py-6 px-4">
+              <td className="py-4 px-3">
                 <div className="text-[10px] font-bold uppercase tracking-widest space-y-1">
                   <p><span className="text-black/40">Size:</span> {listing.size} ({listing.size_type})</p>
                   <p><span className="text-black/40">Cat:</span> {listing.category}</p>
                   <p><span className="text-black/40">Cond:</span> {listing.condition}</p>
                 </div>
               </td>
-              <td className="py-6 px-4">
-                <p className="font-black text-sm">{formatCurrency(listing.price)}</p>
-                {listing.sale_price && <p className="text-[10px] font-bold text-red-600 uppercase tracking-widest">Sale: {formatCurrency(listing.sale_price)}</p>}
+              <td className="py-4 px-3">
+                <p className="font-black text-xs">{formatCurrency(listing.price)}</p>
+                {listing.sale_price && <p className="text-[10px] font-bold uppercase tracking-widest text-black/60">Sale: {formatCurrency(listing.sale_price)}</p>}
               </td>
-              <td className="py-6 px-4">
+              <td className="py-4 px-3">
                 <p className="text-xs font-medium">{listing.seller_email}</p>
                 <p className="text-[10px] text-black/40 font-mono">{listing.seller_upi_vpa}</p>
                 {listing.seller_instagram && (
                   <a href={listing.seller_instagram} target="_blank" rel="noreferrer" className="text-[10px] underline">IG</a>
                 )}
               </td>
-              <td className="py-6 px-4">
-                <div className="flex items-center justify-end gap-3">
+              <td className="py-4 px-3">
+                <div className="flex items-center justify-end gap-4">
                   <button onClick={() => onAction(listing.id, 'approved')} disabled={actioningId === listing.id}
-                    className="h-10 w-10 flex items-center justify-center rounded-full bg-green-50 text-green-600 hover:bg-green-600 hover:text-white disabled:opacity-50" title="Approve">
+                    className="text-black/50 hover:text-black disabled:opacity-50" title="Approve">
                     <Check className="h-4 w-4" />
                   </button>
                   <button onClick={() => onAction(listing.id, 'rejected')} disabled={actioningId === listing.id}
-                    className="h-10 w-10 flex items-center justify-center rounded-full bg-red-50 text-red-600 hover:bg-red-600 hover:text-white disabled:opacity-50" title="Reject">
+                    className="text-black/50 hover:text-black disabled:opacity-50" title="Reject">
                     <X className="h-4 w-4" />
                   </button>
-                  <Link to={`/product/${listing.id}`} className="h-10 w-10 flex items-center justify-center rounded-full bg-black/5 text-black hover:bg-black hover:text-white" title="View">
+                  <Link to={`/product/${listing.id}`} className="text-black/50 hover:text-black" title="View">
                     <ExternalLink className="h-4 w-4" />
                   </Link>
                   <button onClick={() => onDelete(listing.id, listing.title)} disabled={actioningId === listing.id}
-                    className="h-10 w-10 flex items-center justify-center rounded-full bg-red-50 text-red-600 hover:bg-red-600 hover:text-white disabled:opacity-50" title="Delete">
+                    className="text-black/50 hover:text-black disabled:opacity-50" title="Delete">
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
@@ -264,11 +325,11 @@ function OrdersPanel({ orders, loading, onUpdate }: {
   if (loading) return <Spinner />;
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-x-5 gap-y-2 border-b border-black/10 pb-4">
         {(['all', ...ORDER_STATUSES] as const).map((f) => (
           <button key={f} onClick={() => setFilter(f)}
-            className={cn('px-4 py-2 text-[10px] font-black uppercase tracking-widest border',
-              filter === f ? 'bg-black text-white border-black' : 'bg-white text-black border-black/10 hover:border-black')}>
+            className={cn('text-[10px] font-black uppercase tracking-widest',
+              filter === f ? 'text-black underline' : 'text-black/40 hover:text-black')}>
             {f.replace(/_/g, ' ')}
           </button>
         ))}
@@ -306,12 +367,12 @@ function OrdersPanel({ orders, loading, onUpdate }: {
                 <td className="py-4 px-3 text-[10px] leading-relaxed">
                   <ProofCell utr={o.payment_utr} receiptPath={o.payment_receipt_url} submittedAt={o.payment_submitted_at} />
                 </td>
-                <td className="py-4 px-3 text-[10px] font-black uppercase tracking-widest">{o.status.replace(/_/g, ' ')}</td>
+                <td className="py-4 px-3"><StatusBadge status={o.status} audience="seller" /></td>
                 <td className="py-4 px-3 text-right">
-                  <div className="flex flex-col gap-1 items-end">
+                  <div className="flex flex-col gap-2 items-end">
                     {o.status === 'awaiting_verification' && (
                       <button onClick={() => onUpdate(o.id, 'paid')}
-                        className="px-3 py-1 text-[10px] font-black uppercase tracking-widest bg-emerald-600 text-white hover:bg-emerald-700">
+                        className="border border-black px-3 py-1.5 text-[10px] font-black uppercase tracking-widest hover:bg-black hover:text-white">
                         Mark Paid
                       </button>
                     )}
@@ -325,7 +386,73 @@ function OrdersPanel({ orders, loading, onUpdate }: {
             ))}
           </tbody>
         </table>
-        {filtered.length === 0 && <Empty>No orders.</Empty>}
+        {filtered.length === 0 && <p className="text-[11px] font-bold uppercase tracking-widest text-black/30 py-6">No orders.</p>}
+      </div>
+    </div>
+  );
+}
+
+function PayoutsPanel({ payouts, orders, loading, onMarkPaid }: {
+  payouts: SellerPayout[]; orders: Order[]; loading: boolean; onMarkPaid: (id: string) => void;
+}) {
+  if (loading) return <Spinner />;
+  const orderById = new Map(orders.map((o) => [o.id, o]));
+  const awaiting = payouts.filter((p) => p.status === 'awaiting_payout');
+  const paidOut = payouts.filter((p) => p.status === 'paid_out');
+
+  const renderTable = (rows: SellerPayout[], showAction: boolean) => (
+    <div className="overflow-x-auto">
+      <table className="w-full text-left">
+        <thead><tr className="border-b border-black/10">
+          <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Order</th>
+          <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Seller</th>
+          <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">UPI</th>
+          <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Amount</th>
+          <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Shipped</th>
+          {showAction ? (
+            <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40 text-right">Action</th>
+          ) : (
+            <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40 text-right">Paid On</th>
+          )}
+        </tr></thead>
+        <tbody>
+          {rows.map((p) => {
+            const order = orderById.get(p.order_id);
+            return (
+              <tr key={p.id} className="border-b border-black/5">
+                <td className="py-3 px-3 text-xs font-bold">{order?.order_number ?? p.order_id.slice(0, 8)}<br /><span className="text-[10px] font-normal text-black/40">{order?.listing_title}</span></td>
+                <td className="py-3 px-3 text-[10px] font-bold">{order?.seller_email ?? '-'}</td>
+                <td className="py-3 px-3 text-[10px] font-mono font-black">{order?.seller_upi_vpa_snapshot ?? '-'}</td>
+                <td className="py-3 px-3 text-xs font-black">{formatCurrency(p.amount)}</td>
+                <td className="py-3 px-3 text-[10px] font-bold uppercase tracking-widest text-black/60">{new Date(p.created_at).toLocaleDateString()}</td>
+                <td className="py-3 px-3 text-right">
+                  {showAction ? (
+                    <button onClick={() => onMarkPaid(p.id)}
+                      className="border border-black px-3 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-black hover:text-white">
+                      Mark Paid Out
+                    </button>
+                  ) : (
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-black/60">{p.paid_at ? new Date(p.paid_at).toLocaleDateString() : '-'}</span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      {rows.length === 0 && <p className="text-[11px] font-bold uppercase tracking-widest text-black/30 py-6">No payouts.</p>}
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col gap-10">
+      <div>
+        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 mb-4">Awaiting Payout ({awaiting.length})</h3>
+        {renderTable(awaiting, true)}
+      </div>
+      <div>
+        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 mb-4">Paid Out ({paidOut.length})</h3>
+        {renderTable(paidOut, false)}
       </div>
     </div>
   );
@@ -360,34 +487,34 @@ function UsersPanel({ users, loading, currentUserId, onToggleAdmin }: {
         <table className="w-full text-left">
           <thead>
             <tr className="border-b border-black/10">
-              <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Joined</th>
-              <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Email</th>
-              <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Name</th>
-              <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Role</th>
-              <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40 text-right">Actions</th>
+              <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Joined</th>
+              <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Email</th>
+              <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Name</th>
+              <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Role</th>
+              <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40 text-right">Actions</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((u) => (
               <tr key={u.id} className="border-b border-black/5">
-                <td className="py-4 px-3 text-[10px] font-bold uppercase tracking-widest">{new Date(u.created_at).toLocaleDateString()}</td>
-                <td className="py-4 px-3 text-[11px] font-bold">{u.email}{u.id === currentUserId && <span className="ml-2 text-[9px] text-black/40">(you)</span>}</td>
-                <td className="py-4 px-3 text-[11px] font-bold">{u.full_name ?? '-'}</td>
-                <td className="py-4 px-3 text-[10px] font-black uppercase tracking-widest">
-                  {u.is_admin ? <span className="text-emerald-700">Admin</span> : <span className="text-black/40">User</span>}
+                <td className="py-3 px-3 text-[10px] font-bold uppercase tracking-widest">{new Date(u.created_at).toLocaleDateString()}</td>
+                <td className="py-3 px-3 text-[11px] font-bold">{u.email}{u.id === currentUserId && <span className="ml-2 text-[9px] text-black/40">(you)</span>}</td>
+                <td className="py-3 px-3 text-[11px] font-bold">{u.full_name ?? '-'}</td>
+                <td className="py-3 px-3 text-[10px] font-black uppercase tracking-widest">
+                  {u.is_admin ? <span className="text-black">Admin</span> : <span className="text-black/40">User</span>}
                 </td>
-                <td className="py-4 px-3 text-right">
+                <td className="py-3 px-3 text-right">
                   {u.is_admin ? (
-                    <button onClick={() => onToggleAdmin(u.id, false)} className="bg-zinc-100 text-zinc-700 px-3 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-zinc-200">Revoke Admin</button>
+                    <button onClick={() => onToggleAdmin(u.id, false)} className="border border-black/20 px-3 py-2 text-[10px] font-black uppercase tracking-widest hover:border-black">Revoke Admin</button>
                   ) : (
-                    <button onClick={() => onToggleAdmin(u.id, true)} className="bg-black text-white px-3 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800">Make Admin</button>
+                    <button onClick={() => onToggleAdmin(u.id, true)} className="border border-black px-3 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-black hover:text-white">Make Admin</button>
                   )}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        {filtered.length === 0 && <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 py-12 text-center">No users.</p>}
+        {filtered.length === 0 && <p className="text-[11px] font-bold uppercase tracking-widest text-black/30 py-6">No users.</p>}
       </div>
     </div>
   );

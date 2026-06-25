@@ -1,10 +1,13 @@
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { useDocumentTitle } from '../lib/useDocumentTitle';
 
 export function Privacy() {
+  useDocumentTitle('Privacy');
+
   return (
-    <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 pt-32 pb-20">
+    <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
       <Link to="/" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-12">
         <ArrowLeft className="h-3 w-3" /> Back to Home
       </Link>
@@ -15,17 +18,12 @@ export function Privacy() {
         className="flex flex-col gap-12"
       >
         <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-3 mb-2">
-            <img src="/images/zarketplace-tp.png" alt="zarketplace" className="h-6 w-auto" referrerPolicy="no-referrer" />
-            <span className="lowercase font-black tracking-tighter text-2xl">zarketplace</span>
-          </div>
-          <span className="text-[10px] font-black uppercase tracking-[0.4em] text-black">Legal</span>
           <h1 className="text-5xl font-black tracking-tighter uppercase">Privacy Policy</h1>
-          <p className="text-sm font-black uppercase tracking-widest text-black">Last updated: March 3, 2025</p>
+          <p className="text-sm font-black uppercase tracking-widest text-black">Last updated: May 19, 2026</p>
         </div>
 
-        <div className="prose prose-zinc max-w-none flex flex-col gap-10 text-black leading-relaxed">
-          <p>This Privacy Policy explains how zarketplace ("we", "us", or "our") collect, use, and share your personal information when you use our services, including visiting zarketplace.co or contacting us. By using our site or services, you agree to this policy. If you disagree, please don’t use our services. We may update this policy from time to time, and the latest version will always be on our site with the updated date.</p>
+        <div className="flex flex-col gap-10 text-black leading-relaxed text-sm font-medium uppercase tracking-widest">
+          <p>This Privacy Policy explains how zarketplace ("we", "us", or "our") collects, uses, and shares your personal information when you use our services, including visiting zarketplace.com or contacting us. By using our site or services, you agree to this policy. If you disagree, please don’t use our services. We may update this policy from time to time, and the latest version will always be on our site with the updated date.</p>
 
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Information We Collect</h2>

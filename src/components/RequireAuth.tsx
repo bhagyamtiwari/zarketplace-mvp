@@ -39,7 +39,7 @@ export function RequireAuth({ children, requireAdmin = false, message }: Props) 
     const redirect = `${location.pathname}${location.search}`;
     return (
       <>
-        <div className="mx-auto max-w-xl px-4 py-32 text-center flex flex-col items-center gap-6">
+        <div className="mx-auto max-w-xl px-4 pt-24 sm:pt-32 pb-20 sm:pb-32 text-center flex flex-col items-center gap-6">
           <div className="h-16 w-16 bg-zinc-100 rounded-full flex items-center justify-center">
             <Lock className="h-6 w-6 text-black/40" />
           </div>
@@ -62,7 +62,7 @@ export function RequireAuth({ children, requireAdmin = false, message }: Props) 
 
   if (requireAdmin && !profile?.is_admin) {
     return (
-      <div className="mx-auto max-w-xl px-4 py-32 text-center flex flex-col items-center gap-6">
+      <div className="mx-auto max-w-xl px-4 pt-24 sm:pt-32 pb-20 sm:pb-32 text-center flex flex-col items-center gap-6">
         <div className="h-16 w-16 bg-zinc-100 rounded-full flex items-center justify-center">
           <Lock className="h-6 w-6 text-black/40" />
         </div>

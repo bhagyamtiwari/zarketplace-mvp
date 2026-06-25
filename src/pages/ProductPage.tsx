@@ -4,16 +4,25 @@ import { supabase } from '../lib/supabase';
 import { Listing } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { motion } from 'motion/react';
-import { Loader2, Truck, RotateCcw, ArrowLeft, ChevronLeft, ChevronRight, Grid, Layout, ShoppingBag, Check, Share2 } from 'lucide-react';
+import { Loader2, RotateCcw, ArrowLeft, ChevronLeft, ChevronRight, Grid, Layout, ShoppingBag, Check, Share2, X, ZoomIn, Link as LinkIcon } from 'lucide-react';
 import { log } from '../lib/log';
 import { useCart } from '../lib/cart';
 import { useAuth } from '../lib/auth';
 import { AuthModal } from '../components/AuthModal';
-import { LaunchOfferBanner } from '../components/LaunchOfferBanner';
 import { ShareInstagramModal } from '../components/ShareInstagramModal';
 import { formatCurrency as fmt } from '../lib/utils';
 
 const plog = log('product');
+
+// Best-effort deterrence against casual image saving: blocks right-click save,
+// native drag-to-download, and iOS Safari's long-press "Save Image" callout.
+// Not a real DRM measure (images are still in the page source) — just removes
+// the easy one-tap/one-click paths without breaking image loading or zoom.
+const imageProtectStyle: React.CSSProperties = {
+  WebkitTouchCallout: 'none',
+  WebkitUserSelect: 'none',
+  userSelect: 'none',
+};
 
 const CONDITION_TIERS = [
   { name: 'As Is', desc: 'Heavily worn or naturally damaged. Visible flaws such as stains, holes, or broken hardware. Best for upcycling or collectors who appreciate the wear story.' },
@@ -37,17 +46,73 @@ export function ProductPage() {
   const [loading, setLoading] = React.useState(true);
   const [currentImageIdx, setCurrentImageIdx] = React.useState(0);
   const [viewMode, setViewMode] = React.useState<'carousel' | 'grid'>('carousel');
-  const [zoomPos, setZoomPos] = React.useState({ x: 0, y: 0 });
-  const [isZoomed, setIsZoomed] = React.useState(false);
+  const [zoomOpen, setZoomOpen] = React.useState(false);
+  const [pan, setPan] = React.useState({ x: 0, y: 0 });
   const [cartMsg, setCartMsg] = React.useState<string | null>(null);
   const [conflict, setConflict] = React.useState(false);
   const [shareOpen, setShareOpen] = React.useState(false);
+  const [showConditionMeter, setShowConditionMeter] = React.useState(false);
+  const [copied, setCopied] = React.useState(false);
+  const [stickyBarVisible, setStickyBarVisible] = React.useState(true);
+  const stickyStopRef = React.useRef<HTMLDivElement>(null);
 
-  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const { left, top, width, height } = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - left) / width) * 100;
-    const y = ((e.clientY - top) / height) * 100;
-    setZoomPos({ x, y });
+  // The sticky mobile buy bar should only follow the user down to the end of
+  // the seller's description, not all the way to the footer.
+  React.useEffect(() => {
+    const el = stickyStopRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setStickyBarVisible(entry.boundingClientRect.top > 0),
+      { threshold: 0 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [listing?.id]);
+
+  const dragRef = React.useRef<{ startX: number; startY: number; panX: number; panY: number; moved: boolean } | null>(null);
+  const zoomImgRef = React.useRef<HTMLImageElement>(null);
+  const [panLimit, setPanLimit] = React.useState({ x: 0, y: 0 });
+
+  const openZoom = () => { setPan({ x: 0, y: 0 }); setZoomOpen(true); };
+  const closeZoom = () => setZoomOpen(false);
+
+  const ZOOM_SCALE = 2.2;
+
+  // Pan limits must match how far the scaled image actually overflows the
+  // viewport on each axis - a fixed pixel limit left corners unreachable on
+  // large viewports and over-restricted small ones.
+  const recomputePanLimit = React.useCallback(() => {
+    const img = zoomImgRef.current;
+    if (!img || !img.offsetWidth || !img.offsetHeight) return;
+    setPanLimit({
+      x: Math.max(0, (img.offsetWidth * ZOOM_SCALE - window.innerWidth) / 2),
+      y: Math.max(0, (img.offsetHeight * ZOOM_SCALE - window.innerHeight) / 2),
+    });
+  }, []);
+
+  React.useEffect(() => {
+    if (!zoomOpen) return;
+    recomputePanLimit();
+    window.addEventListener('resize', recomputePanLimit);
+    return () => window.removeEventListener('resize', recomputePanLimit);
+  }, [zoomOpen, recomputePanLimit]);
+
+  const onZoomPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    dragRef.current = { startX: e.clientX, startY: e.clientY, panX: pan.x, panY: pan.y, moved: false };
+  };
+  const onZoomPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current) return;
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) dragRef.current.moved = true;
+    const nextX = Math.max(-panLimit.x, Math.min(panLimit.x, dragRef.current.panX + dx));
+    const nextY = Math.max(-panLimit.y, Math.min(panLimit.y, dragRef.current.panY + dy));
+    setPan({ x: nextX, y: nextY });
+  };
+  const onZoomPointerUp = () => {
+    const wasDrag = dragRef.current?.moved;
+    dragRef.current = null;
+    if (!wasDrag) closeZoom();
   };
 
   React.useEffect(() => {
@@ -85,7 +150,7 @@ export function ProductPage() {
 
   if (!listing) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-20 text-center">
+      <div className="mx-auto max-w-7xl px-4 pt-24 sm:pt-28 pb-14 sm:pb-20 text-center">
         <h1 className="text-2xl font-black uppercase tracking-tighter">Listing not found</h1>
         <button onClick={() => navigate('/browse')} className="mt-8 text-xs font-bold uppercase tracking-widest underline">
           Back to marketplace
@@ -103,13 +168,23 @@ export function ProductPage() {
   const nextImage = () => setCurrentImageIdx((prev) => (prev + 1) % images.length);
   const prevImage = () => setCurrentImageIdx((prev) => (prev - 1 + images.length) % images.length);
 
+  const purchasable = listing.status === 'approved' && !listing.is_sold;
+
+  const handleBuyNow = () => {
+    if (!user) {
+      setAuthModal({ redirectTo: `/checkout/${listing.id}`, message: 'Sign in to buy.' });
+      return;
+    }
+    navigate(`/checkout/${listing.id}`);
+  };
+
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-32 pb-20">
-      <Link to="/browse" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-10">
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-28 sm:pb-20">
+      <Link to="/browse" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-6 sm:mb-10">
         <ArrowLeft className="h-3 w-3" /> Back to Browse
       </Link>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16">
         {/* Image Gallery */}
         <div className="lg:col-span-5 flex flex-col gap-6">
           <div className="flex items-center justify-between">
@@ -141,12 +216,10 @@ export function ProductPage() {
           </div>
 
           {viewMode === 'carousel' ? (
-            <div 
-              className="relative aspect-[3/4] overflow-hidden bg-zinc-50 group cursor-crosshair" 
+            <div
+              className="relative aspect-[3/4] overflow-hidden bg-zinc-50 group cursor-zoom-in"
               onContextMenu={(e) => e.preventDefault()}
-              onMouseEnter={() => setIsZoomed(true)}
-              onMouseLeave={() => setIsZoomed(false)}
-              onMouseMove={handleMouseMove}
+              onClick={openZoom}
             >
               <div className="h-full w-full overflow-hidden">
                 <motion.img
@@ -156,33 +229,33 @@ export function ProductPage() {
                   transition={{ duration: 0.3 }}
                   src={images[currentImageIdx]}
                   alt={listing.title}
-                  className={cn(
-                    "h-full w-full object-cover transition-transform duration-200 ease-out",
-                    isZoomed ? "scale-[2.5]" : "scale-100"
-                  )}
-                  style={isZoomed ? {
-                    transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`
-                  } : undefined}
+                  className="h-full w-full object-cover"
                   referrerPolicy="no-referrer"
+                  draggable={false}
+                  onDragStart={(e) => e.preventDefault()}
+                  style={imageProtectStyle}
                 />
               </div>
 
               {images.length > 1 && (
                 <>
-                  <button 
-                    onClick={prevImage}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); prevImage(); }}
                     className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 p-3 text-black opacity-0 group-hover:opacity-100 transition-all hover:bg-white"
                   >
                     <ChevronLeft className="h-5 w-5" />
                   </button>
-                  <button 
-                    onClick={nextImage}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); nextImage(); }}
                     className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 p-3 text-black opacity-0 group-hover:opacity-100 transition-all hover:bg-white"
                   >
                     <ChevronRight className="h-5 w-5" />
                   </button>
                 </>
               )}
+              <div className="absolute bottom-4 right-4 bg-white/80 p-2 text-black pointer-events-none">
+                <ZoomIn className="h-3.5 w-3.5" />
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-6" onContextMenu={(e) => e.preventDefault()}>
@@ -193,6 +266,9 @@ export function ProductPage() {
                     alt={`${listing.title} - ${idx + 1}`}
                     className="h-full w-full object-cover"
                     referrerPolicy="no-referrer"
+                    draggable={false}
+                    onDragStart={(e) => e.preventDefault()}
+                    style={imageProtectStyle}
                   />
                 </div>
               ))}
@@ -200,9 +276,9 @@ export function ProductPage() {
           )}
 
           {viewMode === 'carousel' && images.length > 1 && (
-            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide">
+            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide" onContextMenu={(e) => e.preventDefault()}>
               {images.map((img, idx) => (
-                <button 
+                <button
                   key={idx}
                   onClick={() => setCurrentImageIdx(idx)}
                   className={cn(
@@ -210,7 +286,14 @@ export function ProductPage() {
                     currentImageIdx === idx ? "border-black" : "border-transparent opacity-50"
                   )}
                 >
-                  <img src={img} className="h-full w-full object-cover" alt={`Thumb ${idx}`} />
+                  <img
+                    src={img}
+                    className="h-full w-full object-cover"
+                    alt={`Thumb ${idx}`}
+                    draggable={false}
+                    onDragStart={(e) => e.preventDefault()}
+                    style={imageProtectStyle}
+                  />
                 </button>
               ))}
             </div>
@@ -219,9 +302,9 @@ export function ProductPage() {
 
         {/* Product Info */}
         <div className="lg:col-span-7 flex flex-col gap-10">
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight uppercase leading-snug">{listing.title}</h1>
             <span className="text-[10px] font-black uppercase tracking-[0.4em] text-black">{listing.brand}</span>
-            <h1 className="text-4xl font-black tracking-tighter uppercase leading-none">{listing.title}</h1>
             <div className="mt-4 flex items-center gap-6">
               {listing.sale_price ? (
                 <>
@@ -234,31 +317,54 @@ export function ProductPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-y-8 gap-x-4 border-y border-black/5 py-10">
+          <div className="grid grid-cols-2 gap-y-6 gap-x-4 border-y border-black/5 py-8">
             <div>
               <span className="text-[9px] font-black uppercase tracking-[0.2em] text-black block mb-1">Size</span>
-              <p className="font-black text-lg uppercase tracking-tight">{listing.size}</p>
+              <p className="font-black text-base uppercase tracking-tight">{listing.size_type || 'One Size'}</p>
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-[9px] font-black uppercase tracking-[0.2em] text-black">Condition</span>
-                <div className="group relative">
-                  <button className="text-[9px] font-black uppercase tracking-widest underline decoration-black/20 hover:decoration-black transition-all">
-                    (Learn More)
-                  </button>
-                  <div className="absolute left-0 bottom-full mb-2 w-64 bg-black text-white p-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                    <div className="flex flex-col gap-3">
-                      {CONDITION_TIERS.map(tier => (
-                        <div key={tier.name} className="flex flex-col gap-1">
-                          <span className="text-[10px] font-black uppercase tracking-widest">{tier.name}</span>
-                          <p className="text-[9px] font-medium leading-relaxed opacity-60">{tier.desc}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowConditionMeter((v) => !v)}
+                  className="text-[9px] font-black uppercase tracking-widest underline decoration-black/20 hover:decoration-black transition-all"
+                >
+                  (Learn More)
+                </button>
               </div>
-              <p className="font-black text-lg uppercase tracking-tight">{listing.condition}</p>
+              <p className="font-black text-base uppercase tracking-tight">{listing.condition}</p>
+
+              {showConditionMeter && (
+                <div className="mt-4 bg-zinc-50 border border-black/5 p-4 flex flex-col gap-3">
+                  <div className="flex items-center gap-1">
+                    {CONDITION_TIERS.map((tier, idx) => (
+                      <div
+                        key={tier.name}
+                        className={cn('h-1.5 flex-1 rounded-full', idx <= currentConditionIdx ? 'bg-black' : 'bg-black/10')}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex justify-between text-[7px] font-black uppercase tracking-widest text-black/40">
+                    {CONDITION_TIERS.map((tier) => <span key={tier.name}>{tier.name}</span>)}
+                  </div>
+                  <p className="text-[10px] font-medium leading-relaxed text-black/70">
+                    {CONDITION_TIERS[currentConditionIdx]?.desc}
+                  </p>
+                </div>
+              )}
+            </div>
+            <div>
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-black block mb-1">Shipping</span>
+              <p className="font-black text-base uppercase tracking-tight">
+                {listing.shipping_mode === 'paid' && (listing.shipping_cost || 0) > 0
+                  ? fmt(listing.shipping_cost)
+                  : 'Free'}
+              </p>
+            </div>
+            <div>
+              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-black block mb-1">Product Code</span>
+              <p className="font-black text-base uppercase tracking-tight">{listing.sku || `ZV-${listing.id.slice(0, 8).toUpperCase()}`}</p>
             </div>
           </div>
 
@@ -282,13 +388,7 @@ export function ProductPage() {
               <>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (!user) {
-                      setAuthModal({ redirectTo: `/checkout/${listing.id}`, message: 'Sign in to buy.' });
-                      return;
-                    }
-                    navigate(`/checkout/${listing.id}`);
-                  }}
+                  onClick={handleBuyNow}
                   className="w-full bg-black py-6 text-center text-xs font-black uppercase tracking-[0.3em] text-white transition-all hover:bg-zinc-800 active:scale-[0.98]"
                 >
                   Buy it now
@@ -296,6 +396,7 @@ export function ProductPage() {
                 <button
                   type="button"
                   onClick={async () => {
+                    if (has(listing.id)) { navigate('/cart'); return; }
                     setCartMsg(null);
                     if (!user) {
                       const target = listing;
@@ -322,11 +423,6 @@ export function ProductPage() {
                     <><ShoppingBag className="h-4 w-4" /> Add to cart</>
                   )}
                 </button>
-                {has(listing.id) && (
-                  <Link to="/cart" className="text-center text-[10px] font-black uppercase tracking-widest text-black/60 underline">
-                    Go to cart
-                  </Link>
-                )}
                 {cartMsg && <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600">{cartMsg}</p>}
                 {conflict && (
                   <div className="border border-black/10 bg-zinc-50 p-4 flex flex-col gap-3">
@@ -357,26 +453,32 @@ export function ProductPage() {
 
           <div className="flex flex-col gap-8">
             <div className="flex flex-col gap-4">
-              <h3 className="text-[10px] font-black uppercase tracking-widest">Description</h3>
+              <h3 className="text-[10px] font-black uppercase tracking-widest">Seller's Description</h3>
               <div className="flex flex-col gap-4">
-                <p className="text-black text-sm font-medium uppercase tracking-widest leading-relaxed whitespace-pre-line">{listing.description}</p>
+                <p className="text-black/70 text-[9px] font-medium uppercase tracking-widest leading-relaxed whitespace-pre-line">{listing.description}</p>
               </div>
             </div>
 
+            <div ref={stickyStopRef} />
+
             <div className="flex flex-col gap-4 pt-6 border-t border-black/5">
-              <div className="flex items-center gap-4 text-[11px] font-black uppercase tracking-widest">
-                <Truck className="h-4 w-4 text-black" />
-                <span>
-                  {listing.shipping_mode === 'paid' && (listing.shipping_cost || 0) > 0
-                    ? `Shipping: ${fmt(listing.shipping_cost)}`
-                    : 'Free shipping'}
-                </span>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(window.location.href);
+                  setCartMsg(null);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+                className="self-start flex items-center gap-3 text-[11px] font-black uppercase tracking-widest hover:text-black/60 transition-colors"
+              >
+                <LinkIcon className="h-4 w-4 text-black" />
+                {copied ? 'Link Copied' : 'Copy Link'}
+              </button>
               <div className="flex items-center gap-4 text-[11px] font-black uppercase tracking-widest">
                 <RotateCcw className="h-4 w-4 text-black" />
                 <Link to="/returns" className="underline">Returns & Cancellations Policy</Link>
               </div>
-              <LaunchOfferBanner variant="product-row" />
             </div>
 
             {user?.id === listing.seller_id && (
@@ -390,19 +492,70 @@ export function ProductPage() {
                   <Share2 className="h-3.5 w-3.5" /> Generate Instagram image
                 </button>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 leading-relaxed max-w-md">
-                  Only you can see this. Download a branded post or story image of your listing in one click.
+                  Download a branded post or story image of your listing in one click.
+                  <br />
+                  Only you can see this.
                 </p>
               </div>
             )}
-
-            <div className="mt-8 pt-8 border-t border-black/5">
-              <p className="text-[9px] font-black uppercase tracking-[0.4em] text-black/40">
-                Product Code: {listing.sku || `ZV-${listing.id.slice(0, 8).toUpperCase()}`}
-              </p>
-            </div>
           </div>
         </div>
       </div>
+
+      {purchasable && stickyBarVisible && (
+        <div className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-black/10 px-4 py-3 flex items-center gap-4 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
+          <div className="min-w-0 flex-1">
+            <p className="text-[8px] font-black uppercase tracking-widest text-black/40 truncate">{listing.title}</p>
+            <p className="text-lg font-black tracking-tight">
+              {formatCurrency(listing.sale_price ?? listing.price)}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleBuyNow}
+            className="shrink-0 bg-black text-white px-8 py-4 text-[11px] font-black uppercase tracking-[0.2em] active:scale-[0.98] transition-transform"
+          >
+            Buy Now
+          </button>
+        </div>
+      )}
+
+      {zoomOpen && (
+        <div
+          className="fixed inset-0 z-[100] bg-black flex items-center justify-center touch-none select-none"
+          onPointerDown={onZoomPointerDown}
+          onPointerMove={onZoomPointerMove}
+          onPointerUp={onZoomPointerUp}
+          onPointerCancel={onZoomPointerUp}
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          <button
+            type="button"
+            onClick={closeZoom}
+            className="absolute top-6 right-6 z-10 bg-white/10 p-3 text-white hover:bg-white/20 transition-colors"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <span className="absolute top-7 left-6 z-10 text-[10px] font-black uppercase tracking-[0.2em] text-white">
+            Drag to look around
+          </span>
+          <img
+            ref={zoomImgRef}
+            src={images[currentImageIdx]}
+            alt={listing.title}
+            draggable={false}
+            onDragStart={(e) => e.preventDefault()}
+            onLoad={recomputePanLimit}
+            className="max-w-none w-full h-full object-contain cursor-grab"
+            style={{
+              transform: `scale(${ZOOM_SCALE}) translate(${pan.x / ZOOM_SCALE}px, ${pan.y / ZOOM_SCALE}px)`,
+              ...imageProtectStyle,
+            }}
+            referrerPolicy="no-referrer"
+          />
+        </div>
+      )}
+
       <AuthModal
         open={!!authModal}
         onClose={() => setAuthModal(null)}

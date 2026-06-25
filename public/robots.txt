@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /seller-portal
+Disallow: /account
+Disallow: /cart
+Disallow: /checkout
+Disallow: /track-order
+Disallow: /auth/callback
+
+Sitemap: https://zarketplace.com/sitemap.xml

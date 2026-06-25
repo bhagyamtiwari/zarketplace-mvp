@@ -16,28 +16,41 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing }) => {
           alt={listing.title}
           className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
           referrerPolicy="no-referrer"
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+          onDragStart={(e) => e.preventDefault()}
+          onContextMenu={(e) => e.preventDefault()}
+          style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
         />
         {listing.sale_price && (
           <div className="absolute top-4 left-4 bg-black px-3 py-1 text-[9px] font-black text-white uppercase tracking-[0.2em]">
             Sale
           </div>
         )}
+        {listing.condition && (
+          <div className="absolute bottom-4 left-4 bg-white/90 px-3 py-1 text-[9px] font-black text-black uppercase tracking-[0.2em]">
+            {listing.condition}
+          </div>
+        )}
       </div>
-      <div className="flex flex-col gap-1">
-        <div className="flex justify-between items-start gap-2">
-          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-black">{listing.brand}</span>
-          <span className="text-[10px] font-black uppercase tracking-widest">{listing.size}</span>
-        </div>
-        <h3 className="text-xs font-bold uppercase tracking-widest truncate">{listing.title}</h3>
-        <div className="mt-1 flex items-center gap-3">
+      <div className="flex flex-col gap-1.5">
+        <h3 className="text-xs font-bold uppercase tracking-widest leading-tight line-clamp-2">{listing.title}</h3>
+
+        <div className="flex items-center gap-2">
           {listing.sale_price ? (
             <>
-              <span className="text-xs font-black text-black">{formatCurrency(listing.sale_price)}</span>
-              <span className="text-[10px] text-black line-through font-bold">{formatCurrency(listing.price)}</span>
+              <span className="text-base font-black text-black">{formatCurrency(listing.sale_price)}</span>
+              <span className="text-[10px] text-black/40 line-through font-bold">{formatCurrency(listing.price)}</span>
             </>
           ) : (
-            <span className="text-xs font-black">{formatCurrency(listing.price)}</span>
+            <span className="text-base font-black text-black">{formatCurrency(listing.price)}</span>
           )}
+        </div>
+
+        <div className="flex justify-between items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-black/40">
+          <span className="truncate max-w-[65%]">{listing.brand || 'Vintage'}</span>
+          {(listing.size_type || listing.size) && <span className="shrink-0">{listing.size_type || listing.size}</span>}
         </div>
       </div>
     </Link>

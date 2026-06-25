@@ -1,10 +1,13 @@
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { useDocumentTitle } from '../lib/useDocumentTitle';
 
 export function Trademark() {
+  useDocumentTitle('Trademark & Brand Notice');
+
   return (
-    <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 pt-32 pb-20">
+    <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
       <Link to="/" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-12">
         <ArrowLeft className="h-3 w-3" /> Back to Home
       </Link>
@@ -15,32 +18,23 @@ export function Trademark() {
         className="flex flex-col gap-12"
       >
         <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-3 mb-2">
-            <img src="/images/zarketplace-tp.png" alt="zarketplace" className="h-6 w-auto" referrerPolicy="no-referrer" />
-            <span className="lowercase font-black tracking-tighter text-2xl">zarketplace</span>
-          </div>
-          <span className="text-[10px] font-black uppercase tracking-[0.4em] text-black">Legal</span>
           <h1 className="text-5xl font-black tracking-tighter uppercase">Trademark &amp; Brand Notice</h1>
         </div>
 
-        <div className="prose prose-zinc max-w-none flex flex-col gap-8 text-black leading-relaxed">
+        <div className="flex flex-col gap-8 text-black leading-relaxed text-sm font-medium uppercase tracking-widest">
           <p>
-            zarketplace is an independent resale and peer-to-peer (P2P/C2C) marketplace that
-            facilitates the buying and selling of pre-owned and new goods between users.
+            zarketplace is a peer-to-peer resale marketplace operated by ADNIZ Private Limited.
           </p>
 
           <p>
-            All trademarks, service marks, brand names, logos, and other intellectual property
-            displayed on our platform are the property of their respective owners. Any references to
-            brands, products, or trademarks are made solely for identification, descriptive, and
-            informational purposes.
+            We are not affiliated with, associated with, or endorsed by any of the brands listed or
+            sold on our platform. All brand names, trademarks, and logos belong to their respective
+            owners. zarketplace claims no rights to any third-party trademarks or intellectual
+            property.
           </p>
 
           <p>
-            zarketplace is not affiliated with, associated with, authorized by, sponsored by, or
-            endorsed by any brand featured on the platform unless explicitly stated otherwise. We do
-            not claim any ownership rights in the trademarks, logos, or intellectual property of
-            third parties.
+            Listings on zarketplace are for secondhand/resale items only.
           </p>
 
           <p>
