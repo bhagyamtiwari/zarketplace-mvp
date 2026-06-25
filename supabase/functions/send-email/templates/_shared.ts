@@ -28,6 +28,24 @@ export function button(href: string, label: string): string {
   return `<a href="${href}" style="display:inline-block; background:#000; color:#fff; padding:14px 24px; text-decoration:none; font-weight:900; text-transform:uppercase; letter-spacing:2px; font-size:11px;">${label}</a>`;
 }
 
+// Logo + wordmark header, prepended to every transactional email body so
+// every send is recognizably from zarketplace at a glance in an inbox.
+// Uses an absolute URL (siteUrl) since email clients fetch images over
+// HTTP - a local /images/... path only works on the live site, not in mail.
+// Built as a <table> (not flexbox/grid) since Outlook's rendering engine
+// ignores modern CSS layout entirely - tables are the one layout primitive
+// every email client renders consistently.
+export function header(siteUrl: string): string {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px; padding-bottom:20px; border-bottom:1px solid #eee; width:100%;">
+    <tr>
+      <td style="vertical-align:middle; padding-right:8px; width:24px;">
+        <img src="${siteUrl}/images/zarketplace-tp.png" alt="zarketplace" width="24" height="24" style="display:block;" />
+      </td>
+      <td style="vertical-align:middle; font-size:20px; font-weight:900; letter-spacing:-0.5px; text-transform:lowercase;">zarketplace</td>
+    </tr>
+  </table>`;
+}
+
 export function trackUrl(o: any, siteUrl: string): string {
   return `${siteUrl}/track-order?order=${o.order_number}&email=${encodeURIComponent(o.buyer_email ?? "")}`;
 }

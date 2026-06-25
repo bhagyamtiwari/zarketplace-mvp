@@ -186,11 +186,11 @@ export function Home() {
           />
         </div>
         <div className="relative z-10 max-w-7xl mx-auto flex flex-col items-center sm:items-start gap-8 text-center sm:text-left">
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-0">
             <h2 className="text-5xl md:text-7xl font-black tracking-tighter uppercase leading-[0.85]">
               Reduce waste,
             </h2>
-            <p className="text-4xl md:text-6xl font-serif italic tracking-tight lowercase leading-tight">
+            <p className="-mt-2 md:-mt-3 text-4xl md:text-6xl font-serif italic tracking-tight lowercase leading-tight">
               buy pre-loved.
             </p>
           </div>

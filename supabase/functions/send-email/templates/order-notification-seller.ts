@@ -1,5 +1,5 @@
 // Seller: "You made a sale!" notification, sent when an order is placed.
-import { baseStyle, button, EmailContent, EmailContext, esc, sellerUrl } from "./_shared.ts";
+import { baseStyle, button, EmailContent, EmailContext, esc, header, sellerUrl } from "./_shared.ts";
 
 export function orderNotificationSeller(ctx: EmailContext): EmailContent {
   const o = ctx.order ?? {};
@@ -8,6 +8,7 @@ export function orderNotificationSeller(ctx: EmailContext): EmailContent {
     to: o.seller_email,
     subject: `New sale · ${o.listing_title}`,
     html: `<div style="${baseStyle}">
+      ${header(ctx.siteUrl)}
       <h1 style="font-weight:900; text-transform:uppercase; letter-spacing:-1px;">You made a sale!</h1>
       <p>Your item <strong>${esc(o.listing_title)}</strong> has been purchased.</p>
       <p><strong>Order #:</strong> ${esc(o.order_number)}<br/>
