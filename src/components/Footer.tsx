@@ -172,8 +172,9 @@ export function Footer() {
 
         {/* Desktop bottom bar: brand left, legal right */}
         <div className="hidden md:flex mt-16 pt-10 border-t border-white/10 items-end justify-between">
-          <Link to="/" className="flex items-center">
+          <Link to="/" className="flex items-end gap-1">
             <Wordmark on="dark" heightClassName="h-9" />
+            <span className="text-xs font-bold text-white/60 leading-none">&reg;</span>
           </Link>
           <div className="flex flex-col items-end gap-1">
             <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">© 2026 All rights reserved.</span>
@@ -182,8 +183,9 @@ export function Footer() {
 
         {/* Mobile bottom block: logo + wordmark, then all rights reserved */}
         <div className="md:hidden mt-10 pt-8 flex flex-col items-center gap-4 text-center">
-          <Link to="/" className="flex items-center">
+          <Link to="/" className="flex items-end gap-1">
             <Wordmark on="dark" heightClassName="h-8" />
+            <span className="text-xs font-bold text-white/60 leading-none">&reg;</span>
           </Link>
           <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">All Rights Reserved.</span>
         </div>
