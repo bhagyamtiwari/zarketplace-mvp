@@ -176,8 +176,7 @@ export function Footer() {
             <span className="lowercase font-black tracking-tighter text-2xl text-white">zarketplace</span>
           </Link>
           <div className="flex flex-col items-end gap-1">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">© 2026 Zarketplace. All rights reserved.</span>
-            <Link to="/trademark-notice" className={cn(LINK_CLASS, 'text-[10px]')}>Trademark &amp; Brand Notice</Link>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">© 2026 All rights reserved.</span>
           </div>
         </div>
 

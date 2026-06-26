@@ -46,6 +46,14 @@ export function header(siteUrl: string): string {
   </table>`;
 }
 
+// Listing photo thumbnail, shown above the order details on emails where
+// seeing the item helps (payment confirmation, shipped). Renders nothing if
+// the order has no listing_image_url.
+export function listingImage(o: any): string {
+  if (!o.listing_image_url) return "";
+  return `<img src="${o.listing_image_url}" alt="${esc(o.listing_title ?? "")}" width="120" style="display:block; width:120px; height:160px; object-fit:cover; margin:16px 0; border:1px solid #eee;" />`;
+}
+
 export function trackUrl(o: any, siteUrl: string): string {
   return `${siteUrl}/track-order?order=${o.order_number}&email=${encodeURIComponent(o.buyer_email ?? "")}`;
 }

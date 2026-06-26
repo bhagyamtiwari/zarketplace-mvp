@@ -168,6 +168,29 @@ export function ProductPage() {
   const nextImage = () => setCurrentImageIdx((prev) => (prev + 1) % images.length);
   const prevImage = () => setCurrentImageIdx((prev) => (prev - 1 + images.length) % images.length);
 
+  // Swipe left/right on the mobile carousel to switch photos. A swipe past
+  // the threshold suppresses the click-to-zoom that follows touchend.
+  const swipeRef = React.useRef<{ startX: number } | null>(null);
+  const justSwipedRef = React.useRef(false);
+  const SWIPE_THRESHOLD = 40;
+
+  const onCarouselTouchStart = (e: React.TouchEvent) => {
+    swipeRef.current = { startX: e.touches[0].clientX };
+  };
+  const onCarouselTouchEnd = (e: React.TouchEvent) => {
+    if (!swipeRef.current || images.length <= 1) { swipeRef.current = null; return; }
+    const dx = e.changedTouches[0].clientX - swipeRef.current.startX;
+    if (Math.abs(dx) > SWIPE_THRESHOLD) {
+      justSwipedRef.current = true;
+      if (dx < 0) nextImage(); else prevImage();
+    }
+    swipeRef.current = null;
+  };
+  const handleCarouselClick = () => {
+    if (justSwipedRef.current) { justSwipedRef.current = false; return; }
+    openZoom();
+  };
+
   const purchasable = listing.status === 'approved' && !listing.is_sold;
 
   const handleBuyNow = () => {
@@ -217,9 +240,11 @@ export function ProductPage() {
 
           {viewMode === 'carousel' ? (
             <div
-              className="relative aspect-[3/4] overflow-hidden bg-zinc-50 group cursor-zoom-in"
+              className="relative aspect-[3/4] overflow-hidden bg-zinc-50 group cursor-zoom-in touch-pan-y"
               onContextMenu={(e) => e.preventDefault()}
-              onClick={openZoom}
+              onClick={handleCarouselClick}
+              onTouchStart={onCarouselTouchStart}
+              onTouchEnd={onCarouselTouchEnd}
             >
               <div className="h-full w-full overflow-hidden">
                 <motion.img

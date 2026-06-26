@@ -195,7 +195,10 @@ export function Home() {
             </p>
           </div>
           <div className="flex flex-col gap-4 text-sm font-medium uppercase tracking-widest text-white leading-relaxed max-w-2xl">
-            <p>Keep clothes in circulation and out of landfills.</p>
+            <p>
+              <span className="block sm:inline">Keep clothes in circulation</span>
+              <span className="block sm:inline"> and out of landfills.</span>
+            </p>
           </div>
           <a
             href="https://www.youtube.com/@zarketplace"
