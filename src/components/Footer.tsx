@@ -8,6 +8,7 @@ import * as React from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronUp, Instagram, Twitter, Youtube, MessageCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { Wordmark } from './Wordmark';
 
 interface FooterLink {
   label: string;
@@ -171,9 +172,8 @@ export function Footer() {
 
         {/* Desktop bottom bar: brand left, legal right */}
         <div className="hidden md:flex mt-16 pt-10 border-t border-white/10 items-end justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <img src="/images/zarketplace-dark.png" alt="zarketplace" className="h-8 w-auto" referrerPolicy="no-referrer" />
-            <span className="lowercase font-black tracking-tighter text-2xl text-white">zarketplace</span>
+          <Link to="/" className="flex items-center">
+            <Wordmark on="dark" heightClassName="h-9" />
           </Link>
           <div className="flex flex-col items-end gap-1">
             <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">© 2026 All rights reserved.</span>
@@ -182,9 +182,8 @@ export function Footer() {
 
         {/* Mobile bottom block: logo + wordmark, then all rights reserved */}
         <div className="md:hidden mt-10 pt-8 flex flex-col items-center gap-4 text-center">
-          <Link to="/" className="flex items-center gap-2">
-            <img src="/images/zarketplace-dark.png" alt="zarketplace" className="h-7 w-auto" referrerPolicy="no-referrer" />
-            <span className="lowercase font-black tracking-tighter text-2xl text-white">zarketplace</span>
+          <Link to="/" className="flex items-center">
+            <Wordmark on="dark" heightClassName="h-8" />
           </Link>
           <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">All Rights Reserved.</span>
         </div>

@@ -363,7 +363,10 @@ const ShareCard = React.forwardRef<HTMLDivElement, {
           </div>
         </div>
 
-        {/* BOTTOM ROW: centered logo + wordmark */}
+        {/* BOTTOM ROW: centered wordmark. Source PNG is a square canvas with
+            the glyphs occupying only the middle ~14% of its height, so it's
+            cropped to that band via an overflow:hidden window + a shifted
+            full-size image rather than rendered at its raw square ratio. */}
         <div style={{
           marginTop: 28,
           paddingTop: 22,
@@ -371,19 +374,15 @@ const ShareCard = React.forwardRef<HTMLDivElement, {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: 12,
         }}>
-          <img
-            src="/images/zarketplace-dark.png"
-            alt=""
-            crossOrigin="anonymous"
-            style={{ height: isStory ? 32 : 26, width: 'auto' }}
-          />
-          <span style={{
-            fontSize: isStory ? 36 : 30, fontWeight: 900, letterSpacing: -0.5, textTransform: 'lowercase',
-          }}>
-            zarketplace
-          </span>
+          <div style={{ width: isStory ? 282 : 211, height: isStory ? 40 : 30, overflow: 'hidden', position: 'relative' }}>
+            <img
+              src="/images/wordmark-tp.png"
+              alt="zarketplace"
+              crossOrigin="anonymous"
+              style={{ position: 'absolute', top: isStory ? -122 : -91, left: 0, width: isStory ? 282 : 211, height: isStory ? 282 : 211 }}
+            />
+          </div>
         </div>
       </div>
     </div>

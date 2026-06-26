@@ -8,6 +8,7 @@ import { cn } from '../lib/utils';
 import { useAuth } from '../lib/auth';
 import { useCart } from '../lib/cart';
 import { AuthModal } from './AuthModal';
+import { Wordmark } from './Wordmark';
 
 export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
@@ -46,9 +47,8 @@ export function Navbar() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-20 items-center justify-between">
           <div className="flex items-center gap-12">
-            <Link to="/" className="flex items-center gap-2 group">
-              <img src="/images/zarketplace-tp.png" alt="zarketplace" className="h-6 w-auto group-hover:scale-110 transition-transform" referrerPolicy="no-referrer" />
-              <span className="lowercase font-black tracking-tighter text-xl">zarketplace</span>
+            <Link to="/" className="flex items-center group">
+              <Wordmark on="light" heightClassName="h-7 sm:h-8" className="group-hover:scale-105 transition-transform" />
             </Link>
             <div className="hidden md:block">
               <div className="flex items-baseline space-x-10">
@@ -269,9 +269,8 @@ export function Navbar() {
             className="md:hidden fixed inset-y-0 right-0 z-50 w-full max-w-xs bg-white border-l border-black/5 flex flex-col"
           >
               <div className="flex items-center justify-between h-20 px-4 border-b border-black/5 shrink-0">
-                <Link to="/" className="flex items-center gap-2" onClick={() => setIsMenuOpen(false)}>
-                  <img src="/images/zarketplace-tp.png" alt="zarketplace" className="h-6 w-auto" referrerPolicy="no-referrer" />
-                  <span className="lowercase font-black tracking-tighter text-xl">zarketplace</span>
+                <Link to="/" className="flex items-center" onClick={() => setIsMenuOpen(false)}>
+                  <Wordmark on="light" heightClassName="h-7" />
                 </Link>
                 <button className="p-2" onClick={() => setIsMenuOpen(false)} aria-label="Close menu">
                   <X className="h-5 w-5" />
