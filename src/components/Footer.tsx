@@ -172,11 +172,8 @@ export function Footer() {
 
         {/* Desktop bottom bar: brand left, legal right */}
         <div className="hidden md:flex mt-16 pt-10 border-t border-white/10 items-end justify-between">
-          <Link to="/" className="relative inline-flex">
+          <Link to="/" className="flex items-center">
             <Wordmark on="dark" heightClassName="h-9" />
-            {/* Positioned at ~87.4% of the wordmark's width, which is the
-                horizontal center of the final "e" in "zarketplace". */}
-            <span className="absolute -top-1.5 left-[87.4%] -translate-x-1/2 text-[9px] font-bold text-white/60 leading-none">&reg;</span>
           </Link>
           <div className="flex flex-col items-end gap-1">
             <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">© 2026 All rights reserved.</span>
@@ -185,9 +182,8 @@ export function Footer() {
 
         {/* Mobile bottom block: logo + wordmark, then all rights reserved */}
         <div className="md:hidden mt-10 pt-8 flex flex-col items-center gap-4 text-center">
-          <Link to="/" className="relative inline-flex">
+          <Link to="/" className="flex items-center">
             <Wordmark on="dark" heightClassName="h-8" />
-            <span className="absolute -top-1.5 left-[87.4%] -translate-x-1/2 text-[8px] font-bold text-white/60 leading-none">&reg;</span>
           </Link>
           <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">All Rights Reserved.</span>
         </div>
