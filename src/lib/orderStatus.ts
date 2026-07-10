@@ -13,6 +13,8 @@ export function buyerStatusLabel(status: OrderStatus): string {
       return 'Order confirmed, seller is packing it up';
     case 'shipped':
       return 'On its way';
+    case 'delivered':
+      return 'Delivered';
     case 'payment_failed':
       return 'Payment failed';
     case 'payment_conflict':

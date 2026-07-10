@@ -57,6 +57,7 @@ export type OrderStatus =
   | 'payment_failed'
   | 'payment_conflict'
   | 'shipped'
+  | 'delivered'
   | 'cancelled'
   | 'refunded';
 
@@ -89,6 +90,9 @@ export interface Order {
   courier: string | null;
   package_image_url: string | null;
   shipped_at: string | null;
+  delivered_at: string | null;
+  review_ends_at: string | null;
+  claim_open: boolean;
   last_nudge_sent_at: string | null;
   created_at: string;
   updated_at: string;
@@ -102,6 +106,7 @@ export interface SellerPayout {
   order_id: string;
   amount: number;
   status: PayoutStatus;
+  releasable_at: string | null;
   created_at: string;
   paid_at: string | null;
 }

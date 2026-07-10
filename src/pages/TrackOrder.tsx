@@ -8,7 +8,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Order, OrderStatus } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
-import { Loader2, Truck, CheckCircle2, Clock, ExternalLink } from 'lucide-react';
+import { Loader2, Truck, CheckCircle2, Clock, ExternalLink, PackageCheck } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
 import { log } from '../lib/log';
@@ -23,6 +23,7 @@ const STATUS_STEPS: { key: OrderStatus; label: string; icon: any }[] = [
   { key: 'awaiting_verification', label: 'Confirming Payment', icon: Clock },
   { key: 'paid', label: 'Order Confirmed', icon: CheckCircle2 },
   { key: 'shipped', label: 'On Its Way', icon: Truck },
+  { key: 'delivered', label: 'Delivered', icon: PackageCheck },
 ];
 
 export function TrackOrder() {
@@ -114,7 +115,7 @@ function OrderCard({ order }: { order: Order }) {
 
       {/* Timeline */}
       {order.status !== 'cancelled' && order.status !== 'refunded' && (
-        <div className="grid grid-cols-4 gap-2 pt-4 border-t border-black/5">
+        <div className="grid grid-cols-5 gap-2 pt-4 border-t border-black/5">
           {STATUS_STEPS.map((step, i) => {
             const Icon = step.icon;
             const reached = idx >= i;
@@ -137,6 +138,12 @@ function OrderCard({ order }: { order: Order }) {
 
       {/* Tracking */}
       <Tracking order={order} />
+
+      {order.status === 'delivered' && (
+        <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 leading-relaxed border-t border-black/5 pt-4">
+          Delivered. If anything's wrong with your order, contact us within 48 hours of delivery.
+        </p>
+      )}
     </div>
   );
 }
