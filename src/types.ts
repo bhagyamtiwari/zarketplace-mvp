@@ -21,6 +21,14 @@ export interface Listing {
   image_url: string;
   image_urls: string[];
   shipping_category: string;
+  has_flaws: boolean;
+  flaws_description: string | null;
+  original_tags_attached: boolean | null;
+  original_packaging: boolean | null;
+  item_altered: boolean | null;
+  wear_frequency: string | null;
+  authenticity_confirmed: boolean;
+  seller_declared_at: string | null;
   status: ListingStatus;
   is_sold: boolean;
   created_at: string;

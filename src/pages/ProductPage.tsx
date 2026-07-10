@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { Listing } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { motion } from 'motion/react';
-import { Loader2, RotateCcw, ArrowLeft, ChevronLeft, ChevronRight, Grid, Layout, ShoppingBag, Check, Share2, X, ZoomIn, Link as LinkIcon, ShieldCheck } from 'lucide-react';
+import { Loader2, RotateCcw, ArrowLeft, ChevronLeft, ChevronRight, Grid, Layout, ShoppingBag, Check, Share2, X, ZoomIn, Link as LinkIcon, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { log } from '../lib/log';
 import { useCart } from '../lib/cart';
 import { useAuth } from '../lib/auth';
@@ -12,6 +12,7 @@ import { AuthModal } from '../components/AuthModal';
 import { ShareInstagramModal } from '../components/ShareInstagramModal';
 import { formatCurrency as fmt } from '../lib/utils';
 import { getShippingCategories, shippingRateFor, type ShippingCategory } from '../lib/pricing';
+import { conditionByName } from '../lib/condition';
 
 const plog = log('product');
 
@@ -23,6 +24,10 @@ const imageProtectStyle: React.CSSProperties = {
   WebkitTouchCallout: 'none',
   WebkitUserSelect: 'none',
   userSelect: 'none',
+};
+
+const WEAR_LABELS: Record<string, string> = {
+  never: 'Never', '1_2_times': '1-2 Times', occasionally: 'Occasionally', frequently: 'Frequently',
 };
 
 const CONDITION_TIERS = [
@@ -491,6 +496,69 @@ export function ProductPage() {
               </div>
             </div>
 
+            {(listing.original_tags_attached !== null || listing.original_packaging !== null || listing.item_altered !== null || listing.wear_frequency) && (
+              <div className="flex flex-col gap-4">
+                <h3 className="text-[10px] font-black uppercase tracking-widest">Item Details</h3>
+                <div className="grid grid-cols-2 gap-y-3 gap-x-4">
+                  {listing.original_tags_attached !== null && (
+                    <DetailRow label="Original tags" value={listing.original_tags_attached ? 'Attached' : 'Not attached'} />
+                  )}
+                  {listing.original_packaging !== null && (
+                    <DetailRow label="Packaging" value={listing.original_packaging ? 'Included' : 'Not included'} />
+                  )}
+                  {listing.item_altered !== null && (
+                    <DetailRow label="Altered" value={listing.item_altered ? 'Yes' : 'No'} />
+                  )}
+                  {listing.wear_frequency && (
+                    <DetailRow label="Worn" value={WEAR_LABELS[listing.wear_frequency] ?? listing.wear_frequency} />
+                  )}
+                </div>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-4">
+              <h3 className="text-[10px] font-black uppercase tracking-widest">Condition & Authenticity</h3>
+              <div className="flex flex-col gap-4">
+                {conditionByName(listing.condition ?? '') && (
+                  <div className="flex items-start gap-3">
+                    <span className="text-base leading-none shrink-0">{conditionByName(listing.condition ?? '')?.emoji}</span>
+                    <p className="text-[9px] font-medium uppercase tracking-widest leading-relaxed text-black/70">
+                      {conditionByName(listing.condition ?? '')?.desc}
+                    </p>
+                  </div>
+                )}
+
+                {listing.has_flaws ? (
+                  <div className="flex items-start gap-3 border border-amber-200 bg-amber-50 p-4">
+                    <AlertTriangle className="h-4 w-4 text-amber-700 mt-0.5 shrink-0" />
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[9px] font-black uppercase tracking-[0.2em] text-amber-800">Flaws disclosed by seller</span>
+                      <p className="text-[9px] font-medium leading-relaxed text-amber-800/80">{listing.flaws_description}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <ShieldCheck className="h-4 w-4 text-emerald-700 shrink-0" />
+                    <span className="text-[9px] font-black uppercase tracking-[0.2em] text-emerald-700">No flaws disclosed by seller</span>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-3">
+                  {listing.authenticity_confirmed ? (
+                    <>
+                      <ShieldCheck className="h-4 w-4 text-black shrink-0" />
+                      <span className="text-[9px] font-black uppercase tracking-[0.2em] text-black">Seller confirms this item is authentic</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertTriangle className="h-4 w-4 text-black/40 shrink-0" />
+                      <span className="text-[9px] font-black uppercase tracking-[0.2em] text-black/40">Authenticity not confirmed by seller</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
             <div ref={stickyStopRef} />
 
             <div className="flex flex-col gap-4 pt-6 border-t border-black/5">
@@ -607,6 +675,15 @@ export function ProductPage() {
       {user?.id === listing.seller_id && (
         <ShareInstagramModal open={shareOpen} onClose={() => setShareOpen(false)} listing={listing} />
       )}
+    </div>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[8px] font-black uppercase tracking-widest text-black/40">{label}</span>
+      <span className="text-[10px] font-bold uppercase tracking-widest">{value}</span>
     </div>
   );
 }

@@ -288,6 +288,17 @@ function ListingsTable({ listings, actioningId, onAction, onDelete }: {
                   <p><span className="text-black/40">Size:</span> {listing.size} ({listing.size_type})</p>
                   <p><span className="text-black/40">Cat:</span> {listing.category}</p>
                   <p><span className="text-black/40">Cond:</span> {listing.condition}</p>
+                  <p>
+                    <span className="text-black/40">Flaws:</span>{' '}
+                    {listing.has_flaws ? <span className="text-amber-700">Disclosed</span> : 'None'}
+                  </p>
+                  <p>
+                    <span className="text-black/40">Authentic:</span>{' '}
+                    {listing.authenticity_confirmed ? <span className="text-emerald-700">Confirmed</span> : <span className="text-black/50">Not confirmed</span>}
+                  </p>
+                  {listing.has_flaws && listing.flaws_description && (
+                    <p className="normal-case font-medium text-black/60 max-w-[220px]">"{listing.flaws_description}"</p>
+                  )}
                 </div>
               </td>
               <td className="py-4 px-3">
