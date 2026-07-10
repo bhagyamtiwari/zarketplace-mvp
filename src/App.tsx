@@ -21,6 +21,7 @@ import { Faq } from './pages/Faq';
 import { ShippingPolicy } from './pages/ShippingPolicy';
 import { SellerPolicy } from './pages/SellerPolicy';
 import { RefundPolicy } from './pages/RefundPolicy';
+import { BuyerProtection } from './pages/BuyerProtection';
 import { Terms } from './pages/Terms';
 import { GrievanceOfficer } from './pages/GrievanceOfficer';
 import { AuthCallback } from './pages/AuthCallback';
@@ -77,6 +78,7 @@ export default function App() {
             <Route path="/shipping-policy" element={<ShippingPolicy />} />
             <Route path="/seller-policy" element={<SellerPolicy />} />
             <Route path="/refund-policy" element={<RefundPolicy />} />
+            <Route path="/buyer-protection" element={<BuyerProtection />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
           </Routes>

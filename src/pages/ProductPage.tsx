@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { Listing } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { motion } from 'motion/react';
-import { Loader2, RotateCcw, ArrowLeft, ChevronLeft, ChevronRight, Grid, Layout, ShoppingBag, Check, Share2, X, ZoomIn, Link as LinkIcon } from 'lucide-react';
+import { Loader2, RotateCcw, ArrowLeft, ChevronLeft, ChevronRight, Grid, Layout, ShoppingBag, Check, Share2, X, ZoomIn, Link as LinkIcon, ShieldCheck } from 'lucide-react';
 import { log } from '../lib/log';
 import { useCart } from '../lib/cart';
 import { useAuth } from '../lib/auth';
@@ -504,6 +504,15 @@ export function ProductPage() {
                 <LinkIcon className="h-4 w-4 text-black" />
                 {copied ? 'Link Copied' : 'Copy Link'}
               </button>
+              <div className="flex items-start gap-4 text-[11px] font-black uppercase tracking-widest">
+                <ShieldCheck className="h-4 w-4 text-black shrink-0 mt-0.5" />
+                <div className="flex flex-col gap-1">
+                  <Link to="/buyer-protection" className="underline">Buyer Protection</Link>
+                  <span className="text-[9px] font-bold tracking-widest text-black/40 leading-relaxed normal-case">
+                    Your payment is held until you confirm delivery. Refund if the item is significantly not as described.
+                  </span>
+                </div>
+              </div>
               <div className="flex items-center gap-4 text-[11px] font-black uppercase tracking-widest">
                 <RotateCcw className="h-4 w-4 text-black" />
                 <Link to="/returns" className="underline">Returns & Cancellations Policy</Link>

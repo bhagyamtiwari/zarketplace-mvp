@@ -79,6 +79,7 @@ export interface Order {
   billing_address: Record<string, string> | null;
   amount: number;
   shipping_cost: number;
+  buyer_protection_fee: number;
   total_amount: number;
   payment_utr: string | null;
   payment_receipt_url: string | null;

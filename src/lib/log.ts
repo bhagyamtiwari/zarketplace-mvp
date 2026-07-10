@@ -27,6 +27,7 @@ type Tag =
   | 'admin'
   | 'cart'
   | 'account'
+  | 'pricing'
   | 'error-boundary';
 
 interface Logger {
