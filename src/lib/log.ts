@@ -26,7 +26,8 @@ type Tag =
   | 'seller'
   | 'admin'
   | 'cart'
-  | 'account';
+  | 'account'
+  | 'error-boundary';
 
 interface Logger {
   (...args: unknown[]): void;

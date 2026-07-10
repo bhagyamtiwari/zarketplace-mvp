@@ -1,4 +1,5 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import type { ReactNode } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { Home } from './pages/Home';
@@ -30,6 +31,15 @@ import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 
 import { ScrollToTop } from './components/ScrollToTop';
+import { ErrorBoundary } from './components/ErrorBoundary';
+
+// Keying by pathname remounts the boundary (clearing any caught error) the
+// moment the user navigates to a different route, instead of leaving them
+// stuck on the fallback until a manual reload.
+function RoutedErrorBoundary({ children }: { children: ReactNode }) {
+  const location = useLocation();
+  return <ErrorBoundary key={location.pathname}>{children}</ErrorBoundary>;
+}
 
 export default function App() {
   return (
@@ -40,6 +50,7 @@ export default function App() {
       <div className="min-h-screen bg-white font-sans text-black selection:bg-black selection:text-white overflow-x-clip">
         <Navbar />
         <main>
+          <RoutedErrorBoundary>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/browse" element={<Browse />} />
@@ -69,6 +80,7 @@ export default function App() {
             <Route path="/terms" element={<Terms />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
           </Routes>
+          </RoutedErrorBoundary>
         </main>
 
         <Footer />

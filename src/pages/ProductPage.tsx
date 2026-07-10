@@ -69,6 +69,12 @@ export function ProductPage() {
     return () => observer.disconnect();
   }, [listing?.id]);
 
+  // Swipe state for the mobile carousel. Declared here (not below the
+  // loading/not-found early returns) so the hook order stays identical
+  // across renders — hooks after a conditional return crash React (#310).
+  const swipeRef = React.useRef<{ startX: number } | null>(null);
+  const justSwipedRef = React.useRef(false);
+
   const dragRef = React.useRef<{ startX: number; startY: number; panX: number; panY: number; moved: boolean } | null>(null);
   const zoomImgRef = React.useRef<HTMLImageElement>(null);
   const [panLimit, setPanLimit] = React.useState({ x: 0, y: 0 });
@@ -170,8 +176,6 @@ export function ProductPage() {
 
   // Swipe left/right on the mobile carousel to switch photos. A swipe past
   // the threshold suppresses the click-to-zoom that follows touchend.
-  const swipeRef = React.useRef<{ startX: number } | null>(null);
-  const justSwipedRef = React.useRef(false);
   const SWIPE_THRESHOLD = 40;
 
   const onCarouselTouchStart = (e: React.TouchEvent) => {
