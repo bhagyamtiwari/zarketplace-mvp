@@ -43,6 +43,7 @@ const SUPPORT: FooterColumn = {
   title: 'Support',
   links: [
     { label: 'Contact', to: '/contact' },
+    { label: 'Buyer Protection', to: '/buyer-protection' },
     { label: 'Shipping Policy', to: '/shipping-policy' },
     { label: 'Returns', to: '/returns' },
     { label: 'Refund Policy', to: '/refund-policy' },

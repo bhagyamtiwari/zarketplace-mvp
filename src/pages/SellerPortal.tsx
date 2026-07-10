@@ -2,7 +2,11 @@
 // Listings (active/sold) + sold orders. For each sold order, the seller can:
 //   - Add tracking (URL required, courier/number/photo optional) to ship.
 //   - Edit tracking after submission.
-// MVP: buyer pays admin UPI; admin verifies and pays seller after shipping.
+// MVP: buyer pays admin UPI; admin verifies, and once the order is marked
+// delivered, a payout row is created automatically (48-hour review window,
+// see docs/REALIGNMENT_PLAN.md). Sellers no longer create their own payout
+// row by marking shipped - that used to release money before the buyer had
+// even confirmed the item arrived.
 
 import * as React from 'react';
 import { Link } from 'react-router-dom';
@@ -87,7 +91,7 @@ function SellerInner() {
   const activeListings = listings.filter((l) => !l.is_sold);
   const soldListings = listings.filter((l) => l.is_sold);
   const incomingOrders = orders.filter((o) =>
-    o.status === 'awaiting_verification' || o.status === 'paid' || o.status === 'shipped',
+    o.status === 'awaiting_verification' || o.status === 'paid' || o.status === 'shipped' || o.status === 'delivered',
   );
   const awaitingPayouts = payouts.filter((p) => p.status === 'awaiting_payout');
 
@@ -99,8 +103,8 @@ function SellerInner() {
 
   const TAB_META: Record<Tab, { title: string; description: string }> = {
     listings: { title: 'My Listings', description: 'Items you have put up for sale. Active items appear on browse; sold items move below once a buyer purchases them.' },
-    orders: { title: 'Sales', description: 'Orders for items you sold. Add tracking once a buyer pays, and your payout is released once it ships.' },
-    payouts: { title: 'Payouts', description: 'What you’re owed and what you’ve already been paid.' },
+    orders: { title: 'Sales', description: 'Orders for items you sold. Add tracking once a buyer pays. Your payout is released after delivery is confirmed and the 48-hour buyer review window closes.' },
+    payouts: { title: 'Payouts', description: 'What you’re owed and what you’ve already been paid. Payouts are held until 48 hours after delivery.' },
   };
 
   return (
@@ -314,14 +318,20 @@ function OrderRow({ order, onUpdated }: { order: Order; onUpdated: () => void })
 
       {order.status === 'awaiting_verification' && (
         <p className="text-[10px] font-bold uppercase tracking-widest text-black/60 leading-relaxed border-t border-black/5 pt-4">
-          Payment is being verified by zarketplace. Add tracking and ship the item; your payout is released once shipping is confirmed.
+          Payment is being verified by zarketplace. Add tracking and ship the item. Your payout is released after delivery is confirmed and the buyer's 48-hour review window closes.
+        </p>
+      )}
+
+      {order.status === 'delivered' && (
+        <p className="text-[10px] font-bold uppercase tracking-widest text-black/60 leading-relaxed border-t border-black/5 pt-4">
+          Delivered. Your payout is held for 48 hours after delivery, then paid out as long as there's no open claim on this order.
         </p>
       )}
 
       <div className="pt-4 border-t border-black/5">
         {order.status === 'awaiting_verification' || order.status === 'paid' || (order.status === 'shipped' && editing) ? (
           <TrackingForm order={order} onSaved={() => { setEditing(false); onUpdated(); }} />
-        ) : order.status === 'shipped' && order.tracking_url ? (
+        ) : (order.status === 'shipped' || order.status === 'delivered') && order.tracking_url ? (
           <div className="flex flex-col gap-2 text-[10px] font-bold uppercase tracking-widest text-black/60">
             <div className="flex items-center justify-between gap-3">
               <a href={order.tracking_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-black underline">
@@ -401,22 +411,12 @@ function TrackingForm({ order, onSaved }: { order: Order; onSaved: () => void })
       const { error } = await supabase.from('orders').update(update).eq('id', order.id);
       if (error) throw error;
 
-      // Notify buyer that their item has shipped (best effort).
-      const justShipped = update.status === 'shipped';
-      if (justShipped) {
+      // Notify buyer that their item has shipped (best effort). The payout
+      // row is no longer created here - it's created automatically by a DB
+      // trigger once an admin (or, later, the Shiprocket webhook) marks the
+      // order delivered, starting the 48-hour review window first.
+      if (update.status === 'shipped') {
         void sendEmail({ template: 'tracking_update_buyer', order_id: order.id });
-        // Create the payout ledger row the moment the item ships. Best
-        // effort: a failure here shouldn't block the seller from having
-        // marked the order shipped, but it would mean no payout record
-        // exists, so we surface it loudly in the console for now.
-        if (order.seller_id) {
-          const { error: payoutErr } = await supabase.from('seller_payouts').insert({
-            seller_id: order.seller_id,
-            order_id: order.id,
-            amount: Number(order.total_amount),
-          });
-          if (payoutErr) splog.error('seller_payouts insert failed', payoutErr);
-        }
       }
 
       onSaved();
@@ -504,12 +504,13 @@ function PayoutTable({ title, rows, orderById }: {
             <thead><tr className="border-b border-black/10">
               <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Order</th>
               <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Amount</th>
-              <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Shipped</th>
-              <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40 text-right">Paid On</th>
+              <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Delivered</th>
+              <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40 text-right">Status</th>
             </tr></thead>
             <tbody>
               {rows.map((p) => {
                 const order = orderById.get(p.order_id);
+                const held = p.status === 'awaiting_payout' && p.releasable_at && new Date(p.releasable_at) > new Date();
                 return (
                   <tr key={p.id} className="border-b border-black/5">
                     <td className="py-3 px-3 text-xs font-black uppercase tracking-tight">{order?.listing_title ?? order?.order_number ?? p.order_id.slice(0, 8)}</td>
@@ -518,7 +519,11 @@ function PayoutTable({ title, rows, orderById }: {
                       {new Date(p.created_at).toLocaleDateString()}
                     </td>
                     <td className="py-3 px-3 text-[10px] font-bold uppercase tracking-widest text-black/60 text-right">
-                      {p.paid_at ? new Date(p.paid_at).toLocaleDateString() : '-'}
+                      {p.status === 'paid_out'
+                        ? (p.paid_at ? `Paid ${new Date(p.paid_at).toLocaleDateString()}` : 'Paid')
+                        : held
+                          ? `Held until ${new Date(p.releasable_at as string).toLocaleDateString()}`
+                          : 'Ready for payout'}
                     </td>
                   </tr>
                 );

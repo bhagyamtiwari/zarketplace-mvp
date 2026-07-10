@@ -29,8 +29,7 @@ type ListingLike = Pick<
   | 'seller_id'
   | 'seller_email'
   | 'seller_upi_vpa'
-  | 'shipping_mode'
-  | 'shipping_cost'
+  | 'shipping_category'
 >;
 
 interface CartContextValue {
@@ -62,8 +61,7 @@ function snapshot(l: ListingLike): CartItem {
     seller_id: l.seller_id,
     seller_email: l.seller_email,
     seller_upi_vpa: l.seller_upi_vpa,
-    shipping_mode: l.shipping_mode,
-    shipping_cost: l.shipping_cost,
+    shipping_category: l.shipping_category,
   };
 }
 
@@ -90,7 +88,7 @@ async function fetchListingsByIds(ids: string[]): Promise<Record<string, Listing
   if (ids.length === 0) return {};
   const { data, error } = await supabase
     .from('listings')
-    .select('id, sku, title, brand, price, sale_price, image_url, size, seller_id, seller_email, seller_upi_vpa, shipping_mode, shipping_cost')
+    .select('id, sku, title, brand, price, sale_price, image_url, size, seller_id, seller_email, seller_upi_vpa, shipping_category')
     .in('id', ids);
   if (error) {
     clog.warn('fetchListingsByIds error', error);

@@ -1,6 +1,10 @@
 // Admin portal: listings approval, orders verification, user management.
 // MVP: buyer pays admin UPI. Admin verifies payment manually (e.g. in UPI
-// app), marks "paid", then pays the seller once shipping is confirmed.
+// app), marks "paid", then marks "delivered" once the item has arrived
+// (the Shiprocket webhook takes over this last step once it exists). Marking
+// delivered starts a 48-hour review window; a payout row is created
+// automatically and can only be paid out once that window has closed with
+// no open claim on the order (enforced in the DB, not just here).
 
 import React from 'react';
 import { Link } from 'react-router-dom';
@@ -28,7 +32,7 @@ interface AdminProfile {
 }
 
 const ORDER_STATUSES: OrderStatus[] = [
-  'awaiting_payment', 'awaiting_verification', 'paid', 'payment_failed', 'payment_conflict', 'shipped', 'cancelled', 'refunded',
+  'awaiting_payment', 'awaiting_verification', 'paid', 'payment_failed', 'payment_conflict', 'shipped', 'delivered', 'cancelled', 'refunded',
 ];
 
 export function Admin() {
@@ -78,11 +82,18 @@ function AdminInner() {
   };
 
   const markPaidOut = async (id: string) => {
+    // The DB also enforces this (see migration 20260710000001) - the
+    // releasable_at check here is just so the admin gets an immediate,
+    // readable error instead of a raw RLS rejection.
+    const payout = payouts.find((p) => p.id === id);
+    if (payout?.releasable_at && new Date(payout.releasable_at) > new Date()) {
+      alert(`This payout is held until ${new Date(payout.releasable_at).toLocaleString()} (48 hours after delivery).`);
+      return;
+    }
     const { error } = await supabase.from('seller_payouts')
       .update({ status: 'paid_out', paid_at: new Date().toISOString() })
       .eq('id', id);
     if (error) { alert(error.message); return; }
-    const payout = payouts.find((p) => p.id === id);
     if (payout?.order_id) {
       void sendEmail({ template: 'payout_released_seller', order_id: payout.order_id });
     }
@@ -277,6 +288,17 @@ function ListingsTable({ listings, actioningId, onAction, onDelete }: {
                   <p><span className="text-black/40">Size:</span> {listing.size} ({listing.size_type})</p>
                   <p><span className="text-black/40">Cat:</span> {listing.category}</p>
                   <p><span className="text-black/40">Cond:</span> {listing.condition}</p>
+                  <p>
+                    <span className="text-black/40">Flaws:</span>{' '}
+                    {listing.has_flaws ? <span className="text-amber-700">Disclosed</span> : 'None'}
+                  </p>
+                  <p>
+                    <span className="text-black/40">Authentic:</span>{' '}
+                    {listing.authenticity_confirmed ? <span className="text-emerald-700">Confirmed</span> : <span className="text-black/50">Not confirmed</span>}
+                  </p>
+                  {listing.has_flaws && listing.flaws_description && (
+                    <p className="normal-case font-medium text-black/60 max-w-[220px]">"{listing.flaws_description}"</p>
+                  )}
                 </div>
               </td>
               <td className="py-4 px-3">
@@ -408,7 +430,7 @@ function PayoutsPanel({ payouts, orders, loading, onMarkPaid }: {
           <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Seller</th>
           <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">UPI</th>
           <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Amount</th>
-          <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Shipped</th>
+          <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Delivered</th>
           {showAction ? (
             <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40 text-right">Action</th>
           ) : (
@@ -418,6 +440,7 @@ function PayoutsPanel({ payouts, orders, loading, onMarkPaid }: {
         <tbody>
           {rows.map((p) => {
             const order = orderById.get(p.order_id);
+            const held = showAction && p.releasable_at && new Date(p.releasable_at) > new Date();
             return (
               <tr key={p.id} className="border-b border-black/5">
                 <td className="py-3 px-3 text-xs font-bold">{order?.order_number ?? p.order_id.slice(0, 8)}<br /><span className="text-[10px] font-normal text-black/40">{order?.listing_title}</span></td>
@@ -427,10 +450,16 @@ function PayoutsPanel({ payouts, orders, loading, onMarkPaid }: {
                 <td className="py-3 px-3 text-[10px] font-bold uppercase tracking-widest text-black/60">{new Date(p.created_at).toLocaleDateString()}</td>
                 <td className="py-3 px-3 text-right">
                   {showAction ? (
-                    <button onClick={() => onMarkPaid(p.id)}
-                      className="border border-black px-3 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-black hover:text-white">
-                      Mark Paid Out
-                    </button>
+                    held ? (
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-black/40">
+                        Held until {new Date(p.releasable_at as string).toLocaleDateString()}
+                      </span>
+                    ) : (
+                      <button onClick={() => onMarkPaid(p.id)}
+                        className="border border-black px-3 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-black hover:text-white">
+                        Mark Paid Out
+                      </button>
+                    )
                   ) : (
                     <span className="text-[10px] font-bold uppercase tracking-widest text-black/60">{p.paid_at ? new Date(p.paid_at).toLocaleDateString() : '-'}</span>
                   )}

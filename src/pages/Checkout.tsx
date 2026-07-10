@@ -18,6 +18,7 @@ import { useAuth } from '../lib/auth';
 import { useCart } from '../lib/cart';
 import { RequireAuth } from '../components/RequireAuth';
 import { log } from '../lib/log';
+import { getPricingConfig, buyerProtectionFee, type PricingConfig, getShippingCategories, shippingRateFor, type ShippingCategory } from '../lib/pricing';
 
 const clog = log('checkout');
 const RESUME_KEY = 'zk_checkout_v3';
@@ -47,7 +48,7 @@ function snapshotFromListing(l: Listing): CartItem {
     image_url: l.image_url, size: l.size,
     seller_id: l.seller_id, seller_email: l.seller_email,
     seller_upi_vpa: l.seller_upi_vpa, seller_display_name: l.seller_display_name,
-    shipping_mode: l.shipping_mode, shipping_cost: l.shipping_cost,
+    shipping_category: l.shipping_category,
   };
 }
 
@@ -136,9 +137,19 @@ function CheckoutInner() {
     } catch {}
   }, []);
 
+  // Pricing config drives the Buyer Protection line. It's read once; until it
+  // loads (or if it's unavailable because the migration isn't applied yet) the
+  // fee is treated as 0, which matches the server: the charge always comes from
+  // orders.total_amount, and the trigger only adds the fee once the config row
+  // exists. So display and charge never diverge.
+  const [pricing, setPricing] = React.useState<PricingConfig | null>(null);
+  const [shippingCategories, setShippingCategories] = React.useState<ShippingCategory[]>([]);
+  React.useEffect(() => { getPricingConfig().then(setPricing); getShippingCategories().then(setShippingCategories); }, []);
+
   const subtotal = items.reduce((s, i) => s + (i.sale_price ?? i.price ?? 0), 0);
-  const shipping = items.reduce((s, i) => s + (i.shipping_mode === 'paid' ? (i.shipping_cost || 0) : 0), 0);
-  const total = subtotal + shipping;
+  const shipping = items.reduce((s, i) => s + shippingRateFor(i.shipping_category, shippingCategories), 0);
+  const buyerProtection = items.reduce((s, i) => s + buyerProtectionFee(i.sale_price ?? i.price ?? 0, pricing), 0);
+  const total = subtotal + shipping + buyerProtection;
 
   const persistResume = (state: Partial<ResumeState>) => {
     try {
@@ -184,7 +195,11 @@ function CheckoutInner() {
 
       const rows = items.map((i) => {
         const itemPrice = Number(i.sale_price ?? i.price ?? 0);
-        const itemShip = i.shipping_mode === 'paid' ? Number(i.shipping_cost || 0) : 0;
+        // The server trigger (orders_snapshot_from_listing) recomputes
+        // amount/shipping_cost/buyer_protection_fee/total_amount from the
+        // live listing + pricing config on insert - these client values are
+        // only a display-matching best guess, never trusted for the charge.
+        const itemShip = shippingRateFor(i.shipping_category, shippingCategories);
         return {
           listing_id: i.listing_id,
           listing_sku: i.sku ?? null,
@@ -432,7 +447,7 @@ function CheckoutInner() {
             />
           </div>
           <div className="lg:col-span-5">
-            <Summary items={items} subtotal={subtotal} shipping={shipping} total={total} />
+            <Summary items={items} subtotal={subtotal} shipping={shipping} shippingLoading={shippingCategories.length === 0} buyerProtection={buyerProtection} total={total} />
           </div>
         </div>
       )}
@@ -441,7 +456,7 @@ function CheckoutInner() {
         <div className="max-w-xl mx-auto mt-8 sm:mt-14">
           <RazorpayPayStep
             items={items}
-            subtotal={subtotal} shipping={shipping} amount={total}
+            subtotal={subtotal} shipping={shipping} shippingLoading={shippingCategories.length === 0} buyerProtection={buyerProtection} amount={total}
             reservationExpiresAt={reservationExpiresAt}
             onPay={startPayment} submitting={submitting} errorMsg={errorMsg}
             onExpire={() => {
@@ -621,9 +636,9 @@ function formatCountdown(seconds: number) {
 }
 
 function RazorpayPayStep({
-  items, subtotal, shipping, amount, reservationExpiresAt, onPay, onExpire, submitting, errorMsg,
+  items, subtotal, shipping, shippingLoading, buyerProtection, amount, reservationExpiresAt, onPay, onExpire, submitting, errorMsg,
 }: {
-  items: CartItem[]; subtotal: number; shipping: number; amount: number;
+  items: CartItem[]; subtotal: number; shipping: number; shippingLoading: boolean; buyerProtection: number; amount: number;
   reservationExpiresAt: string | null; onPay: () => void;
   onExpire?: () => void; submitting: boolean; errorMsg: string | null;
 }) {
@@ -662,13 +677,21 @@ function RazorpayPayStep({
 
       <div className="flex flex-col gap-3 border-y border-black/10 py-6">
         <Row label="Item price" value={formatCurrency(subtotal)} />
-        <Row label="Shipping" value={shipping > 0 ? formatCurrency(shipping) : 'Free'} />
+        <Row label="Shipping" value={shippingLoading ? 'Calculating...' : formatCurrency(shipping)} />
+        {buyerProtection > 0 && <Row label="Buyer Protection" value={formatCurrency(buyerProtection)} />}
       </div>
 
       <div className="flex justify-between items-end">
         <span className="text-sm font-black uppercase tracking-widest">Total</span>
         <span className="text-4xl font-black tracking-tighter">{formatCurrency(amount)}</span>
       </div>
+
+      {buyerProtection > 0 && (
+        <p className="text-[9px] font-bold uppercase tracking-widest text-black/40 leading-relaxed -mt-2">
+          Buyer Protection holds your payment in escrow until you confirm delivery, with a refund if the item is significantly not as described.{' '}
+          <Link to="/buyer-protection" className="underline text-black/60">Learn more</Link>
+        </p>
+      )}
 
       {errorMsg && <p className="text-[10px] font-bold uppercase tracking-widest text-red-600 text-center">{errorMsg}</p>}
 
@@ -686,8 +709,8 @@ function RazorpayPayStep({
   );
 }
 
-function Summary({ items, subtotal, shipping, total, reservationExpiresAt }: {
-  items: CartItem[]; subtotal: number; shipping: number; total: number;
+function Summary({ items, subtotal, shipping, shippingLoading, buyerProtection, total, reservationExpiresAt }: {
+  items: CartItem[]; subtotal: number; shipping: number; shippingLoading: boolean; buyerProtection: number; total: number;
   reservationExpiresAt?: string | null;
 }) {
   const secondsLeft = useCountdown(reservationExpiresAt ?? null);
@@ -722,7 +745,8 @@ function Summary({ items, subtotal, shipping, total, reservationExpiresAt }: {
 
       <div className="flex flex-col gap-3 border-y border-black/5 py-6">
         <Row label="Item price" value={formatCurrency(subtotal)} />
-        <Row label="Shipping" value={shipping > 0 ? formatCurrency(shipping) : 'Free'} />
+        <Row label="Shipping" value={shippingLoading ? 'Calculating...' : formatCurrency(shipping)} />
+        {buyerProtection > 0 && <Row label="Buyer Protection" value={formatCurrency(buyerProtection)} />}
       </div>
 
       <div className="flex justify-between items-end">
@@ -732,7 +756,7 @@ function Summary({ items, subtotal, shipping, total, reservationExpiresAt }: {
 
       <div className="flex items-center justify-center gap-3 text-[9px] font-black uppercase tracking-[0.2em] text-black/30">
         <ShieldCheck className="h-4 w-4" />
-        <span>Secure payment</span>
+        <span>{buyerProtection > 0 ? 'Protected payment' : 'Secure payment'}</span>
       </div>
     </div>
   );

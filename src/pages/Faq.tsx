@@ -45,7 +45,7 @@ const SECTIONS: FaqSection[] = [
       },
       {
         q: 'When do I get paid?',
-        a: 'Your payout is released after you confirm shipment and upload tracking information for the order.',
+        a: 'Ship the item and upload tracking information. Once the order is marked delivered, your payout is held for 48 hours (the buyer’s review window) and then released.',
       },
       {
         q: 'How long do I have to ship?',

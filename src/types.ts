@@ -1,5 +1,4 @@
 export type ListingStatus = 'pending' | 'approved' | 'rejected';
-export type ShippingMode = 'free' | 'paid';
 
 export interface Listing {
   id: string;
@@ -21,8 +20,15 @@ export interface Listing {
   condition: string | null;
   image_url: string;
   image_urls: string[];
-  shipping_mode: ShippingMode;
-  shipping_cost: number;
+  shipping_category: string;
+  has_flaws: boolean;
+  flaws_description: string | null;
+  original_tags_attached: boolean | null;
+  original_packaging: boolean | null;
+  item_altered: boolean | null;
+  wear_frequency: string | null;
+  authenticity_confirmed: boolean;
+  seller_declared_at: string | null;
   status: ListingStatus;
   is_sold: boolean;
   created_at: string;
@@ -46,8 +52,7 @@ export interface CartItem {
   seller_email?: string;
   seller_upi_vpa?: string;
   seller_display_name?: string | null;
-  shipping_mode?: ShippingMode;
-  shipping_cost?: number;
+  shipping_category?: string;
 }
 
 export type OrderStatus =
@@ -57,6 +62,7 @@ export type OrderStatus =
   | 'payment_failed'
   | 'payment_conflict'
   | 'shipped'
+  | 'delivered'
   | 'cancelled'
   | 'refunded';
 
@@ -78,6 +84,8 @@ export interface Order {
   billing_address: Record<string, string> | null;
   amount: number;
   shipping_cost: number;
+  shipping_category: string | null;
+  buyer_protection_fee: number;
   total_amount: number;
   payment_utr: string | null;
   payment_receipt_url: string | null;
@@ -89,6 +97,9 @@ export interface Order {
   courier: string | null;
   package_image_url: string | null;
   shipped_at: string | null;
+  delivered_at: string | null;
+  review_ends_at: string | null;
+  claim_open: boolean;
   last_nudge_sent_at: string | null;
   created_at: string;
   updated_at: string;
@@ -102,6 +113,7 @@ export interface SellerPayout {
   order_id: string;
   amount: number;
   status: PayoutStatus;
+  releasable_at: string | null;
   created_at: string;
   paid_at: string | null;
 }

@@ -7,7 +7,7 @@ import { Listing } from '../types';
 import { ListingCard } from '../components/ListingCard';
 import { cn } from '../lib/utils';
 import { log } from '../lib/log';
-import { LaunchOfferBanner } from '../components/LaunchOfferBanner';
+import { PromiseBanner } from '../components/PromiseBanner';
 
 const hlog = log('home');
 
@@ -35,9 +35,9 @@ export function Home() {
 
   return (
     <div className="flex flex-col bg-white">
-   {/* LAUNCH TICKER - desktop only, sits at the very top of the page below the fixed nav */}
+   {/* PROMISE TICKER - desktop only, sits at the very top of the page below the fixed nav */}
    <div className="hidden md:block pt-20">
-     <LaunchOfferBanner variant="ticker" />
+     <PromiseBanner variant="ticker" />
    </div>
 
    {/* HERO SECTION */}
@@ -108,9 +108,9 @@ export function Home() {
         </div>
       </section>
 
-  {/* LAUNCH NEWS TICKER - mobile only, desktop version sits above the hero */}
+  {/* PROMISE TICKER - mobile only, desktop version sits above the hero */}
   <div className="md:hidden">
-    <LaunchOfferBanner variant="ticker" />
+    <PromiseBanner variant="ticker" />
   </div>
 
   {/* MARKETPLACE PREVIEW SECTION */}
@@ -163,7 +163,7 @@ export function Home() {
                   'Seller payouts',
                   'Verified listings',
                   'No "DM for price"',
-                  'Low seller fees',
+                  'No selling fees',
                 ].map((item) => (
                   <div key={item} className="flex items-center gap-3">
                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-black text-white text-[10px] font-black">✓</span>

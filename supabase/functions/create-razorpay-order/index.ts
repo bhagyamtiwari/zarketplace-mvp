@@ -58,7 +58,7 @@ serve(async (req) => {
 
     const { data: orders, error: ordersErr } = await supabase
       .from("orders")
-      .select("id, order_number, buyer_id, status, total_amount, razorpay_order_id, checkout_group_id, listing_id")
+      .select("id, order_number, buyer_id, seller_id, status, total_amount, razorpay_order_id, checkout_group_id, listing_id")
       .in("order_number", body.order_numbers);
     if (ordersErr) throw ordersErr;
     if (!orders || orders.length !== body.order_numbers.length) {
@@ -69,6 +69,13 @@ serve(async (req) => {
     }
     if (orders.some((o) => o.status !== "awaiting_payment" && o.status !== "payment_failed")) {
       return json({ error: "One or more orders are not awaiting payment" }, 409);
+    }
+    // One order = one seller = one shipment = one payout (§0.4). The cart UI
+    // already prevents mixing sellers, but this is the actual charge path -
+    // it must not trust the client to have enforced that.
+    const sellerIds = new Set(orders.map((o) => o.seller_id).filter(Boolean));
+    if (sellerIds.size > 1) {
+      return json({ error: "Orders from multiple sellers cannot be paid in one checkout" }, 400);
     }
 
     // Retry-path guard: an order can sit in payment_failed (a prior failed

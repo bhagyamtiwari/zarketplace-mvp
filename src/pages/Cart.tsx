@@ -4,6 +4,7 @@ import { ShoppingBag, Trash2, ArrowRight, ArrowLeft, Package, AlertTriangle } fr
 import { useCart } from '../lib/cart';
 import { formatCurrency } from '../lib/utils';
 import { RequireAuth } from '../components/RequireAuth';
+import { getShippingCategories, shippingRateFor, type ShippingCategory } from '../lib/pricing';
 
 export function Cart() {
   return (
@@ -17,8 +18,11 @@ function CartInner() {
   const { items, remove, clear, count } = useCart();
   const navigate = useNavigate();
 
+  const [shippingCategories, setShippingCategories] = React.useState<ShippingCategory[]>([]);
+  React.useEffect(() => { getShippingCategories().then(setShippingCategories); }, []);
+
   const subtotal = items.reduce((sum, i) => sum + (i.sale_price ?? i.price ?? 0), 0);
-  const shipping = items.reduce((sum, i) => sum + (i.shipping_mode === 'paid' ? (i.shipping_cost || 0) : 0), 0);
+  const shipping = items.reduce((sum, i) => sum + shippingRateFor(i.shipping_category, shippingCategories), 0);
   const total = subtotal + shipping;
   const sellerIds = new Set(items.map((i) => i.seller_id).filter(Boolean));
   const hasMultipleSellers = sellerIds.size > 1;
@@ -108,11 +112,7 @@ function CartInner() {
           </div>
           <div className="flex justify-between text-xs font-bold uppercase tracking-widest">
             <span>Shipping</span>
-            {shipping > 0 ? (
-              <span>{formatCurrency(shipping)}</span>
-            ) : (
-              <span className="text-emerald-600">Free</span>
-            )}
+            <span>{shippingCategories.length === 0 ? 'Calculating...' : formatCurrency(shipping)}</span>
           </div>
         </div>
 
