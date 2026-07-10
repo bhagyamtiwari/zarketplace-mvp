@@ -212,7 +212,10 @@ function SellInner() {
     setImagePreviews((prev) => prev.filter((_, i) => i !== index));
   };
 
-  // Per-step gating: what must be true before "Continue" advances.
+  // What must be true for each step. Navigation between steps is free - this
+  // only gates the final Publish, so sellers can jump ahead, fill things out
+  // of order, and come back. If anything's missing at Publish time, we jump
+  // to the first incomplete step and show what's needed there.
   const validateStep = (s: number): string | null => {
     if (s === 0) {
       if (imageFiles.length === 0) return 'Upload at least one photo.';
@@ -247,18 +250,13 @@ function SellInner() {
     return null;
   };
 
-  const goNext = () => {
-    const err = validateStep(step);
-    if (err) { setStepError(err); return; }
+  const goToStep = (s: number) => {
     setStepError(null);
-    setStep((s) => Math.min(s + 1, STEP_LABELS.length - 1));
+    setStep(Math.max(0, Math.min(s, STEP_LABELS.length - 1)));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-  const goBack = () => {
-    setStepError(null);
-    setStep((s) => Math.max(s - 1, 0));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  const goNext = () => goToStep(step + 1);
+  const goBack = () => goToStep(step - 1);
 
   const allDeclared = Object.values(declarations).every(Boolean);
   const canPublish = authenticity !== null && allDeclared && !loading;
@@ -266,6 +264,11 @@ function SellInner() {
   const handlePublish = async () => {
     setStepError(null);
     if (!user) { setStepError('Sign in first.'); return; }
+
+    for (let s = 0; s <= 4; s++) {
+      const err = validateStep(s);
+      if (err) { setStep(s); setStepError(err); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+    }
     if (authenticity === null) { setStepError('Confirm whether this item is authentic.'); return; }
     if (!allDeclared) { setStepError('Check every declaration below before publishing.'); return; }
 
@@ -384,16 +387,23 @@ function SellInner() {
           <p className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40">Six steps. No selling fees. You keep 100% of your price.</p>
         </div>
 
-        {/* Progress */}
+        {/* Progress - every step is reachable directly; only Publish is gated */}
         <div className="mb-10 flex flex-col gap-3">
           <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-[0.2em] text-black/40">
             <span>Step {step + 1} of {STEP_LABELS.length}</span>
             <span>{STEP_LABELS[step]}</span>
           </div>
           <div className="flex gap-1.5">
-            {STEP_LABELS.map((label, i) => (
-              <div key={label} className={cn('h-1.5 flex-1 rounded-full transition-colors', i <= step ? 'bg-black' : 'bg-black/10')} />
-            ))}
+            {STEP_LABELS.map((label, i) => {
+              const complete = i === 5 ? authenticity !== null && allDeclared : validateStep(i) === null;
+              return (
+                <button key={label} type="button" onClick={() => goToStep(i)}
+                  className={cn('h-1.5 flex-1 rounded-full transition-colors',
+                    i === step ? 'bg-black' : complete ? 'bg-black/40' : 'bg-black/10')}
+                  aria-label={`Go to ${label}`}
+                />
+              );
+            })}
           </div>
         </div>
 
@@ -548,8 +558,17 @@ function YesNoToggle({ value, onChange }: { value: boolean | null; onChange: (v:
   );
 }
 
+// Short one-line trust cue - uppercase micro-label, matches the site's
+// system-voice register.
 function TrustNote({ children }: { children: React.ReactNode }) {
-  return <p className="text-[9px] font-bold uppercase tracking-widest text-black/40 leading-relaxed">{children}</p>;
+  return <p className="text-[10px] font-bold uppercase tracking-widest text-black/50 leading-relaxed">{children}</p>;
+}
+
+// Longer explanatory copy (photo tips, payout terms, disclosures). Sentence
+// case at readable weight - uppercase tracking-widest becomes a legibility
+// tax past one short line.
+function InfoText({ children }: { children: React.ReactNode }) {
+  return <p className="text-xs font-medium text-black/70 leading-relaxed">{children}</p>;
 }
 
 function PhotosStep({ imagePreviews, onAdd, onRemove }: {
@@ -571,7 +590,7 @@ function PhotosStep({ imagePreviews, onAdd, onRemove }: {
 
       <div className="flex flex-col gap-2">
         <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 border-b border-black/5 pb-3">Item Photos</h3>
-        <TrustNote>Great photos help buyers purchase with confidence. Use natural light, a plain background, and show the complete item - no screenshots or stock images.</TrustNote>
+        <InfoText>Use natural light and a plain background. Show the whole item. No screenshots or stock photos.</InfoText>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -694,7 +713,7 @@ function DetailsStep(props: {
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
           <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 border-b border-black/5 pb-3">More Details</h3>
-          <TrustNote>Optional, but detailed listings reduce cancellations and disputes.</TrustNote>
+          <TrustNote>Optional. Detailed listings mean fewer cancellations.</TrustNote>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
           <div className="flex flex-col gap-3">
@@ -742,12 +761,12 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {CONDITIONS.map((c) => (
             <button key={c.name} type="button" onClick={() => setCondition(c.name)}
-              className={cn('border p-4 text-left transition-all flex items-start gap-3',
+              className={cn('border p-5 text-left transition-all flex items-start gap-3',
                 condition === c.name ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
-              <span className="text-lg leading-none shrink-0">{c.emoji}</span>
-              <span className="flex flex-col gap-1">
+              <span className="text-xl leading-none shrink-0">{c.emoji}</span>
+              <span className="flex flex-col gap-1.5">
                 <span className="text-[10px] font-black uppercase tracking-widest">{c.name}</span>
-                <span className={cn('text-[9px] leading-relaxed', condition === c.name ? 'text-white/70' : 'text-black/50')}>{c.desc}</span>
+                <span className={cn('text-xs font-medium leading-relaxed', condition === c.name ? 'text-white/80' : 'text-black/70')}>{c.desc}</span>
               </span>
             </button>
           ))}
@@ -757,7 +776,7 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
           <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 border-b border-black/5 pb-3">Does this item have any flaws? *</h3>
-          <TrustNote>Showing flaws builds buyer trust and avoids disputes after delivery.</TrustNote>
+          <TrustNote>Showing flaws builds buyer trust.</TrustNote>
         </div>
         <div className="grid grid-cols-2 gap-3 max-w-xs">
           <button type="button" onClick={() => setHasFlaws(false)}
@@ -780,9 +799,7 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
                 <textarea value={flawsDescription} onChange={(e) => setFlawsDescription(e.target.value)} rows={3}
                   placeholder="e.g. small stain on the left cuff, loose stitching on the hem"
                   className="border border-black/10 p-6 text-sm font-medium focus:border-black focus:outline-none resize-none transition-all placeholder:text-black/20" />
-                <p className="text-[9px] font-bold uppercase tracking-widest text-black/40 leading-relaxed">
-                  Add a close-up photo of the flaw back in Photos - listings with undisclosed flaws are the most common source of disputes.
-                </p>
+                <InfoText>Add a close-up photo of the flaw in Photos. Undisclosed flaws are the most common cause of disputes.</InfoText>
               </div>
             </motion.div>
           )}
@@ -837,7 +854,7 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
           <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 border-b border-black/5 pb-3">Shipping</h3>
-          <TrustNote>Pick the category closest to your item. Once it sells, we buy the shipping label and you just pack it and hand it off at pickup. You never pay for or arrange shipping yourself.</TrustNote>
+          <InfoText>Pick the category closest to your item. We buy the shipping label once it sells and you hand it off at pickup.</InfoText>
         </div>
         {shippingCategories.length === 0 ? (
           <p className="text-[10px] font-bold uppercase tracking-widest text-black/30">Loading categories…</p>
@@ -903,9 +920,7 @@ function PayoutStep({ fullName, setFullName, phone, setPhone, userEmail, igHandl
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
           <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 border-b border-black/5 pb-3">Payout</h3>
-          <p className="text-[10px] font-bold text-black/40 leading-relaxed">
-            We'll send your earnings to this UPI ID once the order is delivered and the buyer's 48-hour review window closes. Use the same ID you'd share to receive money on GPay, PhonePe, or Paytm. Type it twice so a typo doesn't send your payout to the wrong place.
-          </p>
+          <InfoText>We pay this UPI ID once the order is delivered and the 48-hour review window closes. Use the same ID you'd share on GPay, PhonePe, or Paytm. Type it twice to catch typos.</InfoText>
         </div>
         <React.Fragment key={vpaPrefilled ? 'prefilled' : 'empty'}>
           <UpiVpaInput value={vpa} onChange={onVpaChange} />
@@ -990,13 +1005,13 @@ function ReviewStep({
           </button>
         </div>
         {authenticity === 'unsure' && (
-          <p className="text-[9px] font-bold uppercase tracking-widest text-black/40 leading-relaxed max-w-md">
-            Buyers will see that this item's authenticity has not been confirmed. If you have proof of purchase, mentioning it in your description may help it sell faster.
-          </p>
+          <div className="max-w-md">
+            <InfoText>Buyers will see this item's authenticity hasn't been confirmed. Mentioning proof of purchase in your description may help it sell.</InfoText>
+          </div>
         )}
-        <p className="text-[9px] font-bold uppercase tracking-widest text-black/30 leading-relaxed max-w-md">
-          This is a declaration, not an authentication service. Listing counterfeit items is prohibited - sellers are responsible for ensuring all items listed are genuine. Repeated violations may result in account suspension.
-        </p>
+        <div className="max-w-md">
+          <InfoText>This is a declaration, not an authentication check. Counterfeit listings are prohibited, and sellers are responsible for ensuring every item is genuine. Repeat violations can lead to account suspension.</InfoText>
+        </div>
       </div>
 
       <div className="flex flex-col gap-4">

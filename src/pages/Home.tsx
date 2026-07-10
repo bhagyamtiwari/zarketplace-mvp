@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, useScroll, useTransform } from 'motion/react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Instagram, ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, ShieldCheck, Lock, Truck } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Listing } from '../types';
 import { ListingCard } from '../components/ListingCard';
@@ -41,16 +41,16 @@ export function Home() {
    </div>
 
    {/* HERO SECTION */}
-   <section className="relative min-h-screen flex flex-col justify-center items-center overflow-hidden bg-black text-white px-4 pt-24 md:pt-12">
-        
-        <motion.div 
+   <section className="relative min-h-[62vh] sm:min-h-[68vh] flex flex-col justify-center items-center overflow-hidden bg-black text-white px-4 pt-28 pb-12 md:pt-16">
+
+        <motion.div
           style={{ y: backgroundY }}
           className="absolute inset-0 overflow-hidden pointer-events-none"
         >
-          <img 
-            src="images/banner.png" 
-            className="w-full h-full object-cover opacity-30 scale-110" 
-            alt="Hero Banner" 
+          <img
+            src="images/banner.png"
+            className="w-full h-full object-cover opacity-30 scale-110"
+            alt="Hero Banner"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-black via-transparent to-black opacity-80" />
         </motion.div>
@@ -62,47 +62,55 @@ export function Home() {
             transition={{ duration: 1 }}
             className="flex flex-col items-center"
           >
-            <div className="overflow-hidden mb-8">
+            <div className="overflow-hidden mb-6">
               <motion.h1
                 initial={{ y: "100%" }}
                 animate={{ y: 0 }}
                 transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
-                className="text-[13vw] md:text-[8vw] font-black leading-[0.9] tracking-tighter uppercase max-w-5xl"
+                className="text-[11vw] md:text-[6vw] font-black leading-[0.9] tracking-tighter uppercase max-w-4xl"
               >
-                <span className="text-white">Rest in peace</span> <br />
-                <span className="text-white">dm4price.</span>
+                <span className="text-white">Buy & sell pre-owned fashion.</span>
               </motion.h1>
             </div>
 
-            <motion.div
+            <motion.p
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.5 }}
-              className="flex flex-col items-center gap-4 mb-10 sm:mb-16"
+              transition={{ duration: 0.8, delay: 0.4 }}
+              className="text-sm md:text-base font-bold uppercase tracking-[0.2em] text-white/70 mb-8 max-w-xl"
             >
-              <p className="text-[18px] md:text-base font-black uppercase tracking-[0.3em] md:tracking-[0.4em] text-white">
-                gen-z's marketplace
-              </p>
+              No selling fees. Buyer Protection on every order. Pickup and delivery handled for you.
+            </motion.p>
 
-              <p className="text-base md:text-base font-black uppercase tracking-[0.3em] md:tracking-[0.4em] text-white">
-                <span className="block md:inline">buy & sell</span>
-                <span className="hidden md:inline"> </span>
-                <span className="block md:inline">pre-owned fashion</span>
-              </p>
-            </motion.div>
-            
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, delay: 0.8 }}
-              className="flex flex-col sm:flex-row items-center justify-center gap-6 w-full max-w-xl"
+              transition={{ duration: 0.5, delay: 0.6 }}
+              className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full max-w-md mb-10"
             >
-              <Link to="/browse" className="w-full sm:w-64 bg-white py-6 text-[11px] font-black uppercase tracking-[0.3em] text-black transition-all hover:scale-105 active:scale-95 shadow-[0_0_30px_rgba(255,255,255,0.2)] text-center">
+              <Link to="/browse" className="w-full sm:w-56 bg-white py-5 text-[11px] font-black uppercase tracking-[0.3em] text-black transition-all hover:scale-105 active:scale-95 shadow-[0_0_30px_rgba(255,255,255,0.2)] text-center">
                 Browse
               </Link>
-              <Link to="/sell" className="w-full sm:w-64 border border-white py-6 text-[11px] font-black uppercase tracking-[0.3em] text-white transition-all hover:border-white hover:bg-white shadow-[0_0_30px_rgba(255,255,255,0.1)] hover:text-black text-center">
+              <Link to="/sell" className="text-[11px] font-black uppercase tracking-[0.3em] text-white/70 hover:text-white underline underline-offset-4 transition-colors">
                 Start Selling
               </Link>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.8 }}
+              className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3"
+            >
+              <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-white/60">
+                <ShieldCheck className="h-3.5 w-3.5" /> Buyer Protection
+              </span>
+              <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-white/60">
+                <Lock className="h-3.5 w-3.5" /> Secure payments
+              </span>
+              <span className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-white/60">
+                <Truck className="h-3.5 w-3.5" /> Pickup handled for you
+              </span>
             </motion.div>
           </motion.div>
         </div>
@@ -158,9 +166,9 @@ export function Home() {
             <div className="lg:col-span-7 flex flex-col gap-12 justify-center">
               <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-8">
                 {[
+                  'Buyer Protection',
                   'Secure payments',
                   'Tracked shipping',
-                  'Seller payouts',
                   'Verified listings',
                   'No "DM for price"',
                   'No selling fees',

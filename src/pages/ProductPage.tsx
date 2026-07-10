@@ -10,6 +10,7 @@ import { useCart } from '../lib/cart';
 import { useAuth } from '../lib/auth';
 import { AuthModal } from '../components/AuthModal';
 import { ShareInstagramModal } from '../components/ShareInstagramModal';
+import { ListingCard } from '../components/ListingCard';
 import { formatCurrency as fmt } from '../lib/utils';
 import { getShippingCategories, shippingRateFor, type ShippingCategory } from '../lib/pricing';
 import { conditionByName } from '../lib/condition';
@@ -153,6 +154,42 @@ export function ProductPage() {
 
     fetchListing();
   }, [slug]);
+
+  // "You might like": same category first, backfilled with newest listings
+  // so the section is never empty while supply is thin.
+  const [youMayLike, setYouMayLike] = React.useState<Listing[]>([]);
+  React.useEffect(() => {
+    if (!listing) return;
+    let cancelled = false;
+    (async () => {
+      const { data: sameCategory } = await supabase
+        .from('listings')
+        .select('*')
+        .eq('status', 'approved')
+        .or('is_sold.is.null,is_sold.eq.false')
+        .eq('category', listing.category ?? '')
+        .neq('id', listing.id)
+        .order('created_at', { ascending: false })
+        .limit(8);
+      if (cancelled) return;
+      const picks = (sameCategory as Listing[] | null) ?? [];
+      if (picks.length >= 4) { setYouMayLike(picks.slice(0, 4)); return; }
+
+      const { data: fallback } = await supabase
+        .from('listings')
+        .select('*')
+        .eq('status', 'approved')
+        .or('is_sold.is.null,is_sold.eq.false')
+        .neq('id', listing.id)
+        .order('created_at', { ascending: false })
+        .limit(8);
+      if (cancelled) return;
+      const seen = new Set(picks.map((l) => l.id));
+      const merged = [...picks, ...((fallback as Listing[] | null) ?? []).filter((l) => !seen.has(l.id))];
+      setYouMayLike(merged.slice(0, 4));
+    })();
+    return () => { cancelled = true; };
+  }, [listing]);
 
   if (loading) {
     return (
@@ -610,6 +647,22 @@ export function ProductPage() {
           </div>
         </div>
       </div>
+
+      {youMayLike.length > 0 && (
+        <section className="mt-16 sm:mt-24 pt-10 sm:pt-12 border-t border-black/5">
+          <div className="flex items-end justify-between gap-4 mb-8">
+            <h2 className="text-2xl sm:text-3xl font-black tracking-tighter uppercase leading-none">You might like</h2>
+            <Link to="/browse" className="shrink-0 text-[10px] font-black uppercase tracking-[0.2em] border-b-2 border-black pb-1">
+              View All
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-10">
+            {youMayLike.map((l) => (
+              <ListingCard key={l.id} listing={l} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {purchasable && stickyBarVisible && (
         <div className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-black/10 px-4 py-3 flex items-center gap-4 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
