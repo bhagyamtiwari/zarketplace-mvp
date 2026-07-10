@@ -4,21 +4,25 @@ import { ArrowLeft } from 'lucide-react';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
 import { cn } from '../lib/utils';
 import { CONDITIONS } from '../lib/condition';
+import { InfoPageNav } from '../components/InfoPageNav';
 
 export function Condition() {
   useDocumentTitle('Conditions Guide');
 
   return (
-    <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
-      <Link to="/" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black/40 hover:text-black mb-12">
+    <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
+      <Link to="/" className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-black/40 hover:text-black mb-8 lg:mb-12">
         <ArrowLeft className="h-3 w-3" /> Back to Home
       </Link>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col gap-12"
-      >
+      <div className="flex flex-col lg:flex-row gap-10 lg:gap-16">
+        <InfoPageNav />
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col gap-12 flex-1 min-w-0"
+        >
         <div className="flex flex-col gap-4">
           <h1 className="text-5xl font-black tracking-tighter uppercase">Conditions Guide</h1>
           <p className="text-sm font-black uppercase tracking-widest text-black">How every piece is graded</p>
@@ -55,7 +59,8 @@ export function Condition() {
             As pre-owned pieces, items may carry light odors or signs of storage. We recommend following care labels and washing, or dry cleaning, garments before first wear.
           </p>
         </section>
-      </motion.div>
+        </motion.div>
+      </div>
     </div>
   );
 }
