@@ -384,12 +384,12 @@ function SellInner() {
       <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 lg:px-8 pt-10 sm:pt-16">
         <div className="mb-10 flex flex-col gap-4">
           <h1 className="text-5xl sm:text-6xl font-black tracking-tighter uppercase leading-none">Create Listing</h1>
-          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40">Six steps. No selling fees. You keep 100% of your price.</p>
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-black/40">Six steps. No selling fees. You keep 100% of your price.</p>
         </div>
 
         {/* Progress - every step is reachable directly; only Publish is gated */}
         <div className="mb-10 flex flex-col gap-3">
-          <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-[0.2em] text-black/40">
+          <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-[0.2em] text-black/40">
             <span>Step {step + 1} of {STEP_LABELS.length}</span>
             <span>{STEP_LABELS[step]}</span>
           </div>
@@ -484,7 +484,7 @@ function SellInner() {
         </AnimatePresence>
 
         {stepError && (
-          <p className="mt-6 text-[10px] font-bold uppercase tracking-widest text-red-600">{stepError}</p>
+          <p className="mt-6 text-xs font-bold uppercase tracking-widest text-red-600">{stepError}</p>
         )}
 
         {/* Desktop nav */}
@@ -507,9 +507,10 @@ function SellInner() {
           )}
         </div>
 
-        <p className="hidden sm:block mt-6 text-center text-[10px] font-bold uppercase tracking-widest text-black/30">
+        <p className="hidden sm:block mt-6 text-center text-xs font-bold uppercase tracking-widest text-black/30">
           We want to hear from you. <Link to="/contact" className="underline text-black/50 hover:text-black">Share your thoughts</Link>
         </p>
+        <div className="hidden sm:block mt-10 pt-10 border-t border-black/5" />
       </div>
 
       {/* Sticky mobile nav */}
@@ -538,19 +539,19 @@ function SellInner() {
 }
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <label className="text-[10px] font-black uppercase tracking-widest">{children}</label>;
+  return <label className="text-xs font-black uppercase tracking-widest">{children}</label>;
 }
 
 function YesNoToggle({ value, onChange }: { value: boolean | null; onChange: (v: boolean) => void }) {
   return (
     <div className="grid grid-cols-2 gap-2">
       <button type="button" onClick={() => onChange(true)}
-        className={cn('border py-3 text-[10px] font-black uppercase tracking-widest transition-all',
+        className={cn('border py-3 text-xs font-black uppercase tracking-widest transition-all',
           value === true ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
         Yes
       </button>
       <button type="button" onClick={() => onChange(false)}
-        className={cn('border py-3 text-[10px] font-black uppercase tracking-widest transition-all',
+        className={cn('border py-3 text-xs font-black uppercase tracking-widest transition-all',
           value === false ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
         No
       </button>
@@ -561,14 +562,14 @@ function YesNoToggle({ value, onChange }: { value: boolean | null; onChange: (v:
 // Short one-line trust cue - uppercase micro-label, matches the site's
 // system-voice register.
 function TrustNote({ children }: { children: React.ReactNode }) {
-  return <p className="text-[10px] font-bold uppercase tracking-widest text-black/50 leading-relaxed">{children}</p>;
+  return <p className="text-xs font-bold uppercase tracking-widest text-black/50 leading-relaxed">{children}</p>;
 }
 
 // Longer explanatory copy (photo tips, payout terms, disclosures). Sentence
 // case at readable weight - uppercase tracking-widest becomes a legibility
 // tax past one short line.
 function InfoText({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs font-medium text-black/70 leading-relaxed">{children}</p>;
+  return <p className="text-sm font-medium text-black/70 leading-relaxed">{children}</p>;
 }
 
 function PhotosStep({ imagePreviews, onAdd, onRemove }: {
@@ -583,13 +584,13 @@ function PhotosStep({ imagePreviews, onAdd, onRemove }: {
     <div className="flex flex-col gap-8">
       <div className="flex items-start gap-3 border-l-2 border-black pl-4">
         <AlertTriangle className="h-4 w-4 text-black mt-0.5 shrink-0" />
-        <p className="text-[10px] font-bold uppercase tracking-widest text-black/60 leading-relaxed">
+        <p className="text-xs font-bold uppercase tracking-widest text-black/60 leading-relaxed">
           One listing, one item. No "available in all sizes," no "DM for other colours." Got five of the same thing? List it five times.
         </p>
       </div>
 
       <div className="flex flex-col gap-2">
-        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 border-b border-black/5 pb-3">Item Photos</h3>
+        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Item Photos</h3>
         <InfoText>Use natural light and a plain background. Show the whole item. No screenshots or stock photos.</InfoText>
       </div>
 
@@ -602,7 +603,7 @@ function PhotosStep({ imagePreviews, onAdd, onRemove }: {
             <div key={i} className="relative aspect-[3/4] w-full overflow-hidden bg-zinc-50 border border-black/5 group">
               <img src={preview} alt={label} className="h-full w-full object-cover" />
               {i === 0 && (
-                <span className="absolute top-2 left-2 bg-black px-2 py-1 text-[8px] font-black uppercase tracking-widest text-white">Cover</span>
+                <span className="absolute top-2 left-2 bg-black px-2 py-1 text-[9px] font-black uppercase tracking-widest text-white">Cover</span>
               )}
               <button type="button" onClick={() => onRemove(i)}
                 className="absolute top-2 right-2 bg-black/70 p-2 text-white hover:bg-black transition-all">
@@ -614,15 +615,15 @@ function PhotosStep({ imagePreviews, onAdd, onRemove }: {
               <div className="h-10 w-10 rounded-full border border-black/10 flex items-center justify-center group-hover:border-black/30 transition-all shrink-0">
                 <Plus className="h-4 w-4 text-black/30 group-hover:text-black" />
               </div>
-              <span className="text-[9px] font-black uppercase tracking-widest text-black">{label}</span>
-              {!required && <span className="text-[8px] font-bold uppercase tracking-widest text-black/30">Optional</span>}
+              <span className="text-[11px] font-black uppercase tracking-widest text-black">{label}</span>
+              {!required && <span className="text-[9px] font-bold uppercase tracking-widest text-black/30">Optional</span>}
               <input type="file" accept="image/*" className="hidden" onChange={onAdd} multiple />
             </label>
           );
         })}
       </div>
 
-      <p className="text-[10px] text-black font-black uppercase tracking-widest">
+      <p className="text-xs text-black font-black uppercase tracking-widest">
         {imagePreviews.length}/{MAX_IMAGES} photos uploaded.
       </p>
     </div>
@@ -653,7 +654,7 @@ function DetailsStep(props: {
   return (
     <div className="flex flex-col gap-10">
       <div className="flex flex-col gap-6">
-        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 border-b border-black/5 pb-3">Item Details</h3>
+        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Item Details</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-8">
           <div className="flex flex-col gap-3">
             <FieldLabel>Item Name *</FieldLabel>
@@ -712,7 +713,7 @@ function DetailsStep(props: {
 
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 border-b border-black/5 pb-3">More Details</h3>
+          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">More Details</h3>
           <TrustNote>Optional. Detailed listings mean fewer cancellations.</TrustNote>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
@@ -733,7 +734,7 @@ function DetailsStep(props: {
             <div className="grid grid-cols-2 gap-2">
               {WEAR_OPTIONS.map((w) => (
                 <button key={w.key} type="button" onClick={() => setWearFrequency(w.key)}
-                  className={cn('border py-3 text-[9px] font-black uppercase tracking-widest transition-all',
+                  className={cn('border py-3 text-[11px] font-black uppercase tracking-widest transition-all',
                     wearFrequency === w.key ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
                   {w.label}
                 </button>
@@ -755,7 +756,7 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
     <div className="flex flex-col gap-10">
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 border-b border-black/5 pb-3">Condition *</h3>
+          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Condition *</h3>
           <TrustNote>Accurate listings sell faster.</TrustNote>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -765,7 +766,7 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
                 condition === c.name ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
               <span className="text-xl leading-none shrink-0">{c.emoji}</span>
               <span className="flex flex-col gap-1.5">
-                <span className="text-[10px] font-black uppercase tracking-widest">{c.name}</span>
+                <span className="text-xs font-black uppercase tracking-widest">{c.name}</span>
                 <span className={cn('text-xs font-medium leading-relaxed', condition === c.name ? 'text-white/80' : 'text-black/70')}>{c.desc}</span>
               </span>
             </button>
@@ -775,17 +776,17 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
 
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 border-b border-black/5 pb-3">Does this item have any flaws? *</h3>
+          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Does this item have any flaws? *</h3>
           <TrustNote>Showing flaws builds buyer trust.</TrustNote>
         </div>
         <div className="grid grid-cols-2 gap-3 max-w-xs">
           <button type="button" onClick={() => setHasFlaws(false)}
-            className={cn('border py-4 text-[10px] font-black uppercase tracking-widest transition-all',
+            className={cn('border py-4 text-xs font-black uppercase tracking-widest transition-all',
               hasFlaws === false ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
             No
           </button>
           <button type="button" onClick={() => setHasFlaws(true)}
-            className={cn('border py-4 text-[10px] font-black uppercase tracking-widest transition-all',
+            className={cn('border py-4 text-xs font-black uppercase tracking-widest transition-all',
               hasFlaws === true ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
             Yes
           </button>
@@ -820,7 +821,7 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
   return (
     <div className="flex flex-col gap-10">
       <div className="flex flex-col gap-6">
-        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 border-b border-black/5 pb-3">Pricing</h3>
+        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Pricing</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-8">
           <div className="flex flex-col gap-3">
             <FieldLabel>Price (INR) *</FieldLabel>
@@ -843,7 +844,7 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
                   className={cn('border-b py-4 text-sm font-bold focus:outline-none transition-all placeholder:text-black/20',
                     salePriceInvalid ? 'border-red-500 focus:border-red-600' : 'border-black/10 focus:border-black')} />
                 {salePriceInvalid && (
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-red-600">Sale price must be lower than the regular price.</p>
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-red-600">Sale price must be lower than the regular price.</p>
                 )}
               </>
             )}
@@ -853,22 +854,25 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
 
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 border-b border-black/5 pb-3">Shipping</h3>
-          <InfoText>Pick the category closest to your item. We buy the shipping label once it sells and you hand it off at pickup.</InfoText>
+          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Shipping</h3>
+          <InfoText>Pick the category closest to your item. Rates are set by typical weight and package size for that category, so heavier items cost more to ship.<br />We buy the label once it sells - you just hand it off at pickup.</InfoText>
         </div>
         {shippingCategories.length === 0 ? (
-          <p className="text-[10px] font-bold uppercase tracking-widest text-black/30">Loading categories…</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-black/30">Loading categories…</p>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {shippingCategories.map((c) => (
-              <button key={c.key} type="button" onClick={() => setShippingCategory(c.key)}
-                className={cn('border p-5 text-left transition-all',
-                  shippingCategory === c.key ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
-                <span className="block text-[10px] font-black uppercase tracking-widest">{c.label}</span>
-                <span className="block text-[9px] mt-1 opacity-60">Buyer pays {formatCurrency(c.rate)}</span>
-              </button>
-            ))}
-          </div>
+          <>
+            <TrustNote>Shipping starts at {formatCurrency(Math.min(...shippingCategories.map((c) => c.rate)))}, paid by the buyer.</TrustNote>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {shippingCategories.map((c) => (
+                <button key={c.key} type="button" onClick={() => setShippingCategory(c.key)}
+                  className={cn('border p-5 text-left transition-all',
+                    shippingCategory === c.key ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
+                  <span className="block text-xs font-black uppercase tracking-widest">{c.label}</span>
+                  <span className="block text-[11px] mt-1 opacity-60">Buyer pays {formatCurrency(c.rate)}</span>
+                </button>
+              ))}
+            </div>
+          </>
         )}
       </div>
     </div>
@@ -886,7 +890,7 @@ function PayoutStep({ fullName, setFullName, phone, setPhone, userEmail, igHandl
   return (
     <div className="flex flex-col gap-10">
       <div className="flex flex-col gap-6">
-        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 border-b border-black/5 pb-3">Your Details</h3>
+        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Your Details</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-8">
           <div className="flex flex-col gap-3">
             <FieldLabel>Full Name *</FieldLabel>
@@ -911,7 +915,7 @@ function PayoutStep({ fullName, setFullName, phone, setPhone, userEmail, igHandl
                 className="flex-1 py-4 text-sm font-bold focus:outline-none placeholder:text-black/20" />
             </div>
             {igHandle && !igValid && (
-              <p className="text-[9px] font-bold uppercase tracking-widest text-red-600">Letters, numbers, _ or . only - max 30 characters.</p>
+              <p className="text-[11px] font-bold uppercase tracking-widest text-red-600">Letters, numbers, _ or . only - max 30 characters.</p>
             )}
           </div>
         </div>
@@ -919,8 +923,8 @@ function PayoutStep({ fullName, setFullName, phone, setPhone, userEmail, igHandl
 
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 border-b border-black/5 pb-3">Payout</h3>
-          <InfoText>We pay this UPI ID once the order is delivered and the 48-hour review window closes. Use the same ID you'd share on GPay, PhonePe, or Paytm. Type it twice to catch typos.</InfoText>
+          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Payout</h3>
+          <InfoText>We pay this UPI ID once the order is delivered and the 48-hour review window closes.<br />Use the same ID you'd share on GPay, PhonePe, or Paytm.<br />Type it twice to catch typos.</InfoText>
         </div>
         <React.Fragment key={vpaPrefilled ? 'prefilled' : 'empty'}>
           <UpiVpaInput value={vpa} onChange={onVpaChange} />
@@ -944,7 +948,7 @@ function ReviewStep({
   const shipRate = shippingCategories.find((c) => c.key === shippingCategory);
 
   const DECLARATION_ITEMS: Array<{ key: keyof typeof declarations; label: string }> = [
-    { key: 'oneItem', label: 'This listing represents one physical item.' },
+    { key: 'oneItem', label: 'This listing represents one physical item only.' },
     { key: 'photosActual', label: 'The photos show the actual item being sold.' },
     { key: 'disclosedFlaws', label: 'I have disclosed all known flaws.' },
     { key: 'accurate', label: 'The description and details above are accurate.' },
@@ -955,7 +959,7 @@ function ReviewStep({
     <div className="flex flex-col gap-10">
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 border-b border-black/5 pb-3">Review</h3>
+          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Review</h3>
           <TrustNote>This is what buyers will see. Go back to any step to edit.</TrustNote>
         </div>
 
@@ -967,20 +971,20 @@ function ReviewStep({
           )}
           <div className="flex flex-col gap-1.5 min-w-0">
             <span className="text-xs font-black uppercase tracking-tight truncate">{title || 'Untitled item'}</span>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-black/40">{brand}</span>
+            <span className="text-xs font-bold uppercase tracking-widest text-black/40">{brand}</span>
             <span className="text-sm font-black">
               {salePrice ? (
                 <><span className="text-red-600">{formatCurrency(Number(salePrice))}</span>{' '}<span className="text-black/30 line-through font-bold text-xs">{formatCurrency(Number(price))}</span></>
               ) : formatCurrency(Number(price) || 0)}
             </span>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-black/40">{condition}</span>
+            <span className="text-xs font-bold uppercase tracking-widest text-black/40">{condition}</span>
             {hasFlaws ? (
-              <span className="text-[9px] font-bold uppercase tracking-widest text-amber-700">Flaws disclosed: {flawsDescription.slice(0, 60)}{flawsDescription.length > 60 ? '…' : ''}</span>
+              <span className="text-[11px] font-bold uppercase tracking-widest text-amber-700">Flaws disclosed: {flawsDescription.slice(0, 60)}{flawsDescription.length > 60 ? '…' : ''}</span>
             ) : (
-              <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-700">No flaws disclosed</span>
+              <span className="text-[11px] font-bold uppercase tracking-widest text-emerald-700">No flaws disclosed</span>
             )}
             {shipRate && (
-              <span className="text-[9px] font-bold uppercase tracking-widest text-black/40">Shipping: {shipRate.label} ({formatCurrency(shipRate.rate)}, buyer pays)</span>
+              <span className="text-[11px] font-bold uppercase tracking-widest text-black/40">Shipping: {shipRate.label} ({formatCurrency(shipRate.rate)}, buyer pays)</span>
             )}
           </div>
         </div>
@@ -988,20 +992,20 @@ function ReviewStep({
 
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 border-b border-black/5 pb-3">Is this item authentic? *</h3>
+          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Is this item authentic? *</h3>
         </div>
-        <div className="flex flex-col gap-3 max-w-md">
+        <div className="grid grid-cols-2 gap-3 max-w-md">
           <button type="button" onClick={() => setAuthenticity('confirmed')}
-            className={cn('border p-4 text-left flex items-center gap-3 transition-all',
+            className={cn('border p-4 text-left flex items-center gap-2 transition-all',
               authenticity === 'confirmed' ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
             <ShieldCheck className="h-4 w-4 shrink-0" />
-            <span className="text-[10px] font-black uppercase tracking-widest">Yes, I confirm this item is authentic.</span>
+            <span className="text-xs font-black uppercase tracking-widest">Yes, confirmed</span>
           </button>
           <button type="button" onClick={() => setAuthenticity('unsure')}
-            className={cn('border p-4 text-left flex items-center gap-3 transition-all',
+            className={cn('border p-4 text-left flex items-center gap-2 transition-all',
               authenticity === 'unsure' ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
             <AlertTriangle className="h-4 w-4 shrink-0" />
-            <span className="text-[10px] font-black uppercase tracking-widest">I'm not sure.</span>
+            <span className="text-xs font-black uppercase tracking-widest">I'm not sure</span>
           </button>
         </div>
         {authenticity === 'unsure' && (
@@ -1010,19 +1014,19 @@ function ReviewStep({
           </div>
         )}
         <div className="max-w-md">
-          <InfoText>This is a declaration, not an authentication check. Counterfeit listings are prohibited, and sellers are responsible for ensuring every item is genuine. Repeat violations can lead to account suspension.</InfoText>
+          <InfoText>Counterfeit listings are prohibited. Sellers are responsible for ensuring every item is genuine.<br />Repeat violations can lead to account suspension.</InfoText>
         </div>
       </div>
 
       <div className="flex flex-col gap-4">
-        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 border-b border-black/5 pb-3">Before You Publish</h3>
+        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Before You Publish</h3>
         <div className="flex flex-col gap-3">
           {DECLARATION_ITEMS.map((d) => (
             <label key={d.key} className="flex items-start gap-3 cursor-pointer">
               <input type="checkbox" checked={declarations[d.key]}
                 onChange={(e) => setDeclarations((prev) => ({ ...prev, [d.key]: e.target.checked }))}
                 className="mt-0.5 h-4 w-4 accent-black shrink-0" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-black/70">{d.label}</span>
+              <span className="text-xs font-bold uppercase tracking-widest text-black/70">{d.label}</span>
             </label>
           ))}
         </div>
