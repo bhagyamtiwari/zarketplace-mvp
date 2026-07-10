@@ -1,5 +1,4 @@
 export type ListingStatus = 'pending' | 'approved' | 'rejected';
-export type ShippingMode = 'free' | 'paid';
 
 export interface Listing {
   id: string;
@@ -21,8 +20,7 @@ export interface Listing {
   condition: string | null;
   image_url: string;
   image_urls: string[];
-  shipping_mode: ShippingMode;
-  shipping_cost: number;
+  shipping_category: string;
   status: ListingStatus;
   is_sold: boolean;
   created_at: string;
@@ -46,8 +44,7 @@ export interface CartItem {
   seller_email?: string;
   seller_upi_vpa?: string;
   seller_display_name?: string | null;
-  shipping_mode?: ShippingMode;
-  shipping_cost?: number;
+  shipping_category?: string;
 }
 
 export type OrderStatus =
@@ -79,6 +76,7 @@ export interface Order {
   billing_address: Record<string, string> | null;
   amount: number;
   shipping_cost: number;
+  shipping_category: string | null;
   buyer_protection_fee: number;
   total_amount: number;
   payment_utr: string | null;

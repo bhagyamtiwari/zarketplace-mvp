@@ -14,9 +14,10 @@ import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
 import { PromiseBanner } from '../components/PromiseBanner';
 import { UpiVpaInput, VPA_REGEX } from '../components/UpiVpaInput';
+import { getShippingCategories, type ShippingCategory } from '../lib/pricing';
 import { log } from '../lib/log';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
-import { cn } from '../lib/utils';
+import { cn, formatCurrency } from '../lib/utils';
 
 const slog = log('sell');
 
@@ -59,7 +60,14 @@ function SellInner() {
   const [showSalePrice, setShowSalePrice] = React.useState(false);
   const [showConditionInfo, setShowConditionInfo] = React.useState(false);
   const [selectedCategory, setSelectedCategory] = React.useState<string>('');
-  const [shippingMode, setShippingMode] = React.useState<'free' | 'paid'>('free');
+  const [shippingCategories, setShippingCategories] = React.useState<ShippingCategory[]>([]);
+  const [shippingCategory, setShippingCategory] = React.useState<string>('');
+  React.useEffect(() => {
+    getShippingCategories().then((cats) => {
+      setShippingCategories(cats);
+      setShippingCategory((prev) => prev || cats[0]?.key || '');
+    });
+  }, []);
   const [priceVal, setPriceVal] = React.useState<string>('');
   const [salePriceVal, setSalePriceVal] = React.useState<string>('');
   const [fullName, setFullName] = React.useState<string>('');
@@ -133,6 +141,7 @@ function SellInner() {
     if (imageFiles.length === 0) { setErrorMsg('Upload at least one image.'); return; }
     if (!vpaValid || !VPA_REGEX.test(vpa)) { setErrorMsg('Please enter a valid UPI ID twice.'); return; }
     if (!igValid) { setErrorMsg('Enter a valid Instagram handle (letters, numbers, _ or ., max 30).'); return; }
+    if (!shippingCategory) { setErrorMsg('Choose a shipping category.'); return; }
 
     const formData = new FormData(e.currentTarget);
     const title = (formData.get('title') as string).trim();
@@ -148,12 +157,6 @@ function SellInner() {
     const size = (formData.get('size') as string) || null;
     const condition = formData.get('condition') as string;
     const description = (formData.get('description') as string).trim();
-    const shipping_cost_raw = formData.get('shipping_cost') as string | null;
-    const shipping_cost = shippingMode === 'paid' ? Math.max(0, parseFloat(shipping_cost_raw || '0') || 0) : 0;
-    if (shippingMode === 'paid' && !(shipping_cost > 0)) {
-      setErrorMsg('Enter a shipping amount, or switch to free shipping.'); return;
-    }
-
     setLoading(true);
     const tFull = slog.time('full submit');
     try {
@@ -194,8 +197,7 @@ function SellInner() {
         seller_display_name: fullName.trim() || null,
         seller_instagram,
         seller_upi_vpa: vpa,
-        shipping_mode: shippingMode,
-        shipping_cost,
+        shipping_category: shippingCategory,
         status: 'pending',
       });
       if (error) throw error;
@@ -441,7 +443,7 @@ function SellInner() {
             <div className="flex flex-col gap-1">
               <label className="text-[10px] font-black uppercase tracking-widest">Your UPI ID *</label>
               <p className="text-[10px] font-bold text-black/40 leading-relaxed">
-                We'll send your earnings to this UPI ID once the buyer's order ships. Use the same ID you'd share to receive money on GPay, PhonePe, or Paytm (it looks like <span className="font-mono">name@upi</span> or <span className="font-mono">phonenumber@bank</span>). Type it twice so a typo doesn't send your payout to the wrong place.
+                We'll send your earnings to this UPI ID once the order is delivered and the buyer's 48-hour review window closes. Use the same ID you'd share to receive money on GPay, PhonePe, or Paytm (it looks like <span className="font-mono">name@upi</span> or <span className="font-mono">phonenumber@bank</span>). Type it twice so a typo doesn't send your payout to the wrong place.
               </p>
             </div>
             <React.Fragment key={vpaPrefilled ? 'prefilled' : 'empty'}>
@@ -453,31 +455,21 @@ function SellInner() {
             <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 border-b border-black/5 pb-3">Shipping</h3>
             <div className="flex flex-col gap-1">
               <p className="text-[10px] font-bold uppercase tracking-widest text-black/40">
-                Choose free shipping (you cover postage) or paid shipping (buyer pays the amount you set).
+                Pick the category closest to your item. Once it sells, we buy the shipping label and you just pack it and hand it off at pickup. You never pay for or arrange shipping yourself.
               </p>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <button type="button" onClick={() => setShippingMode('free')}
-                className={cn('border p-5 text-left transition-all',
-                  shippingMode === 'free' ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
-                <span className="block text-[10px] font-black uppercase tracking-widest">Free Shipping</span>
-                <span className="block text-[9px] mt-1 opacity-60">Buyer pays ₹0</span>
-              </button>
-              <button type="button" onClick={() => setShippingMode('paid')}
-                className={cn('border p-5 text-left transition-all',
-                  shippingMode === 'paid' ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
-                <span className="block text-[10px] font-black uppercase tracking-widest">Paid Shipping</span>
-                <span className="block text-[9px] mt-1 opacity-60">Buyer pays your amount</span>
-              </button>
-            </div>
-            {shippingMode === 'paid' && (
-              <div className="flex flex-col gap-3">
-                <label className="text-[10px] font-black uppercase tracking-widest">Shipping Cost (INR) *</label>
-                <input name="shipping_cost" type="number" min="1" placeholder="80" required
-                  className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20" />
-                <p className="text-[9px] font-bold uppercase tracking-widest text-black/40">
-                  Goes 100% to you.
-                </p>
+            {shippingCategories.length === 0 ? (
+              <p className="text-[10px] font-bold uppercase tracking-widest text-black/30">Loading categories…</p>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {shippingCategories.map((c) => (
+                  <button key={c.key} type="button" onClick={() => setShippingCategory(c.key)}
+                    className={cn('border p-5 text-left transition-all',
+                      shippingCategory === c.key ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
+                    <span className="block text-[10px] font-black uppercase tracking-widest">{c.label}</span>
+                    <span className="block text-[9px] mt-1 opacity-60">Buyer pays {formatCurrency(c.rate)}</span>
+                  </button>
+                ))}
               </div>
             )}
           </div>

@@ -11,6 +11,7 @@ import { useAuth } from '../lib/auth';
 import { AuthModal } from '../components/AuthModal';
 import { ShareInstagramModal } from '../components/ShareInstagramModal';
 import { formatCurrency as fmt } from '../lib/utils';
+import { getShippingCategories, shippingRateFor, type ShippingCategory } from '../lib/pricing';
 
 const plog = log('product');
 
@@ -43,6 +44,8 @@ export function ProductPage() {
   const { user } = useAuth();
   const [authModal, setAuthModal] = React.useState<null | { redirectTo: string; onSuccess?: () => void; message?: string }>(null);
   const [listing, setListing] = React.useState<Listing | null>(null);
+  const [shippingCategories, setShippingCategories] = React.useState<ShippingCategory[]>([]);
+  React.useEffect(() => { getShippingCategories().then(setShippingCategories); }, []);
   const [loading, setLoading] = React.useState(true);
   const [currentImageIdx, setCurrentImageIdx] = React.useState(0);
   const [viewMode, setViewMode] = React.useState<'carousel' | 'grid'>('carousel');
@@ -386,9 +389,9 @@ export function ProductPage() {
             <div>
               <span className="text-[9px] font-black uppercase tracking-[0.2em] text-black block mb-1">Shipping</span>
               <p className="font-black text-base uppercase tracking-tight">
-                {listing.shipping_mode === 'paid' && (listing.shipping_cost || 0) > 0
-                  ? fmt(listing.shipping_cost)
-                  : 'Free'}
+                {shippingCategories.length === 0
+                  ? 'Calculating...'
+                  : fmt(shippingRateFor(listing.shipping_category, shippingCategories))}
               </p>
             </div>
             <div>

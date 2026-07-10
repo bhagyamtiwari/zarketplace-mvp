@@ -59,3 +59,43 @@ export function buyerProtectionFee(itemPrice: number, cfg: PricingConfig | null)
   if (cfg.buyer_protection_cap != null) fee = Math.min(cfg.buyer_protection_cap, fee);
   return fee;
 }
+
+// Shipping v1 (§0.3): buyer always pays a flat, category-based rate chosen
+// by the seller at listing time. zarketplace buys the prepaid label for
+// that rate once the buyer pays - the seller never arranges or pays for
+// shipping. See migration 20260710000004 for the server-side mirror.
+export interface ShippingCategory {
+  key: string;
+  label: string;
+  rate: number;
+}
+
+let shippingCache: ShippingCategory[] | undefined;
+let shippingInflight: Promise<ShippingCategory[]> | null = null;
+
+export async function getShippingCategories(): Promise<ShippingCategory[]> {
+  if (shippingCache !== undefined) return shippingCache;
+  if (shippingInflight) return shippingInflight;
+  shippingInflight = (async () => {
+    try {
+      const { data, error } = await supabase
+        .from('shipping_categories')
+        .select('key, label, rate')
+        .order('sort_order', { ascending: true });
+      if (error) throw error;
+      shippingCache = (data as ShippingCategory[] | null) ?? [];
+    } catch (err) {
+      plog.warn('shipping_categories unavailable, hiding shipping selector/estimate', err);
+      shippingCache = [];
+    } finally {
+      shippingInflight = null;
+    }
+    return shippingCache;
+  })();
+  return shippingInflight;
+}
+
+export function shippingRateFor(categoryKey: string | null | undefined, categories: ShippingCategory[]): number {
+  if (!categoryKey) return 0;
+  return categories.find((c) => c.key === categoryKey)?.rate ?? 0;
+}
