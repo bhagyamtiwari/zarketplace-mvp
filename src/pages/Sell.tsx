@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Loader2, CheckCircle2, X, Plus } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
-import { LaunchOfferBanner } from '../components/LaunchOfferBanner';
+import { PromiseBanner } from '../components/PromiseBanner';
 import { UpiVpaInput, VPA_REGEX } from '../components/UpiVpaInput';
 import { log } from '../lib/log';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
@@ -237,7 +237,7 @@ function SellInner() {
   return (
     <div className="flex flex-col">
       <div className="pt-20">
-        <LaunchOfferBanner variant="ticker" />
+        <PromiseBanner variant="ticker" />
       </div>
 
       <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 pb-20">
@@ -246,7 +246,7 @@ function SellInner() {
       </div>
 
       <div className="mb-12">
-        <LaunchOfferBanner variant="pricing" />
+        <PromiseBanner variant="pricing" />
       </div>
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-16">
