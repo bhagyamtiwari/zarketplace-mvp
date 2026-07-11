@@ -247,7 +247,7 @@ export function Home() {
         {/* Background Image Layer */}
         <div className="absolute inset-0 z-0">
           <img
-            src="/images/resale2.png"
+            src="/images/resale.png"
             className="w-full h-full object-cover opacity-40"
             alt="Culture"
           />
@@ -268,7 +268,7 @@ export function Home() {
             <div className="flex flex-col items-center lg:items-start gap-6 text-white/80 text-sm font-medium uppercase tracking-widest leading-relaxed max-w-md lg:mt-4">
               <p>resellers, IG thrift stores and everyday sellers all in one place.</p>
               <Link to="/about" className="border border-white px-8 py-4 text-[11px] font-black uppercase tracking-[0.3em] text-white transition-all hover:scale-105 active:scale-95 hover:bg-white hover:text-black mt-4">
-                Learn About Our Mission
+                Our Mission
               </Link>
             </div>
           </div>
