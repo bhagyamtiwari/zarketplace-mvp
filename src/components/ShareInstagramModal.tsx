@@ -23,8 +23,8 @@ const LAYOUTS: Record<Format, {
   panelH: number;  // height of the bottom overlay panel
   previewScale: number;
 }> = {
-  square: { w: 1080, h: 1080, panelH: 340, previewScale: 0.34 },
-  story:  { w: 1080, h: 1920, panelH: 500, previewScale: 0.22 },
+  square: { w: 1080, h: 1080, panelH: 366, previewScale: 0.34 },
+  story:  { w: 1080, h: 1920, panelH: 528, previewScale: 0.22 },
 };
 
 // Always points at the production domain regardless of where the seller
@@ -239,6 +239,11 @@ const ShareCard = React.forwardRef<HTMLDivElement, {
   const isStory = format === 'story';
   const price = listing.sale_price ?? listing.price;
   const hasSale = !!listing.sale_price && listing.sale_price < listing.price;
+  // The listing's real size, not just the unit: size_type is the scale
+  // ("UK", "US", "Alpha", "Waist/Inseam", ...) and size is the seller's
+  // actual value within it ("9", "M", "34x30"). Combine both so the image
+  // always shows the specific size, not just the unit on its own.
+  const sizeLabel = [listing.size_type, listing.size].filter(Boolean).join(' ').trim();
 
   // Type-safety for line-clamp via plain CSS.
   const titleClamp: React.CSSProperties = {
@@ -325,7 +330,7 @@ const ShareCard = React.forwardRef<HTMLDivElement, {
               fontSize: isStory ? 18 : 15, fontWeight: 800, letterSpacing: 2.5, textTransform: 'uppercase',
             }}>
               {listing.brand && <span style={chipStyle}>{listing.brand}</span>}
-              {listing.size && <span style={chipStyle}>Size {listing.size}</span>}
+              {sizeLabel && <span style={chipStyle}>Size {sizeLabel}</span>}
               {listing.condition && <span style={chipStyle}>{listing.condition}</span>}
             </div>
 
@@ -366,14 +371,17 @@ const ShareCard = React.forwardRef<HTMLDivElement, {
 
         {/* BOTTOM ROW: centered registered wordmark, at its native aspect
             ratio (1083x202 - already cropped tight to the glyphs, unlike the
-            old square wordmark asset, so no crop-window hack needed). */}
+            old square wordmark asset, so no crop-window hack needed), plus
+            the domain + handle so the image is traceable back to
+            zarketplace even if it's reshared without the caption. */}
         <div style={{
           marginTop: 18,
           paddingTop: 14,
           borderTop: '2px solid rgba(255,255,255,0.18)',
           display: 'flex',
+          flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'center',
+          gap: isStory ? 8 : 6,
         }}>
           <img
             src="/images/registered-wordmark/zark-reg-tp.png"
@@ -381,6 +389,12 @@ const ShareCard = React.forwardRef<HTMLDivElement, {
             crossOrigin="anonymous"
             style={{ height: isStory ? 30 : 22, width: (isStory ? 30 : 22) * WORDMARK_RATIO, objectFit: 'contain' }}
           />
+          <span style={{
+            fontSize: isStory ? 14 : 12, fontWeight: 800, letterSpacing: 2,
+            textTransform: 'uppercase', opacity: 0.85,
+          }}>
+            zarketplace.com&nbsp;&nbsp;·&nbsp;&nbsp;@zarketplace
+          </span>
         </div>
       </div>
     </div>
