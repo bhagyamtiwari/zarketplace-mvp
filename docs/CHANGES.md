@@ -1,19 +1,28 @@
 # Zarketplace MVP - Detailed Change Log
 
-A plain-English, file-by-file record of every change made to take the codebase from "checkout was a stub" to "fully wired marketplace with Cashfree, seller/buyer portals, and admin payouts." Use this when you take over.
+A plain-English, file-by-file record of every change made to take the codebase from "checkout was a stub" to "fully wired marketplace with Razorpay, seller/buyer portals, and admin payouts." Use this when you take over.
+
+> **Historical note.** This is an early-build log. The codebase has since moved
+> on in ways this file does not fully capture: the payment provider is now
+> Razorpay (this log originally described a different provider that has been
+> fully removed), Supabase email+password auth was added, the migrations were
+> consolidated into a clean-slate baseline, and an escrow/delivery payout model
+> replaced pay-at-shipment. For current behaviour see [`PAYMENTS.md`](PAYMENTS.md),
+> [`AUTH.md`](AUTH.md), [`SETUP.md`](SETUP.md), and
+> [`ADMIN_OPERATIONS.md`](ADMIN_OPERATIONS.md).
 
 ## Conceptual summary
 
 We added these capabilities:
 
 1. **Unique SKUs and product URLs** - every listing now has a SKU like `ZV-BTM-123456`. The product URL is still `/product/:id` but the SKU is shown in the UI and stored on every order.
-2. **Real Cashfree checkout** (sandbox) - the "Place Order" button now opens the actual Cashfree modal, money lands in your Cashfree merchant account.
+2. **Real Razorpay checkout** - the "Place Order" button opens the Razorpay modal; money lands in your Razorpay account and a signature-verified webhook marks the order paid.
 3. **Buyer order tracking** - `/track-order` page where buyers look up an order by number + email.
 4. **Seller portal** - `/seller-portal` page where sellers see their listings, sold items, pending payouts, and update tracking on shipped orders.
 5. **Admin Orders + Payouts management** - `/admin` got tabs. The Payouts tab is where finance manually releases funds to sellers and records UPI/UTR refs.
 6. **Sold-out filtering** - items mark `is_sold = true` automatically on payment. They disappear from `/browse` and `/`, and the product page shows "Sold Out" instead of the buy button.
 7. **Email system** - transactional emails (order confirmation, seller notification, tracking update, payout released) via Resend, plus a basic email-campaign sender in admin for promotions, with a `subscribers` table.
-8. **Refunds** - `cashfree-refund` Edge Function processes a refund + un-sells the listing + cancels the payout.
+8. **Refunds** - handled manually today: an admin refunds from the Razorpay dashboard and sets `orders.status = 'refunded'`, which un-sells the listing and cancels the payout. (There is no automated refund edge function.)
 
 ---
 
@@ -24,10 +33,10 @@ All five files are idempotent. Apply in order via Supabase SQL Editor or the MCP
 | File | What it does |
 |---|---|
 | `20260503000001_add_sku_and_sold_status.sql` | Adds `sku` (unique) and `is_sold` columns to `listings`. Adds `generate_listing_sku(category)` and a `BEFORE INSERT` trigger so any new listing auto-gets a SKU like `ZV-BTM-123456`. Backfills existing rows. |
-| `20260503000002_create_orders_tables.sql` | Creates `orders` (full purchase record + Cashfree IDs + tracking) and `seller_payouts` (one row per sold order). Adds `generate_order_number()` (`ZKT-XXXXXXXX`) and `set_updated_at()` triggers. |
+| `20260503000002_create_orders_tables.sql` | Creates `orders` (full purchase record + payment gateway IDs + tracking) and `seller_payouts` (one row per sold order). Adds `generate_order_number()` (`ZKT-XXXXXXXX`) and `set_updated_at()` triggers. |
 | `20260503000003_create_subscribers.sql` | Creates `subscribers` (newsletter list), `email_campaigns` (admin-sent campaigns), and `email_log` (audit of every transactional send). |
 | `20260503000004_rls_policies.sql` | Enables RLS on the new tables and grants permissive `SELECT/INSERT` to `anon` for MVP. **Read the comments at top of the file** - these policies should be tightened once Supabase Auth is added. |
-| `20260503000005_seller_bank_details.sql` | Adds `seller_upi_vpa`, `seller_bank_account`, `seller_bank_ifsc`, `seller_bank_holder`, `seller_pan`, `cashfree_vendor_id` to `listings`. Adds payout destination snapshot fields (`payout_method`, `payout_reference`, `destination_*`) to `seller_payouts`. |
+| `20260503000005_seller_bank_details.sql` | Adds `seller_upi_vpa`, `seller_bank_account`, `seller_bank_ifsc`, `seller_bank_holder`, `seller_pan` to `listings`. Adds payout destination snapshot fields (`payout_method`, `payout_reference`, `destination_*`) to `seller_payouts`. |
 
 ---
 
@@ -36,10 +45,9 @@ All five files are idempotent. Apply in order via Supabase SQL Editor or the MCP
 | File | Status | Purpose |
 |---|---|---|
 | `_shared/cors.ts` | **NEW** | Reusable CORS headers for all functions. |
-| `create-order/index.ts` | **REWRITTEN** | Was a hardcoded test stub. Now: validates the listing, inserts an `orders` row, calls Cashfree's `/pg/orders` to create a payment session, saves `cashfree_order_id` + `payment_session_id`, returns them to the frontend. |
-| `cashfree-webhook/index.ts` | **NEW** | Receives Cashfree webhook callbacks, verifies HMAC signature, marks order paid/cancelled, marks listing `is_sold`, snapshots seller payout destination from `listings`, creates `seller_payouts` row, fires order confirmation emails. |
-| `send-email/index.ts` | **NEW** | Renders 4 transactional templates + a `custom` template for admin campaigns. Sends via Resend. Logs every send to `email_log`. Falls back to dev-mode (no-op + log) if `RESEND_API_KEY` not set. |
-| `cashfree-refund/index.ts` | **NEW** | Admin-token-protected. Calls Cashfree's refund API, marks order refunded, un-sells the listing, cancels the payout. |
+| `create-razorpay-order/index.ts` | Validates the pending order(s), creates (or idempotently reuses) a Razorpay Order via `POST https://api.razorpay.com/v1/orders`, saves `razorpay_order_id`, and returns it plus the public `key_id` to the frontend. |
+| `razorpay-webhook/index.ts` | Receives Razorpay webhook callbacks, verifies the HMAC signature (`X-Razorpay-Signature` + `RAZORPAY_WEBHOOK_SECRET`), and is the only place `orders.status` is set to paid/failed. Idempotent; calls `fulfill_captured_payment` to atomically mark paid + claim the listing, then fires confirmation emails. |
+| `send-email/index.ts` | Renders the transactional templates + a `custom` template for admin campaigns. Sends via Resend. Logs every send to `email_log`. Falls back to dev-mode (no-op + log) if `RESEND_API_KEY` not set. |
 
 ---
 
@@ -49,7 +57,7 @@ All five files are idempotent. Apply in order via Supabase SQL Editor or the MCP
 
 | File | Purpose |
 |---|---|
-| `src/pages/TrackOrder.tsx` | Buyer-facing `/track-order` page. Email + order number form → shows status timeline, tracking, shipping address. Auto-fills + auto-looks-up when redirected from Cashfree (`?order=…&email=…`). |
+| `src/pages/TrackOrder.tsx` | Buyer-facing `/track-order` page. Shows the escrow status timeline, tracking, and shipping address for the signed-in buyer's orders. |
 | `src/pages/SellerPortal.tsx` | Seller-facing `/seller-portal` page. Email-gated. Tabs for Listings (active/sold), Orders (with seller-driven "Add Tracking & Mark Shipped" flow), Payouts (read-only summary). |
 | `src/vite-env.d.ts` | Adds proper TypeScript types for `import.meta.env.VITE_*` variables. |
 
@@ -60,10 +68,9 @@ All five files are idempotent. Apply in order via Supabase SQL Editor or the MCP
 | `src/App.tsx` | Added routes for `/track-order` and `/seller-portal`. Added footer links to Seller Portal and Track Order. |
 | `src/components/Navbar.tsx` | Added "Track Order" link to top nav. |
 | `src/types.ts` | Added `Order`, `OrderStatus`, `SellerPayout`, `PayoutStatus`. Added `sku`, `is_sold` to `Listing`. |
-| `src/lib/cashfree.ts` | Replaced the half-working SDK loader with a real lazy-loader, added `createCashfreeOrder()` helper that calls our Edge Function. |
 | `src/lib/supabase.ts` | Unchanged. |
 | `src/lib/utils.ts` | Unchanged. |
-| `src/pages/Checkout.tsx` | Replaced the simulated success with the real Cashfree flow: calls `createCashfreeOrder`, opens the SDK modal, polls our `orders` table to confirm the webhook arrived, shows the success screen. Added field validation + inline error display. |
+| `src/pages/Checkout.tsx` | Real Razorpay flow: calls `create-razorpay-order`, lazy-loads and opens Razorpay Checkout (`checkout.razorpay.com/v1/checkout.js`), then polls the `orders` table until the webhook has marked it paid, and shows the success screen. Field validation + inline error display. |
 | `src/pages/Browse.tsx` | Listing query now filters out `is_sold = true`. |
 | `src/pages/Home.tsx` | Same filter on the homepage preview. |
 | `src/pages/ProductPage.tsx` | Shows "Sold Out" placeholder instead of "Buy it now" when `is_sold`. Uses `listing.sku` (with fallback) on the Product Code line. |
@@ -78,7 +85,7 @@ All five files are idempotent. Apply in order via Supabase SQL Editor or the MCP
 | File | Purpose |
 |---|---|
 | `docs/SETUP.md` | One-stop setup guide from clone to first successful test purchase. |
-| `docs/CASHFREE.md` | How money flows, finance ops daily checklist, refund usage, Easy Split upgrade plan, going-to-prod checklist. |
+| `docs/PAYMENTS.md` | How money flows through Razorpay, the escrow payout model, refunds, and the going-to-prod checklist. |
 | `docs/SHIPPING.md` | Why we kept shipping manual and how to add Shiprocket later. |
 | `docs/CHANGES.md` | This file. |
 | `docs/env.example.txt` | Template for `.env.local`. |
@@ -87,7 +94,7 @@ All five files are idempotent. Apply in order via Supabase SQL Editor or the MCP
 
 ## Behavioural changes you should know about
 
-1. **`Place Order` no longer just shows a success page.** It opens the real Cashfree modal. If you re-deploy without setting Edge Function secrets, the button will fail with "Cashfree credentials not configured" - that's by design.
+1. **`Place Order` no longer just shows a success page.** It opens the real Razorpay modal. If you re-deploy without setting the Razorpay edge function secrets, order creation fails with "Razorpay is not configured on the server" - that's by design.
 2. **Listings are removed from /browse the moment payment succeeds.** Concretely: the webhook flips `is_sold = true`. If you ever need to re-list a sold item (refund or admin override), set `is_sold = false` in the table.
 3. **Each new listing gets a SKU automatically.** Existing rows were backfilled by migration #1.
 4. **Sellers must provide UPI or bank details on Sell.** They aren't enforced as required at the SQL level (yet) so old listings without them will show "Not provided" in the admin Payouts panel - finance must email the seller to collect them before paying out.
@@ -103,4 +110,4 @@ All five files are idempotent. Apply in order via Supabase SQL Editor or the MCP
 - **No COD** - Cash on Delivery is intentionally disabled in the UI. Re-enable by removing the disabled state on the COD card in `Checkout.tsx` and routing to a separate flow.
 - **Email campaigns are unbatched** - `CampaignsPanel` loops one HTTP call per recipient. Fine for a few hundred subscribers; replace with Resend's batch API if you grow past ~1k.
 - **No image-resizing pipeline** - listing images are uploaded as-is to Supabase Storage. Add Supabase Image Transformations or `image_url`s with `?width=` parameters when bandwidth becomes a concern.
-- **Cashfree business name "Zivanta"** is set in your Cashfree merchant profile, not in this code. To change it, contact Cashfree support.
+- **The business name shown in the payment modal** is set in your Razorpay account profile, not in this code.

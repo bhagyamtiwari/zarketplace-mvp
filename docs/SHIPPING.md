@@ -24,7 +24,7 @@ Until Shiprocket is wired, tracking is entered by hand. The flow is:
 4. Order status flips to `shipped`. The buyer gets an email with the tracking info, and `track-order` shows the tracking on the public page.
 5. Once the buyer confirms delivery (or admin confirms via tracking), admin marks the order `delivered`, which starts the 48-hour buyer review window and auto-creates the payout ledger row (see migration `20260710000001_delivery_escrow_and_payout_timing.sql`). Payout releases after that window closes with no open claim.
 
-This requires zero shipping integration. Cashfree does **not** offer a shipping product.
+This requires zero shipping integration (the payment provider, Razorpay, does not offer a shipping product).
 
 ## Future upgrade - Shiprocket integration
 
