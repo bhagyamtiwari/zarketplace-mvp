@@ -124,6 +124,16 @@ function SellInner() {
   const [vpaValid, setVpaValid] = React.useState(false);
   const [vpaPrefilled, setVpaPrefilled] = React.useState(false);
 
+  // Pickup address - where the courier collects the item from. Never asked
+  // of buyers; this is the seller's own address, entered once per listing
+  // (prefilled from their most recent listing below) so zarketplace can book
+  // the Shiprocket pickup without the seller doing anything at ship time.
+  const [pickupAddress, setPickupAddress] = React.useState('');
+  const [pickupLandmark, setPickupLandmark] = React.useState('');
+  const [pickupCity, setPickupCity] = React.useState('');
+  const [pickupState, setPickupState] = React.useState('');
+  const [pickupPincode, setPickupPincode] = React.useState('');
+
   const [authenticity, setAuthenticity] = React.useState<'confirmed' | 'unsure' | null>(null);
   const [declarations, setDeclarations] = React.useState<Declarations>({
     oneItem: false, photosActual: false, disclosedFlaws: false, accurate: false, authenticIfMarked: false,
@@ -146,14 +156,14 @@ function SellInner() {
   }, [profile]);
 
   // Prefill the fields most likely to repeat across a seller's own listings
-  // (gender, shipping category, Instagram handle) from their most recent
-  // listing, so listing a second or third similar item is faster. Never
-  // prefills condition/flaws - those genuinely vary per item.
+  // (gender, shipping category, Instagram handle, pickup address) from their
+  // most recent listing, so listing a second or third similar item is
+  // faster. Never prefills condition/flaws - those genuinely vary per item.
   React.useEffect(() => {
     if (!user) return;
     supabase
       .from('listings')
-      .select('gender, shipping_category, seller_instagram')
+      .select('gender, shipping_category, seller_instagram, pickup_address')
       .eq('seller_id', user.id)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -165,6 +175,14 @@ function SellInner() {
         if (data.seller_instagram) {
           const handle = data.seller_instagram.replace(/^https?:\/\/(www\.)?instagram\.com\//, '').replace(/\/$/, '');
           if (handle) setIgHandle((prev) => prev || handle);
+        }
+        const addr = data.pickup_address as Record<string, string> | null;
+        if (addr) {
+          setPickupAddress((prev) => prev || addr.address || '');
+          setPickupLandmark((prev) => prev || addr.landmark || '');
+          setPickupCity((prev) => prev || addr.city || '');
+          setPickupState((prev) => prev || addr.state || '');
+          setPickupPincode((prev) => prev || addr.pincode || '');
         }
       });
   }, [user]);
@@ -246,6 +264,10 @@ function SellInner() {
       if (!phone.trim()) return 'Enter your phone number.';
       if (!igValid) return 'Enter a valid Instagram handle (letters, numbers, _ or ., max 30).';
       if (!vpaValid) return 'Enter a valid UPI ID, typed twice.';
+      if (!pickupAddress.trim()) return 'Enter the address we should pick up from.';
+      if (!pickupCity.trim()) return 'Enter your city.';
+      if (!pickupState.trim()) return 'Enter your state.';
+      if (!/^\d{6}$/.test(pickupPincode.trim())) return 'Enter a valid 6-digit pincode.';
     }
     return null;
   };
@@ -316,6 +338,15 @@ function SellInner() {
         seller_instagram,
         seller_upi_vpa: vpa,
         shipping_category: shippingCategory,
+        pickup_address: {
+          fullName: fullName.trim(),
+          phone: phone.trim(),
+          address: pickupAddress.trim(),
+          landmark: pickupLandmark.trim(),
+          city: pickupCity.trim(),
+          state: pickupState.trim(),
+          pincode: pickupPincode.trim(),
+        },
         has_flaws: !!hasFlaws,
         flaws_description: hasFlaws ? flawsDescription.trim() : null,
         original_tags_attached: originalTags,
@@ -467,6 +498,11 @@ function SellInner() {
                 igHandle={igHandle} setIgHandle={setIgHandle} igValid={igValid}
                 vpa={vpa} vpaPrefilled={vpaPrefilled}
                 onVpaChange={(v, valid) => { setVpa(v); setVpaValid(valid); }}
+                pickupAddress={pickupAddress} setPickupAddress={setPickupAddress}
+                pickupLandmark={pickupLandmark} setPickupLandmark={setPickupLandmark}
+                pickupCity={pickupCity} setPickupCity={setPickupCity}
+                pickupState={pickupState} setPickupState={setPickupState}
+                pickupPincode={pickupPincode} setPickupPincode={setPickupPincode}
               />
             )}
 
@@ -876,13 +912,21 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
   );
 }
 
-function PayoutStep({ fullName, setFullName, phone, setPhone, userEmail, igHandle, setIgHandle, igValid, vpa, vpaPrefilled, onVpaChange }: {
+function PayoutStep({
+  fullName, setFullName, phone, setPhone, userEmail, igHandle, setIgHandle, igValid, vpa, vpaPrefilled, onVpaChange,
+  pickupAddress, setPickupAddress, pickupLandmark, setPickupLandmark, pickupCity, setPickupCity, pickupState, setPickupState, pickupPincode, setPickupPincode,
+}: {
   fullName: string; setFullName: (v: string) => void;
   phone: string; setPhone: (v: string) => void;
   userEmail?: string | null;
   igHandle: string; setIgHandle: (v: string) => void; igValid: boolean;
   vpa: string; vpaPrefilled: boolean;
   onVpaChange: (v: string, valid: boolean) => void;
+  pickupAddress: string; setPickupAddress: (v: string) => void;
+  pickupLandmark: string; setPickupLandmark: (v: string) => void;
+  pickupCity: string; setPickupCity: (v: string) => void;
+  pickupState: string; setPickupState: (v: string) => void;
+  pickupPincode: string; setPickupPincode: (v: string) => void;
 }) {
   return (
     <div className="flex flex-col gap-10">
@@ -914,6 +958,40 @@ function PayoutStep({ fullName, setFullName, phone, setPhone, userEmail, igHandl
             {igHandle && !igValid && (
               <p className="text-[11px] font-bold uppercase tracking-widest text-red-600">Letters, numbers, _ or . only - max 30 characters.</p>
             )}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Pickup Address</h3>
+          <InfoText>Where the courier collects the item from once it sells. We buy the label - you just pack it and hand it off.</InfoText>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-8">
+          <div className="flex flex-col gap-3 sm:col-span-2">
+            <FieldLabel>Address *</FieldLabel>
+            <input value={pickupAddress} onChange={(e) => setPickupAddress(e.target.value)} type="text" placeholder="Flat / House no., Street"
+              className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20" />
+          </div>
+          <div className="flex flex-col gap-3">
+            <FieldLabel>Landmark</FieldLabel>
+            <input value={pickupLandmark} onChange={(e) => setPickupLandmark(e.target.value)} type="text" placeholder="Optional"
+              className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20" />
+          </div>
+          <div className="flex flex-col gap-3">
+            <FieldLabel>City *</FieldLabel>
+            <input value={pickupCity} onChange={(e) => setPickupCity(e.target.value)} type="text" placeholder="Mumbai"
+              className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20" />
+          </div>
+          <div className="flex flex-col gap-3">
+            <FieldLabel>State *</FieldLabel>
+            <input value={pickupState} onChange={(e) => setPickupState(e.target.value)} type="text" placeholder="Maharashtra"
+              className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20" />
+          </div>
+          <div className="flex flex-col gap-3">
+            <FieldLabel>Pincode *</FieldLabel>
+            <input value={pickupPincode} onChange={(e) => setPickupPincode(e.target.value.replace(/\D/g, '').slice(0, 6))} type="text" inputMode="numeric" placeholder="400001"
+              className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20" />
           </div>
         </div>
       </div>

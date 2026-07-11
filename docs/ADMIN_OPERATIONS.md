@@ -84,9 +84,19 @@ update public.listings set status = 'rejected' where id = '<listing-uuid>';
 ### 2. Verify payment & mark paid
 See (3a) above. This is the most frequent manual step.
 
-### 3. Confirm / force shipping
-Sellers normally add tracking themselves, which sets `status = 'shipped'` and
-emails the buyer. If a seller can't, an admin can do it:
+### 3. Book pickup (Shiprocket) or confirm/force shipping
+For a `paid` order, `/admin → Orders` shows a **Book Pickup (Shiprocket)**
+button (only once the `SHIPROCKET_*` secrets are set - see `docs/SETUP.md`
+§4). Clicking it registers the seller's pickup address with Shiprocket,
+creates the order, assigns a courier + AWB, generates the label, and flips
+the order to `shipped` automatically. See `docs/SHIPPING.md` for the full
+flow and its known simplifications (fixed per-category weight, no rate
+comparison).
+
+If Shiprocket isn't configured, or a particular seller ships some other way,
+sellers add tracking themselves from the Seller Portal, which sets
+`status = 'shipped'` and emails the buyer. If a seller can't, an admin can do
+it directly:
 
 ```sql
 update public.orders
@@ -136,6 +146,33 @@ where order_id = (select id from public.orders where order_number = 'ZKT-12345')
 RLS blocks flipping a payout to `paid_out` before `releasable_at` has passed or
 while the order has an open claim. The payout email (`payout_released_seller`)
 is sent from the app/edge function.
+
+### 4a. Claims (SNAD - significantly not as described)
+`orders.claim_open` is what actually holds a payout past its review window
+(the `seller_payouts_admin_update` RLS policy blocks `paid_out` while
+`claim_open = true` - see migration `20260710000001`). It's locked to
+admin-only writes (migration `20260711000001_shiprocket_and_claim_lockdown.sql`)
+so a seller can never clear their own claim.
+
+Per `RefundPolicy.tsx`, buyers raise a claim by emailing
+`contact@zarketplace.com` with their order number and photos within 48 hours
+of delivery - this is intentionally email-based at MVP (no in-app claim
+form), matching `docs/REALIGNMENT_PLAN.md` §P0-8. When one comes in:
+
+1. Open `/admin → Orders`, find the order, click the **Claim** column
+   (shows "None - open one"). This sets `claim_open = true` and immediately
+   blocks that order's payout, even if the review window has already closed.
+2. Review the claim (photos, order details, seller's side if needed).
+3. Once resolved, click the same control again ("Open - close it") to clear
+   `claim_open`. If the claim is upheld, refund the buyer per §5 below
+   instead of just closing the claim (closing it alone would release the
+   seller's payout).
+
+```sql
+-- Equivalent direct SQL, if ever needed outside the Admin UI
+update public.orders set claim_open = true  where order_number = 'ZKT-12345';
+update public.orders set claim_open = false where order_number = 'ZKT-12345';
+```
 
 ### 5. Cancellations & refunds
 Setting an order to `cancelled` or `refunded` automatically relists the item

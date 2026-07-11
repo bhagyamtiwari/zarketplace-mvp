@@ -159,19 +159,23 @@ Old-model fields that must change or be superseded:
 
 ### P0 — Launch Blockers
 
-| # | Item | Detail |
-|---|---|---|
-| P0-1 | **Product page crash** | React #310 hook-order bug in `ProductPage.tsx` (two `useRef`s after early returns). Confirmed live. **Fix already applied + type-checked on branch `claude/interesting-visvesvaraya-01d3bb`, uncommitted** — commit, deploy, and click-test |
-| P0-2 | **Error boundaries** | No `ErrorBoundary` exists. Add a route-level boundary so one component bug never blanks the site again; wire an error monitor (Sentry free tier) |
-| P0-3 | **Kill the fee-rug-pull copy** | `LaunchOfferBanner` COPY/ticker/pricing variants + Home "Low seller fees" → permanent "no selling fees" messaging. This is a *strategy* blocker, not just copy |
-| P0-4 | **Escrow correctness: payout after delivery** | Add `delivered` (+ review window) to `orders.status`; create/release `seller_payouts` only after delivery + 48h with no open claim; update SellerPortal/Admin/FAQ copy. Without this, "protected payments" is false advertising |
-| P0-5 | **Checkout pricing = Item + Shipping + Buyer Protection = Total** | Fee per §0.2 (5%, min ₹49, no cap) from the central pricing config (§0.6); client display + `orders.buyer_protection_fee` snapshot + server-side total validation in `create-razorpay-order` |
-| P0-6 | **Shipping v1** | Category-based flat rates (§0.3): seller picks shipping category at listing, buyer pays the mapped rate from the pricing config; Shiprocket label/pickup booking can be admin-operated at first (see build order) |
-| P0-11 | **Central pricing config** | `pricing_config` source of truth for BP parameters + shipping category table (§0.6); values snapshotted per order; consumed by client display and edge functions alike |
-| P0-7 | **Razorpay live readiness** | Confirm live keys + live webhook secret in Supabase function config; one real ₹ test transaction end-to-end **[verify]** |
-| P0-8 | **Refund flow (SNAD)** | Buyer-initiated claim within review window (email-based is acceptable at MVP, but the order state machine must hold the payout while a claim is open) |
-| P0-9 | **Order tracking states** | Paid → Pickup Scheduled → Picked Up → In Transit → Delivered → Review Window → Seller Paid, visible to buyer and seller |
-| P0-10 | **Production environment hygiene** | Remove dead `server.ts`/sqlite/express; remove unused `VITE_RAZORPAY_KEY_ID`; load Razorpay script only on checkout; env documented |
+> **Status column added post-audit** (this session) - reflects what's actually
+> built as of `docs/CHANGES.md`'s latest entries, not a re-audit of the whole
+> doc. Kept the original Detail text as-written for history.
+
+| # | Item | Detail | Status |
+|---|---|---|---|
+| P0-1 | **Product page crash** | React #310 hook-order bug in `ProductPage.tsx` (two `useRef`s after early returns). Confirmed live. **Fix already applied + type-checked on branch `claude/interesting-visvesvaraya-01d3bb`, uncommitted** — commit, deploy, and click-test | ✅ Done - verified fixed and stable under navigation |
+| P0-2 | **Error boundaries** | No `ErrorBoundary` exists. Add a route-level boundary so one component bug never blanks the site again; wire an error monitor (Sentry free tier) | 🟡 Route-level `ErrorBoundary` exists (`App.tsx`); Sentry not wired - needs a DSN, a manual/credential step like Razorpay live keys |
+| P0-3 | **Kill the fee-rug-pull copy** | `LaunchOfferBanner` COPY/ticker/pricing variants + Home "Low seller fees" → permanent "no selling fees" messaging. This is a *strategy* blocker, not just copy | ✅ Done - no rug-pull/launch-offer language found anywhere in the codebase |
+| P0-4 | **Escrow correctness: payout after delivery** | Add `delivered` (+ review window) to `orders.status`; create/release `seller_payouts` only after delivery + 48h with no open claim; update SellerPortal/Admin/FAQ copy. Without this, "protected payments" is false advertising | ✅ Done - migration + admin/seller/buyer UI, visible escrow timeline |
+| P0-5 | **Checkout pricing = Item + Shipping + Buyer Protection = Total** | Fee per §0.2 (5%, min ₹49, no cap) from the central pricing config (§0.6); client display + `orders.buyer_protection_fee` snapshot + server-side total validation in `create-razorpay-order` | ✅ Done |
+| P0-6 | **Shipping v1** | Category-based flat rates (§0.3): seller picks shipping category at listing, buyer pays the mapped rate from the pricing config; Shiprocket label/pickup booking can be admin-operated at first (see build order) | ✅ Built (test mode) - `shiprocket-create-order`/`shiprocket-webhook`, admin "Book Pickup" button. Needs only `SHIPROCKET_*` secrets to go live; manual tracking is the fallback until then. See `docs/SHIPPING.md` |
+| P0-11 | **Central pricing config** | `pricing_config` source of truth for BP parameters + shipping category table (§0.6); values snapshotted per order; consumed by client display and edge functions alike | ✅ Done |
+| P0-7 | **Razorpay live readiness** | Confirm live keys + live webhook secret in Supabase function config; one real ₹ test transaction end-to-end **[verify]** | ⏳ Deliberately last - a credential + one real-money-transaction step, not a code change. See `docs/PAYMENTS.md` |
+| P0-8 | **Refund flow (SNAD)** | Buyer-initiated claim within review window (email-based is acceptable at MVP, but the order state machine must hold the payout while a claim is open) | ✅ Built (email-based, as the plan allows) - `orders.claim_open` locked to admin-only writes, admin toggle in `/admin → Orders`, blocks payout release. See `docs/ADMIN_OPERATIONS.md` §4a |
+| P0-9 | **Order tracking states** | Paid → Pickup Scheduled → Picked Up → In Transit → Delivered → Review Window → Seller Paid, visible to buyer and seller | ✅ Done - `Paid → Pickup → Delivered → Review → Paid Out` timeline, both audiences |
+| P0-10 | **Production environment hygiene** | Remove dead `server.ts`/sqlite/express; remove unused `VITE_RAZORPAY_KEY_ID`; load Razorpay script only on checkout; env documented | ✅ Done |
 
 ### P1 — Core Product Migration
 

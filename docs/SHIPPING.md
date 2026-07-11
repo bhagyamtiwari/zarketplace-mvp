@@ -1,62 +1,89 @@
-# Shipping - Zarketplace MVP
+# Shipping - zarketplace MVP
 
-> **Model vs. mechanic (read this first).** The product's *user-facing model* is
-> now buyer-paid, platform-arranged shipping: the buyer pays a category-based
-> shipping rate at checkout, the seller never books or pays for a courier, and
-> the seller only packs the item and hands it off for pickup. That model is what
-> Sell.tsx, the policy pages, the FAQ, and the order emails all describe, and it's
-> the target the copy is written against (see docs/REALIGNMENT_PLAN.md §0.2).
->
-> Mechanically, though, the pickup/label automation is **not built yet** - the
-> Shiprocket integration below is what delivers it. Until then, the transitional
-> mechanic is the manual flow described next: the seller still pastes a tracking
-> URL into the Seller Portal. Buyers already pay the category shipping rate at
-> checkout regardless. Closing this gap (so sellers truly just "pack and hand
-> off") is exactly what the Shiprocket work is for.
+The pickup/label model described in `docs/REALIGNMENT_PLAN.md` §0.3 - buyer
+pays a category-based flat rate at checkout, zarketplace books the courier,
+seller only packs and hands off - is **built**. What's missing is purely
+credentials: set `SHIPROCKET_EMAIL` / `SHIPROCKET_PASSWORD` /
+`SHIPROCKET_WEBHOOK_TOKEN` (see `docs/SETUP.md` §4) and it's live. Until those
+secrets are set, `shiprocket-create-order` returns "Shiprocket is not
+configured on the server" and the manual fallback below is what actually
+ships orders.
 
-## Current mechanic (manual tracking, transitional)
+## How a pickup gets booked (admin-triggered, test mode)
 
-Until Shiprocket is wired, tracking is entered by hand. The flow is:
+1. Buyer pays; order is `paid`; `orders.pickup_address` (the seller's own
+   address, collected once in Sell.tsx) and `orders.shipping_address` (the
+   buyer's delivery address, collected at checkout) are already snapshotted.
+2. In `/admin` → **Orders**, an order that's `paid` and has no Shiprocket
+   booking yet shows a **Book Pickup (Shiprocket)** button. Clicking it calls
+   the `shiprocket-create-order` edge function, which:
+   1. Authenticates to Shiprocket (email/password → short-lived JWT).
+   2. Registers the seller's pickup address as a Shiprocket "pickup
+      location" if it isn't already (Shiprocket's order-create API takes a
+      pickup-location *nickname*, not an inline address, so each seller has
+      to be registered once - idempotent, keyed off the order id).
+   3. Creates the Shiprocket order (`POST /orders/create/adhoc`) with a
+      category-based default weight (`docs/REALIGNMENT_PLAN.md` §0.3 - the
+      flat-rate model never collects a real per-item weight) and declared
+      value = `orders.amount` (the item price only, not `total_amount`).
+   4. Auto-assigns a courier + AWB.
+   5. Generates the shipping label.
+3. Whatever succeeds is persisted immediately (`shiprocket_order_id`,
+   `shiprocket_shipment_id`, then `tracking_number`/`courier`/`tracking_url`
+   once the AWB is assigned) - if a later step fails, the booking isn't lost,
+   it just needs a retry or a manual finish from the Shiprocket dashboard
+   (the function returns `warnings` for exactly this case).
+4. Once an AWB exists, the order flips to `shipped` and the buyer gets the
+   existing tracking-update email. The seller sees the tracking info
+   read-only in their portal (`SellerPortal.tsx`) - they never touch a
+   courier or a label.
+5. `shiprocket-webhook` receives Shiprocket's delivery status callbacks and
+   sets `orders.status = 'delivered'` automatically when a shipment is
+   marked delivered - the same transition an admin can make by hand, which
+   starts the 48-hour review window and creates the payout row (see
+   `docs/ADMIN_OPERATIONS.md`).
 
-1. After payment success, the seller is notified by email and the order appears in their **Seller Portal → Orders**.
-2. The seller packs the item and hands it off for pickup / drop-off with a courier (DTDC, India Post, BlueDart, etc.).
-3. Seller clicks **"Save & mark shipped"**, entering the **tracking URL** (courier name and tracking number optional).
-4. Order status flips to `shipped`. The buyer gets an email with the tracking info, and `track-order` shows the tracking on the public page.
-5. Once the buyer confirms delivery (or admin confirms via tracking), admin marks the order `delivered`, which starts the 48-hour buyer review window and auto-creates the payout ledger row (see migration `20260710000001_delivery_escrow_and_payout_timing.sql`). Payout releases after that window closes with no open claim.
+## Manual fallback (used whenever Shiprocket isn't booked)
 
-This requires zero shipping integration (the payment provider, Razorpay, does not offer a shipping product).
+The original manual-tracking flow still exists and is what runs before
+Shiprocket secrets are set, or for any order an admin chooses not to book
+through Shiprocket:
 
-## Future upgrade - Shiprocket integration
+1. The seller packs the item and hands it off to a courier themselves
+   (DTDC, India Post, BlueDart, etc.).
+2. In **Seller Portal → Sales**, they click **"Save & mark shipped"** and
+   paste the tracking URL (courier name/number optional).
+3. Order flips to `shipped`; buyer gets the tracking email.
+4. Admin marks `delivered` once confirmed, same escrow/payout path as above.
 
-If you want one-click label generation, rate comparison and 17+ courier partners, Shiprocket is the standard Indian aggregator. Suggested implementation when ready:
+## Configuration
 
-### Step 1 - Sign up & get API credentials
-- Create a Shiprocket merchant account.
-- Generate an API user (Setting → API → Configure).
-- Note the email + password - they're used to fetch a 10-day JWT.
+See `docs/SETUP.md` §4 for the exact secrets and `docs/PAYMENTS.md` for how
+shipping cost fits into the total the buyer is charged. Register the webhook
+in the Shiprocket dashboard (Settings → API → Webhooks) as:
 
-### Step 2 - Edge Function `shiprocket-create-order`
-Replace (or augment) the seller "Add Tracking" flow with a backend call that:
+```
+https://<project>.supabase.co/functions/v1/shiprocket-webhook?token=<SHIPROCKET_WEBHOOK_TOKEN>
+```
 
-1. Authenticates: `POST https://apiv2.shiprocket.in/v1/external/auth/login` with `{ email, password }` → JWT.
-2. Creates an order: `POST /v1/external/orders/create/adhoc` with our buyer/shipping address, weight, dimensions, declared value (= `orders.amount`, the item's price - not `total_amount`, which also includes the buyer-paid shipping and Buyer Protection fee).
-3. Optionally generates a label: `POST /v1/external/courier/generate/label`.
-4. Returns the `awb_code` (= tracking number) and `courier_name`.
-5. Persists those fields onto the order, mirroring what the seller does manually today.
+Shiprocket doesn't sign webhook payloads with an HMAC secret the way Razorpay
+does, so the `?token=` query param is the shared-secret check.
 
-### Step 3 - Optional: Rate calculator on Sell.tsx
-- `GET /v1/external/courier/serviceability` to show estimated shipping cost while listing.
-- Store quoted weight on the listing so it's not re-asked at checkout.
+## Known simplifications (MVP, documented rather than hidden)
 
-### Step 4 - Tracking webhook
-Shiprocket can POST status updates to a configured URL. Add a `shiprocket-webhook` Edge Function that maps their statuses (`Delivered`, `RTO Initiated`, etc.) to our `orders.status` and triggers the `delivered` confirmation flow.
+- **Weight/dimensions are fixed defaults per shipping category**, not real
+  per-item values - the flat-rate shipping model deliberately never asks a
+  seller for parcel weight (`CATEGORY_WEIGHT_KG` in
+  `supabase/functions/shiprocket-create-order/index.ts`). Tune from real
+  Shiprocket invoices once volume exists.
+- **Courier selection is automatic** (no courier_id passed, so Shiprocket
+  picks its recommended courier for the route) - no rate-comparison UI.
+- **Booking is admin-triggered**, not automatic on payment - matches
+  `docs/REALIGNMENT_PLAN.md` §0.3's "admin-operated at first" build order.
+  A background job that auto-books on `paid` is a reasonable next step once
+  the manual click has been exercised for real orders.
 
-## Why we recommend keeping manual for MVP
-- Sellers are mostly individuals using their own preferred courier - forcing Shiprocket creates friction.
-- Shiprocket's pricing has minimums and surcharges that don't always beat what a seller can do at the post office.
-- The current flow is fully functional and ships TODAY. Shiprocket can be added in ~1 day of work later.
+## Other providers considered
 
-## Other options
 - **Delhivery** - direct API; better rates at scale; harder onboarding.
 - **Ithink Logistics**, **Pickrr**, **Shipway** - same category as Shiprocket.
-- **Sellers self-print labels via Speed Post / DTDC** - current behaviour; cheapest.
