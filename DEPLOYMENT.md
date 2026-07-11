@@ -1,73 +1,35 @@
-# Zivanta Marketplace Setup Instructions
+# zarketplace - Deployment & Setup
 
-To get Zivanta fully working, you need to set up a Supabase project.
+> The full, current setup and deployment guide lives in
+> **[`docs/SETUP.md`](docs/SETUP.md)** - fresh clone to working deployment,
+> including migrations, edge-function deploys, secrets, and a smoke test. This
+> page is a short pointer so nothing is duplicated (and can drift) here.
 
-## 1. Supabase Project Setup
+## The short version
 
-1. Create a new project at [supabase.com](https://supabase.com).
-2. Go to **Project Settings > API** and copy your `Project URL` and `anon public` key.
-3. Add these to your environment variables in AI Studio:
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
+1. **Install & configure.** `npm install`, then copy `docs/env.example.txt` to
+   `.env.local` and fill in your Supabase keys (`VITE_SUPABASE_URL`,
+   `VITE_SUPABASE_ANON_KEY`). See [`docs/SETUP.md`](docs/SETUP.md) §1-2.
+2. **Database.** Do **not** hand-write the schema. Apply the migrations in
+   `supabase/migrations/` in order - via the Supabase MCP or the SQL Editor.
+   They define the real schema (profiles, listings, orders, seller_payouts,
+   pricing config, escrow/delivery states, RLS). See [`docs/SETUP.md`](docs/SETUP.md) §3.
+3. **Edge functions & secrets.** Deploy the functions in `supabase/functions/`
+   and set their secrets (Razorpay keys, Resend key, etc.). See
+   [`docs/SETUP.md`](docs/SETUP.md) §4-5.
+4. **Auth.** Configure the email provider and redirect URLs (including
+   `/auth/callback` and `/reset-password`). See [`docs/AUTH.md`](docs/AUTH.md).
+5. **Run / build.** `npm run dev` for local, `npm run build` for production.
 
-## 2. Database Schema
+## Hosting
 
-Run the following SQL in the Supabase SQL Editor:
+The app is a Vite + React SPA deployed to **Vercel** (production is `main`).
+Set the same `VITE_*` environment variables in the Vercel project settings.
 
-```sql
--- Create the listings table
-CREATE TABLE listings (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  title TEXT NOT NULL,
-  brand TEXT NOT NULL,
-  price DECIMAL(10, 2) NOT NULL,
-  sale_price DECIMAL(10, 2),
-  category TEXT NOT NULL,
-  size_type TEXT NOT NULL,
-  size TEXT NOT NULL,
-  condition TEXT NOT NULL,
-  description TEXT NOT NULL,
-  image_url TEXT,
-  seller_email TEXT NOT NULL,
-  status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
+## Reference docs
 
--- Enable Row Level Security (RLS)
-ALTER TABLE listings ENABLE ROW LEVEL SECURITY;
-
--- Create policies
--- Allow anyone to read approved listings
-CREATE POLICY "Allow public read approved" ON listings
-  FOR SELECT USING (status = 'approved');
-
--- Allow anyone to read their own pending listings (simplified for demo)
--- In a real app, you'd use auth.uid()
-CREATE POLICY "Allow public read all" ON listings
-  FOR SELECT USING (true);
-
--- Allow anyone to insert a listing
-CREATE POLICY "Allow public insert" ON listings
-  FOR INSERT WITH CHECK (true);
-
--- Allow updates (for admin moderation)
--- In a real app, restrict this to admin users
-CREATE POLICY "Allow public update" ON listings
-  FOR UPDATE USING (true);
-```
-
-## 3. Storage Setup
-
-1. Go to **Storage** in your Supabase dashboard.
-2. Create a new bucket named `listing-images`.
-3. Set the bucket to **Public**.
-4. Add a policy to allow public uploads and reads:
-   - Select "New Policy" -> "For full customization".
-   - Allowed operations: `SELECT`, `INSERT`.
-   - Policy: `true` (for public access).
-
-## 4. Local Development
-
-The app is built with Vite + React. 
-- `npm run dev` to start the development server.
-- `npm run build` to build for production.
+- [`docs/SETUP.md`](docs/SETUP.md) - full setup & operations
+- [`docs/AUTH.md`](docs/AUTH.md) - email + password auth, roles, RLS
+- [`docs/SHIPPING.md`](docs/SHIPPING.md) - shipping model + Shiprocket plan
+- [`docs/REALIGNMENT_PLAN.md`](docs/REALIGNMENT_PLAN.md) - locked business model
+- [`BrandKit.md`](BrandKit.md) - visual/voice source of truth

@@ -1,15 +1,20 @@
-// Auth context + hook backed by Supabase Auth (email magic link).
+// Auth context + hook backed by Supabase Auth (email + password only; no
+// Google, no magic link). See docs/AUTH.md for the full flow.
 //
 // Usage:
 //   - Wrap <App /> with <AuthProvider>.
-//   - In components: `const { user, profile, signIn, signOut, loading } = useAuth();`
+//   - In components: `const { user, profile, signInWithPassword, signOut, loading } = useAuth();`
 //   - To gate a page: redirect to "/" or open the AuthModal when `!user`.
 //
-// Magic-link flow:
-//   1. signIn(email) -> Supabase mails a one-time link.
-//   2. User clicks link -> lands on /auth/callback -> Supabase sets the session.
-//   3. AuthProvider's onAuthStateChange picks it up; profile row is auto-created
-//      by the on_auth_user_created trigger in Postgres.
+// Flows:
+//   - Sign in:  signInWithPassword(email, password).
+//   - Sign up:  signUpWithPassword(email, password). If Supabase's "Confirm
+//               email" setting is ON, the user must click the emailed link
+//               (-> /auth/callback) before a session exists; otherwise they're
+//               logged in immediately. Either way a profile row is auto-created
+//               by the on_auth_user_created trigger in Postgres.
+//   - Reset:    sendPasswordReset(email) mails a link to /reset-password, where
+//               updatePassword(newPassword) sets the new password.
 
 import * as React from 'react';
 import type { Session, User } from '@supabase/supabase-js';
