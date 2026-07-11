@@ -4,7 +4,7 @@
 
 # zarketplace MVP
 
-Resale marketplace for pre-owned fashion. React + Vite frontend, Supabase backend, Cashfree payments.
+Resale marketplace for pre-owned fashion. React + Vite frontend, Supabase backend, Razorpay payments.
 
 ## Quick start
 
@@ -18,14 +18,14 @@ npm run dev
 
 - **[`docs/SETUP.md`](docs/SETUP.md)** - full step-by-step setup, migrations, edge function deploys, smoke test
 - **[`docs/AUTH.md`](docs/AUTH.md)** - email + password auth (with forgot-password reset), roles, RLS, admin promotion
-- **[`docs/CASHFREE.md`](docs/CASHFREE.md)** - payment + payout flow, refunds, marketplace upgrade paths
+- **[`docs/PAYMENTS.md`](docs/PAYMENTS.md)** - Razorpay payment + escrow payout flow, refunds, going-to-prod
 - **[`docs/SHIPPING.md`](docs/SHIPPING.md)** - current shipping flow, Shiprocket upgrade plan
 - **[`docs/CHANGES.md`](docs/CHANGES.md)** - file-by-file changelog of MVP changes
 
 ## Architecture in 30 seconds
 
 - **Listings** with auto-generated SKUs (`ZV-CAT-NNNNNN`).
-- **Checkout** opens Cashfree (sandbox); webhook flips `is_sold = true` and creates a `seller_payouts` row.
+- **Checkout** opens Razorpay; the signature-verified webhook marks the order `paid` and claims the listing (`is_sold = true`). The `seller_payouts` row is created later, when the order is marked `delivered`.
 - **Buyer** tracks orders at `/track-order` (email + order #).
 - **Seller** manages listings, ships items, and updates tracking at `/seller-portal`.
 - **Admin** at `/admin` (password-gated) approves listings, manages orders, releases payouts, sends email campaigns.

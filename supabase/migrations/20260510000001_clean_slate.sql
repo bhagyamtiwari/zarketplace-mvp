@@ -1,7 +1,7 @@
 -- =============================================================================
 -- Zarketplace clean-slate (no fees, single-stage UPI, buyer proof of payment).
--- This file consolidates and replaces every earlier migration. Earlier files are
--- preserved under supabase/migrations/_archive/ for history.
+-- This file consolidates and replaces every earlier migration. The earlier
+-- pre-consolidation files are available in git history if ever needed.
 -- =============================================================================
 
 -- (Wipe step — already applied to remote DB; left here for local resets.)

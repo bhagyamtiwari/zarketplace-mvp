@@ -134,7 +134,7 @@ Old-model fields that must change or be superseded:
 - `VITE_RAZORPAY_KEY_ID` env var declared but unused: remove
 - Duplicated email templates across two edge functions
 - Legacy manual-payment columns on `orders`
-- `docs/CASHFREE.md` and other stale docs reference an abandoned provider
+- Payment docs consolidated onto Razorpay in `docs/PAYMENTS.md` (the abandoned-provider docs have been removed)
 
 ---
 
