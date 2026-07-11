@@ -19,6 +19,7 @@ import {
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
 import { StatusBadge } from '../components/StatusBadge';
+import { OrderTimeline } from '../components/OrderTimeline';
 import { log } from '../lib/log';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
 import { sendEmail } from '../lib/email';
@@ -174,7 +175,7 @@ function SellerInner() {
               <ListingsTable title="Sold" rows={soldListings} onDelete={deleteListing} deletingId={deletingId} />
             </div>
           ) : tab === 'orders' ? (
-            <OrdersList rows={incomingOrders} onUpdated={fetchAll} />
+            <OrdersList rows={incomingOrders} payouts={payouts} onUpdated={fetchAll} />
           ) : (
             <PayoutsView payouts={payouts} orders={orders} />
           )}
@@ -271,18 +272,19 @@ function ListingsTable({ title, rows, onDelete, deletingId }: {
   );
 }
 
-function OrdersList({ rows, onUpdated }: { rows: Order[]; onUpdated: () => void }) {
+function OrdersList({ rows, payouts, onUpdated }: { rows: Order[]; payouts: SellerPayout[]; onUpdated: () => void }) {
+  const payoutByOrder = React.useMemo(() => new Map(payouts.map((p) => [p.order_id, p])), [payouts]);
   if (rows.length === 0) {
     return <p className="text-[11px] font-bold uppercase tracking-widest text-black/30">No sales yet.</p>;
   }
   return (
     <div className="flex flex-col gap-4">
-      {rows.map((o) => <React.Fragment key={o.id}><OrderRow order={o} onUpdated={onUpdated} /></React.Fragment>)}
+      {rows.map((o) => <React.Fragment key={o.id}><OrderRow order={o} payout={payoutByOrder.get(o.id) ?? null} onUpdated={onUpdated} /></React.Fragment>)}
     </div>
   );
 }
 
-function OrderRow({ order, onUpdated }: { order: Order; onUpdated: () => void }) {
+function OrderRow({ order, payout, onUpdated }: { order: Order; payout: SellerPayout | null; onUpdated: () => void }) {
   const [editing, setEditing] = React.useState(false);
   return (
     <div className="bg-zinc-50 border border-black/5 p-6 flex flex-col gap-4">
@@ -316,17 +318,7 @@ function OrderRow({ order, onUpdated }: { order: Order; onUpdated: () => void })
         </div>
       </div>
 
-      {order.status === 'awaiting_verification' && (
-        <p className="text-[10px] font-bold uppercase tracking-widest text-black/60 leading-relaxed border-t border-black/5 pt-4">
-          Payment is being verified by zarketplace. Add tracking and ship the item. Your payout is released after delivery is confirmed and the buyer's 48-hour review window closes.
-        </p>
-      )}
-
-      {order.status === 'delivered' && (
-        <p className="text-[10px] font-bold uppercase tracking-widest text-black/60 leading-relaxed border-t border-black/5 pt-4">
-          Delivered. Your payout is held for 48 hours after delivery, then paid out as long as there's no open claim on this order.
-        </p>
-      )}
+      <OrderTimeline order={order} payout={payout} audience="seller" />
 
       <div className="pt-4 border-t border-black/5">
         {order.status === 'awaiting_verification' || order.status === 'paid' || (order.status === 'shipped' && editing) ? (
