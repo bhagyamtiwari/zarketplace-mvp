@@ -26,7 +26,6 @@ import { Terms } from './pages/Terms';
 import { GrievanceOfficer } from './pages/GrievanceOfficer';
 import { AuthCallback } from './pages/AuthCallback';
 import { ResetPassword } from './pages/ResetPassword';
-import { QaTimeline } from './pages/_QaTimeline';
 import { AuthProvider } from './lib/auth';
 import { CartProvider } from './lib/cart';
 import { Cart } from './pages/Cart';
@@ -84,7 +83,6 @@ export default function App() {
             <Route path="/terms" element={<Terms />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/_qa-timeline" element={<QaTimeline />} />
           </Routes>
           </RoutedErrorBoundary>
         </main>
