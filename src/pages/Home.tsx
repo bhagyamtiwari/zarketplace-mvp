@@ -247,7 +247,7 @@ export function Home() {
         {/* Background Image Layer */}
         <div className="absolute inset-0 z-0">
           <img
-            src="/images/resale2.png"
+            src="/images/resale.png"
             className="w-full h-full object-cover opacity-40"
             alt="Culture"
           />
