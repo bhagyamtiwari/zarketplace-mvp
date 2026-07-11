@@ -12,7 +12,7 @@ export function paymentFailedBuyer(ctx: EmailContext): EmailContent {
       ${header(ctx.siteUrl)}
       <h1 style="font-weight:900; text-transform:uppercase; letter-spacing:-1px;">Payment didn't go through</h1>
       <p>Hi ${esc(o.buyer_name)},</p>
-      <p>Your payment for the order below could not be completed. No amount was charged. You can retry the payment from your orders page.</p>
+      <p>Your payment for the order below couldn't be completed. No amount was charged. You can retry from your orders page.</p>
       <h3 style="margin-top:24px;">${esc(o.listing_title)}</h3>
       <p><strong>Order #:</strong> ${esc(o.order_number)}<br/>
          <strong>Total:</strong> Rs. ${o.total_amount}</p>
