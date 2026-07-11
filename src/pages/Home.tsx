@@ -265,9 +265,9 @@ export function Home() {
             </div>
 
             {/* Right Side: Description Text */}
-            <div className="flex flex-col items-center lg:items-start gap-6 text-white/80 text-sm font-medium uppercase tracking-widest leading-relaxed max-w-md lg:mt-4">
+            <div className="flex flex-col items-center gap-6 text-white/80 text-sm font-medium uppercase tracking-widest leading-relaxed max-w-md lg:mt-4 text-center">
               <p>resellers, IG thrift stores and everyday sellers all in one place.</p>
-              <Link to="/about" className="border border-white px-8 py-4 text-[11px] font-black uppercase tracking-[0.3em] text-white transition-all hover:scale-105 active:scale-95 hover:bg-white hover:text-black mt-4">
+              <Link to="/about" className="border border-white px-8 py-4 text-[11px] font-black uppercase tracking-[0.3em] text-white transition-all hover:scale-105 active:scale-95 hover:bg-white hover:text-black mt-4 self-center">
                 Our Mission
               </Link>
             </div>

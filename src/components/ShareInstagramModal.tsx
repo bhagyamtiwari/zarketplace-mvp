@@ -23,8 +23,8 @@ const LAYOUTS: Record<Format, {
   panelH: number;  // height of the bottom overlay panel
   previewScale: number;
 }> = {
-  square: { w: 1080, h: 1080, panelH: 460, previewScale: 0.34 },
-  story:  { w: 1080, h: 1920, panelH: 680, previewScale: 0.22 },
+  square: { w: 1080, h: 1080, panelH: 340, previewScale: 0.34 },
+  story:  { w: 1080, h: 1920, panelH: 500, previewScale: 0.22 },
 };
 
 // Always points at the production domain regardless of where the seller
@@ -137,8 +137,6 @@ export function ShareInstagramModal({ open, onClose, listing }: Props) {
               <h2 className="text-2xl font-black tracking-tighter uppercase">Generate post image</h2>
               <p className="text-[11px] font-bold uppercase tracking-widest text-black/40 leading-relaxed max-w-xl">
                 Download a branded post or story image of your listing in one click.
-                <br />
-                Only you can see this.
               </p>
             </div>
 
@@ -286,12 +284,14 @@ const ShareCard = React.forwardRef<HTMLDivElement, {
       )}
 
       {/* INFO PANEL: translucent dark overlay anchored to the bottom of the
-          full-bleed image, so the photo stays visible underneath. */}
+          full-bleed image, so the photo stays visible underneath. Kept
+          compact (small padding, no wasted vertical room) so most of the
+          photo stays uncovered. */}
       <div style={{
         position: 'absolute', left: 0, right: 0, bottom: 0,
         height: layout.panelH,
         background: 'rgba(0,0,0,0.7)', color: '#fff',
-        padding: isStory ? 56 : 44,
+        padding: isStory ? 40 : 30,
         display: 'flex', flexDirection: 'column',
         boxSizing: 'border-box',
       }}>
@@ -299,16 +299,16 @@ const ShareCard = React.forwardRef<HTMLDivElement, {
         <div style={{
           flex: 1,
           display: 'flex',
-          gap: 32,
+          gap: 24,
           alignItems: 'flex-start',
           minHeight: 0,
         }}>
           {/* Left text column */}
           <div style={{
-            flex: 1, display: 'flex', flexDirection: 'column', gap: 18, minWidth: 0,
+            flex: 1, display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0,
           }}>
             <h1 style={{
-              fontSize: isStory ? 64 : 50,
+              fontSize: isStory ? 52 : 42,
               fontWeight: 900,
               letterSpacing: -1.5,
               textTransform: 'uppercase',
@@ -321,20 +321,21 @@ const ShareCard = React.forwardRef<HTMLDivElement, {
             </h1>
 
             <div style={{
-              display: 'flex', gap: 14, flexWrap: 'wrap',
-              fontSize: isStory ? 22 : 18, fontWeight: 800, letterSpacing: 3, textTransform: 'uppercase',
+              display: 'flex', gap: 10, flexWrap: 'wrap',
+              fontSize: isStory ? 18 : 15, fontWeight: 800, letterSpacing: 2.5, textTransform: 'uppercase',
             }}>
+              {listing.brand && <span style={chipStyle}>{listing.brand}</span>}
               {listing.size && <span style={chipStyle}>Size {listing.size}</span>}
               {listing.condition && <span style={chipStyle}>{listing.condition}</span>}
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 16, marginTop: 'auto' }}>
-              <span style={{ fontSize: isStory ? 60 : 48, fontWeight: 900, letterSpacing: -1.5, lineHeight: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, marginTop: 'auto' }}>
+              <span style={{ fontSize: isStory ? 46 : 38, fontWeight: 900, letterSpacing: -1.5, lineHeight: 1 }}>
                 {formatCurrency(price)}
               </span>
               {hasSale && (
                 <span style={{
-                  fontSize: 22, fontWeight: 800, color: '#a3a3a3', textDecoration: 'line-through',
+                  fontSize: 20, fontWeight: 800, color: '#a3a3a3', textDecoration: 'line-through',
                 }}>
                   {formatCurrency(listing.price)}
                 </span>
@@ -344,50 +345,49 @@ const ShareCard = React.forwardRef<HTMLDivElement, {
 
           {/* Right QR column */}
           <div style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, flexShrink: 0,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, flexShrink: 0,
           }}>
-            <div style={{ background: '#fff', padding: 12, lineHeight: 0 }}>
+            <div style={{ background: '#fff', padding: 10, lineHeight: 0 }}>
               <QRCode
                 value={productUrl(listing)}
-                size={isStory ? 200 : 160}
+                size={isStory ? 170 : 130}
                 bgColor="#ffffff"
                 fgColor="#000000"
                 level="M"
               />
             </div>
             <span style={{
-              fontSize: 11, fontWeight: 900, letterSpacing: 3, textTransform: 'uppercase', opacity: 0.8,
+              fontSize: 10, fontWeight: 900, letterSpacing: 3, textTransform: 'uppercase', opacity: 0.8,
             }}>
               Scan to shop
             </span>
           </div>
         </div>
 
-        {/* BOTTOM ROW: centered wordmark. Source PNG is a square canvas with
-            the glyphs occupying only the middle ~14% of its height, so it's
-            cropped to that band via an overflow:hidden window + a shifted
-            full-size image rather than rendered at its raw square ratio. */}
+        {/* BOTTOM ROW: centered registered wordmark, at its native aspect
+            ratio (1083x202 - already cropped tight to the glyphs, unlike the
+            old square wordmark asset, so no crop-window hack needed). */}
         <div style={{
-          marginTop: 28,
-          paddingTop: 22,
+          marginTop: 18,
+          paddingTop: 14,
           borderTop: '2px solid rgba(255,255,255,0.18)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
         }}>
-          <div style={{ width: isStory ? 282 : 211, height: isStory ? 40 : 30, overflow: 'hidden', position: 'relative' }}>
-            <img
-              src="/images/wordmark-tp.png"
-              alt="zarketplace"
-              crossOrigin="anonymous"
-              style={{ position: 'absolute', top: isStory ? -122 : -91, left: 0, width: isStory ? 282 : 211, height: isStory ? 282 : 211 }}
-            />
-          </div>
+          <img
+            src="/images/registered-wordmark/zark-reg-tp.png"
+            alt="zarketplace (r)"
+            crossOrigin="anonymous"
+            style={{ height: isStory ? 30 : 22, width: (isStory ? 30 : 22) * WORDMARK_RATIO, objectFit: 'contain' }}
+          />
         </div>
       </div>
     </div>
   );
 });
+
+const WORDMARK_RATIO = 1083 / 202;
 
 const chipStyle: React.CSSProperties = {
   border: '2px solid rgba(255,255,255,0.25)',
