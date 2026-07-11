@@ -22,6 +22,22 @@ import { getPricingConfig, buyerProtectionFee, type PricingConfig, getShippingCa
 
 const clog = log('checkout');
 const RESUME_KEY = 'zk_checkout_v3';
+const RAZORPAY_SCRIPT_SRC = 'https://checkout.razorpay.com/v1/checkout.js';
+
+let razorpayScriptPromise: Promise<void> | null = null;
+function loadRazorpayScript(): Promise<void> {
+  if (window.Razorpay) return Promise.resolve();
+  if (!razorpayScriptPromise) {
+    razorpayScriptPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = RAZORPAY_SCRIPT_SRC;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('Failed to load Razorpay checkout script'));
+      document.head.appendChild(script);
+    });
+  }
+  return razorpayScriptPromise;
+}
 
 declare global {
   interface Window {
@@ -287,6 +303,8 @@ function CheckoutInner() {
       const { razorpay_order_id, amount, currency, key_id } = data as {
         razorpay_order_id: string; amount: number; currency: string; key_id: string;
       };
+
+      await loadRazorpayScript();
 
       const rzp = new window.Razorpay({
         key: key_id,
