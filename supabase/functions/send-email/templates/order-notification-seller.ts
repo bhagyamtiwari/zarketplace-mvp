@@ -19,7 +19,7 @@ export function orderNotificationSeller(ctx: EmailContext): EmailContent {
         <p style="margin:0; white-space:pre-wrap;">${esc(note)}</p>
         <p style="margin:8px 0 0; font-size:12px; color:#888;">You're not obligated to fulfill this. It's your call.</p>
       </div>` : ""}
-      <p>You have 72 hours from the sale to ship this item and add tracking in your seller portal. Your payout is released once shipping is confirmed.</p>
+      <p>You have 72 hours from the sale to pack this item and hand it off for pickup, then add the tracking details in your seller portal. Buyers pay shipping and zarketplace covers the label, so you never arrange or pay for a courier yourself. Your payout is released after the item is delivered and the buyer's 48-hour review window closes.</p>
       ${button(sellerUrl(o, ctx.siteUrl), "Open seller portal")}
     </div>`,
   };

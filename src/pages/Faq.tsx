@@ -41,19 +41,19 @@ const SECTIONS: FaqSection[] = [
     items: [
       {
         q: 'How do I list an item?',
-        a: 'Tap Sell, upload photos, and fill in the category, size, condition, price, and shipping details. Every listing is reviewed before it goes live.',
+        a: 'Tap Sell, upload photos, and fill in the category, size, condition, price, and shipping category. Every listing is reviewed before it goes live.',
       },
       {
         q: 'When do I get paid?',
-        a: 'Ship the item and upload tracking information. Once the order is marked delivered, your payout is held for 48 hours (the buyer’s review window) and then released.',
+        a: 'Once your item is delivered, your payout is held for 48 hours (the buyer’s review window) and then released, as long as there’s no open claim. You keep 100% of your asking price, with no selling fees.',
       },
       {
-        q: 'How long do I have to ship?',
-        a: 'You have 72 hours from the time an item sells to ship it and upload tracking.',
+        q: 'How long do I have to send it?',
+        a: 'You have 72 hours from the time an item sells to pack it and hand it off for pickup. Buyers pay shipping and zarketplace arranges the label, so you never book or pay for a courier yourself.',
       },
       {
-        q: 'What happens if I miss the shipping deadline?',
-        a: 'Contact support as soon as possible. Repeated missed shipping deadlines may affect your ability to keep selling on zarketplace.',
+        q: 'What happens if I miss the pickup deadline?',
+        a: 'Contact support as soon as possible. Repeated missed pickup deadlines may affect your ability to keep selling on zarketplace.',
       },
     ],
   },

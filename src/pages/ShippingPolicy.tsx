@@ -24,18 +24,18 @@ export function ShippingPolicy() {
 
         <div className="flex flex-col gap-10 text-black leading-relaxed text-sm font-medium uppercase tracking-widest">
           <section className="flex flex-col gap-4">
-            <h2 className="text-xl font-black uppercase tracking-tight text-black">72-Hour Shipping Window</h2>
-            <p>Sellers must ship a sold item within 72 hours of the sale being confirmed. This keeps the marketplace fast and predictable for buyers.</p>
+            <h2 className="text-xl font-black uppercase tracking-tight text-black">Buyer-Paid, Platform-Arranged Shipping</h2>
+            <p>Buyers pay shipping at checkout, calculated from the item's shipping category. Sellers never book or pay for a courier themselves. zarketplace arranges the label so the seller only has to pack the item and hand it off for pickup.</p>
           </section>
 
           <section className="flex flex-col gap-4">
-            <h2 className="text-xl font-black uppercase tracking-tight text-black">Tracking Is Required</h2>
-            <p>Every order must have valid tracking information (courier and tracking number or link) uploaded by the seller before it's considered shipped. Orders without tracking are not eligible for payout.</p>
+            <h2 className="text-xl font-black uppercase tracking-tight text-black">72-Hour Handoff Window</h2>
+            <p>Once an item sells, the seller has 72 hours to pack it and hand it off for pickup. This keeps the marketplace fast and predictable for buyers.</p>
           </section>
 
           <section className="flex flex-col gap-4">
-            <h2 className="text-xl font-black uppercase tracking-tight text-black">Buyer Updates</h2>
-            <p>Once a seller adds tracking, buyers receive an email and can see live shipping status and the tracking link directly on their My Orders page.</p>
+            <h2 className="text-xl font-black uppercase tracking-tight text-black">Every Order Is Tracked</h2>
+            <p>Every order carries tracking (courier and tracking number or link). Once an item is on its way, buyers receive an email and can follow live shipping status and the tracking link directly on their My Orders page.</p>
           </section>
 
           <section className="flex flex-col gap-4">

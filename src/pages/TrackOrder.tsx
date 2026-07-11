@@ -6,25 +6,19 @@
 import * as React from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Order, OrderStatus } from '../types';
-import { formatCurrency, cn } from '../lib/utils';
-import { Loader2, Truck, CheckCircle2, Clock, ExternalLink, PackageCheck } from 'lucide-react';
+import { Order } from '../types';
+import { formatCurrency } from '../lib/utils';
+import { Loader2, ExternalLink } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
 import { log } from '../lib/log';
 import { StatusBadge } from '../components/StatusBadge';
+import { OrderTimeline } from '../components/OrderTimeline';
+import { hasEscrowTimeline } from '../lib/escrowTimeline';
 import { EmptyState } from '../components/EmptyState';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
 
 const tlog = log('track');
-
-const STATUS_STEPS: { key: OrderStatus; label: string; icon: any }[] = [
-  { key: 'awaiting_payment', label: 'Ordered', icon: Clock },
-  { key: 'awaiting_verification', label: 'Confirming Payment', icon: Clock },
-  { key: 'paid', label: 'Order Confirmed', icon: CheckCircle2 },
-  { key: 'shipped', label: 'On Its Way', icon: Truck },
-  { key: 'delivered', label: 'Delivered', icon: PackageCheck },
-];
 
 export function TrackOrder() {
   useDocumentTitle('My Orders');
@@ -93,8 +87,6 @@ function TrackInner() {
 }
 
 function OrderCard({ order }: { order: Order }) {
-  const idx = STATUS_STEPS.findIndex((s) => s.key === order.status);
-
   return (
     <div className="border border-black/5 bg-white p-6 flex flex-col gap-6">
       <div className="flex gap-4">
@@ -113,37 +105,11 @@ function OrderCard({ order }: { order: Order }) {
         <StatusBadge status={order.status} audience="buyer" />
       </div>
 
-      {/* Timeline */}
-      {order.status !== 'cancelled' && order.status !== 'refunded' && (
-        <div className="grid grid-cols-5 gap-2 pt-4 border-t border-black/5">
-          {STATUS_STEPS.map((step, i) => {
-            const Icon = step.icon;
-            const reached = idx >= i;
-            const current = idx === i;
-            return (
-              <div key={step.key} className="flex flex-col gap-2 items-start">
-                <div className={cn('h-9 w-9 rounded-full flex items-center justify-center border',
-                  reached ? 'bg-black text-white border-black' : 'bg-white text-black/30 border-black/10',
-                  current && 'ring-2 ring-black/30 ring-offset-2')}>
-                  <Icon className="h-4 w-4" />
-                </div>
-                <span className={cn('text-[9px] font-black uppercase tracking-widest', reached ? 'text-black' : 'text-black/30')}>
-                  {step.label}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {/* Escrow timeline */}
+      {hasEscrowTimeline(order) && <OrderTimeline order={order} audience="buyer" />}
 
       {/* Tracking */}
       <Tracking order={order} />
-
-      {order.status === 'delivered' && (
-        <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 leading-relaxed border-t border-black/5 pt-4">
-          Delivered. If anything's wrong with your order, contact us within 48 hours of delivery.
-        </p>
-      )}
     </div>
   );
 }
@@ -178,13 +144,13 @@ function Tracking({ order }: { order: Order }) {
       ) : order.status === 'paid' ? (
         <div className="bg-zinc-50 border border-black/5 p-4">
           <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 leading-relaxed">
-            Tracking information is not available yet. Your seller has been notified of your order and payment details, and will update shipment information soon. We'll email you as soon as tracking details are added.
+            No tracking yet. The seller is packing your item for courier pickup, and your payment stays protected in escrow until it's delivered. We'll email you the moment tracking is added.
           </p>
         </div>
       ) : (
         <div className="bg-zinc-50 border border-black/5 p-4">
           <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 leading-relaxed">
-            Tracking unavailable. We're still verifying your payment. Once confirmed, the seller will ship and add tracking. We'll email you the moment they do.
+            No tracking yet. We're still confirming your payment. Once it clears, the item is packed for pickup and tracking is added. We'll email you the moment it is.
           </p>
         </div>
       )}

@@ -15,16 +15,17 @@ Everything below can also be done in the Admin Portal at `/admin`
 A listing is also flagged `is_sold = true/false` to control visibility.
 
 **Order** (`public.orders.status`):
-`awaiting_payment` → `awaiting_verification` → `paid` → `shipped`
+`awaiting_payment` → `awaiting_verification` → `paid` → `shipped` → `delivered`
 plus `cancelled` / `refunded` as exits.
 
 | Stage | Who acts | What happens |
 |-------|----------|--------------|
 | `awaiting_payment` | Buyer | Order row created at the address step; buyer hasn't confirmed yet. |
 | `awaiting_verification` | **Admin** | Buyer tapped "Confirm Order & Payment". Money should now be in the platform UPI (`9220190649@idfcbank`, ADNIZ Private Limited). Listing is marked `is_sold = true`. |
-| `paid` | **Admin** | Admin has **verified the money actually arrived** and marks the order paid. |
-| `shipped` | Seller (or Admin) | Seller adds courier + tracking in the seller portal; buyer gets a "Shipped" email. |
-| *payout* | **Admin** | After shipping is confirmed, admin pays the seller to their UPI and (optionally) sends the payout email. |
+| `paid` | **Admin** | Admin has **verified the money actually arrived** and marks the order paid. Money is now held in escrow. |
+| `shipped` | Seller (or Admin) | Seller packs the item, hands it off for pickup, and adds tracking in the seller portal; buyer gets a "Shipped" email. |
+| `delivered` | **Admin** (Shiprocket webhook later) | Admin marks the order delivered once the item has arrived. This is the escrow trigger: a DB trigger stamps `delivered_at`, opens the buyer's 48-hour review window (`review_ends_at`), and auto-creates the `seller_payouts` row. **Only admin (or a service-role caller) can set `delivered`.** |
+| *payout* | **Admin** | Once the review window has closed with no open claim, admin pays the seller to their UPI (100% of the item price, `orders.amount`, not `total_amount`) and marks the payout `paid_out`. RLS blocks flipping a payout to `paid_out` before the window closes. |
 | `cancelled` / `refunded` | **Admin** | Exit states. The listing is automatically relisted (`is_sold = false`). |
 
 ---
@@ -97,21 +98,44 @@ set status = 'shipped',
 where order_number = 'ZKT-12345';
 ```
 
-### 4. Release the seller payout
-After shipping is confirmed, pay the seller to their UPI. The seller's UPI is
-snapshotted on the order so it can't change after the sale:
+### 4. Mark delivered, then release the seller payout
+Payouts are **delivery-gated**, not shipping-gated. Once the item has arrived,
+mark the order `delivered`:
 
 ```sql
--- Get the seller's payout UPI for an order
-select order_number, seller_email, seller_upi_vpa_snapshot, total_amount
-from public.orders
-where order_number = 'ZKT-12345';
+update public.orders set status = 'delivered' where order_number = 'ZKT-12345';
 ```
 
-Pay that UPI manually, then notify the seller. The payout email
-(`payout_released_seller`) is sent from the app/edge function; there is no
-separate payout status column in the MVP — `paid`/`shipped` is the source of
-truth.
+That single update fires the `on_order_delivered` trigger, which stamps
+`delivered_at`, sets `review_ends_at = now() + 48h`, and creates the
+`seller_payouts` row automatically (status `awaiting_payout`, `releasable_at`
+= the review deadline). Do **not** create payout rows by hand.
+
+After the 48-hour review window closes with no open claim, pay the seller and
+mark the payout `paid_out`. The seller's UPI is snapshotted on the order so it
+can't change after the sale, and the payout is **100% of the item price
+(`orders.amount`)** — never `total_amount`, which also includes the buyer-paid
+shipping and Buyer Protection fee:
+
+```sql
+-- Get the seller's payout UPI and the correct payout amount for an order
+select o.order_number, o.seller_email, o.seller_upi_vpa_snapshot,
+       o.amount as payout_amount, p.status as payout_status, p.releasable_at
+from public.orders o
+join public.seller_payouts p on p.order_id = o.id
+where o.order_number = 'ZKT-12345';
+```
+
+Pay that UPI manually, then mark the payout paid and notify the seller:
+
+```sql
+update public.seller_payouts set status = 'paid_out', paid_at = now()
+where order_id = (select id from public.orders where order_number = 'ZKT-12345');
+```
+
+RLS blocks flipping a payout to `paid_out` before `releasable_at` has passed or
+while the order has an open claim. The payout email (`payout_released_seller`)
+is sent from the app/edge function.
 
 ### 5. Cancellations & refunds
 Setting an order to `cancelled` or `refunded` automatically relists the item
