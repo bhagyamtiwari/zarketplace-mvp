@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, ChevronDown } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
+import { InfoPageNav } from '../components/InfoPageNav';
 
 interface QA {
   q: string;
@@ -93,27 +94,33 @@ export function Faq() {
   useDocumentTitle('FAQ');
 
   return (
-    <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
-      <Link to="/" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-12">
+    <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
+      <Link to="/" className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-black hover:text-black/80 mb-8 lg:mb-12">
         <ArrowLeft className="h-3 w-3" /> Back to Home
       </Link>
 
-      <div className="flex flex-col gap-4 mb-12">
-        <h1 className="text-5xl font-black tracking-tighter uppercase">Frequently Asked Questions</h1>
-        <p className="text-sm font-black uppercase tracking-widest text-black">Answers to common questions about buying, selling, and your account</p>
-      </div>
+      <div className="flex flex-col lg:flex-row gap-10 lg:gap-16">
+        <InfoPageNav />
 
-      <div className="flex flex-col gap-12">
-        {SECTIONS.map((section) => (
-          <div key={section.title} className="flex flex-col gap-3">
-            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 border-b border-black pb-3 mb-2">
-              {section.title}
-            </h2>
-            {section.items.map((item) => (
-              <React.Fragment key={item.q}><FaqItem item={item} /></React.Fragment>
+        <div className="flex-1 min-w-0 max-w-3xl">
+          <div className="flex flex-col gap-4 mb-12">
+            <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Frequently Asked Questions</h1>
+            <p className="text-sm font-black uppercase tracking-widest text-black">Answers to common questions about buying, selling, and your account</p>
+          </div>
+
+          <div className="flex flex-col gap-12">
+            {SECTIONS.map((section) => (
+              <div key={section.title} className="flex flex-col gap-3">
+                <h2 className="text-xs font-black uppercase tracking-[0.3em] text-black/40 border-b border-black pb-3 mb-2">
+                  {section.title}
+                </h2>
+                {section.items.map((item) => (
+                  <React.Fragment key={item.q}><FaqItem item={item} /></React.Fragment>
+                ))}
+              </div>
             ))}
           </div>
-        ))}
+        </div>
       </div>
     </div>
   );

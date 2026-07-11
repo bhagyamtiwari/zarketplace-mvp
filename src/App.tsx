@@ -34,6 +34,8 @@ import { SpeedInsights } from '@vercel/speed-insights/react';
 
 import { ScrollToTop } from './components/ScrollToTop';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { CookieConsent } from './components/CookieConsent';
+import { useConsent } from './lib/cookieConsent';
 
 // Keying by pathname remounts the boundary (clearing any caught error) the
 // moment the user navigates to a different route, instead of leaving them
@@ -41,6 +43,19 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 function RoutedErrorBoundary({ children }: { children: ReactNode }) {
   const location = useLocation();
   return <ErrorBoundary key={location.pathname}>{children}</ErrorBoundary>;
+}
+
+// Reject actually disables Analytics/Speed Insights - it isn't decorative.
+// Both stay off until a choice is made (no analytics-before-consent).
+function ConsentedAnalytics() {
+  const [consent] = useConsent();
+  if (consent !== 'accepted') return null;
+  return (
+    <>
+      <Analytics />
+      <SpeedInsights />
+    </>
+  );
 }
 
 export default function App() {
@@ -88,11 +103,11 @@ export default function App() {
         </main>
 
         <Footer />
+        <CookieConsent />
       </div>
       </CartProvider>
       </AuthProvider>
-      <Analytics />
-      <SpeedInsights />
+      <ConsentedAnalytics />
     </Router>
   );
 }

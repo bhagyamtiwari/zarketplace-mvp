@@ -2,23 +2,27 @@ import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
+import { InfoPageNav } from '../components/InfoPageNav';
 
 export function BuyerProtection() {
   useDocumentTitle('Buyer Protection');
 
   return (
-    <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
-      <Link to="/" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-12">
+    <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
+      <Link to="/" className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-black hover:text-black/80 mb-8 lg:mb-12">
         <ArrowLeft className="h-3 w-3" /> Back to Home
       </Link>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col gap-12"
-      >
+      <div className="flex flex-col lg:flex-row gap-10 lg:gap-16">
+        <InfoPageNav />
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col gap-12 flex-1 min-w-0"
+        >
         <div className="flex flex-col gap-4">
-          <h1 className="text-5xl font-black tracking-tighter uppercase">Buyer Protection</h1>
+          <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Buyer Protection</h1>
           <p className="text-sm font-black uppercase tracking-widest text-black">Every order is protected, so buying from a stranger feels as safe as buying from a store</p>
         </div>
 
@@ -55,7 +59,8 @@ export function BuyerProtection() {
             <p>Reach out any time at <a href="mailto:contact@zarketplace.com" className="font-bold text-black underline">contact@zarketplace.com</a>.</p>
           </section>
         </div>
-      </motion.div>
+        </motion.div>
+      </div>
     </div>
   );
 }

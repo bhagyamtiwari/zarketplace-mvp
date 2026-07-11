@@ -2,19 +2,23 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Mail, Instagram, MessageCircle } from 'lucide-react';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
+import { InfoPageNav } from '../components/InfoPageNav';
 
 export function Contact() {
   useDocumentTitle('Contact');
 
   return (
-    <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
-      <Link to="/" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-12">
+    <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
+      <Link to="/" className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-black hover:text-black/80 mb-8 lg:mb-12">
         <ArrowLeft className="h-3 w-3" /> Back to Home
       </Link>
 
-      <div className="flex flex-col gap-16">
+      <div className="flex flex-col lg:flex-row gap-10 lg:gap-16">
+        <InfoPageNav />
+
+        <div className="flex flex-col gap-16 flex-1 min-w-0">
         <div className="flex flex-col gap-4">
-          <h1 className="text-6xl font-black tracking-tighter uppercase">Get in touch</h1>
+          <h1 className="text-5xl sm:text-6xl font-black tracking-tighter uppercase">Get in touch</h1>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-20">
@@ -99,6 +103,7 @@ export function Contact() {
               </p>
             </div>
           </form>
+        </div>
         </div>
       </div>
     </div>
