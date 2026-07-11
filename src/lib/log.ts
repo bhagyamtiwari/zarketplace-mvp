@@ -16,6 +16,7 @@ type Tag =
   | 'auth'
   | 'authmodal'
   | 'authcb'
+  | 'resetpw'
   | 'navbar'
   | 'browse'
   | 'home'
