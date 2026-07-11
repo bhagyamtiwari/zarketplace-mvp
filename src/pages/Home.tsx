@@ -48,7 +48,7 @@ export function Home() {
           className="absolute inset-0 overflow-hidden pointer-events-none"
         >
           <img
-            src="/images/new-banner.png"
+            src="/images/new-banner2.png"
             className="w-full h-full object-cover object-left sm:object-center scale-100 sm:scale-105"
             alt="Hero Banner"
           />
