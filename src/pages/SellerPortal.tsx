@@ -14,19 +14,20 @@ import { supabase } from '../lib/supabase';
 import { Listing, Order, OrderStatus, SellerPayout } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import {
-  Loader2, Edit3, Upload, ExternalLink, Trash2,
+  Loader2, Edit3, Upload, ExternalLink, Trash2, Share2,
 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
 import { StatusBadge } from '../components/StatusBadge';
 import { OrderTimeline } from '../components/OrderTimeline';
+import { ShareInstagramModal } from '../components/ShareInstagramModal';
 import { log } from '../lib/log';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
 import { sendEmail } from '../lib/email';
 
 const splog = log('seller');
 
-type Tab = 'listings' | 'orders' | 'payouts';
+type Tab = 'listings' | 'tools' | 'orders' | 'payouts';
 const COURIERS = ['Delhivery', 'BlueDart', 'India Post', 'DTDC', 'Ekart', 'Other'];
 
 export function SellerPortal() {
@@ -98,12 +99,14 @@ function SellerInner() {
 
   const NAV: Array<{ key: Tab; label: string; count: number; needsAction: boolean }> = [
     { key: 'listings', label: 'My Listings', count: listings.length, needsAction: false },
+    { key: 'tools', label: 'Seller Tools', count: listings.length, needsAction: false },
     { key: 'orders', label: 'Sales', count: orders.length, needsAction: incomingOrders.length > 0 },
     { key: 'payouts', label: 'Payouts', count: payouts.length, needsAction: awaitingPayouts.length > 0 },
   ];
 
   const TAB_META: Record<Tab, { title: string; description: string }> = {
     listings: { title: 'My Listings', description: 'Items you have put up for sale. Active items appear on browse; sold items move below once a buyer purchases them.' },
+    tools: { title: 'Seller Tools', description: 'Generate a branded Instagram post or story image for any of your listings in one click.' },
     orders: { title: 'Sales', description: 'Orders for items you sold. Add tracking once a buyer pays. Your payout is released after delivery is confirmed and the 48-hour buyer review window closes.' },
     payouts: { title: 'Payouts', description: 'What you’re owed and what you’ve already been paid. Payouts are held until 48 hours after delivery.' },
   };
@@ -174,6 +177,8 @@ function SellerInner() {
               <ListingsTable title="Active" rows={activeListings} onDelete={deleteListing} deletingId={deletingId} />
               <ListingsTable title="Sold" rows={soldListings} onDelete={deleteListing} deletingId={deletingId} />
             </div>
+          ) : tab === 'tools' ? (
+            <SellerToolsPanel listings={listings} />
           ) : tab === 'orders' ? (
             <OrdersList rows={incomingOrders} payouts={payouts} onUpdated={fetchAll} />
           ) : (
@@ -187,6 +192,45 @@ function SellerInner() {
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 mb-4">{children}</h3>;
+}
+
+function SellerToolsPanel({ listings }: { listings: Listing[] }) {
+  const [shareTarget, setShareTarget] = React.useState<Listing | null>(null);
+
+  if (listings.length === 0) {
+    return <p className="text-[11px] font-bold uppercase tracking-widest text-black/30">List an item first to generate Instagram images for it.</p>;
+  }
+
+  return (
+    <>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {listings.map((l) => (
+          <div key={l.id} className="border border-black/5 bg-white p-4 flex flex-col gap-3">
+            <div className="flex gap-3">
+              <div className="h-16 w-12 bg-zinc-100 overflow-hidden flex-shrink-0">
+                <img src={l.image_url} alt="" className="h-full w-full object-cover" />
+              </div>
+              <div className="flex-1 min-w-0 flex flex-col gap-1">
+                <span className="text-xs font-black uppercase tracking-tight truncate">{l.title}</span>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-black/40">{l.is_sold ? 'Sold' : l.status} · {formatCurrency(Number(l.sale_price ?? l.price))}</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShareTarget(l)}
+              className="inline-flex items-center justify-center gap-2 border border-black px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-black hover:text-white transition-colors"
+            >
+              <Share2 className="h-3.5 w-3.5" /> Generate Instagram image
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {shareTarget && (
+        <ShareInstagramModal open={!!shareTarget} onClose={() => setShareTarget(null)} listing={shareTarget} />
+      )}
+    </>
+  );
 }
 
 function ListingsTable({ title, rows, onDelete, deletingId }: {

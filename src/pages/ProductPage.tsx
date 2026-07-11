@@ -639,8 +639,6 @@ export function ProductPage() {
                 </button>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 leading-relaxed max-w-md">
                   Download a branded post or story image of your listing in one click.
-                  <br />
-                  Only you can see this.
                 </p>
               </div>
             )}
