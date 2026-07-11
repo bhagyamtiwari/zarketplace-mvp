@@ -150,10 +150,6 @@ export function Navbar() {
                   <ShoppingBag className="h-4 w-4" />
                 </button>
               )}
-              <Link to="/sell" className="bg-black px-8 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-white transition-all hover:scale-105 active:scale-95">
-                List Item
-              </Link>
-
               {user ? (
                 <div
                   className="relative"
@@ -234,9 +230,13 @@ export function Navbar() {
                   Sign In
                 </button>
               )}
+
+              <Link to="/sell" className="bg-black px-8 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-white transition-all hover:scale-105 active:scale-95">
+                List Item
+              </Link>
             </div>
-            
-            <button 
+
+            <button
               className="md:hidden p-2"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
             >

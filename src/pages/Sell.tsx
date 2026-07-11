@@ -762,13 +762,10 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {CONDITIONS.map((c) => (
             <button key={c.name} type="button" onClick={() => setCondition(c.name)}
-              className={cn('border p-5 text-left transition-all flex items-start gap-3',
+              className={cn('border p-5 text-left transition-all flex flex-col gap-1.5',
                 condition === c.name ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
-              <span className="text-xl leading-none shrink-0">{c.emoji}</span>
-              <span className="flex flex-col gap-1.5">
-                <span className="text-xs font-black uppercase tracking-widest">{c.name}</span>
-                <span className={cn('text-xs font-medium leading-relaxed', condition === c.name ? 'text-white/80' : 'text-black/70')}>{c.desc}</span>
-              </span>
+              <span className="text-xs font-black uppercase tracking-widest">{c.name}</span>
+              <span className={cn('text-xs font-medium leading-relaxed', condition === c.name ? 'text-white/80' : 'text-black/70')}>{c.desc}</span>
             </button>
           ))}
         </div>

@@ -8,7 +8,7 @@ export function trackingUpdateBuyer(ctx: EmailContext): EmailContent {
     subject: `Your order has shipped · ${o.order_number}`,
     html: `<div style="${baseStyle}">
       ${header(ctx.siteUrl)}
-      <h1 style="font-weight:900; text-transform:uppercase;">Shipped!</h1>
+      <h1 style="font-weight:900; text-transform:uppercase;">Shipped.</h1>
       <p>Hi ${esc(o.buyer_name)}, your item is on its way.</p>
       ${listingImage(o)}
       <p><strong>Courier:</strong> ${esc(o.courier ?? "")}<br/>

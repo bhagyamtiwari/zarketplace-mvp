@@ -13,7 +13,7 @@ import { ShareInstagramModal } from '../components/ShareInstagramModal';
 import { ListingCard } from '../components/ListingCard';
 import { formatCurrency as fmt } from '../lib/utils';
 import { getShippingCategories, shippingRateFor, type ShippingCategory } from '../lib/pricing';
-import { conditionByName } from '../lib/condition';
+import { CONDITIONS, conditionByName } from '../lib/condition';
 
 const plog = log('product');
 
@@ -31,13 +31,9 @@ const WEAR_LABELS: Record<string, string> = {
   never: 'Never', '1_2_times': '1-2 Times', occasionally: 'Occasionally', frequently: 'Frequently',
 };
 
-const CONDITION_TIERS = [
-  { name: 'As Is', desc: 'Heavily worn or naturally damaged. Visible flaws such as stains, holes, or broken hardware. Best for upcycling or collectors who appreciate the wear story.' },
-  { name: 'Fair', desc: 'Noticeable wear from regular use. May include fading, loose threads, or minor marks. Still wearable with character.' },
-  { name: 'Good', desc: 'Gently used with some signs of wear. Slight fading or small imperfections, but overall in solid shape.' },
-  { name: 'Great', desc: 'Lightly worn and well cared for. Minimal signs of wear. No major flaws or damage. Clean and ready to wear.' },
-  { name: 'Pristine', desc: 'Like new. Either never worn or worn once or twice with zero visible signs of wear. Tags may or may not be attached.' }
-];
+// Worst-to-best order for the condition meter bar (CONDITIONS itself is
+// best-to-worst, matching the Conditions Guide and Sell form order).
+const CONDITION_TIERS = [...CONDITIONS].reverse();
 
 // UUIDv4-ish detector. We accept either /product/:id (UUID) or /item/:sku.
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -60,7 +56,6 @@ export function ProductPage() {
   const [cartMsg, setCartMsg] = React.useState<string | null>(null);
   const [conflict, setConflict] = React.useState(false);
   const [shareOpen, setShareOpen] = React.useState(false);
-  const [showConditionMeter, setShowConditionMeter] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
   const [stickyBarVisible, setStickyBarVisible] = React.useState(true);
   const stickyStopRef = React.useRef<HTMLDivElement>(null);
@@ -399,34 +394,31 @@ export function ProductPage() {
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-[9px] font-black uppercase tracking-[0.2em] text-black">Condition</span>
-                <button
-                  type="button"
-                  onClick={() => setShowConditionMeter((v) => !v)}
+                <Link
+                  to="/conditions-guide"
                   className="text-[9px] font-black uppercase tracking-widest underline decoration-black/20 hover:decoration-black transition-all"
                 >
-                  (Learn More)
-                </button>
+                  (Condition Guide)
+                </Link>
               </div>
               <p className="font-black text-base uppercase tracking-tight">{listing.condition}</p>
 
-              {showConditionMeter && (
-                <div className="mt-4 bg-zinc-50 border border-black/5 p-4 flex flex-col gap-3">
-                  <div className="flex items-center gap-1">
-                    {CONDITION_TIERS.map((tier, idx) => (
-                      <div
-                        key={tier.name}
-                        className={cn('h-1.5 flex-1 rounded-full', idx <= currentConditionIdx ? 'bg-black' : 'bg-black/10')}
-                      />
-                    ))}
-                  </div>
-                  <div className="flex justify-between text-[7px] font-black uppercase tracking-widest text-black/40">
-                    {CONDITION_TIERS.map((tier) => <span key={tier.name}>{tier.name}</span>)}
-                  </div>
-                  <p className="text-[10px] font-medium leading-relaxed text-black/70">
-                    {CONDITION_TIERS[currentConditionIdx]?.desc}
-                  </p>
+              <div className="mt-4 bg-zinc-50 border border-black/5 p-4 flex flex-col gap-3">
+                <div className="flex items-center gap-1">
+                  {CONDITION_TIERS.map((tier, idx) => (
+                    <div
+                      key={tier.name}
+                      className={cn('h-1.5 flex-1 rounded-full', idx <= currentConditionIdx ? 'bg-black' : 'bg-black/10')}
+                    />
+                  ))}
                 </div>
-              )}
+                <div className="flex justify-between text-[7px] font-black uppercase tracking-widest text-black/40">
+                  {CONDITION_TIERS.map((tier) => <span key={tier.name}>{tier.name}</span>)}
+                </div>
+                <p className="text-[10px] font-medium leading-relaxed text-black/70">
+                  {CONDITION_TIERS[currentConditionIdx]?.desc}
+                </p>
+              </div>
             </div>
             <div>
               <span className="text-[9px] font-black uppercase tracking-[0.2em] text-black block mb-1">Shipping</span>
@@ -557,12 +549,11 @@ export function ProductPage() {
               <h3 className="text-[10px] font-black uppercase tracking-widest">Condition & Authenticity</h3>
               <div className="flex flex-col gap-4">
                 {conditionByName(listing.condition ?? '') && (
-                  <div className="flex items-start gap-3">
-                    <span className="text-base leading-none shrink-0">{conditionByName(listing.condition ?? '')?.emoji}</span>
-                    <p className="text-[9px] font-medium uppercase tracking-widest leading-relaxed text-black/70">
-                      {conditionByName(listing.condition ?? '')?.desc}
-                    </p>
-                  </div>
+                  <p className="text-[9px] font-medium uppercase tracking-widest leading-relaxed text-black/70">
+                    <span className="font-black text-black">{conditionByName(listing.condition ?? '')?.name}.</span>
+                    {' '}
+                    {conditionByName(listing.condition ?? '')?.desc}
+                  </p>
                 )}
 
                 {listing.has_flaws ? (
