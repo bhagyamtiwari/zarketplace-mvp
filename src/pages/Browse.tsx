@@ -8,6 +8,7 @@ import { cn } from '../lib/utils';
 import { log } from '../lib/log';
 import { EmptyState } from '../components/EmptyState';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
+import { CONDITIONS } from '../lib/condition';
 
 const blog = log('browse');
 
@@ -245,7 +246,7 @@ export function Browse() {
             <div className="flex flex-col gap-3">
               <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-black/40">Condition</h3>
               <div className="flex flex-col gap-2">
-                {['all', 'Pristine', 'Great', 'Good', 'Fair', 'As Is'].map(cond => (
+                {['all', ...CONDITIONS.map((c) => c.name)].map(cond => (
                   <button
                     key={cond}
                     onClick={() => updateFilter('condition', cond)}
