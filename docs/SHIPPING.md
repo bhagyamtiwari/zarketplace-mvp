@@ -1,14 +1,28 @@
 # Shipping - Zarketplace MVP
 
-## Current behaviour (manual, seller-fulfilled)
+> **Model vs. mechanic (read this first).** The product's *user-facing model* is
+> now buyer-paid, platform-arranged shipping: the buyer pays a category-based
+> shipping rate at checkout, the seller never books or pays for a courier, and
+> the seller only packs the item and hands it off for pickup. That model is what
+> Sell.tsx, the policy pages, the FAQ, and the order emails all describe, and it's
+> the target the copy is written against (see docs/REALIGNMENT_PLAN.md §0.2).
+>
+> Mechanically, though, the pickup/label automation is **not built yet** - the
+> Shiprocket integration below is what delivers it. Until then, the transitional
+> mechanic is the manual flow described next: the seller still pastes a tracking
+> URL into the Seller Portal. Buyers already pay the category shipping rate at
+> checkout regardless. Closing this gap (so sellers truly just "pack and hand
+> off") is exactly what the Shiprocket work is for.
 
-Each seller arranges their own courier. The flow is:
+## Current mechanic (manual tracking, transitional)
 
-1. After payment success, the seller is notified by email and the order appears in their **Seller Portal → Orders → Awaiting Shipment**.
-2. The seller ships the item using any courier (DTDC, India Post, BlueDart, friend with a bike, etc.).
-3. Seller clicks **"Add Tracking & Mark Shipped"**, enters the **courier name** and **tracking number**.
+Until Shiprocket is wired, tracking is entered by hand. The flow is:
+
+1. After payment success, the seller is notified by email and the order appears in their **Seller Portal → Orders**.
+2. The seller packs the item and hands it off for pickup / drop-off with a courier (DTDC, India Post, BlueDart, etc.).
+3. Seller clicks **"Save & mark shipped"**, entering the **tracking URL** (courier name and tracking number optional).
 4. Order status flips to `shipped`. The buyer gets an email with the tracking info, and `track-order` shows the tracking on the public page.
-5. Once the buyer confirms delivery (or admin confirms via tracking), admin marks the order `delivered` and releases the payout.
+5. Once the buyer confirms delivery (or admin confirms via tracking), admin marks the order `delivered`, which starts the 48-hour buyer review window and auto-creates the payout ledger row (see migration `20260710000001_delivery_escrow_and_payout_timing.sql`). Payout releases after that window closes with no open claim.
 
 This requires zero shipping integration. Cashfree does **not** offer a shipping product.
 
@@ -25,7 +39,7 @@ If you want one-click label generation, rate comparison and 17+ courier partners
 Replace (or augment) the seller "Add Tracking" flow with a backend call that:
 
 1. Authenticates: `POST https://apiv2.shiprocket.in/v1/external/auth/login` with `{ email, password }` → JWT.
-2. Creates an order: `POST /v1/external/orders/create/adhoc` with our buyer/shipping address, weight, dimensions, declared value (= `orders.total_amount`).
+2. Creates an order: `POST /v1/external/orders/create/adhoc` with our buyer/shipping address, weight, dimensions, declared value (= `orders.amount`, the item's price - not `total_amount`, which also includes the buyer-paid shipping and Buyer Protection fee).
 3. Optionally generates a label: `POST /v1/external/courier/generate/label`.
 4. Returns the `awb_code` (= tracking number) and `courier_name`.
 5. Persists those fields onto the order, mirroring what the seller does manually today.

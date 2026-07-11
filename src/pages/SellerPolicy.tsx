@@ -31,13 +31,13 @@ export function SellerPolicy() {
           </section>
 
           <section className="flex flex-col gap-4">
-            <h2 className="text-xl font-black uppercase tracking-tight text-black">You're Responsible for Shipment</h2>
-            <p>Sellers are responsible for packaging and shipping their own items within the 72-hour shipping window, and for uploading valid tracking information.</p>
+            <h2 className="text-xl font-black uppercase tracking-tight text-black">Pack and Hand Off for Pickup</h2>
+            <p>When your item sells, pack it well and hand it off for pickup within 72 hours. Buyers pay shipping at checkout and zarketplace arranges the label, so you never book or pay for a courier yourself.</p>
           </section>
 
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Payout Timing</h2>
-            <p>Payout is issued only after shipment is confirmed and tracking has been uploaded for the order.</p>
+            <p>Your payout is released after the item is delivered and the buyer's 48-hour review window closes with no open claim. It reflects 100% of your asking price. There are no selling fees.</p>
           </section>
 
           <section className="flex flex-col gap-4">
