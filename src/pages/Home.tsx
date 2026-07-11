@@ -222,7 +222,7 @@ export function Home() {
 <section className="relative min-h-[380px] sm:min-h-[460px] flex items-center py-16 sm:py-0 px-4 sm:px-6 lg:px-8 overflow-hidden bg-black text-white border-t border-white/10">
         <div className="absolute inset-0 opacity-40">
           <img
-            src="/images/red.png"
+            src="/images/red2.png"
             className="w-full h-full object-cover opacity-90"
             alt="Seller background"
           />
@@ -247,7 +247,7 @@ export function Home() {
         {/* Background Image Layer */}
         <div className="absolute inset-0 z-0">
           <img
-            src="/images/plane.png"
+            src="/images/resale2.png"
             className="w-full h-full object-cover opacity-40"
             alt="Culture"
           />
