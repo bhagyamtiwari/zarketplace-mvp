@@ -139,6 +139,39 @@ function AdminInner() {
     fetchOrders();
   };
 
+  // Calls the shiprocket-create-order edge function for a single paid order:
+  // registers the seller's pickup location, creates the Shiprocket order,
+  // assigns a courier/AWB, and generates the label. See that function for
+  // the full flow - this just surfaces its result/warnings to the admin.
+  const [bookingId, setBookingId] = React.useState<string | null>(null);
+  const bookShiprocketPickup = async (orderId: string) => {
+    setBookingId(orderId);
+    try {
+      const { data, error } = await supabase.functions.invoke('shiprocket-create-order', { body: { order_id: orderId } });
+      if (error) throw error;
+      const result = data as { warnings?: string[]; tracking_number?: string | null } | null;
+      if (result?.warnings && result.warnings.length > 0) {
+        alert(`Booked, but: ${result.warnings.join(' ')}`);
+      }
+      fetchOrders();
+    } catch (err: any) {
+      alert(err?.message ?? 'Failed to book Shiprocket pickup.');
+    } finally {
+      setBookingId(null);
+    }
+  };
+
+  // claim_open is locked to admin-only writes at the DB level (migration
+  // 20260711000001) - this is the only place it can be changed. Buyers
+  // raise a claim by email (see RefundPolicy.tsx); admin opens it here to
+  // hold the payout, and closes it once resolved.
+  const toggleClaim = async (orderId: string, currentlyOpen: boolean) => {
+    if (!currentlyOpen && !confirm('Open a claim on this order? This holds the seller\'s payout until you close it.')) return;
+    const { error } = await supabase.from('orders').update({ claim_open: !currentlyOpen }).eq('id', orderId);
+    if (error) { alert(error.message); return; }
+    fetchOrders();
+  };
+
   const refresh = () => {
     if (tab === 'listings') fetchPendingListings();
     if (tab === 'orders') fetchOrders();
@@ -239,7 +272,13 @@ function AdminInner() {
             <ListingsTable listings={listings} actioningId={actioningId} onAction={handleListingAction} onDelete={handleListingDelete} />
           ))}
 
-          {tab === 'orders' && <OrdersPanel orders={orders} loading={loading} onUpdate={updateOrderStatus} />}
+          {tab === 'orders' && (
+            <OrdersPanel
+              orders={orders} loading={loading} onUpdate={updateOrderStatus}
+              onBookPickup={bookShiprocketPickup} bookingId={bookingId}
+              onToggleClaim={toggleClaim}
+            />
+          )}
           {tab === 'payouts' && <PayoutsPanel payouts={payouts} orders={orders} loading={loading} onMarkPaid={markPaidOut} />}
           {tab === 'users' && <UsersPanel users={users} loading={loading} currentUserId={user!.id} onToggleAdmin={toggleAdmin} />}
         </div>
@@ -339,8 +378,10 @@ function ListingsTable({ listings, actioningId, onAction, onDelete }: {
   );
 }
 
-function OrdersPanel({ orders, loading, onUpdate }: {
+function OrdersPanel({ orders, loading, onUpdate, onBookPickup, bookingId, onToggleClaim }: {
   orders: Order[]; loading: boolean; onUpdate: (id: string, status: OrderStatus) => void;
+  onBookPickup: (id: string) => void; bookingId: string | null;
+  onToggleClaim: (id: string, currentlyOpen: boolean) => void;
 }) {
   const [filter, setFilter] = React.useState<'all' | OrderStatus>('all');
   const filtered = orders.filter((o) => filter === 'all' || o.status === filter);
@@ -366,6 +407,7 @@ function OrdersPanel({ orders, loading, onUpdate }: {
             <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Total</th>
             <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Confirmed</th>
             <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Status</th>
+            <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Claim</th>
             <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40 text-right">Actions</th>
           </tr></thead>
           <tbody>
@@ -390,6 +432,13 @@ function OrdersPanel({ orders, loading, onUpdate }: {
                   <ProofCell utr={o.payment_utr} receiptPath={o.payment_receipt_url} submittedAt={o.payment_submitted_at} />
                 </td>
                 <td className="py-4 px-3"><StatusBadge status={o.status} audience="seller" /></td>
+                <td className="py-4 px-3">
+                  <button onClick={() => onToggleClaim(o.id, o.claim_open)}
+                    className={cn('text-[10px] font-black uppercase tracking-widest underline-offset-2',
+                      o.claim_open ? 'text-red-600 underline' : 'text-black/30 hover:text-black hover:underline')}>
+                    {o.claim_open ? 'Open - close it' : 'None - open one'}
+                  </button>
+                </td>
                 <td className="py-4 px-3 text-right">
                   <div className="flex flex-col gap-2 items-end">
                     {o.status === 'awaiting_verification' && (
@@ -397,6 +446,17 @@ function OrdersPanel({ orders, loading, onUpdate }: {
                         className="border border-black px-3 py-1.5 text-[10px] font-black uppercase tracking-widest hover:bg-black hover:text-white">
                         Mark Paid
                       </button>
+                    )}
+                    {o.status === 'paid' && !o.shiprocket_order_id && (
+                      <button onClick={() => onBookPickup(o.id)} disabled={bookingId === o.id}
+                        className="border border-black px-3 py-1.5 text-[10px] font-black uppercase tracking-widest hover:bg-black hover:text-white disabled:opacity-50">
+                        {bookingId === o.id ? 'Booking…' : 'Book Pickup (Shiprocket)'}
+                      </button>
+                    )}
+                    {o.shiprocket_order_id && (
+                      <span className="text-[9px] font-bold uppercase tracking-widest text-black/40">
+                        Shiprocket #{o.shiprocket_order_id}
+                      </span>
                     )}
                     <select value={o.status} onChange={(e) => onUpdate(o.id, e.target.value as OrderStatus)}
                       className="text-[10px] font-bold uppercase tracking-widest border border-black/10 px-2 py-1 bg-white">
@@ -441,6 +501,7 @@ function PayoutsPanel({ payouts, orders, loading, onMarkPaid }: {
           {rows.map((p) => {
             const order = orderById.get(p.order_id);
             const held = showAction && p.releasable_at && new Date(p.releasable_at) > new Date();
+            const claimBlocked = showAction && !!order?.claim_open;
             return (
               <tr key={p.id} className="border-b border-black/5">
                 <td className="py-3 px-3 text-xs font-bold">{order?.order_number ?? p.order_id.slice(0, 8)}<br /><span className="text-[10px] font-normal text-black/40">{order?.listing_title}</span></td>
@@ -450,7 +511,11 @@ function PayoutsPanel({ payouts, orders, loading, onMarkPaid }: {
                 <td className="py-3 px-3 text-[10px] font-bold uppercase tracking-widest text-black/60">{new Date(p.created_at).toLocaleDateString()}</td>
                 <td className="py-3 px-3 text-right">
                   {showAction ? (
-                    held ? (
+                    claimBlocked ? (
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-red-600">
+                        Open claim - see Orders
+                      </span>
+                    ) : held ? (
                       <span className="text-[10px] font-bold uppercase tracking-widest text-black/40">
                         Held until {new Date(p.releasable_at as string).toLocaleDateString()}
                       </span>

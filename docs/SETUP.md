@@ -7,6 +7,7 @@ Read this in order. It walks through everything needed to take the codebase from
 - Supabase CLI (`brew install supabase/tap/supabase`)
 - Razorpay account (test keys from Dashboard → Settings → API Keys)
 - Resend account (free tier) for transactional + campaign emails
+- Shiprocket account (optional - only needed to book pickups automatically; the manual tracking flow works without it, see `docs/SHIPPING.md`)
 
 ## 1. Install
 ```bash
@@ -54,12 +55,17 @@ supabase secrets set \
   RAZORPAY_WEBHOOK_SECRET="<set when you create the webhook in Step 6>" \
   PUBLIC_SITE_URL="http://localhost:3000" \
   RESEND_API_KEY="<your_resend_key_or_skip_for_dev>" \
-  EMAIL_FROM="zarketplace <onboarding@resend.dev>"
+  EMAIL_FROM="zarketplace <onboarding@resend.dev>" \
+  SHIPROCKET_EMAIL="<your Shiprocket account email - optional, see docs/SHIPPING.md>" \
+  SHIPROCKET_PASSWORD="<your Shiprocket account password>" \
+  SHIPROCKET_WEBHOOK_TOKEN="$(openssl rand -hex 24)"
 ```
 
 `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are auto-injected by the platform - don't set them.
 
 If you skip `RESEND_API_KEY`, the `send-email` function logs each send to the `email_log` table with status `queued` and short-circuits without sending. Useful for local development.
+
+If you skip the `SHIPROCKET_*` secrets, `shiprocket-create-order` returns a clear "not configured" error and the manual tracking flow in Seller Portal is what actually ships orders - see `docs/SHIPPING.md`.
 
 ## 5. Deploy Edge Functions
 
@@ -67,16 +73,21 @@ If you skip `RESEND_API_KEY`, the `send-email` function logs each send to the `e
 supabase functions deploy create-razorpay-order
 supabase functions deploy razorpay-webhook --no-verify-jwt
 supabase functions deploy send-email
+supabase functions deploy shiprocket-create-order
+supabase functions deploy shiprocket-webhook --no-verify-jwt
 ```
 
-`--no-verify-jwt` on the webhook is required because Razorpay won't send a Supabase JWT.
+`--no-verify-jwt` on both webhooks is required because neither Razorpay nor Shiprocket sends a Supabase JWT.
 
-## 6. Configure Razorpay webhook
+## 6. Configure webhooks
 
-Razorpay Dashboard → **Settings → Webhooks → Add New Webhook**:
+**Razorpay** Dashboard → **Settings → Webhooks → Add New Webhook**:
 - URL: `https://wfaxtxprngyrxsmahxxa.supabase.co/functions/v1/razorpay-webhook`
 - Active events: `payment.captured`, `payment.failed`
 - Set a **secret**, and store the same value as the `RAZORPAY_WEBHOOK_SECRET` edge function secret (Step 4).
+
+**Shiprocket** (optional, only if you set the `SHIPROCKET_*` secrets) Dashboard → **Settings → API → Webhooks**:
+- URL: `https://wfaxtxprngyrxsmahxxa.supabase.co/functions/v1/shiprocket-webhook?token=<SHIPROCKET_WEBHOOK_TOKEN>` (the exact value you set in Step 4 - Shiprocket doesn't support HMAC signing, so this query-param token is the shared-secret check; see `docs/SHIPPING.md`).
 
 ## 7. Run the app
 
@@ -87,16 +98,18 @@ Open http://localhost:3000.
 
 ## 8. Smoke test (sandbox)
 
-1. Visit `/sell`, list a sample item with your own email + UPI VPA, submit.
-2. Visit `/admin` (password `zarketplace2025`), approve the listing.
+1. Sign up, then visit `/sell`, list a sample item with your own UPI VPA and pickup address, submit.
+2. Sign in as an admin (see `docs/AUTH.md` - first admin auto-promotes via `contact@zarketplace.com`, or promote yourself via SQL), visit `/admin`, approve the listing.
 3. Visit `/browse`, click the listing, click **Buy it now**.
-4. Fill the checkout form, click **Place Order**, complete payment in the Razorpay modal with a test instrument (e.g. `success@razorpay` UPI).
+4. Fill the checkout form (including the new **State** field), click **Place Order**, complete payment in the Razorpay modal with a test instrument (e.g. `success@razorpay` UPI).
 5. Verify in DB:
    - `orders.status = 'paid'`
    - `listings.is_sold = true`
 6. Check `/track-order` (or **My Orders** while signed in) - should show the escrow timeline.
-7. In the **Seller Portal**, the sold listing appears. Add tracking and mark it shipped; the order flips to `shipped`.
-8. In `/admin`, mark the order `delivered`. A `seller_payouts` row is created automatically (`status = 'awaiting_payout'`, held for the 48-hour review window). After the window closes, release the payout; it flips to `paid_out`.
+7. Either:
+   - **Manual:** in **Seller Portal → Sales**, add tracking and mark it shipped; the order flips to `shipped`. Or,
+   - **Shiprocket** (only if you set the `SHIPROCKET_*` secrets): in `/admin → Orders`, click **Book Pickup (Shiprocket)** on the paid order - it registers the pickup location, creates the Shiprocket order, assigns a courier/AWB, and flips the order to `shipped` automatically. See `docs/SHIPPING.md`.
+8. In `/admin`, mark the order `delivered` (or let `shiprocket-webhook` do it automatically once Shiprocket reports delivery). A `seller_payouts` row is created automatically (`status = 'awaiting_payout'`, held for the 48-hour review window). After the window closes, release the payout; it flips to `paid_out`.
 
 If all 8 steps pass, the system is wired correctly.
 
@@ -104,14 +117,15 @@ If all 8 steps pass, the system is wired correctly.
 
 | Route | Purpose |
 |---|---|
-| `/track-order` | Buyer order lookup (email + order #) |
-| `/seller-portal` | Seller dashboard (email-gated) |
-| `/admin` (password `zarketplace2025`) | Listings moderation + Orders + Payouts + Email Campaigns tabs |
+| `/track-order` | Buyer order lookup (auth required) |
+| `/seller-portal` | Seller dashboard - Listings, Seller Tools, Sales, Payouts (auth required) |
+| `/admin` | Listings moderation + Orders + Payouts + Email Campaigns + Users tabs (auth required, `profiles.is_admin = true`) |
 
 ## 10. Documentation index
 
 - [`docs/PAYMENTS.md`](./PAYMENTS.md) - Razorpay payment + escrow payout flow, refunds, going-to-prod
-- [`docs/SHIPPING.md`](./SHIPPING.md) - current shipping flow + Shiprocket upgrade plan
+- [`docs/SHIPPING.md`](./SHIPPING.md) - Shiprocket pickup booking (test mode) + manual fallback
+- [`docs/ADMIN_OPERATIONS.md`](./ADMIN_OPERATIONS.md) - admin day-to-day: verifying payment, booking pickup, marking delivered, releasing payouts, handling claims
 - [`docs/SETUP.md`](./SETUP.md) - this file
 - [`docs/CHANGES.md`](./CHANGES.md) - every file added/modified, in plain English
 - [`docs/env.example.txt`](./env.example.txt) - environment variable template

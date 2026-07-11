@@ -119,11 +119,11 @@ function CheckoutInner() {
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
   const [shippingAddress, setShippingAddress] = React.useState({
-    fullName: '', email: '', phone: '', address: '', landmark: '', city: '', pincode: '',
+    fullName: '', email: '', phone: '', address: '', landmark: '', city: '', state: '', pincode: '',
   });
   const [billingSameAsShipping, setBillingSameAsShipping] = React.useState(true);
   const [billingAddress, setBillingAddress] = React.useState({
-    fullName: '', address: '', landmark: '', city: '', pincode: '',
+    fullName: '', address: '', landmark: '', city: '', state: '', pincode: '',
   });
 
   React.useEffect(() => {
@@ -136,6 +136,7 @@ function CheckoutInner() {
       address: prev.address || addr.address || '',
       landmark: prev.landmark || addr.landmark || '',
       city: prev.city || addr.city || '',
+      state: prev.state || addr.state || '',
       pincode: prev.pincode || addr.pincode || '',
     }));
   }, [user, profile]);
@@ -185,12 +186,12 @@ function CheckoutInner() {
     const required: Array<[string, string]> = [
       ['fullName', shippingAddress.fullName], ['email', shippingAddress.email],
       ['phone', shippingAddress.phone], ['address', shippingAddress.address],
-      ['city', shippingAddress.city], ['pincode', shippingAddress.pincode],
+      ['city', shippingAddress.city], ['state', shippingAddress.state], ['pincode', shippingAddress.pincode],
     ];
     if (!billingSameAsShipping) {
       required.push(
         ['billing fullName', billingAddress.fullName], ['billing address', billingAddress.address],
-        ['billing city', billingAddress.city], ['billing pincode', billingAddress.pincode],
+        ['billing city', billingAddress.city], ['billing state', billingAddress.state], ['billing pincode', billingAddress.pincode],
       );
     }
     const missing = required.filter(([, v]) => !v?.trim()).map(([k]) => k);
@@ -536,8 +537,8 @@ function StepHeader({ step, onGoToAddress, onGoToPay }: {
   );
 }
 
-type ShippingAddr = { fullName: string; email: string; phone: string; address: string; landmark: string; city: string; pincode: string };
-type BillingAddr = { fullName: string; address: string; landmark: string; city: string; pincode: string };
+type ShippingAddr = { fullName: string; email: string; phone: string; address: string; landmark: string; city: string; state: string; pincode: string };
+type BillingAddr = { fullName: string; address: string; landmark: string; city: string; state: string; pincode: string };
 
 function AddressStep({
   addr, onChange, billingSame, onBillingSameChange, billingAddr, onBillingChange, onSubmit, submitting, errorMsg,
@@ -566,9 +567,8 @@ function AddressStep({
         <div className="md:col-span-2">
           <Field label="Landmark (Optional)" value={addr.landmark} onChange={(v) => onChange({ ...addr, landmark: v })} placeholder="(near Gate No. 4)" />
         </div>
-        <div className="md:col-span-2">
-          <Field label="City" value={addr.city} onChange={(v) => onChange({ ...addr, city: v })} placeholder="Mumbai" />
-        </div>
+        <Field label="City" value={addr.city} onChange={(v) => onChange({ ...addr, city: v })} placeholder="Mumbai" />
+        <Field label="State" value={addr.state} onChange={(v) => onChange({ ...addr, state: v })} placeholder="Maharashtra" />
       </div>
 
       <div className="flex flex-col gap-6 pt-6 border-t border-black/5">
@@ -592,6 +592,7 @@ function AddressStep({
             </div>
             <Field label="Pincode" inputMode="numeric" maxLength={6} value={billingAddr.pincode} onChange={(v) => onBillingChange({ ...billingAddr, pincode: v.replace(/\D/g, '') })} placeholder="400001" />
             <Field label="City" value={billingAddr.city} onChange={(v) => onBillingChange({ ...billingAddr, city: v })} placeholder="Mumbai" />
+            <Field label="State" value={billingAddr.state} onChange={(v) => onBillingChange({ ...billingAddr, state: v })} placeholder="Maharashtra" />
             <div className="md:col-span-2">
               <Field label="Address" value={billingAddr.address} onChange={(v) => onBillingChange({ ...billingAddr, address: v })} placeholder="House No, Street, Area" />
             </div>

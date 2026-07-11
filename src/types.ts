@@ -21,6 +21,7 @@ export interface Listing {
   image_url: string;
   image_urls: string[];
   shipping_category: string;
+  pickup_address: Record<string, string> | null;
   has_flaws: boolean;
   flaws_description: string | null;
   original_tags_attached: boolean | null;
@@ -82,6 +83,9 @@ export interface Order {
   seller_upi_vpa_snapshot: string | null;
   shipping_address: Record<string, string> | null;
   billing_address: Record<string, string> | null;
+  pickup_address: Record<string, string> | null;
+  shiprocket_order_id: string | null;
+  shiprocket_shipment_id: string | null;
   amount: number;
   shipping_cost: number;
   shipping_category: string | null;

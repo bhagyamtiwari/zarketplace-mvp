@@ -365,7 +365,11 @@ function OrderRow({ order, payout, onUpdated }: { order: Order; payout: SellerPa
       <OrderTimeline order={order} payout={payout} audience="seller" />
 
       <div className="pt-4 border-t border-black/5">
-        {order.status === 'awaiting_verification' || order.status === 'paid' || (order.status === 'shipped' && editing) ? (
+        {order.status === 'paid' && order.shiprocket_order_id ? (
+          <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 leading-relaxed">
+            Pickup booked with Shiprocket - waiting on courier assignment. We'll notify you once it's on its way; pack the item in the meantime.
+          </p>
+        ) : order.status === 'awaiting_verification' || order.status === 'paid' || (order.status === 'shipped' && editing) ? (
           <TrackingForm order={order} onSaved={() => { setEditing(false); onUpdated(); }} />
         ) : (order.status === 'shipped' || order.status === 'delivered') && order.tracking_url ? (
           <div className="flex flex-col gap-2 text-[10px] font-bold uppercase tracking-widest text-black/60">
