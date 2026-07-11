@@ -56,52 +56,52 @@ export function Home() {
           <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-black/60" />
         </motion.div>
 
-        <div className="relative z-10 max-w-7xl w-full mx-auto flex flex-col gap-8 sm:gap-10">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8 lg:gap-10">
-            <div className="overflow-hidden max-w-3xl">
+        <div className="relative z-10 max-w-7xl w-full mx-auto flex flex-col lg:flex-row lg:items-end justify-between gap-10 lg:gap-8">
+          <div className="flex flex-col gap-6 max-w-4xl">
+            <div className="overflow-hidden">
               <motion.h1
                 initial={{ y: "100%" }}
                 animate={{ y: 0 }}
                 transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
-                className="text-[13vw] sm:text-[8vw] lg:text-[4.4vw] font-black leading-[0.9] tracking-tighter uppercase drop-shadow-[0_2px_20px_rgba(0,0,0,0.6)]"
+                className="text-[13vw] sm:text-[8vw] lg:text-[5.2vw] font-black leading-[0.9] tracking-tighter uppercase drop-shadow-[0_2px_20px_rgba(0,0,0,0.6)]"
               >
                 <span className="text-white">Buy & sell<br />pre-owned fashion</span>
               </motion.h1>
             </div>
 
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.5, delay: 0.5 }}
-              className="flex flex-row items-stretch gap-4 w-full sm:w-auto shrink-0"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.6 }}
+              className="grid grid-cols-2 gap-x-8 gap-y-4 w-fit"
             >
-              <Link to="/browse" className="flex-1 sm:flex-none sm:w-56 bg-white py-6 sm:py-7 text-xs sm:text-sm font-black uppercase tracking-[0.3em] text-black transition-all hover:scale-105 active:scale-95 shadow-[0_0_30px_rgba(255,255,255,0.2)] text-center">
-                Browse
-              </Link>
-              <Link to="/sell" className="flex-1 sm:flex-none sm:w-56 border border-white py-6 sm:py-7 text-xs sm:text-sm font-black uppercase tracking-[0.3em] text-white transition-all hover:scale-105 active:scale-95 hover:bg-white hover:text-black text-center">
-                Start Selling
-              </Link>
+              <span className="flex items-center gap-2.5 text-xs sm:text-sm font-black uppercase tracking-[0.15em] text-white">
+                <ShieldCheck className="h-5 w-5 sm:h-6 sm:w-6" /> Buyer Protection
+              </span>
+              <span className="flex items-center gap-2.5 text-xs sm:text-sm font-black uppercase tracking-[0.15em] text-white">
+                <Lock className="h-5 w-5 sm:h-6 sm:w-6" /> Secure payments
+              </span>
+              <span className="flex items-center gap-2.5 text-xs sm:text-sm font-black uppercase tracking-[0.15em] text-white">
+                <Truck className="h-5 w-5 sm:h-6 sm:w-6" /> Pickup handled for you
+              </span>
+              <span className="flex items-center gap-2.5 text-xs sm:text-sm font-black uppercase tracking-[0.15em] text-white">
+                <BadgePercent className="h-5 w-5 sm:h-6 sm:w-6" /> No selling fees
+              </span>
             </motion.div>
           </div>
 
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.6 }}
-            className="grid grid-cols-2 sm:grid-cols-4 gap-x-8 gap-y-4 w-fit mx-auto place-items-center text-center"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, delay: 0.5 }}
+            className="flex flex-row items-stretch gap-4 w-full sm:w-auto shrink-0"
           >
-            <span className="flex items-center gap-2.5 text-xs sm:text-sm font-black uppercase tracking-[0.15em] text-white">
-              <ShieldCheck className="h-5 w-5 sm:h-6 sm:w-6" /> Buyer Protection
-            </span>
-            <span className="flex items-center gap-2.5 text-xs sm:text-sm font-black uppercase tracking-[0.15em] text-white">
-              <Lock className="h-5 w-5 sm:h-6 sm:w-6" /> Secure payments
-            </span>
-            <span className="flex items-center gap-2.5 text-xs sm:text-sm font-black uppercase tracking-[0.15em] text-white">
-              <Truck className="h-5 w-5 sm:h-6 sm:w-6" /> Pickup handled for you
-            </span>
-            <span className="flex items-center gap-2.5 text-xs sm:text-sm font-black uppercase tracking-[0.15em] text-white">
-              <BadgePercent className="h-5 w-5 sm:h-6 sm:w-6" /> No selling fees
-            </span>
+            <Link to="/browse" className="flex-1 sm:flex-none sm:w-56 bg-white py-6 sm:py-7 text-xs sm:text-sm font-black uppercase tracking-[0.3em] text-black transition-all hover:scale-105 active:scale-95 shadow-[0_0_30px_rgba(255,255,255,0.2)] text-center">
+              Browse
+            </Link>
+            <Link to="/sell" className="flex-1 sm:flex-none sm:w-56 border border-white py-6 sm:py-7 text-xs sm:text-sm font-black uppercase tracking-[0.3em] text-white transition-all hover:scale-105 active:scale-95 hover:bg-white hover:text-black text-center">
+              Start Selling
+            </Link>
           </motion.div>
         </div>
       </section>
@@ -115,7 +115,7 @@ export function Home() {
 <section className="pt-6 sm:pt-10 pb-16 sm:pb-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
   <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 sm:gap-6 mb-8 sm:mb-10">
     <h2 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tighter uppercase leading-none">
-      Available now.
+      Recently listed.
     </h2>
 
     <Link
@@ -146,14 +146,13 @@ export function Home() {
 
 {/* RESALE WITHOUT THE FRICTION */}
 <section className="relative min-h-[380px] sm:min-h-[460px] flex items-center py-16 sm:py-0 overflow-hidden bg-black text-white border-y border-white/10">
-        <div className="absolute inset-0 opacity-25">
+        <div className="absolute inset-0 opacity-40">
           <img
-            src="/images/clothes-chair.png"
-            className="w-full h-full object-cover"
+            src="/images/boots.png"
+            className="w-full h-full object-cover opacity-90"
             alt="Resale background"
           />
         </div>
-        <div className="absolute inset-0 bg-black/60" />
         <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 w-full">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-24 lg:items-center">
             <div className="lg:col-span-5 flex flex-col gap-6">
@@ -188,7 +187,7 @@ export function Home() {
 <section className="relative min-h-[380px] sm:min-h-[460px] flex items-center py-16 sm:py-0 px-4 sm:px-6 lg:px-8 overflow-hidden bg-black text-white">
         <div className="absolute inset-0 opacity-40">
           <img
-            src="/images/dump.png"
+            src="/images/denim-2.png"
             className="w-full h-full object-cover opacity-90"
             alt="Sustainability background"
           />
@@ -214,7 +213,7 @@ export function Home() {
             rel="noopener noreferrer"
             className="shrink-0 self-center border border-white px-8 py-4 text-[11px] font-black uppercase tracking-[0.3em] text-white transition-all hover:scale-105 active:scale-95 hover:bg-white hover:text-black text-center"
           >
-            Why This Matters
+            Learn why this matters
           </a>
         </div>
       </section>
@@ -248,7 +247,7 @@ export function Home() {
         {/* Background Image Layer */}
         <div className="absolute inset-0 z-0">
           <img
-            src="/images/denim.jpg"
+            src="/images/plane.png"
             className="w-full h-full object-cover opacity-40"
             alt="Culture"
           />
