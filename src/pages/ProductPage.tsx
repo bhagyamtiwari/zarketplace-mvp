@@ -57,6 +57,7 @@ export function ProductPage() {
   const [conflict, setConflict] = React.useState(false);
   const [shareOpen, setShareOpen] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
+  const [showConditionMeter, setShowConditionMeter] = React.useState(false);
   const [stickyBarVisible, setStickyBarVisible] = React.useState(true);
   const stickyStopRef = React.useRef<HTMLDivElement>(null);
 
@@ -401,24 +402,32 @@ export function ProductPage() {
                   (Condition Guide)
                 </Link>
               </div>
-              <p className="font-black text-base uppercase tracking-tight">{listing.condition}</p>
+              <button
+                type="button"
+                onClick={() => setShowConditionMeter((v) => !v)}
+                className="font-black text-base uppercase tracking-tight underline decoration-black/20 hover:decoration-black transition-all"
+              >
+                {listing.condition}
+              </button>
 
-              <div className="mt-4 bg-zinc-50 border border-black/5 p-4 flex flex-col gap-3">
-                <div className="flex items-center gap-1">
-                  {CONDITION_TIERS.map((tier, idx) => (
-                    <div
-                      key={tier.name}
-                      className={cn('h-1.5 flex-1 rounded-full', idx <= currentConditionIdx ? 'bg-black' : 'bg-black/10')}
-                    />
-                  ))}
+              {showConditionMeter && (
+                <div className="mt-4 bg-zinc-50 border border-black/5 p-4 flex flex-col gap-3">
+                  <div className="flex items-center gap-1">
+                    {CONDITION_TIERS.map((tier, idx) => (
+                      <div
+                        key={tier.name}
+                        className={cn('h-1.5 flex-1 rounded-full', idx <= currentConditionIdx ? 'bg-black' : 'bg-black/10')}
+                      />
+                    ))}
+                  </div>
+                  <div className="flex justify-between text-[7px] font-black uppercase tracking-widest text-black/40">
+                    {CONDITION_TIERS.map((tier) => <span key={tier.name}>{tier.name}</span>)}
+                  </div>
+                  <p className="text-[10px] font-medium leading-relaxed text-black/70">
+                    {CONDITION_TIERS[currentConditionIdx]?.desc}
+                  </p>
                 </div>
-                <div className="flex justify-between text-[7px] font-black uppercase tracking-widest text-black/40">
-                  {CONDITION_TIERS.map((tier) => <span key={tier.name}>{tier.name}</span>)}
-                </div>
-                <p className="text-[10px] font-medium leading-relaxed text-black/70">
-                  {CONDITION_TIERS[currentConditionIdx]?.desc}
-                </p>
-              </div>
+              )}
             </div>
             <div>
               <span className="text-[9px] font-black uppercase tracking-[0.2em] text-black block mb-1">Shipping</span>
@@ -607,7 +616,7 @@ export function ProductPage() {
                 <ShieldCheck className="h-4 w-4 text-black shrink-0 mt-0.5" />
                 <div className="flex flex-col gap-1">
                   <Link to="/buyer-protection" className="underline">Buyer Protection</Link>
-                  <span className="text-[9px] font-bold tracking-widest text-black/40 leading-relaxed normal-case">
+                  <span className="text-[9px] font-bold tracking-widest text-black/40 leading-relaxed uppercase">
                     Your payment is held until you confirm delivery. Refund if the item is significantly not as described.
                   </span>
                 </div>

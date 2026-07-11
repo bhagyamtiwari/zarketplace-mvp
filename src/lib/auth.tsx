@@ -40,6 +40,8 @@ interface AuthContextValue {
     password: string,
   ) => Promise<{ error: string | null; needsConfirmation: boolean }>;
   resendVerification: () => Promise<{ error: string | null }>;
+  sendPasswordReset: (email: string) => Promise<{ error: string | null }>;
+  updatePassword: (password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -173,6 +175,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: error?.message ?? null };
   }, [session]);
 
+  const sendPasswordReset = React.useCallback(async (email: string) => {
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed) return { error: 'Please enter your email.' };
+    alog('sendPasswordReset called', { email: trimmed });
+    const { error } = await supabase.auth.resetPasswordForEmail(trimmed, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    if (error) alog.warn('sendPasswordReset error', error.message);
+    return { error: error?.message ?? null };
+  }, []);
+
+  const updatePassword = React.useCallback(async (password: string) => {
+    if (!password || password.length < 10)
+      return { error: 'Password must be at least 10 characters.' };
+    alog('updatePassword called');
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) alog.warn('updatePassword error', error.message);
+    return { error: error?.message ?? null };
+  }, []);
+
   const signOut = React.useCallback(async () => {
     alog('signOut called');
     // Clear local state first so the UI updates immediately even if the
@@ -198,6 +220,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signInWithPassword,
     signUpWithPassword,
     resendVerification,
+    sendPasswordReset,
+    updatePassword,
     signOut,
     refreshProfile,
   };

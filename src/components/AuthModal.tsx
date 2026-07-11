@@ -35,10 +35,10 @@ interface AuthModalProps {
   onSuccess?: () => void;
 }
 
-type Mode = 'signin' | 'signup';
+type Mode = 'signin' | 'signup' | 'forgot';
 
 export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: AuthModalProps) {
-  const { signInWithPassword, signUpWithPassword } = useAuth();
+  const { signInWithPassword, signUpWithPassword, sendPasswordReset } = useAuth();
   const navigate = useNavigate();
   const succeed = React.useCallback(() => {
     onClose();
@@ -67,10 +67,12 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
   }, [open]);
 
   const emailValid = EMAIL_RE.test(email);
-  const passwordValid = PASSWORD_RE.test(password);
-  const confirmValid = mode === 'signin' ? true : password === confirmPassword;
+  const passwordValid = mode === 'forgot' ? true : PASSWORD_RE.test(password);
+  const confirmValid = mode === 'signup' ? password === confirmPassword : true;
   const canSubmit =
-    emailValid && passwordValid && confirmValid && (mode === 'signin' || confirmPassword.length > 0);
+    mode === 'forgot'
+      ? emailValid
+      : emailValid && passwordValid && confirmValid && (mode === 'signin' || confirmPassword.length > 0);
 
   const switchMode = (next: Mode) => {
     setMode(next);
@@ -83,12 +85,18 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
     setError(null);
     setNotice(null);
     if (!emailValid) { setError('Enter a valid email address.'); return; }
-    if (!passwordValid) { setError('Password must be 10+ characters and include a letter and a digit.'); return; }
+    if (mode !== 'forgot' && !passwordValid) { setError('Password must be 10+ characters and include a letter and a digit.'); return; }
     if (mode === 'signup' && !confirmValid) { setError('Passwords do not match.'); return; }
 
     setLoading(true);
     try {
-      if (mode === 'signin') {
+      if (mode === 'forgot') {
+        const t = mlog.time('sendPasswordReset');
+        const { error: err } = await sendPasswordReset(email);
+        t.end({ error: err });
+        if (err) setError(err);
+        else setNotice(`If an account exists for ${email}, a password reset link is on its way. Check your inbox.`);
+      } else if (mode === 'signin') {
         const t = mlog.time('signInWithPassword');
         const { error: err } = await signInWithPassword(email, password);
         t.end({ error: err });
@@ -137,37 +145,41 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
             </button>
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col items-center gap-2 text-center">
                 <h2 className="text-2xl font-black uppercase tracking-tighter">
-                  {mode === 'signup' ? 'Create Account' : 'Sign In'}
+                  {mode === 'signup' ? 'Create Account' : mode === 'forgot' ? 'Reset Password' : 'Sign In'}
                 </h2>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-black/50">
                   {message ?? (mode === 'signup'
                     ? 'Email and password. No socials, no phone.'
+                    : mode === 'forgot'
+                    ? "Enter your email and we'll send you a reset link."
                     : 'Sign in with your email and password.')}
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-0 border border-black/10">
-                <button
-                  type="button"
-                  onClick={() => switchMode('signin')}
-                  className={`py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${
-                    mode === 'signin' ? 'bg-black text-white' : 'bg-white text-black/50 hover:text-black'
-                  }`}
-                >
-                  Sign In
-                </button>
-                <button
-                  type="button"
-                  onClick={() => switchMode('signup')}
-                  className={`py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${
-                    mode === 'signup' ? 'bg-black text-white' : 'bg-white text-black/50 hover:text-black'
-                  }`}
-                >
-                  Create Account
-                </button>
-              </div>
+              {mode !== 'forgot' && (
+                <div className="grid grid-cols-2 gap-0 border border-black/10">
+                  <button
+                    type="button"
+                    onClick={() => switchMode('signin')}
+                    className={`py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${
+                      mode === 'signin' ? 'bg-black text-white' : 'bg-white text-black/50 hover:text-black'
+                    }`}
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => switchMode('signup')}
+                    className={`py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${
+                      mode === 'signup' ? 'bg-black text-white' : 'bg-white text-black/50 hover:text-black'
+                    }`}
+                  >
+                    Create Account
+                  </button>
+                </div>
+              )}
 
               <div className="flex flex-col gap-3">
                 <label className="text-[10px] font-black uppercase tracking-widest">Email</label>
@@ -189,26 +201,39 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                 )}
               </div>
 
-              <div className="flex flex-col gap-3">
-                <label className="text-[10px] font-black uppercase tracking-widest">Password</label>
-                <div className="flex items-center border-b border-black/10 focus-within:border-black transition-colors">
-                  <Lock className="h-4 w-4 text-black/30 mr-3" />
-                  <input
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder={mode === 'signup' ? 'At least 10 characters, a letter and a digit' : '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022'}
-                    autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-                    className="flex-1 py-4 text-sm font-bold focus:outline-none placeholder:text-black/20"
-                  />
+              {mode !== 'forgot' && (
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black uppercase tracking-widest">Password</label>
+                    {mode === 'signin' && (
+                      <button
+                        type="button"
+                        onClick={() => switchMode('forgot')}
+                        className="text-[9px] font-bold uppercase tracking-widest text-black/40 hover:text-black underline transition-colors"
+                      >
+                        Forgot password?
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex items-center border-b border-black/10 focus-within:border-black transition-colors">
+                    <Lock className="h-4 w-4 text-black/30 mr-3" />
+                    <input
+                      type="password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder={mode === 'signup' ? 'At least 10 characters, a letter and a digit' : '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022'}
+                      autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                      className="flex-1 py-4 text-sm font-bold focus:outline-none placeholder:text-black/20"
+                    />
+                  </div>
+                  {mode === 'signup' && password && !passwordValid && (
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-red-600">
+                      10+ chars with a letter and a digit.
+                    </p>
+                  )}
                 </div>
-                {mode === 'signup' && password && !passwordValid && (
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-red-600">
-                    10+ chars with a letter and a digit.
-                  </p>
-                )}
-              </div>
+              )}
 
               {mode === 'signup' && (
                 <div className="flex flex-col gap-3">
@@ -245,13 +270,23 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                 disabled={loading || !canSubmit}
                 className="w-full bg-black py-4 text-xs font-black uppercase tracking-[0.4em] text-white hover:bg-zinc-800 disabled:opacity-50 flex items-center justify-center gap-3"
               >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === 'signup' ? 'Create Account' : 'Sign In'}
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === 'signup' ? 'Create Account' : mode === 'forgot' ? 'Send Reset Link' : 'Sign In'}
               </button>
 
-              <p className="text-[9px] font-bold uppercase tracking-widest text-black/30 text-center leading-relaxed">
-                By continuing you agree to zarketplace's terms.<br />
-                Same account works for buying and selling.
-              </p>
+              {mode === 'forgot' ? (
+                <button
+                  type="button"
+                  onClick={() => switchMode('signin')}
+                  className="text-[9px] font-bold uppercase tracking-widest text-black/40 hover:text-black text-center underline transition-colors"
+                >
+                  Back to Sign In
+                </button>
+              ) : (
+                <p className="text-[9px] font-bold uppercase tracking-widest text-black/30 text-center leading-relaxed">
+                  By continuing you agree to zarketplace's terms.<br />
+                  Same account works for buying and selling.
+                </p>
+              )}
             </form>
           </motion.div>
         </motion.div>

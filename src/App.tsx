@@ -25,6 +25,7 @@ import { BuyerProtection } from './pages/BuyerProtection';
 import { Terms } from './pages/Terms';
 import { GrievanceOfficer } from './pages/GrievanceOfficer';
 import { AuthCallback } from './pages/AuthCallback';
+import { ResetPassword } from './pages/ResetPassword';
 import { AuthProvider } from './lib/auth';
 import { CartProvider } from './lib/cart';
 import { Cart } from './pages/Cart';
@@ -81,6 +82,7 @@ export default function App() {
             <Route path="/buyer-protection" element={<BuyerProtection />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
           </Routes>
           </RoutedErrorBoundary>
         </main>
