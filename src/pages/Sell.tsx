@@ -205,10 +205,25 @@ function SellInner() {
     if (!fileList || fileList.length === 0) return;
     const remaining = MAX_IMAGES - imageFiles.length;
     if (remaining <= 0) { input.value = ''; return; }
+    // Match the bucket limits (8 MiB, png/jpeg/webp) so users get a friendly
+    // error here instead of a failed upload against storage.
+    const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
+    const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
     const accepted: File[] = [];
     for (let i = 0; i < fileList.length && accepted.length < remaining; i++) {
-      const f = fileList[i]; if (f) accepted.push(f);
+      const f = fileList[i];
+      if (!f) continue;
+      if (!ALLOWED_IMAGE_TYPES.includes(f.type)) {
+        alert(`"${f.name}" is not a supported image. Use PNG, JPG, or WebP.`);
+        continue;
+      }
+      if (f.size > MAX_IMAGE_BYTES) {
+        alert(`"${f.name}" is too large. Each image must be 8 MB or smaller.`);
+        continue;
+      }
+      accepted.push(f);
     }
+    if (accepted.length === 0) { input.value = ''; return; }
     Promise.all(
       accepted.map((file) => new Promise<string>((resolve, reject) => {
         const reader = new FileReader();

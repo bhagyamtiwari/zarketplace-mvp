@@ -62,8 +62,7 @@ function snapshotFromListing(l: Listing): CartItem {
     listing_id: l.id, sku: l.sku, added_at: new Date().toISOString(),
     title: l.title, brand: l.brand, price: l.price, sale_price: l.sale_price,
     image_url: l.image_url, size: l.size,
-    seller_id: l.seller_id, seller_email: l.seller_email,
-    seller_upi_vpa: l.seller_upi_vpa, seller_display_name: l.seller_display_name,
+    seller_id: l.seller_id, seller_display_name: l.seller_display_name,
     shipping_category: l.shipping_category,
   };
 }
@@ -90,7 +89,7 @@ function CheckoutInner() {
     (async () => {
       setLoadingBuyNow(true);
       try {
-        const { data, error } = await supabase.from('listings').select('*').eq('id', id).maybeSingle();
+        const { data, error } = await supabase.from('public_listings').select('*').eq('id', id).maybeSingle();
         if (error) throw error;
         if (cancelled) return;
         if (!data) { setBuyNowItems([]); return; }
@@ -227,8 +226,11 @@ function CheckoutInner() {
           buyer_name: shippingAddress.fullName,
           buyer_phone: shippingAddress.phone,
           seller_id: i.seller_id ?? null,
-          seller_email: (i.seller_email ?? '').toLowerCase() || null,
-          seller_upi_vpa_snapshot: i.seller_upi_vpa ?? null,
+          // Authoritative seller_email / seller_upi_vpa_snapshot are re-derived
+          // server-side by the orders_snapshot_from_listing trigger from the
+          // base listing; the client never carries seller PII.
+          seller_email: null,
+          seller_upi_vpa_snapshot: null,
           shipping_address: shippingAddress as unknown as Record<string, string>,
           billing_address: billingToSave as unknown as Record<string, string>,
           amount: itemPrice,

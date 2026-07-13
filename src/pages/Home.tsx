@@ -21,7 +21,7 @@ export function Home() {
     const t = hlog.time('fetchPreview');
     async function fetchPreview() {
       const { data, error } = await supabase
-        .from('listings')
+        .from('public_listings')
         .select('*')
         .eq('status', 'approved')
         .or('is_sold.is.null,is_sold.eq.false')

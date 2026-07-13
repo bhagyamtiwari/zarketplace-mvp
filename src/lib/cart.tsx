@@ -27,8 +27,6 @@ type ListingLike = Pick<
   | 'image_url'
   | 'size'
   | 'seller_id'
-  | 'seller_email'
-  | 'seller_upi_vpa'
   | 'shipping_category'
 >;
 
@@ -59,8 +57,6 @@ function snapshot(l: ListingLike): CartItem {
     image_url: l.image_url,
     size: l.size,
     seller_id: l.seller_id,
-    seller_email: l.seller_email,
-    seller_upi_vpa: l.seller_upi_vpa,
     shipping_category: l.shipping_category,
   };
 }
@@ -87,8 +83,8 @@ function writeLocal(items: CartItem[]) {
 async function fetchListingsByIds(ids: string[]): Promise<Record<string, ListingLike>> {
   if (ids.length === 0) return {};
   const { data, error } = await supabase
-    .from('listings')
-    .select('id, sku, title, brand, price, sale_price, image_url, size, seller_id, seller_email, seller_upi_vpa, shipping_category')
+    .from('public_listings')
+    .select('id, sku, title, brand, price, sale_price, image_url, size, seller_id, shipping_category')
     .in('id', ids);
   if (error) {
     clog.warn('fetchListingsByIds error', error);

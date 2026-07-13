@@ -38,6 +38,11 @@ const CONDITION_TIERS = [...CONDITIONS].reverse();
 // UUIDv4-ish detector. We accept either /product/:id (UUID) or /item/:sku.
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+// Buyer-safe columns for the owner/admin fallback read on the base `listings`
+// table. Never selects seller_email / seller_upi_vpa / pickup_address.
+const SAFE_LISTING_COLUMNS =
+  'id, sku, seller_id, seller_display_name, seller_instagram, title, brand, description, price, sale_price, category, gender, size_type, size, condition, image_url, image_urls, shipping_category, has_flaws, flaws_description, original_tags_attached, original_packaging, item_altered, wear_frequency, authenticity_confirmed, seller_declared_at, status, is_sold, created_at, updated_at';
+
 export function ProductPage() {
   const params = useParams();
   const slug = (params.sku || params.id || '').trim();
@@ -134,12 +139,27 @@ export function ProductPage() {
       try {
         // SKU lookup is case-insensitive; UUID lookup uses .eq on id.
         const isUuid = UUID_RE.test(slug);
-        const query = supabase.from('listings').select('*');
-        const { data, error } = isUuid
-          ? await query.eq('id', slug).maybeSingle()
-          : await query.ilike('sku', slug).maybeSingle();
-        t.end({ found: !!data, error });
-        if (error) throw error;
+        // Public catalogue read from the safe view first.
+        const pub = supabase.from('public_listings').select('*');
+        const { data: pubData, error: pubError } = isUuid
+          ? await pub.eq('id', slug).maybeSingle()
+          : await pub.ilike('sku', slug).maybeSingle();
+        if (pubError) throw pubError;
+
+        let data = pubData as Listing | null;
+        // The view only exposes approved+unsold rows. Owner/admin arriving from
+        // SellerPortal or Admin may be viewing their own pending/sold listing;
+        // fall back to the base table (RLS lets owner/admin read it) with safe
+        // columns only.
+        if (!data && user) {
+          const base = supabase.from('listings').select(SAFE_LISTING_COLUMNS);
+          const { data: baseData, error: baseError } = isUuid
+            ? await base.eq('id', slug).maybeSingle()
+            : await base.ilike('sku', slug).maybeSingle();
+          if (baseError) throw baseError;
+          data = baseData as Listing | null;
+        }
+        t.end({ found: !!data });
         setListing(data);
       } catch (err) {
         plog.error('fetch THREW', err);
@@ -149,7 +169,7 @@ export function ProductPage() {
     }
 
     fetchListing();
-  }, [slug]);
+  }, [slug, user]);
 
   // "You might like": same category first, backfilled with newest listings
   // so the section is never empty while supply is thin.
@@ -159,10 +179,8 @@ export function ProductPage() {
     let cancelled = false;
     (async () => {
       const { data: sameCategory } = await supabase
-        .from('listings')
+        .from('public_listings')
         .select('*')
-        .eq('status', 'approved')
-        .or('is_sold.is.null,is_sold.eq.false')
         .eq('category', listing.category ?? '')
         .neq('id', listing.id)
         .order('created_at', { ascending: false })
@@ -172,10 +190,8 @@ export function ProductPage() {
       if (picks.length >= 4) { setYouMayLike(picks.slice(0, 4)); return; }
 
       const { data: fallback } = await supabase
-        .from('listings')
+        .from('public_listings')
         .select('*')
-        .eq('status', 'approved')
-        .or('is_sold.is.null,is_sold.eq.false')
         .neq('id', listing.id)
         .order('created_at', { ascending: false })
         .limit(8);

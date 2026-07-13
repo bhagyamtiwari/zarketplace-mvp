@@ -12,6 +12,17 @@ import { CONDITIONS } from '../lib/condition';
 
 const blog = log('browse');
 
+// Neutralize PostgREST-significant characters before interpolating a user search
+// term into a `.or(...)` filter string. Strips comma, parens, star, colon, and
+// backslash (which reshape the filter), collapses whitespace, and caps length.
+function sanitizeSearch(q: string): string {
+  return q
+    .replace(/[,()*:\\]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 80);
+}
+
 const CATEGORY_SIZES: Record<string, string[]> = {
   'Tops': ['XXS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', 'One Size'],
   'Bottoms': ['28', '30', '32', '34', '36', '38', '40', '42', '44', 'One Size'],
@@ -46,7 +57,7 @@ export function Browse() {
       setLoading(true);
       try {
         let query = supabase
-          .from('listings')
+          .from('public_listings')
           .select('*')
           .eq('status', 'approved')
           .or('is_sold.is.null,is_sold.eq.false');
@@ -67,7 +78,10 @@ export function Browse() {
         if (maxPrice) query = query.lte('price', parseInt(maxPrice));
 
         if (searchQuery) {
-          query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%,brand.ilike.%${searchQuery}%,category.ilike.%${searchQuery}%`);
+          const safe = sanitizeSearch(searchQuery);
+          if (safe) {
+            query = query.or(`title.ilike.%${safe}%,description.ilike.%${safe}%,brand.ilike.%${safe}%,category.ilike.%${safe}%`);
+          }
         }
 
         const { data, error } = await query;

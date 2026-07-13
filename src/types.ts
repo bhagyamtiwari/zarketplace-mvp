@@ -4,10 +4,13 @@ export interface Listing {
   id: string;
   sku?: string;
   seller_id: string;
-  seller_email: string;
+  // Sensitive seller fields live only on the base `listings` table (owner/admin
+  // reads). The public `public_listings` view omits them, so they are optional
+  // here and absent from any anon/non-owner read.
+  seller_email?: string;
   seller_display_name: string | null;
   seller_instagram: string; // full URL
-  seller_upi_vpa: string;
+  seller_upi_vpa?: string;
   title: string;
   brand: string | null;
   description: string | null;
@@ -21,7 +24,7 @@ export interface Listing {
   image_url: string;
   image_urls: string[];
   shipping_category: string;
-  pickup_address: Record<string, string> | null;
+  pickup_address?: Record<string, string> | null;
   has_flaws: boolean;
   flaws_description: string | null;
   original_tags_attached: boolean | null;
@@ -50,8 +53,6 @@ export interface CartItem {
   image_url?: string;
   size?: string | null;
   seller_id?: string;
-  seller_email?: string;
-  seller_upi_vpa?: string;
   seller_display_name?: string | null;
   shipping_category?: string;
 }
