@@ -643,9 +643,7 @@ function PhotosStep({ imagePreviews, onAdd, onRemove }: {
       <div className="flex flex-col gap-2">
         <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Item Photos</h3>
         <InfoText>
-          Use natural light and a plain, ideally white, background. Show the whole item. No screenshots or stock photos.
-          <br />
-          Need to remove the background? We recommend{' '}
+          Use natural light and a plain, ideally white, background. Show the whole item. No screenshots or stock photos. Need to remove the background? We recommend{' '}
           <a href="https://www.photoroom.com/tools/background-remover" target="_blank" rel="noreferrer" className="underline text-black hover:text-black/60">Photoroom</a>
           {' '}or{' '}
           <a href="https://www.remove.bg/" target="_blank" rel="noreferrer" className="underline text-black hover:text-black/60">Remove.bg</a>.
