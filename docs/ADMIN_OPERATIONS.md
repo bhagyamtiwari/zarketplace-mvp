@@ -15,50 +15,62 @@ Everything below can also be done in the Admin Portal at `/admin`
 A listing is also flagged `is_sold = true/false` to control visibility.
 
 **Order** (`public.orders.status`):
-`awaiting_payment` → `awaiting_verification` → `paid` → `shipped` → `delivered`
-plus `cancelled` / `refunded` as exits.
+`awaiting_payment` → `paid` → `shipped` → `delivered`
+plus `payment_failed` / `payment_conflict` / `cancelled` / `refunded` as exits.
+
+Payment is **Razorpay only** (see `docs/PAYMENTS.md`). The buyer pays in the
+Razorpay Checkout modal and a signature-verified webhook - **the only thing
+that ever sets a paid status** - flips the order to `paid` and claims the
+listing. There is no manual "verify the UPI, then mark paid" step anymore.
 
 | Stage | Who acts | What happens |
 |-------|----------|--------------|
-| `awaiting_payment` | Buyer | Order row created at the address step; buyer hasn't confirmed yet. |
-| `awaiting_verification` | **Admin** | Buyer tapped "Confirm Order & Payment". Money should now be in the platform UPI (`9220190649@idfcbank`, ADNIZ Private Limited). Listing is marked `is_sold = true`. |
-| `paid` | **Admin** | Admin has **verified the money actually arrived** and marks the order paid. Money is now held in escrow. |
-| `shipped` | Seller (or Admin) | Seller packs the item, hands it off for pickup, and adds tracking in the seller portal; buyer gets a "Shipped" email. |
-| `delivered` | **Admin** (Shiprocket webhook later) | Admin marks the order delivered once the item has arrived. This is the escrow trigger: a DB trigger stamps `delivered_at`, opens the buyer's 48-hour review window (`review_ends_at`), and auto-creates the `seller_payouts` row. **Only admin (or a service-role caller) can set `delivered`.** |
+| `awaiting_payment` | Buyer | Order row created at checkout, before the Razorpay payment is captured. |
+| `paid` | **Razorpay webhook** (automatic) | Razorpay captured the payment; the `razorpay-webhook` edge function verified the HMAC signature, called `fulfill_captured_payment` (atomically marks the order `paid` and claims the listing `is_sold = true`), and emailed buyer + seller. No admin action. |
+| `payment_failed` | Razorpay webhook (automatic) | Payment failed at checkout; the order never leaves this exit state. |
+| `payment_conflict` | Razorpay webhook (automatic) | Money was captured twice for one one-of-one item (should be near-impossible given the reservation lock). Needs a **manual Razorpay refund** - see §5. |
+| `shipped` | Seller (or Admin) | Item is packed and handed off for pickup. Either admin books a Shiprocket pickup (which auto-flips to `shipped`) or the seller pastes a tracking link in the Seller Portal; buyer gets a "Shipped" email. |
+| `delivered` | **Admin** (Shiprocket webhook later) | Admin marks the order delivered once the item has arrived. This is the escrow trigger: a DB trigger stamps `delivered_at`, opens the buyer's 48-hour review window (`review_ends_at`), and auto-creates the `seller_payouts` row (`releasable_at` = delivery + 48h). **Only admin (or a service-role caller) can set `delivered`.** |
 | *payout* | **Admin** | Once the review window has closed with no open claim, admin pays the seller to their UPI (100% of the item price, `orders.amount`, not `total_amount`) and marks the payout `paid_out`. RLS blocks flipping a payout to `paid_out` before the window closes. |
 | `cancelled` / `refunded` | **Admin** | Exit states. The listing is automatically relisted (`is_sold = false`). |
 
 ---
 
-## (3a) Changing a product's "pending" state after a buyer buys
+## (3a) What happens after a buyer pays (no manual step)
 
-When a buyer completes checkout, the order lands in **`awaiting_verification`**
-(this is the "pending" state — money claimed, not yet verified). Admin steps:
+When a buyer completes the Razorpay Checkout, **you do nothing** to mark the
+order paid. Razorpay captures the payment and calls the `razorpay-webhook`
+edge function, which verifies the signature and flips the order from
+`awaiting_payment` to `paid` (claiming the listing) on its own. Buyer and
+seller are emailed automatically.
 
-1. **Confirm the money arrived.** Open the UPI account
-   (`9220190649@idfcbank` / ADNIZ Private Limited) and confirm the buyer's
-   payment for the order amount actually landed. Match it to the order by the
-   `ZKT-…` reference or buyer name/amount.
-2. **Mark the order `paid`.** In `/admin` → Orders, click **Mark Paid** on that
-   order (only shows for `awaiting_verification` orders), or run the SQL below.
+Never set an order to `paid` by hand - the webhook is the single source of
+truth for payment status, and doing it manually would mark an order paid whose
+money never actually arrived in Razorpay.
 
-That's it — moving it to `paid` is the admin "approving" the purchase.
+Your first real touch on a `paid` order is **shipping** (§3b.3): either book a
+Shiprocket pickup or wait for the seller to add tracking.
 
-### SQL — find orders waiting on you
+### SQL — see orders that have been paid and are awaiting fulfilment
 ```sql
 select order_number, buyer_name, buyer_email, total_amount,
-       listing_title, buyer_note, payment_submitted_at
+       listing_title, buyer_note, status, created_at
 from public.orders
-where status = 'awaiting_verification'
-order by payment_submitted_at asc;
+where status = 'paid'
+order by created_at asc;
 ```
 
-### SQL — mark a specific order paid
+### SQL — spot stuck or failed payments
 ```sql
-update public.orders
-set status = 'paid'
-where order_number = 'ZKT-12345';   -- replace with the real order number
+-- Never captured (buyer abandoned checkout) or failed
+select order_number, buyer_email, total_amount, status, created_at
+from public.orders
+where status in ('awaiting_payment', 'payment_failed', 'payment_conflict')
+order by created_at desc;
 ```
+
+A `payment_conflict` row means Razorpay captured money twice for one item and
+needs a **manual refund** - see §5.
 
 ---
 
@@ -81,8 +93,9 @@ update public.listings set status = 'approved' where id = '<listing-uuid>';
 update public.listings set status = 'rejected' where id = '<listing-uuid>';
 ```
 
-### 2. Verify payment & mark paid
-See (3a) above. This is the most frequent manual step.
+### 2. Payment (automatic - no admin step)
+Razorpay's webhook marks orders `paid`; you never do. See (3a) above. The only
+payment states that need you are `payment_conflict` (manual refund, §5).
 
 ### 3. Book pickup (Shiprocket) or confirm/force shipping
 For a `paid` order, `/admin → Orders` shows a **Book Pickup (Shiprocket)**
@@ -175,6 +188,12 @@ update public.orders set claim_open = false where order_number = 'ZKT-12345';
 ```
 
 ### 5. Cancellations & refunds
+There is **no automated refund** today. To actually return money to a buyer,
+first issue the refund from the **Razorpay dashboard** (Payments → find the
+payment → Refund), then set `orders.status = 'refunded'`. A `payment_conflict`
+order (money captured twice for one one-of-one item) is refunded the same way:
+refund the duplicate payment in Razorpay, then mark that order `refunded`.
+
 Setting an order to `cancelled` or `refunded` automatically relists the item
 (`is_sold = false`) when done through the Admin UI. Doing it in raw SQL, set
 both yourself:
@@ -230,5 +249,7 @@ update public.profiles set is_admin = false where email = 'someone@example.com';
 - RLS allows admins (`public.is_admin()`) to update any listing/order, so the
   Admin UI uses the normal client. The SQL editor runs as the service role and
   bypasses RLS entirely — be careful.
-- Always verify funds in the actual UPI account before marking an order `paid`.
-  Marking `paid` is the trust gate that releases the seller to ship.
+- Never set an order to `paid` by hand. The Razorpay webhook is the only
+  writer of paid status; a manual flip would mark an order paid whose money
+  was never captured. The seller payout (§4) is the manual UPI transfer, gated
+  on `delivered` + a closed 48-hour review window.

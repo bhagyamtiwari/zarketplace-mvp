@@ -7,9 +7,10 @@
 //      Shiprocket's create-order API takes a pickup_location NICKNAME, not
 //      an inline address - each seller's own pickup_address (collected in
 //      Sell.tsx, snapshotted onto the order) has to be registered once via
-//      their addpickup API before it can be referenced. Idempotent: reuses
-//      the order's own id as the nickname, and a 400 "already exists" from
-//      Shiprocket is treated as success.
+//      their addpickup API before it can be referenced. Idempotent: the
+//      nickname is a deterministic hash of seller + pickup address, so the
+//      same seller reuses one pickup location, and a 400 "already exists"
+//      from Shiprocket is treated as success.
 //   3. Create the adhoc order (buyer delivery address + seller pickup
 //      location + a category-based default weight, since this marketplace's
 //      flat shipping rate model never collects per-item weight/dimensions -
@@ -140,10 +141,17 @@ serve(async (req) => {
     const srHeaders = { "Content-Type": "application/json", Authorization: `Bearer ${loginData.token}` };
 
     // 2. Ensure a pickup location exists for this order's seller. Nickname
-    // is deterministic (order id, truncated - Shiprocket caps nickname
-    // length) so a retry reuses the same registration instead of piling up
-    // duplicates per seller.
-    const pickupNickname = `zk-${order.id}`.slice(0, 36);
+    // is deterministic per seller + pickup address (short SHA-256 hash) so
+    // every order from the same seller reuses one Shiprocket pickup location
+    // instead of registering a fresh one per order. Well under Shiprocket's
+    // nickname length cap ("zk-" + 10 hex = 13 chars).
+    const pickupNickname = await pickupNicknameFor(order.seller_id, pickup.pincode, pickup.address);
+    const phoneDigits = (pickup.phone || "").replace(/\D/g, "").slice(-10);
+    if (!phoneDigits) {
+      console.warn(
+        `shiprocket-create-order: no valid pickup phone for order ${order.order_number} (seller ${order.seller_email}) - using placeholder 9999999999`,
+      );
+    }
     const addPickupRes = await fetch(`${SHIPROCKET_BASE}/settings/company/addpickup`, {
       method: "POST",
       headers: srHeaders,
@@ -151,7 +159,7 @@ serve(async (req) => {
         pickup_location: pickupNickname,
         name: pickup.fullName || order.seller_email,
         email: order.seller_email,
-        phone: (pickup.phone || "").replace(/\D/g, "").slice(-10) || "9999999999",
+        phone: phoneDigits || "9999999999",
         address: pickup.address,
         address_2: pickup.landmark || "",
         city: pickup.city,
@@ -292,6 +300,18 @@ serve(async (req) => {
     return json({ error: String(err) }, 500);
   }
 });
+
+// Deterministic Shiprocket pickup-location nickname for a seller + pickup
+// address. Same seller + same address -> same nickname, so the addpickup
+// call is idempotent and a seller accumulates one pickup location instead of
+// one per order. First 10 hex chars of SHA-256 keeps it well under
+// Shiprocket's nickname length cap while staying collision-safe in practice.
+async function pickupNicknameFor(sellerId?: string | null, pincode?: string, address1?: string): Promise<string> {
+  const key = `${(sellerId ?? "").toLowerCase().trim()}|${(pincode ?? "").toLowerCase().trim()}|${(address1 ?? "").toLowerCase().trim()}`;
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(key));
+  const hex = Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  return `zk-${hex.slice(0, 10)}`;
+}
 
 // Minimal direct-to-Resend sender so this function doesn't need to invoke
 // another edge function just to send one email. Mirrors send-email's own
