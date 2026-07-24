@@ -438,7 +438,7 @@ function ListingsView({ rows, orders, onOpen }: { rows: Listing[]; orders: Order
                       <img src={l.image_url} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                     </div>
                     <div className="min-w-0"><p className="text-xs font-bold truncate max-w-[200px]">{l.title}</p>
-                      <p className="text-[10px] text-black/40 uppercase tracking-widest">{l.brand}</p></div>
+                      <p className="text-[10px] text-black/40 uppercase tracking-widest">{l.brand}{l.free_shipping && <span className="ml-2 text-black/60">Free shipping</span>}</p></div>
                   </div>
                 </td>
                 <td className="py-3 px-3 text-[11px]">{l.seller_email}</td>
@@ -808,7 +808,7 @@ function OrderDrawer({ order, payouts, emails, audit, onClose, onDone }: {
 
       <Sec title="Payment">
         <Row k="Item" v={formatCurrency(Number(order.amount))} />
-        <Row k="Shipping" v={formatCurrency(Number(order.shipping_cost))} />
+        <Row k="Shipping (buyer paid)" v={order.free_shipping ? 'Free (seller-funded)' : formatCurrency(Number(order.shipping_cost))} />
         <Row k="Protection fee" v={formatCurrency(Number(order.buyer_protection_fee))} />
         <Row k="Total" v={<strong>{formatCurrency(Number(order.total_amount))}</strong>} />
         <Row k="Razorpay order" v={order.razorpay_order_id} />
@@ -823,7 +823,12 @@ function OrderDrawer({ order, payouts, emails, audit, onClose, onDone }: {
       </Sec>
 
       <Sec title="Payout">
-        {payout ? (<><Row k="Amount" v={formatCurrency(Number(payout.amount))} /><Row k="Status" v={payout.status === 'paid_out' ? 'Paid' : 'Pending'} /><Row k="Releasable" v={payout.releasable_at ? new Date(payout.releasable_at).toLocaleDateString() : '—'} /></>) : <p className="text-black/40">No payout row.</p>}
+        {payout ? (<>
+          <Row k="Amount" v={formatCurrency(Number(payout.amount))} />
+          {order.free_shipping && <Row k="Shipping deducted" v={formatCurrency(Number(order.shipping_cost))} />}
+          <Row k="Status" v={payout.status === 'paid_out' ? 'Paid' : 'Pending'} />
+          <Row k="Releasable" v={payout.releasable_at ? new Date(payout.releasable_at).toLocaleDateString() : '—'} />
+        </>) : <p className="text-black/40">No payout row.</p>}
       </Sec>
 
       <Sec title={`Emails sent (${orderEmails.length})`}>
@@ -933,6 +938,7 @@ function ListingDrawer({ listing, orders, payouts, audit, onClose, onDone, onOpe
         {listing.sale_price && <Row k="Sale price" v={formatCurrency(listing.sale_price)} />}
         <Row k="Category" v={listing.category} /><Row k="Size" v={`${listing.size ?? ''} (${listing.size_type ?? ''})`} />
         <Row k="Condition" v={listing.condition} /><Row k="Shipping cat" v={listing.shipping_category} />
+        <Row k="Free shipping" v={listing.free_shipping ? 'Yes (deducted from payout)' : 'No'} />
         <Row k="Flaws" v={listing.has_flaws ? 'Disclosed' : 'None'} />
         <Row k="Authenticity" v={listing.authenticity_confirmed ? 'Confirmed' : 'Not confirmed'} />
         {listing.has_flaws && listing.flaws_description && <p className="text-black/60 mt-1">"{listing.flaws_description}"</p>}

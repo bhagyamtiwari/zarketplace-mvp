@@ -22,7 +22,7 @@ function CartInner() {
   React.useEffect(() => { getShippingCategories().then(setShippingCategories); }, []);
 
   const subtotal = items.reduce((sum, i) => sum + (i.sale_price ?? i.price ?? 0), 0);
-  const shipping = items.reduce((sum, i) => sum + shippingRateFor(i.shipping_category, shippingCategories), 0);
+  const shipping = items.reduce((sum, i) => sum + (i.free_shipping ? 0 : shippingRateFor(i.shipping_category, shippingCategories)), 0);
   const total = subtotal + shipping;
   const sellerIds = new Set(items.map((i) => i.seller_id).filter(Boolean));
   const hasMultipleSellers = sellerIds.size > 1;

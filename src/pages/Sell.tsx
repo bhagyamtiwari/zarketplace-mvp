@@ -116,6 +116,11 @@ function SellInner() {
   const [salePriceVal, setSalePriceVal] = React.useState('');
   const [shippingCategories, setShippingCategories] = React.useState<ShippingCategory[]>([]);
   const [shippingCategory, setShippingCategory] = React.useState('');
+  // Seller-funded free shipping: buyer pays no shipping line, and the real
+  // courier cost is deducted from the seller's payout instead of the buyer's
+  // total (see migration shipping_reprice_and_seller_free_shipping). Off by
+  // default - it's a choice, not the default cost to the seller.
+  const [freeShipping, setFreeShipping] = React.useState(false);
 
   const [fullName, setFullName] = React.useState('');
   const [phone, setPhone] = React.useState('');
@@ -353,6 +358,7 @@ function SellInner() {
         seller_instagram,
         seller_upi_vpa: vpa,
         shipping_category: shippingCategory,
+        free_shipping: freeShipping,
         pickup_address: {
           fullName: fullName.trim(),
           phone: phone.trim(),
@@ -502,6 +508,7 @@ function SellInner() {
                 salePriceInvalid={salePriceInvalid}
                 shippingCategories={shippingCategories}
                 shippingCategory={shippingCategory} setShippingCategory={setShippingCategory}
+                freeShipping={freeShipping} setFreeShipping={setFreeShipping}
               />
             )}
 
@@ -863,14 +870,16 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
   );
 }
 
-function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, salePriceVal, setSalePriceVal, salePriceInvalid, shippingCategories, shippingCategory, setShippingCategory }: {
+function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, salePriceVal, setSalePriceVal, salePriceInvalid, shippingCategories, shippingCategory, setShippingCategory, freeShipping, setFreeShipping }: {
   priceVal: string; setPriceVal: (v: string) => void;
   showSalePrice: boolean; setShowSalePrice: (v: boolean) => void;
   salePriceVal: string; setSalePriceVal: (v: string) => void;
   salePriceInvalid: boolean;
   shippingCategories: ShippingCategory[];
   shippingCategory: string; setShippingCategory: (v: string) => void;
+  freeShipping: boolean; setFreeShipping: (v: boolean) => void;
 }) {
+  const selectedRate = shippingCategories.find((c) => c.key === shippingCategory)?.rate ?? 0;
   return (
     <div className="flex flex-col gap-10">
       <div className="flex flex-col gap-6">
@@ -921,10 +930,31 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
                   className={cn('border p-5 text-left transition-all',
                     shippingCategory === c.key ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
                   <span className="block text-xs font-black uppercase tracking-widest">{c.label}</span>
-                  <span className="block text-[11px] mt-1 opacity-60">Buyer pays {formatCurrency(c.rate)}</span>
+                  <span className="block text-[11px] mt-1 opacity-60">
+                    {freeShipping ? 'Free for buyer' : `Buyer pays ${formatCurrency(c.rate)}`}
+                  </span>
                 </button>
               ))}
             </div>
+
+            <button type="button" onClick={() => setFreeShipping(!freeShipping)}
+              className={cn('border p-5 text-left transition-all flex items-start justify-between gap-4',
+                freeShipping ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
+              <div>
+                <span className="block text-xs font-black uppercase tracking-widest">
+                  Offer free shipping <span className={cn(freeShipping ? 'text-white/60' : 'text-black/40')}>(Recommended)</span>
+                </span>
+                <span className={cn('block text-[11px] mt-1 max-w-md', freeShipping ? 'text-white/70' : 'text-black/50')}>
+                  Buyers are far more likely to buy when shipping shows as free at checkout. The {formatCurrency(selectedRate)} shipping cost is deducted from your payout instead, the same amount you'd pay to ship it yourself.
+                </span>
+              </div>
+              <div className="relative inline-flex items-center shrink-0 mt-1">
+                <div className={cn('w-8 h-4 rounded-full relative transition-colors', freeShipping ? 'bg-white' : 'bg-zinc-200')}>
+                  <div className={cn('absolute top-[2px] h-3 w-3 rounded-full transition-all',
+                    freeShipping ? 'translate-x-[18px] bg-black' : 'translate-x-[2px] bg-white border border-gray-300')} />
+                </div>
+              </div>
+            </button>
           </>
         )}
       </div>

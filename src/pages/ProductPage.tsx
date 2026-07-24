@@ -41,7 +41,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 // Buyer-safe columns for the owner/admin fallback read on the base `listings`
 // table. Never selects seller_email / seller_upi_vpa / pickup_address.
 const SAFE_LISTING_COLUMNS =
-  'id, sku, seller_id, seller_display_name, seller_instagram, title, brand, description, price, sale_price, category, gender, size_type, size, condition, image_url, image_urls, shipping_category, has_flaws, flaws_description, original_tags_attached, original_packaging, item_altered, wear_frequency, authenticity_confirmed, seller_declared_at, status, is_sold, created_at, updated_at';
+  'id, sku, seller_id, seller_display_name, seller_instagram, title, brand, description, price, sale_price, category, gender, size_type, size, condition, image_url, image_urls, shipping_category, free_shipping, has_flaws, flaws_description, original_tags_attached, original_packaging, item_altered, wear_frequency, authenticity_confirmed, seller_declared_at, status, is_sold, created_at, updated_at';
 
 export function ProductPage() {
   const params = useParams();
@@ -448,9 +448,11 @@ export function ProductPage() {
             <div>
               <span className="text-[9px] font-black uppercase tracking-[0.2em] text-black block mb-1">Shipping</span>
               <p className="font-black text-base uppercase tracking-tight">
-                {shippingCategories.length === 0
-                  ? 'Calculating...'
-                  : fmt(shippingRateFor(listing.shipping_category, shippingCategories))}
+                {listing.free_shipping
+                  ? 'Free'
+                  : shippingCategories.length === 0
+                    ? 'Calculating...'
+                    : fmt(shippingRateFor(listing.shipping_category, shippingCategories))}
               </p>
             </div>
             <div>

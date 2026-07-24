@@ -163,7 +163,7 @@ function CheckoutInner() {
   React.useEffect(() => { getPricingConfig().then(setPricing); getShippingCategories().then(setShippingCategories); }, []);
 
   const subtotal = items.reduce((s, i) => s + (i.sale_price ?? i.price ?? 0), 0);
-  const shipping = items.reduce((s, i) => s + shippingRateFor(i.shipping_category, shippingCategories), 0);
+  const shipping = items.reduce((s, i) => s + (i.free_shipping ? 0 : shippingRateFor(i.shipping_category, shippingCategories)), 0);
   const buyerProtection = items.reduce((s, i) => s + buyerProtectionFee(i.sale_price ?? i.price ?? 0, pricing), 0);
   const total = subtotal + shipping + buyerProtection;
 
@@ -215,7 +215,7 @@ function CheckoutInner() {
         // amount/shipping_cost/buyer_protection_fee/total_amount from the
         // live listing + pricing config on insert - these client values are
         // only a display-matching best guess, never trusted for the charge.
-        const itemShip = shippingRateFor(i.shipping_category, shippingCategories);
+        const itemShip = i.free_shipping ? 0 : shippingRateFor(i.shipping_category, shippingCategories);
         return {
           listing_id: i.listing_id,
           listing_sku: i.sku ?? null,

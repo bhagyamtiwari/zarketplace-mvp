@@ -24,6 +24,9 @@ export interface Listing {
   image_url: string;
   image_urls: string[];
   shipping_category: string;
+  // Seller-funded free shipping: buyer pays no shipping line, and the real
+  // courier cost is deducted from the seller's payout at delivery instead.
+  free_shipping: boolean;
   pickup_address?: Record<string, string> | null;
   has_flaws: boolean;
   flaws_description: string | null;
@@ -55,6 +58,7 @@ export interface CartItem {
   seller_id?: string;
   seller_display_name?: string | null;
   shipping_category?: string;
+  free_shipping?: boolean;
 }
 
 export type OrderStatus =
@@ -92,6 +96,9 @@ export interface Order {
   amount: number;
   shipping_cost: number;
   shipping_category: string | null;
+  // True when the seller offered free shipping - shipping_cost was NOT added
+  // to total_amount, and is instead deducted from the seller's payout.
+  free_shipping: boolean;
   buyer_protection_fee: number;
   total_amount: number;
   payment_utr: string | null;

@@ -28,6 +28,7 @@ type ListingLike = Pick<
   | 'size'
   | 'seller_id'
   | 'shipping_category'
+  | 'free_shipping'
 >;
 
 interface CartContextValue {
@@ -58,6 +59,7 @@ function snapshot(l: ListingLike): CartItem {
     size: l.size,
     seller_id: l.seller_id,
     shipping_category: l.shipping_category,
+    free_shipping: l.free_shipping,
   };
 }
 
@@ -84,7 +86,7 @@ async function fetchListingsByIds(ids: string[]): Promise<Record<string, Listing
   if (ids.length === 0) return {};
   const { data, error } = await supabase
     .from('public_listings')
-    .select('id, sku, title, brand, price, sale_price, image_url, size, seller_id, shipping_category')
+    .select('id, sku, title, brand, price, sale_price, image_url, size, seller_id, shipping_category, free_shipping')
     .in('id', ids);
   if (error) {
     clog.warn('fetchListingsByIds error', error);
