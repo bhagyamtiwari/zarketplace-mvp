@@ -34,6 +34,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
+import { buildEmail } from "../send-email/templates/index.ts";
 
 // Shiprocket's status strings vary by event type; matching by substring
 // keeps this resilient to the exact casing/wording of whichever field they
@@ -86,7 +87,7 @@ serve(async (req) => {
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    let query = supabase.from("orders").select("id, status").limit(1);
+    let query = supabase.from("orders").select("*").limit(1);
     query = awb ? query.eq("tracking_number", awb) : query.eq("shiprocket_order_id", shiprocketOrderId);
     const { data: orders, error: findErr } = await query;
     if (findErr) throw findErr;
@@ -114,9 +115,29 @@ serve(async (req) => {
       .eq("id", order.id);
     if (updErr) throw updErr;
 
+    // Tell the buyer it's delivered and the 48h review window has started.
+    // Best-effort: a failed email must never fail the webhook.
+    void sendDeliveredEmail({ ...order, status: "delivered" }).catch((e) => console.error("delivered email failed", e));
+
     return new Response("ok", { status: 200, headers: corsHeaders });
   } catch (err) {
     console.error("shiprocket-webhook error", err);
     return new Response("Internal error", { status: 500, headers: corsHeaders });
   }
 });
+
+// Direct-to-Resend sender for the buyer "delivered" email (mirrors the pattern
+// in shiprocket-create-order). No-op in dev when RESEND_API_KEY is unset.
+async function sendDeliveredEmail(order: Record<string, unknown>) {
+  const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
+  const EMAIL_FROM = Deno.env.get("EMAIL_FROM") ?? "zarketplace <onboarding@resend.dev>";
+  const SITE_URL = Deno.env.get("PUBLIC_SITE_URL") ?? "https://zarketplace.com";
+  if (!RESEND_API_KEY) return;
+  const built = buildEmail("order_delivered_buyer", { order, siteUrl: SITE_URL });
+  if (!built.to) return;
+  await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${RESEND_API_KEY}` },
+    body: JSON.stringify({ from: EMAIL_FROM, to: built.to, subject: built.subject, html: built.html }),
+  });
+}

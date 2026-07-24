@@ -706,6 +706,11 @@ function OrderDrawer({ order, payouts, emails, audit, onClose, onDone }: {
         await supabase.from('listings').update({ is_sold: isSold }).eq('id', order.listing_id);
       }
       await writeAudit({ entity: 'order', entity_id: order.id, action: `order.status.${status}`, old_state: { status: order.status }, new_state: { status }, reason: reason ?? null });
+      // Buyer "delivered" email + 48h review window notice (the Shiprocket
+      // webhook sends this on auto-delivery; this covers the manual path).
+      if (status === 'delivered' && order.status !== 'delivered') {
+        void sendEmail({ template: 'order_delivered_buyer', order_id: order.id });
+      }
       await onDone(); onClose();
     } catch (err: any) { alert(err?.message ?? 'Failed.'); } finally { setBusy(false); }
   };
@@ -724,6 +729,22 @@ function OrderDrawer({ order, payouts, emails, audit, onClose, onDone }: {
       void sendEmail({ template: 'order_cancelled_seller', order_id: order.id });
       await onDone(); onClose();
     } catch (err: any) { alert(err?.message ?? 'Failed.'); } finally { setBusy(false); }
+  };
+
+  // Automated refund: hits the razorpay-refund edge function, which refunds the
+  // captured payment, marks the order refunded, relists the item, voids any
+  // unpaid payout, emails the buyer, and writes its own audit row.
+  const refundViaRazorpay = async () => {
+    const reason = prompt('Reason for refund? (stored in the audit log)') ?? '';
+    if (!confirm(`Refund ${formatCurrency(Number(order.total_amount))} to the buyer via Razorpay?\n\nThe order is marked refunded, the item is relisted, and the buyer is emailed. This cannot be undone.`)) return;
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('razorpay-refund', { body: { order_id: order.id, reason } });
+      if (error) throw error;
+      const r = data as { ok?: boolean; error?: string } | null;
+      if (r && r.ok === false) throw new Error(r.error ?? 'Refund failed');
+      await onDone(); onClose();
+    } catch (err: any) { alert(err?.message ?? 'Refund failed.'); } finally { setBusy(false); }
   };
 
   const bookPickup = async () => {
@@ -828,7 +849,14 @@ function OrderDrawer({ order, payouts, emails, audit, onClose, onDone }: {
           {order.status === 'paid' && <ActBtn label="Mark Shipped" onClick={() => setStatus('shipped')} busy={busy} />}
           {order.status === 'shipped' && <ActBtn label="Mark Delivered" onClick={() => setStatus('delivered')} busy={busy} />}
           <ActBtn label={order.claim_open ? 'Close Claim' : 'Open Claim'} onClick={toggleClaim} busy={busy} />
-          {order.status !== 'cancelled' && order.status !== 'refunded' && <ActBtn label="Cancel & Refund" danger onClick={cancelAndRefund} busy={busy} />}
+          {/* Captured payment -> refund it via Razorpay (automated). */}
+          {order.razorpay_payment_id && order.status !== 'refunded' && (
+            <ActBtn label="Refund via Razorpay" danger onClick={refundViaRazorpay} busy={busy} />
+          )}
+          {/* No captured payment -> just cancel + relist (nothing to refund). */}
+          {!order.razorpay_payment_id && order.status !== 'cancelled' && order.status !== 'refunded' && (
+            <ActBtn label="Cancel & relist" danger onClick={cancelAndRefund} busy={busy} />
+          )}
         </div>
       </Sec>
     </DrawerShell>
@@ -865,6 +893,10 @@ function ListingDrawer({ listing, orders, payouts, audit, onClose, onDone, onOpe
       const { error } = await supabase.from('listings').update({ status }).eq('id', listing.id);
       if (error) throw error;
       await writeAudit({ entity: 'listing', entity_id: listing.id, action: `listing.${status}`, old_state: { status: listing.status }, new_state: { status }, reason: listing.title });
+      // Tell the seller their item is live (only on a fresh approval).
+      if (status === 'approved' && listing.status !== 'approved' && listing.seller_email) {
+        void sendEmail({ template: 'listing_approved_seller', extra: { seller_email: listing.seller_email, listing_title: listing.title, listing_id: listing.id } });
+      }
       await onDone(); onClose();
     } catch (err: any) { alert(err?.message ?? 'Failed.'); } finally { setBusy(false); }
   };
@@ -932,17 +964,28 @@ function ListingDrawer({ listing, orders, payouts, audit, onClose, onDone, onOpe
           {listing.status !== 'rejected' && <ActBtn label="Reject" onClick={() => setStatus('rejected', 'Reject')} busy={busy} />}
           {listing.status === 'approved' && <ActBtn label="Suspend" onClick={() => setStatus('suspended', 'Suspend')} busy={busy} />}
           {listing.status !== 'archived' && <ActBtn label="Archive" onClick={() => setStatus('archived', 'Archive')} busy={busy} />}
-          {listing.is_sold && order && <ActBtn label="Cancel order & relist" danger onClick={async () => {
+          {listing.is_sold && order && <ActBtn label={order.razorpay_payment_id ? 'Refund order & relist' : 'Cancel order & relist'} danger onClick={async () => {
             const reason = prompt('Reason for cancelling & relisting?') ?? '';
-            if (!confirm('Cancel the order and put this listing back on sale? Refund in Razorpay manually.')) return;
             setBusy(true);
             try {
-              if (payout && payout.status !== 'paid_out') await supabase.from('seller_payouts').delete().eq('id', payout.id);
-              await supabase.from('orders').update({ status: 'cancelled' }).eq('id', order.id);
-              await supabase.from('listings').update({ is_sold: false }).eq('id', listing.id);
-              await writeAudit({ entity: 'order', entity_id: order.id, action: 'order.cancel', old_state: { status: order.status }, new_state: { status: 'cancelled' }, reason });
-              void sendEmail({ template: 'order_cancelled_buyer', order_id: order.id });
-              void sendEmail({ template: 'order_cancelled_seller', order_id: order.id });
+              if (order.razorpay_payment_id) {
+                // Money was captured: refund it (this also marks the order
+                // refunded, relists, voids payout, and emails the buyer).
+                if (!confirm(`Refund ${formatCurrency(Number(order.total_amount))} to the buyer via Razorpay and relist this item? This cannot be undone.`)) { setBusy(false); return; }
+                const { data, error } = await supabase.functions.invoke('razorpay-refund', { body: { order_id: order.id, reason } });
+                if (error) throw error;
+                const r = data as { ok?: boolean; error?: string } | null;
+                if (r && r.ok === false) throw new Error(r.error ?? 'Refund failed');
+              } else {
+                // No captured payment: just cancel + relist.
+                if (!confirm('Cancel the order and put this listing back on sale?')) { setBusy(false); return; }
+                if (payout && payout.status !== 'paid_out') await supabase.from('seller_payouts').delete().eq('id', payout.id);
+                await supabase.from('orders').update({ status: 'cancelled' }).eq('id', order.id);
+                await supabase.from('listings').update({ is_sold: false }).eq('id', listing.id);
+                await writeAudit({ entity: 'order', entity_id: order.id, action: 'order.cancel', old_state: { status: order.status }, new_state: { status: 'cancelled' }, reason });
+                void sendEmail({ template: 'order_cancelled_buyer', order_id: order.id });
+                void sendEmail({ template: 'order_cancelled_seller', order_id: order.id });
+              }
               await onDone(); onClose();
             } catch (err: any) { alert(err?.message ?? 'Failed.'); } finally { setBusy(false); }
           }} busy={busy} />}

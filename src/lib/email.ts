@@ -14,6 +14,9 @@ export type EmailTemplate =
   | 'payout_released_seller'
   | 'order_cancelled_buyer'
   | 'order_cancelled_seller'
+  | 'order_refunded_buyer'
+  | 'order_delivered_buyer'
+  | 'listing_approved_seller'
   | 'custom';
 
 interface SendEmailArgs {

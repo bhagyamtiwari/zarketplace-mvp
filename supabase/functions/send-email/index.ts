@@ -51,6 +51,14 @@ const ORDER_BOUND_TEMPLATES = new Set([
   "payment_conflict_buyer",
   "order_cancelled_buyer",
   "order_cancelled_seller",
+  "order_refunded_buyer",
+  "order_delivered_buyer",
+]);
+
+// Admin-only templates that are NOT tied to an order. Recipient and content are
+// taken from `extra` (the admin action supplies them), so these require admin.
+const ADMIN_EXTRA_TEMPLATES = new Set([
+  "listing_approved_seller",
 ]);
 
 serve(async (req) => {
@@ -98,6 +106,8 @@ serve(async (req) => {
     if (!body.template) return json({ error: "template required" }, 400);
 
     if (body.template === "custom") {
+      if (!isAdmin) return json({ error: "Forbidden" }, 403);
+    } else if (ADMIN_EXTRA_TEMPLATES.has(body.template)) {
       if (!isAdmin) return json({ error: "Forbidden" }, 403);
     } else if (ORDER_BOUND_TEMPLATES.has(body.template)) {
       if (!body.order_id) return json({ error: "order_id required" }, 400);
