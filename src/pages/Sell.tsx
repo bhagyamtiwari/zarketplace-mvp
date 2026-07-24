@@ -565,8 +565,9 @@ function SellInner() {
           )}
         </div>
 
-        <p className="hidden sm:block mt-6 text-center text-xs font-bold uppercase tracking-widest text-black/30">
-          We want to hear from you. <Link to="/contact" className="underline text-black/50 hover:text-black">Share your thoughts</Link>
+        <p className="hidden sm:block mt-6 text-center text-[10px] font-bold uppercase tracking-widest text-black/30">
+          Selling here should be easy. Tell us what would make it better.{' '}
+          <Link to="/contact" className="underline text-black/50 hover:text-black">Send feedback</Link>
         </p>
         <div className="hidden sm:block mt-10 pt-10 border-t border-black/5" />
       </div>
@@ -642,9 +643,9 @@ function PhotosStep({ imagePreviews, onAdd, onRemove }: {
     <div className="flex flex-col gap-8">
       <div className="flex items-start gap-3 border-l-2 border-black pl-4">
         <AlertTriangle className="h-4 w-4 text-black mt-0.5 shrink-0" />
-        <p className="text-xs font-bold uppercase tracking-widest text-black/60 leading-relaxed">
+        <InfoText>
           One listing, one item. No "available in all sizes," no "DM for other colours." Got five of the same thing? List it five times.
-        </p>
+        </InfoText>
       </div>
 
       <div className="flex flex-col gap-2">
@@ -928,6 +929,13 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
         ) : (
           <>
             <TrustNote>Shipping starts at {formatCurrency(Math.min(...shippingCategories.map((c) => c.rate)))}, paid by the buyer.</TrustNote>
+            {/* Couriers re-weigh at the hub. If the parcel is much bigger or
+                heavier than the category implies, we may recover the difference
+                or flag the account - but never silently, and never without
+                telling the seller before their payout. */}
+            <InfoText>
+              <span className="text-black/50">*</span> Pick the category honestly. Couriers weigh and measure every parcel at their hub. If what you send is much heavier or larger than the category you chose, we may recover the difference from your payout or flag your account. Someone will contact you first, and you will always be told before your payout is affected.
+            </InfoText>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {shippingCategories.map((c) => (
                 <button key={c.key} type="button" onClick={() => setShippingCategory(c.key)}
@@ -1083,6 +1091,7 @@ function ReviewStep({
     { key: 'accurate', label: 'The description and details above are accurate.' },
     { key: 'authenticIfMarked', label: 'If marked authentic, this item is genuine.' },
   ];
+  const declaredCount = DECLARATION_ITEMS.filter((d) => declarations[d.key]).length;
 
   return (
     <div className="flex flex-col gap-10">
@@ -1148,14 +1157,21 @@ function ReviewStep({
       </div>
 
       <div className="flex flex-col gap-4">
-        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Before You Publish</h3>
+        <div className="flex flex-col gap-1">
+          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Before You Publish</h3>
+          <InfoText>
+            Confirm all five to publish. {declaredCount} of {DECLARATION_ITEMS.length} confirmed.
+          </InfoText>
+        </div>
         <div className="flex flex-col gap-3">
           {DECLARATION_ITEMS.map((d) => (
-            <label key={d.key} className="flex items-start gap-3 cursor-pointer">
+            <label key={d.key} className="flex items-start gap-3 cursor-pointer group">
               <input type="checkbox" checked={declarations[d.key]}
                 onChange={(e) => setDeclarations((prev) => ({ ...prev, [d.key]: e.target.checked }))}
                 className="mt-0.5 h-4 w-4 accent-black shrink-0" />
-              <span className="text-xs font-bold uppercase tracking-widest text-black/70">{d.label}</span>
+              {/* Sentence case at readable weight: these are attestations the
+                  seller is agreeing to, so they have to be easy to actually read. */}
+              <span className="text-sm font-medium text-black/70 leading-relaxed group-hover:text-black">{d.label}</span>
             </label>
           ))}
         </div>

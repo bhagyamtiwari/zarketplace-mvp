@@ -292,6 +292,18 @@ export function Browse() {
           <div className="flex h-64 items-center justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-black/20" />
           </div>
+        ) : error ? (
+          /* A failed fetch must never be presented as "no results" - the buyer
+             would think the catalogue is empty and leave. */
+          <div className="border border-black/10 bg-zinc-50 p-8 flex flex-col items-start gap-4">
+            <p className="text-xs font-bold uppercase tracking-widest text-black/60">
+              We could not load listings just now.
+            </p>
+            <button type="button" onClick={() => window.location.reload()}
+              className="bg-black px-8 py-3 text-[10px] font-black uppercase tracking-[0.3em] text-white hover:bg-zinc-800">
+              Try again
+            </button>
+          </div>
         ) : listings.length === 0 ? (
           <EmptyState
             action={

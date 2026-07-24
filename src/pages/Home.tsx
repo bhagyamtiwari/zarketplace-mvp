@@ -13,25 +13,47 @@ const hlog = log('home');
 
 export function Home() {
   const [previewListings, setPreviewListings] = React.useState<Listing[]>([]);
+  // 'loading' | 'ready' | 'error' - without this the grid can never tell a slow
+  // fetch, a failed fetch and a genuinely empty catalogue apart, and shows
+  // loading skeletons forever in the last two cases.
+  const [previewState, setPreviewState] = React.useState<'loading' | 'ready' | 'error'>('loading');
+  const [reloadKey, setReloadKey] = React.useState(0);
   const { scrollYProgress } = useScroll();
   
   const backgroundY = useTransform(scrollYProgress, [0, 0.5], ['0%', '20%']);
 
   React.useEffect(() => {
+    let cancelled = false;
     const t = hlog.time('fetchPreview');
+    setPreviewState('loading');
     async function fetchPreview() {
-      const { data, error } = await supabase
-        .from('public_listings')
-        .select('*')
-        .eq('status', 'approved')
-        .or('is_sold.is.null,is_sold.eq.false')
-        .limit(5)
-        .order('created_at', { ascending: false });
-      t.end({ count: data?.length, error });
-      if (data) setPreviewListings(data);
+      // Never let a hung request leave the section spinning forever.
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('preview fetch timed out')), 8000),
+      );
+      try {
+        const query = supabase
+          .from('public_listings')
+          .select('*')
+          .eq('status', 'approved')
+          .or('is_sold.is.null,is_sold.eq.false')
+          .limit(5)
+          .order('created_at', { ascending: false });
+        const { data, error } = await Promise.race([query, timeout]);
+        if (cancelled) return;
+        t.end({ count: data?.length, error });
+        if (error) throw error;
+        setPreviewListings(data ?? []);
+        setPreviewState('ready');
+      } catch (err) {
+        if (cancelled) return;
+        hlog.warn('fetchPreview failed', err);
+        setPreviewState('error');
+      }
     }
     fetchPreview();
-  }, []);
+    return () => { cancelled = true; };
+  }, [reloadKey]);
 
   return (
     <div className="flex flex-col bg-white">
@@ -135,11 +157,30 @@ export function Home() {
         </div>
       ))}
     </div>
-  ) : (
+  ) : previewState === 'loading' ? (
     <div className="flex gap-6 overflow-x-auto pb-2 -mx-4 px-4 sm:mx-0 sm:px-0">
       {[1, 2, 3, 4, 5].map((i) => (
         <div key={i} className="shrink-0 w-[45vw] sm:w-[220px] lg:w-[230px] aspect-[3/4] bg-zinc-50 animate-pulse border border-black/5" />
       ))}
+    </div>
+  ) : previewState === 'error' ? (
+    <div className="border border-black/10 bg-zinc-50 p-8 flex flex-col items-start gap-4">
+      <p className="text-xs font-bold uppercase tracking-widest text-black/60">
+        We could not load listings just now.
+      </p>
+      <button type="button" onClick={() => setReloadKey((k) => k + 1)}
+        className="bg-black px-8 py-3 text-[10px] font-black uppercase tracking-[0.3em] text-white hover:bg-zinc-800">
+        Try again
+      </button>
+    </div>
+  ) : (
+    <div className="border border-black/10 bg-zinc-50 p-8 flex flex-col items-start gap-4">
+      <p className="text-xs font-bold uppercase tracking-widest text-black/60">
+        Nothing listed yet. New drops land here first.
+      </p>
+      <Link to="/sell" className="bg-black px-8 py-3 text-[10px] font-black uppercase tracking-[0.3em] text-white hover:bg-zinc-800">
+        List the first item
+      </Link>
     </div>
   )}
 </section>
