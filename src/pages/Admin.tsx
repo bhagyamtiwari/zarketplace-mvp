@@ -88,6 +88,11 @@ const NAV: Section[] = [
     { key: 'l_pending', label: 'Pending Approval', kind: 'listings', listing: (l) => l.status === 'pending' },
     { key: 'l_live', label: 'Live', kind: 'listings', listing: (l) => l.status === 'approved' && !l.is_sold },
     { key: 'l_sold', label: 'Sold', kind: 'listings', listing: (l) => l.status === 'approved' && l.is_sold },
+    // Live listings that could never be picked up: no usable pickup address.
+    // New/edited listings are blocked at approval by the DB trigger, so this
+    // only ever holds legacy rows - but it must be visible, because such a
+    // listing fails Shiprocket booking *after* the buyer has already paid.
+    { key: 'l_no_pickup', label: 'Missing Pickup Address', kind: 'listings', listing: (l) => l.status === 'approved' && !l.is_sold && !l.pickup_address?.pincode },
     { key: 'l_rejected', label: 'Rejected', kind: 'listings', listing: (l) => l.status === 'rejected' },
     { key: 'l_archived', label: 'Archived', kind: 'listings', listing: (l) => l.status === 'archived' || l.status === 'suspended' },
   ] },
@@ -373,6 +378,7 @@ function OverviewView({ orders, listings, payouts }: { orders: Order[]; listings
   const openClaims = orders.filter((o) => o.claim_open).length;
   const payoutsDue = payouts.filter((p) => p.status === 'awaiting_payout' && (!p.releasable_at || new Date(p.releasable_at) <= new Date())).length;
   const shipFailed = orders.filter((o) => !!o.shiprocket_order_id && !o.tracking_number).length;
+  const noPickupAddr = listings.filter((l) => l.status === 'approved' && !l.is_sold && !l.pickup_address?.pincode).length;
   return (
     <div className="flex flex-col gap-6 max-w-3xl">
       <div>
@@ -384,6 +390,7 @@ function OverviewView({ orders, listings, payouts }: { orders: Order[]; listings
           {stat('Open claims', openClaims)}
           {stat('Payouts due', payoutsDue)}
           {stat('Shipping failures', shipFailed)}
+          {stat('No pickup address', noPickupAddr)}
         </div>
       </div>
     </div>
