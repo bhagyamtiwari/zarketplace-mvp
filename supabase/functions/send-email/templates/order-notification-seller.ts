@@ -19,7 +19,11 @@ export function orderNotificationSeller(ctx: EmailContext): EmailContent {
         <p style="margin:0; white-space:pre-wrap;">${esc(note)}</p>
         <p style="margin:8px 0 0; font-size:12px; color:#888;">You're not obligated to fulfill this. It's your call.</p>
       </div>` : ""}
-      <p>You have 72 hours from the sale to pack this item and hand it off for pickup, then add the tracking details in your seller portal. Buyers pay shipping and zarketplace covers the label, so you never arrange or pay for a courier yourself. Your payout is released after the item is delivered and the buyer's 48-hour review window closes.</p>
+      <p>You have 72 hours from the sale to pack this item and hand it off for pickup. zarketplace books and pays the courier, so you never arrange a pickup or buy a label yourself.</p>
+      ${o.free_shipping
+        ? `<p>You offered free shipping on this listing, so the shipping cost of Rs. ${o.shipping_cost} comes out of your payout. Your payout for this sale is <strong>Rs. ${Math.max(0, Number(o.amount) - Number(o.shipping_cost))}</strong>.</p>`
+        : `<p>The buyer paid Rs. ${o.shipping_cost} for shipping at checkout, so your full asking price is yours. Your payout for this sale is <strong>Rs. ${o.amount}</strong>.</p>`}
+      <p>Your payout is released after the item is delivered and the buyer's 48-hour review window closes.</p>
       ${button(sellerUrl(o, ctx.siteUrl), "Open seller portal")}
     </div>`,
   };

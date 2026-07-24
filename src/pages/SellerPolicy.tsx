@@ -32,12 +32,13 @@ export function SellerPolicy() {
 
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Pack and Hand Off for Pickup</h2>
-            <p>When your item sells, pack it well and hand it off for pickup within 72 hours. Buyers pay shipping at checkout and zarketplace arranges the label, so you never book or pay for a courier yourself.</p>
+            <p>When your item sells, pack it well and hand it off for pickup within 72 hours. zarketplace books and pays the courier, so you never arrange a pickup or buy a label yourself.</p>
+            <p>By default the buyer pays shipping at checkout and you keep your full asking price. If you turn on free shipping for a listing, the shipping cost is deducted from your payout instead, which is the same cost you would pay to ship it yourself.</p>
           </section>
 
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Payout Timing</h2>
-            <p>Your payout is released after the item is delivered and the buyer's 48-hour review window closes with no open claim. It reflects 100% of your asking price. There are no selling fees.</p>
+            <p>Your payout is released after the item is delivered and the buyer's 48-hour review window closes with no open claim. There are no selling fees, so you keep 100% of your asking price. The only deduction is shipping, and only on listings where you chose to offer free shipping.</p>
           </section>
 
           <section className="flex flex-col gap-4">

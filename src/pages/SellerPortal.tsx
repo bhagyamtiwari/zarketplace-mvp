@@ -19,6 +19,7 @@ import {
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
 import { StatusBadge } from '../components/StatusBadge';
+import { listingStatusLabel } from '../lib/orderStatus';
 import { OrderTimeline } from '../components/OrderTimeline';
 import { ShareInstagramModal } from '../components/ShareInstagramModal';
 import { log } from '../lib/log';
@@ -212,7 +213,7 @@ function SellerToolsPanel({ listings }: { listings: Listing[] }) {
               </div>
               <div className="flex-1 min-w-0 flex flex-col gap-1">
                 <span className="text-xs font-black uppercase tracking-tight truncate">{l.title}</span>
-                <span className="text-[9px] font-bold uppercase tracking-widest text-black/40">{l.is_sold ? 'Sold' : l.status} · {formatCurrency(Number(l.sale_price ?? l.price))}</span>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-black/40">{listingStatusLabel(l.status, l.is_sold)} · {formatCurrency(Number(l.sale_price ?? l.price))}</span>
               </div>
             </div>
             <button
@@ -256,7 +257,7 @@ function ListingsTable({ title, rows, onDelete, deletingId }: {
                   <span className="text-[9px] font-bold uppercase tracking-widest text-black/40">SKU {l.sku ?? '-'} · {new Date(l.created_at).toLocaleDateString()}</span>
                   <div className="flex items-center justify-between mt-1">
                     <span className="text-sm font-black">{formatCurrency(Number(l.sale_price ?? l.price))}</span>
-                    <span className="text-[9px] font-black uppercase tracking-widest text-black/50">{l.is_sold ? 'Sold' : l.status}</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-black/50">{listingStatusLabel(l.status, l.is_sold)}</span>
                   </div>
                 </div>
                 <button
@@ -290,7 +291,7 @@ function ListingsTable({ title, rows, onDelete, deletingId }: {
                       <span className="text-xs font-black uppercase tracking-tight">{l.title}</span>
                     </Link></td>
                     <td className="py-3 px-3 text-[10px] font-bold uppercase tracking-widest text-black/60">{l.sku ?? '-'}</td>
-                    <td className="py-3 px-3 text-[10px] font-black uppercase tracking-widest">{l.is_sold ? 'Sold' : l.status}</td>
+                    <td className="py-3 px-3 text-[10px] font-black uppercase tracking-widest">{listingStatusLabel(l.status, l.is_sold)}</td>
                     <td className="py-3 px-3 text-xs font-black">{formatCurrency(Number(l.sale_price ?? l.price))}</td>
                     <td className="py-3 px-3 text-[10px] font-bold uppercase tracking-widest text-black/40 text-right">
                       {new Date(l.created_at).toLocaleDateString()}

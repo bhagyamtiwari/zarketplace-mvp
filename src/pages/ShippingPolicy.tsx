@@ -25,7 +25,8 @@ export function ShippingPolicy() {
         <div className="flex flex-col gap-10 text-black leading-relaxed text-sm font-medium uppercase tracking-widest">
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Buyer-Paid, Platform-Arranged Shipping</h2>
-            <p>Buyers pay shipping at checkout, calculated from the item's shipping category. Sellers never book or pay for a courier themselves. zarketplace arranges the label so the seller only has to pack the item and hand it off for pickup.</p>
+            <p>Shipping is calculated from the item's shipping category. By default the buyer pays it at checkout. If the seller chose to offer free shipping on a listing, the buyer pays nothing for shipping and that cost is deducted from the seller's payout instead.</p>
+            <p>Either way, zarketplace books and pays the courier. Sellers never arrange a pickup or buy a label themselves. They only pack the item and hand it off at pickup.</p>
           </section>
 
           <section className="flex flex-col gap-4">

@@ -7,10 +7,9 @@
 // audit row (see lib/adminAudit + migration admin_ops_console_foundation).
 //
 // Data model note: the granular shipping sub-states in the sidebar (Picked Up /
-// In Transit) approximate onto our real order states (paid / shipped /
-// delivered) because we only sync a delivered signal from Shiprocket today. A
-// dedicated orders.shipment_status column, fed by the webhook, is the clean
-// fix once volume justifies it (see the scale-up notes handed over separately).
+// In Transit / Failed-RTO-NDR) read orders.shipment_status, which the
+// delivery-status-hook webhook syncs from Shiprocket. Only 'delivered' also
+// drives the order/escrow state machine; every other sub-state is display-only.
 
 import React from 'react';
 import { supabase } from '../lib/supabase';
@@ -408,7 +407,7 @@ function OrdersView({ rows, onOpen }: { rows: Order[]; onOpen: (id: string) => v
               <td className="py-3 px-3 text-[11px]">{o.seller_email}</td>
               <td className="py-3 px-3 text-xs font-black text-right tabular-nums">{formatCurrency(Number(o.total_amount))}</td>
               <td className="py-3 px-3 text-[10px] text-black/50 whitespace-nowrap">{new Date(o.created_at).toLocaleDateString()}</td>
-              <td className="py-3 px-3"><StatusBadge status={o.status} audience="seller" />{o.claim_open && <span className="ml-1 text-[9px] font-black uppercase text-red-600">Claim</span>}</td>
+              <td className="py-3 px-3"><StatusBadge status={o.status} audience="admin" />{o.claim_open && <span className="ml-1 text-[9px] font-black uppercase text-red-600">Claim</span>}</td>
               <td className="py-3 px-3 text-right"><ChevronRight className="h-4 w-4 text-black/30 inline" /></td>
             </tr>
           ))}
@@ -789,7 +788,7 @@ function OrderDrawer({ order, payouts, emails, audit, onClose, onDone }: {
 
   return (
     <DrawerShell title={order.order_number} subtitle={order.listing_title ?? ''} onClose={onClose}>
-      <div className="flex items-center gap-2"><StatusBadge status={order.status} audience="seller" />{order.claim_open && <span className="text-[9px] font-black uppercase text-red-600">Claim open</span>}</div>
+      <div className="flex items-center gap-2"><StatusBadge status={order.status} audience="admin" />{order.claim_open && <span className="text-[9px] font-black uppercase text-red-600">Claim open</span>}</div>
 
       <Sec title="Timeline">
         {timeline.length === 0 ? <p className="text-black/40">—</p> : timeline.map((t, i) => (

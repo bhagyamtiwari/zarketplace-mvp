@@ -889,7 +889,11 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
             <FieldLabel>Price (INR) *</FieldLabel>
             <input type="number" min="1" value={priceVal} onChange={(e) => setPriceVal(e.target.value)} placeholder="3500"
               className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20" />
-            <TrustNote>You keep 100% of this price. No selling fees.</TrustNote>
+            <TrustNote>
+              {freeShipping
+                ? 'No selling fees. Since you offer free shipping, the shipping cost is deducted from this price at payout.'
+                : 'You keep 100% of this price. No selling fees.'}
+            </TrustNote>
           </div>
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
