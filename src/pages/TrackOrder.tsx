@@ -13,6 +13,7 @@ import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
 import { log } from '../lib/log';
 import { StatusBadge } from '../components/StatusBadge';
+import { shipmentStatusLabel } from '../lib/orderStatus';
 import { OrderTimeline } from '../components/OrderTimeline';
 import { hasEscrowTimeline } from '../lib/escrowTimeline';
 import { EmptyState } from '../components/EmptyState';
@@ -102,7 +103,15 @@ function OrderCard({ order }: { order: Order }) {
             {new Date(order.created_at).toLocaleDateString()} · {formatCurrency(Number(order.total_amount))}
           </span>
         </div>
-        <StatusBadge status={order.status} audience="buyer" />
+        <div className="flex flex-col items-end gap-1">
+          <StatusBadge status={order.status} audience="buyer" />
+          {/* Live courier sub-state once shipped, if Shiprocket has synced one. */}
+          {order.status === 'shipped' && shipmentStatusLabel(order.shipment_status) && (
+            <span className="text-[9px] font-black uppercase tracking-widest text-black/40 whitespace-nowrap">
+              {shipmentStatusLabel(order.shipment_status)}
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Escrow timeline */}

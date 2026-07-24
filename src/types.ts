@@ -109,6 +109,12 @@ export interface Order {
   tracking_url: string | null;
   tracking_number: string | null;
   courier: string | null;
+  // Fine-grained courier sub-state synced from Shiprocket (display only; the
+  // order state machine still only tracks shipped/delivered). One of:
+  // pickup_scheduled | picked_up | in_transit | out_for_delivery | delivered |
+  // rto | ndr | cancelled | null.
+  shipment_status: string | null;
+  shipment_status_at: string | null;
   package_image_url: string | null;
   shipped_at: string | null;
   delivered_at: string | null;

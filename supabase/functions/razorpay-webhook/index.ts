@@ -115,6 +115,12 @@ async function handleCaptured(supabase: ReturnType<typeof createClient>, payment
     if (result === "paid") {
       await sendOrderEmail(supabase, { ...order, status: "paid", razorpay_payment_id: payment.id }, "payment_confirmed_buyer");
       await sendOrderEmail(supabase, { ...order, status: "paid", razorpay_payment_id: payment.id }, "order_notification_seller");
+      // Auto-book the Shiprocket pickup now that the order is paid, instead of
+      // waiting for an admin to click "Book Pickup". Best-effort and fully
+      // isolated: any failure (Shiprocket down, KYC pending, bad address) is
+      // logged and the order simply stays 'paid' for an admin to book/retry
+      // manually - it must never fail or roll back the payment webhook.
+      await autoBookPickup(supabase, order.id);
     } else {
       // Money was genuinely captured twice for one one-of-one item — should
       // essentially never happen given the reservation lock, but if it does,
@@ -151,6 +157,26 @@ async function handleFailed(supabase: ReturnType<typeof createClient>, payment: 
 
   for (const order of stillPending) {
     await sendOrderEmail(supabase, { ...order, status: "payment_failed" }, "payment_failed_buyer");
+  }
+}
+
+// Best-effort call into shiprocket-create-order using the service-role key
+// (that function accepts service-role calls as an internal, admin-equivalent
+// caller). Never throws - a booking failure here is a warning, not a webhook
+// failure, and the order remains bookable from the admin console.
+async function autoBookPickup(supabase: ReturnType<typeof createClient>, orderId: string) {
+  try {
+    const { data, error } = await supabase.functions.invoke("shiprocket-create-order", {
+      body: { order_id: orderId },
+    });
+    if (error) {
+      console.error("razorpay-webhook: auto-book pickup failed (admin can book manually)", { orderId, error: error.message });
+      return;
+    }
+    const r = data as { warnings?: string[] } | null;
+    if (r?.warnings?.length) console.warn("razorpay-webhook: auto-book pickup warnings", { orderId, warnings: r.warnings });
+  } catch (err) {
+    console.error("razorpay-webhook: auto-book pickup threw (admin can book manually)", { orderId, err });
   }
 }
 

@@ -90,19 +90,23 @@ serve(async (req) => {
     if (!authHeader) return json({ error: "Missing Authorization header" }, 401);
     const jwt = authHeader.replace(/^Bearer\s+/i, "");
 
-    const callerClient = createClient(SUPABASE_URL, ANON_KEY, {
-      global: { headers: { Authorization: `Bearer ${jwt}` } },
-    });
-    const { data: callerData, error: callerErr } = await callerClient.auth.getUser();
-    if (callerErr || !callerData?.user) return json({ error: "Invalid or expired session" }, 401);
-
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
-    // Only admins may book a pickup - this is the same trust boundary as
-    // marking an order delivered (see migration 20260710000001).
-    const { data: callerProfile } = await supabase
-      .from("profiles").select("is_admin").eq("id", callerData.user.id).maybeSingle();
-    if (!callerProfile?.is_admin) return json({ error: "Forbidden" }, 403);
+    // Two authorized callers: (1) an admin from the console (user JWT), and
+    // (2) the razorpay-webhook auto-booking a pickup the moment an order is
+    // paid, which calls in with the service-role key. The service-role branch
+    // skips the per-user admin check but is otherwise identical.
+    const isInternal = jwt === SERVICE_KEY;
+    if (!isInternal) {
+      const callerClient = createClient(SUPABASE_URL, ANON_KEY, {
+        global: { headers: { Authorization: `Bearer ${jwt}` } },
+      });
+      const { data: callerData, error: callerErr } = await callerClient.auth.getUser();
+      if (callerErr || !callerData?.user) return json({ error: "Invalid or expired session" }, 401);
+      const { data: callerProfile } = await supabase
+        .from("profiles").select("is_admin").eq("id", callerData.user.id).maybeSingle();
+      if (!callerProfile?.is_admin) return json({ error: "Forbidden" }, 403);
+    }
 
     const body = (await req.json()) as RequestBody;
     if (!body.order_id) return json({ error: "order_id required" }, 400);

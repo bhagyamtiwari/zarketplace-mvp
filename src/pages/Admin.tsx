@@ -23,6 +23,7 @@ import {
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
 import { StatusBadge } from '../components/StatusBadge';
+import { shipmentStatusLabel } from '../lib/orderStatus';
 import { log } from '../lib/log';
 import { sendEmail } from '../lib/email';
 import { writeAudit, AuditEntry } from '../lib/adminAudit';
@@ -95,9 +96,9 @@ const NAV: Section[] = [
     { key: 'o_awaiting_payment', label: 'Awaiting Payment', kind: 'orders', order: (o) => o.status === 'awaiting_payment' },
     { key: 'o_awaiting_verification', label: 'Awaiting Verification', kind: 'orders', order: (o) => o.status === 'awaiting_verification' },
     { key: 'o_paid', label: 'Paid', kind: 'orders', order: (o) => o.status === 'paid' },
-    { key: 'o_awaiting_pickup', label: 'Awaiting Pickup', kind: 'orders', order: (o) => o.status === 'paid' && !o.shiprocket_order_id },
-    { key: 'o_picked_up', label: 'Picked Up', kind: 'orders', order: (o) => o.status === 'shipped' && !!o.shiprocket_shipment_id },
-    { key: 'o_in_transit', label: 'In Transit', kind: 'orders', order: (o) => o.status === 'shipped' },
+    { key: 'o_awaiting_pickup', label: 'Awaiting Pickup', kind: 'orders', order: (o) => o.status === 'shipped' && (!o.shipment_status || o.shipment_status === 'pickup_scheduled') },
+    { key: 'o_picked_up', label: 'Picked Up', kind: 'orders', order: (o) => o.shipment_status === 'picked_up' },
+    { key: 'o_in_transit', label: 'In Transit', kind: 'orders', order: (o) => o.shipment_status === 'in_transit' || o.shipment_status === 'out_for_delivery' },
     { key: 'o_delivered', label: 'Delivered', kind: 'orders', order: (o) => o.status === 'delivered' },
     { key: 'o_cancelled', label: 'Cancelled', kind: 'orders', order: (o) => o.status === 'cancelled' },
     { key: 'o_refunded', label: 'Refunded', kind: 'orders', order: (o) => o.status === 'refunded' },
@@ -122,8 +123,8 @@ const NAV: Section[] = [
   ] },
   { key: 'shiprocket', label: 'Shiprocket', icon: Truck, leaves: [
     { key: 'sr_queue', label: 'Pickup Queue', kind: 'orders', order: (o) => o.status === 'paid' && !o.shiprocket_order_id },
-    { key: 'sr_active', label: 'Active Shipments', kind: 'orders', order: (o) => !!o.shiprocket_order_id && o.status !== 'delivered' && o.status !== 'cancelled' },
-    { key: 'sr_failed', label: 'Failed Shipments', kind: 'orders', order: (o) => !!o.shiprocket_order_id && !o.tracking_number },
+    { key: 'sr_active', label: 'Active Shipments', kind: 'orders', order: (o) => !!o.shiprocket_order_id && o.status !== 'delivered' && o.status !== 'cancelled' && o.status !== 'refunded' },
+    { key: 'sr_failed', label: 'Failed / RTO / NDR', kind: 'orders', order: (o) => (!!o.shiprocket_order_id && !o.tracking_number) || o.shipment_status === 'rto' || o.shipment_status === 'ndr' },
   ] },
   { key: 'razorpay', label: 'Razorpay', icon: CreditCard, leaves: [
     { key: 'rz_failures', label: 'Payment Failures', kind: 'orders', order: (o) => o.status === 'payment_failed' },
@@ -819,6 +820,7 @@ function OrderDrawer({ order, payouts, emails, audit, onClose, onDone }: {
         <Row k="Shiprocket #" v={order.shiprocket_order_id} />
         <Row k="AWB / tracking" v={order.tracking_number} />
         <Row k="Courier" v={order.courier} />
+        <Row k="Shipment status" v={shipmentStatusLabel(order.shipment_status) ?? '—'} />
         {order.tracking_url && <a href={order.tracking_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[10px] underline">Track <ExternalLink className="h-3 w-3" /></a>}
       </Sec>
 

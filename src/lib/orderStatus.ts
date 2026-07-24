@@ -4,6 +4,23 @@
 // a buyer sees their own order status.
 import type { OrderStatus } from '../types';
 
+// Human-readable label for the fine-grained Shiprocket shipment sub-state
+// (orders.shipment_status). Returns null when there is nothing meaningful to
+// show, so callers fall back to the coarse order status.
+export function shipmentStatusLabel(shipmentStatus: string | null | undefined): string | null {
+  switch (shipmentStatus) {
+    case 'pickup_scheduled': return 'Pickup scheduled';
+    case 'picked_up': return 'Picked up';
+    case 'in_transit': return 'In transit';
+    case 'out_for_delivery': return 'Out for delivery';
+    case 'delivered': return 'Delivered';
+    case 'rto': return 'Returning to seller';
+    case 'ndr': return 'Delivery attempt failed';
+    case 'cancelled': return 'Shipment cancelled';
+    default: return null;
+  }
+}
+
 export function buyerStatusLabel(status: OrderStatus): string {
   switch (status) {
     case 'awaiting_payment':

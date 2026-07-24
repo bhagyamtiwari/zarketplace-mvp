@@ -44,6 +44,23 @@ function isDelivered(status: string): boolean {
   return s.includes("delivered") && !s.includes("rto") && !s.includes("undelivered");
 }
 
+// Normalize Shiprocket's many status strings into the small set we surface to
+// buyers and admins (orders.shipment_status). Only 'delivered' also drives the
+// escrow/order state machine; the rest are display-only sub-states.
+function normalizeShipmentStatus(status: string): string | null {
+  const s = status.toLowerCase();
+  if (!s) return null;
+  if (s.includes("rto")) return "rto";
+  if (s.includes("undelivered") || s.includes("ndr") || s.includes("failed")) return "ndr";
+  if (s.includes("delivered")) return "delivered";
+  if (s.includes("out for delivery")) return "out_for_delivery";
+  if (s.includes("in transit") || s.includes("in-transit") || s.includes("shipped")) return "in_transit";
+  if (s.includes("picked up") || s.includes("pickup done") || s.includes("out for pickup")) return "picked_up";
+  if (s.includes("pickup scheduled") || s.includes("pickup generated") || s.includes("manifest") || s.includes("awb")) return "pickup_scheduled";
+  if (s.includes("cancel")) return "cancelled";
+  return null;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
@@ -97,9 +114,19 @@ serve(async (req) => {
       return new Response("ok (no match)", { status: 200, headers: corsHeaders });
     }
 
+    // Always record the fine-grained courier sub-state for buyer/admin
+    // visibility, whatever the event is.
+    const shipmentStatus = normalizeShipmentStatus(status);
+    if (shipmentStatus) {
+      await supabase.from("orders")
+        .update({ shipment_status: shipmentStatus, shipment_status_at: new Date().toISOString() })
+        .eq("id", order.id);
+    }
+
     if (!isDelivered(status)) {
-      // Logged for traceability; no state change for in-transit/RTO/etc.
-      console.log("shiprocket-webhook: status noted, no action", { orderId: order.id, status });
+      // Sub-state recorded above; RTO/NDR/in-transit etc. never auto-change the
+      // order/escrow state machine - those need a human to look at them.
+      console.log("delivery-status-hook: sub-status recorded, no state change", { orderId: order.id, status, shipmentStatus });
       return new Response("ok", { status: 200, headers: corsHeaders });
     }
 

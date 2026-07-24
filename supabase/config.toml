@@ -417,3 +417,20 @@ verify_jwt = true
 [functions.shiprocket-webhook]
 enabled = true
 verify_jwt = false
+
+# Shiprocket delivered/status webhook (renamed from shiprocket-webhook to avoid
+# the "shiprocket" keyword Shiprocket rejects in webhook URLs). Public: authed
+# by a shared x-api-key token, not a Supabase JWT.
+[functions.delivery-status-hook]
+enabled = true
+verify_jwt = false
+
+# send-email + razorpay-refund require a valid Supabase session (admin/party
+# checks happen inside the function).
+[functions.send-email]
+enabled = true
+verify_jwt = true
+
+[functions.razorpay-refund]
+enabled = true
+verify_jwt = true
