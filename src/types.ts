@@ -1,4 +1,4 @@
-export type ListingStatus = 'pending' | 'approved' | 'rejected';
+export type ListingStatus = 'pending' | 'approved' | 'rejected' | 'suspended' | 'archived';
 
 export interface Listing {
   id: string;
@@ -87,6 +87,8 @@ export interface Order {
   pickup_address: Record<string, string> | null;
   shiprocket_order_id: string | null;
   shiprocket_shipment_id: string | null;
+  razorpay_order_id: string | null;
+  razorpay_payment_id: string | null;
   amount: number;
   shipping_cost: number;
   shipping_category: string | null;

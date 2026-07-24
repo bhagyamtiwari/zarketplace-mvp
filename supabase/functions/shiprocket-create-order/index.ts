@@ -239,6 +239,27 @@ serve(async (req) => {
       warnings.push("Courier/AWB assignment failed - retry from Shiprocket dashboard or this booking again.");
     }
 
+    // 4b. Request the actual courier pickup. AWB assignment only reserves a
+    // courier + tracking number; generate/pickup is the call that tells the
+    // courier to come collect the parcel. Best-effort: a failure here (common
+    // when the courier's cutoff has passed - it schedules next slot) shouldn't
+    // undo the booking, so it's surfaced as a warning like label generation.
+    if (awbCode) {
+      const pickupRes = await fetch(`${SHIPROCKET_BASE}/courier/generate/pickup`, {
+        method: "POST",
+        headers: srHeaders,
+        body: JSON.stringify({ shipment_id: [Number(shipmentId)] }),
+      });
+      const pickupData = await pickupRes.json();
+      // Shiprocket returns 400 "already been generated / requested" on retry -
+      // that's success, not a failure to surface.
+      const pickupAlready = typeof pickupData?.message === "string" &&
+        /already|generated|requested/i.test(pickupData.message);
+      if (!pickupRes.ok && !pickupAlready) {
+        warnings.push("Pickup request failed - schedule the pickup from the Shiprocket dashboard.");
+      }
+    }
+
     // 5. Generate the label (best-effort; not required for tracking to work).
     let labelUrl: string | null = null;
     if (awbCode) {

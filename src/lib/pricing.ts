@@ -70,6 +70,25 @@ export interface ShippingCategory {
   rate: number;
 }
 
+// Emergency fallback so the shipping selector (and the seller/listing form)
+// can never be permanently blocked by a failed or hung network read. This
+// MUST mirror the seed rows in migration 20260710000004_shipping_categories.
+// The database remains the source of truth: this is only used when the read
+// fails or times out, and the amount actually charged is always the
+// server-derived orders.total_amount, never these display values.
+const FALLBACK_SHIPPING_CATEGORIES: ShippingCategory[] = [
+  { key: 'accessories', label: 'Accessories & Small Items', rate: 79 },
+  { key: 'tops', label: 'T-Shirts & Tops', rate: 80 },
+  { key: 'bottoms', label: 'Jeans & Bottoms', rate: 99 },
+  { key: 'footwear', label: 'Footwear', rate: 129 },
+  { key: 'outerwear', label: 'Jackets & Heavy Items', rate: 149 },
+];
+
+// supabase-js can hang indefinitely when its session lock can't be acquired
+// (see the lock workaround in lib/supabase.ts). A hung read would otherwise
+// leave the category selector stuck on "Loading…" forever, so cap the wait.
+const SHIPPING_FETCH_TIMEOUT_MS = 6000;
+
 let shippingCache: ShippingCategory[] | undefined;
 let shippingInflight: Promise<ShippingCategory[]> | null = null;
 
@@ -78,19 +97,29 @@ export async function getShippingCategories(): Promise<ShippingCategory[]> {
   if (shippingInflight) return shippingInflight;
   shippingInflight = (async () => {
     try {
-      const { data, error } = await supabase
+      const query = supabase
         .from('shipping_categories')
         .select('key, label, rate')
         .order('sort_order', { ascending: true });
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('shipping_categories read timed out')), SHIPPING_FETCH_TIMEOUT_MS),
+      );
+      const { data, error } = await Promise.race([query, timeout]);
       if (error) throw error;
-      shippingCache = (data as ShippingCategory[] | null) ?? [];
+      const rows = (data as ShippingCategory[] | null) ?? [];
+      // Only cache a real, non-empty result. A transient failure or an empty
+      // read must NOT be cached, or one bad fetch poisons the whole session.
+      if (rows.length > 0) {
+        shippingCache = rows;
+        return rows;
+      }
+      return FALLBACK_SHIPPING_CATEGORIES;
     } catch (err) {
-      plog.warn('shipping_categories unavailable, hiding shipping selector/estimate', err);
-      shippingCache = [];
+      plog.warn('shipping_categories unavailable, using fallback rates', err);
+      return FALLBACK_SHIPPING_CATEGORIES;
     } finally {
       shippingInflight = null;
     }
-    return shippingCache;
   })();
   return shippingInflight;
 }

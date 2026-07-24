@@ -53,8 +53,13 @@ serve(async (req) => {
     return new Response("Server not configured", { status: 500 });
   }
 
+  // Shiprocket's webhook config passes the shared secret in an HTTP header
+  // (Auth Token Type = x-api-key), not as a ?token= query param. Accept the
+  // header first and fall back to the query param so either configuration
+  // works.
   const url = new URL(req.url);
-  if (url.searchParams.get("token") !== WEBHOOK_TOKEN) {
+  const presented = req.headers.get("x-api-key") ?? url.searchParams.get("token");
+  if (presented !== WEBHOOK_TOKEN) {
     console.error("shiprocket-webhook: token mismatch");
     return new Response("Invalid token", { status: 401 });
   }

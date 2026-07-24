@@ -49,6 +49,8 @@ const ORDER_BOUND_TEMPLATES = new Set([
   "payment_confirmed_buyer",
   "payment_failed_buyer",
   "payment_conflict_buyer",
+  "order_cancelled_buyer",
+  "order_cancelled_seller",
 ]);
 
 serve(async (req) => {

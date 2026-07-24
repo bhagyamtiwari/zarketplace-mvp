@@ -1,375 +1,414 @@
-// Admin portal: listings approval, orders verification, user management.
-// MVP: buyer pays admin UPI. Admin verifies payment manually (e.g. in UPI
-// app), marks "paid", then marks "delivered" once the item has arrived
-// (the Shiprocket webhook takes over this last step once it exists). Marking
-// delivered starts a 48-hour review window; a payout row is created
-// automatically and can only be paid out once that window has closed with
-// no open claim on the order (enforced in the DB, not just here).
+// zarketplace admin — operations console.
+//
+// Not an analytics dashboard: a left-sidebar-driven ops tool for resolving
+// seller / buyer / shipping / payment / moderation problems fast. Every page
+// shows only what that page needs; a record opens in a right-hand drawer (never
+// a new route); every mutating action confirms where it matters and writes an
+// audit row (see lib/adminAudit + migration admin_ops_console_foundation).
+//
+// Data model note: the granular shipping sub-states in the sidebar (Picked Up /
+// In Transit) approximate onto our real order states (paid / shipped /
+// delivered) because we only sync a delivered signal from Shiprocket today. A
+// dedicated orders.shipment_status column, fed by the webhook, is the clean
+// fix once volume justifies it (see the scale-up notes handed over separately).
 
 import React from 'react';
-import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Listing, ListingStatus, Order, OrderStatus, SellerPayout } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
-import { Loader2, Check, X, ExternalLink, Trash2 } from 'lucide-react';
+import {
+  Loader2, Search, ChevronRight, X, ExternalLink, Package, CreditCard,
+  Truck, Wallet, Users as UsersIcon, LifeBuoy, Terminal, LayoutGrid, Boxes,
+} from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
 import { StatusBadge } from '../components/StatusBadge';
 import { log } from '../lib/log';
 import { sendEmail } from '../lib/email';
+import { writeAudit, AuditEntry } from '../lib/adminAudit';
 
 const adlog = log('admin');
 
-type AdminTab = 'listings' | 'orders' | 'payouts' | 'users';
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
-interface AdminProfile {
+interface AdminUser {
   id: string;
   email: string;
   full_name: string | null;
   phone: string | null;
   is_admin: boolean;
+  is_flagged: boolean;
+  is_banned: boolean;
   created_at: string;
 }
 
-const ORDER_STATUSES: OrderStatus[] = [
-  'awaiting_payment', 'awaiting_verification', 'paid', 'payment_failed', 'payment_conflict', 'shipped', 'delivered', 'cancelled', 'refunded',
+interface EmailLogRow {
+  id: string;
+  to_email: string;
+  template: string;
+  subject: string;
+  status: string;
+  related_order_id: string | null;
+  error_message: string | null;
+  created_at: string;
+}
+
+type LeafKind = 'overview' | 'orders' | 'listings' | 'payouts' | 'users' | 'emails' | 'audit' | 'settings';
+
+interface Leaf {
+  key: string;
+  label: string;
+  kind: LeafKind;
+  order?: (o: Order) => boolean;
+  listing?: (l: Listing) => boolean;
+  payout?: (p: SellerPayout) => boolean;
+  user?: (u: AdminUser, ctx: UserCtx) => boolean;
+}
+
+interface Section {
+  key: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  leaves: Leaf[];
+}
+
+interface UserCtx { buyerIds: Set<string>; sellerIds: Set<string>; }
+
+// ---------------------------------------------------------------------------
+// Sidebar structure
+// ---------------------------------------------------------------------------
+
+const NAV: Section[] = [
+  { key: 'overview', label: 'Overview', icon: LayoutGrid, leaves: [
+    { key: 'overview', label: 'Overview', kind: 'overview' },
+  ] },
+  { key: 'listings', label: 'Listings', icon: Boxes, leaves: [
+    { key: 'l_pending', label: 'Pending Approval', kind: 'listings', listing: (l) => l.status === 'pending' },
+    { key: 'l_live', label: 'Live', kind: 'listings', listing: (l) => l.status === 'approved' && !l.is_sold },
+    { key: 'l_sold', label: 'Sold', kind: 'listings', listing: (l) => l.status === 'approved' && l.is_sold },
+    { key: 'l_rejected', label: 'Rejected', kind: 'listings', listing: (l) => l.status === 'rejected' },
+    { key: 'l_archived', label: 'Archived', kind: 'listings', listing: (l) => l.status === 'archived' || l.status === 'suspended' },
+  ] },
+  { key: 'orders', label: 'Orders', icon: Package, leaves: [
+    { key: 'o_awaiting_payment', label: 'Awaiting Payment', kind: 'orders', order: (o) => o.status === 'awaiting_payment' },
+    { key: 'o_awaiting_verification', label: 'Awaiting Verification', kind: 'orders', order: (o) => o.status === 'awaiting_verification' },
+    { key: 'o_paid', label: 'Paid', kind: 'orders', order: (o) => o.status === 'paid' },
+    { key: 'o_awaiting_pickup', label: 'Awaiting Pickup', kind: 'orders', order: (o) => o.status === 'paid' && !o.shiprocket_order_id },
+    { key: 'o_picked_up', label: 'Picked Up', kind: 'orders', order: (o) => o.status === 'shipped' && !!o.shiprocket_shipment_id },
+    { key: 'o_in_transit', label: 'In Transit', kind: 'orders', order: (o) => o.status === 'shipped' },
+    { key: 'o_delivered', label: 'Delivered', kind: 'orders', order: (o) => o.status === 'delivered' },
+    { key: 'o_cancelled', label: 'Cancelled', kind: 'orders', order: (o) => o.status === 'cancelled' },
+    { key: 'o_refunded', label: 'Refunded', kind: 'orders', order: (o) => o.status === 'refunded' },
+    { key: 'o_claims', label: 'Claims', kind: 'orders', order: (o) => o.claim_open },
+  ] },
+  { key: 'payouts', label: 'Payouts', icon: Wallet, leaves: [
+    { key: 'p_pending', label: 'Pending', kind: 'payouts', payout: (p) => p.status === 'awaiting_payout' && (!p.releasable_at || new Date(p.releasable_at) > new Date()) },
+    { key: 'p_processing', label: 'Processing', kind: 'payouts', payout: (p) => p.status === 'awaiting_payout' && !!p.releasable_at && new Date(p.releasable_at) <= new Date() },
+    { key: 'p_paid', label: 'Paid', kind: 'payouts', payout: (p) => p.status === 'paid_out' },
+  ] },
+  { key: 'users', label: 'Users', icon: UsersIcon, leaves: [
+    { key: 'u_buyers', label: 'Buyers', kind: 'users', user: (u, c) => c.buyerIds.has(u.id) },
+    { key: 'u_sellers', label: 'Sellers', kind: 'users', user: (u, c) => c.sellerIds.has(u.id) },
+    { key: 'u_flagged', label: 'Flagged', kind: 'users', user: (u) => u.is_flagged },
+    { key: 'u_banned', label: 'Banned', kind: 'users', user: (u) => u.is_banned },
+  ] },
+  { key: 'support', label: 'Support', icon: LifeBuoy, leaves: [
+    { key: 's_claims', label: 'Open Claims', kind: 'orders', order: (o) => o.claim_open },
+    { key: 's_refunds', label: 'Refund Requests', kind: 'orders', order: (o) => o.status === 'cancelled' || o.status === 'payment_conflict' },
+    { key: 's_shipping', label: 'Shipping Problems', kind: 'orders', order: (o) => !!o.shiprocket_order_id && !o.tracking_number && o.status !== 'delivered' },
+    { key: 's_payment', label: 'Payment Problems', kind: 'orders', order: (o) => o.status === 'payment_failed' || o.status === 'payment_conflict' },
+  ] },
+  { key: 'shiprocket', label: 'Shiprocket', icon: Truck, leaves: [
+    { key: 'sr_queue', label: 'Pickup Queue', kind: 'orders', order: (o) => o.status === 'paid' && !o.shiprocket_order_id },
+    { key: 'sr_active', label: 'Active Shipments', kind: 'orders', order: (o) => !!o.shiprocket_order_id && o.status !== 'delivered' && o.status !== 'cancelled' },
+    { key: 'sr_failed', label: 'Failed Shipments', kind: 'orders', order: (o) => !!o.shiprocket_order_id && !o.tracking_number },
+  ] },
+  { key: 'razorpay', label: 'Razorpay', icon: CreditCard, leaves: [
+    { key: 'rz_failures', label: 'Payment Failures', kind: 'orders', order: (o) => o.status === 'payment_failed' },
+    { key: 'rz_conflicts', label: 'Conflicts', kind: 'orders', order: (o) => o.status === 'payment_conflict' },
+    { key: 'rz_refunds', label: 'Refund Queue', kind: 'orders', order: (o) => o.status === 'cancelled' || o.status === 'refunded' || o.status === 'payment_conflict' },
+  ] },
+  { key: 'system', label: 'System', icon: Terminal, leaves: [
+    { key: 'sys_emails', label: 'Email Logs', kind: 'emails' },
+    { key: 'sys_audit', label: 'Audit Logs', kind: 'audit' },
+    { key: 'sys_settings', label: 'Settings', kind: 'settings' },
+  ] },
 ];
+
+const LEAF_BY_KEY = new Map<string, Leaf>();
+for (const s of NAV) for (const l of s.leaves) LEAF_BY_KEY.set(l.key, l);
+
+// ---------------------------------------------------------------------------
+// Root
+// ---------------------------------------------------------------------------
 
 export function Admin() {
   return (
     <RequireAuth requireAdmin message="Sign in with an admin account.">
-      <AdminInner />
+      <Console />
     </RequireAuth>
   );
 }
 
-function AdminInner() {
+function Console() {
   const { user } = useAuth();
-  const [listings, setListings] = React.useState<Listing[]>([]);
+  const [activeKey, setActiveKey] = React.useState('overview');
   const [orders, setOrders] = React.useState<Order[]>([]);
+  const [listings, setListings] = React.useState<Listing[]>([]);
   const [payouts, setPayouts] = React.useState<SellerPayout[]>([]);
-  const [users, setUsers] = React.useState<AdminProfile[]>([]);
+  const [users, setUsers] = React.useState<AdminUser[]>([]);
+  const [emails, setEmails] = React.useState<EmailLogRow[]>([]);
+  const [audit, setAudit] = React.useState<AuditEntry[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [actioningId, setActioningId] = React.useState<string | null>(null);
-  const [tab, setTab] = React.useState<AdminTab>('listings');
+  const [drawer, setDrawer] = React.useState<{ type: 'order' | 'listing'; id: string } | null>(null);
 
-  const fetchPendingListings = async () => {
+  const leaf = LEAF_BY_KEY.get(activeKey) ?? NAV[0].leaves[0];
+
+  const loadAll = React.useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('listings').select('*').eq('status', 'pending')
-        .order('created_at', { ascending: true });
-      if (error) throw error;
-      setListings((data as Listing[]) || []);
-    } catch (err) { adlog.error('fetchListings', err); }
+      const [o, l, p, u, e, a] = await Promise.all([
+        supabase.from('orders').select('*').order('created_at', { ascending: false }),
+        supabase.from('listings').select('*').order('created_at', { ascending: false }),
+        supabase.from('seller_payouts').select('*').order('created_at', { ascending: false }),
+        supabase.from('profiles').select('id, email, full_name, phone, is_admin, is_flagged, is_banned, created_at').order('created_at', { ascending: false }),
+        supabase.from('email_log').select('*').order('created_at', { ascending: false }).limit(500),
+        supabase.from('admin_audit_log').select('*').order('created_at', { ascending: false }).limit(500),
+      ]);
+      setOrders((o.data as Order[]) ?? []);
+      setListings((l.data as Listing[]) ?? []);
+      setPayouts((p.data as SellerPayout[]) ?? []);
+      setUsers((u.data as AdminUser[]) ?? []);
+      setEmails((e.data as EmailLogRow[]) ?? []);
+      setAudit((a.data as AuditEntry[]) ?? []);
+    } catch (err) { adlog.error('loadAll', err); }
     finally { setLoading(false); }
+  }, []);
+
+  React.useEffect(() => { void loadAll(); }, [loadAll]);
+
+  const userCtx: UserCtx = React.useMemo(() => ({
+    buyerIds: new Set(orders.map((o) => o.buyer_id).filter(Boolean) as string[]),
+    sellerIds: new Set(listings.map((l) => l.seller_id).filter(Boolean) as string[]),
+  }), [orders, listings]);
+
+  // counts for the sidebar badges (only the actionable ones are surfaced)
+  const countFor = (l: Leaf): number => {
+    if (l.order) return orders.filter(l.order).length;
+    if (l.listing) return listings.filter(l.listing).length;
+    if (l.payout) return payouts.filter(l.payout).length;
+    if (l.user) return users.filter((u) => l.user!(u, userCtx)).length;
+    return 0;
   };
 
-  const fetchOrders = async () => {
-    setLoading(true);
-    try {
-      const { data } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
-      setOrders((data as Order[]) ?? []);
-    } finally { setLoading(false); }
-  };
-
-  const fetchPayouts = async () => {
-    setLoading(true);
-    try {
-      const { data } = await supabase.from('seller_payouts').select('*').order('created_at', { ascending: false });
-      setPayouts((data as SellerPayout[]) ?? []);
-    } finally { setLoading(false); }
-  };
-
-  const markPaidOut = async (id: string) => {
-    // The DB also enforces this (see migration 20260710000001) - the
-    // releasable_at check here is just so the admin gets an immediate,
-    // readable error instead of a raw RLS rejection.
-    const payout = payouts.find((p) => p.id === id);
-    if (payout?.releasable_at && new Date(payout.releasable_at) > new Date()) {
-      alert(`This payout is held until ${new Date(payout.releasable_at).toLocaleString()} (48 hours after delivery).`);
-      return;
-    }
-    const { error } = await supabase.from('seller_payouts')
-      .update({ status: 'paid_out', paid_at: new Date().toISOString() })
-      .eq('id', id);
-    if (error) { alert(error.message); return; }
-    if (payout?.order_id) {
-      void sendEmail({ template: 'payout_released_seller', order_id: payout.order_id });
-    }
-    fetchPayouts();
-  };
-
-  const fetchUsers = async () => {
-    setLoading(true);
-    try {
-      const { data } = await supabase.from('profiles')
-        .select('id, email, full_name, phone, is_admin, created_at')
-        .order('created_at', { ascending: false });
-      setUsers((data as AdminProfile[]) ?? []);
-    } finally { setLoading(false); }
-  };
-
-  const toggleAdmin = async (uid: string, makeAdmin: boolean) => {
-    if (uid === user?.id && !makeAdmin && !confirm('Revoke your own admin access?')) return;
-    const { error } = await supabase.from('profiles').update({ is_admin: makeAdmin }).eq('id', uid);
-    if (error) { alert(error.message); return; }
-    fetchUsers();
-  };
-
-  const updateOrderStatus = async (orderId: string, status: OrderStatus) => {
-    const update: Record<string, unknown> = { status };
-    if (status === 'shipped') update.shipped_at = new Date().toISOString();
-    const { error } = await supabase.from('orders').update(update).eq('id', orderId);
-    if (error) { alert(error.message); return; }
-
-    // Listing visibility follows order status:
-    //   cancelled / refunded -> relist (is_sold = false)
-    //   anything else        -> stay sold (is_sold = true)
-    const order = orders.find((o) => o.id === orderId);
-    if (order?.listing_id) {
-      const isSold = !(status === 'cancelled' || status === 'refunded');
-      const { error: lerr } = await supabase
-        .from('listings')
-        .update({ is_sold: isSold })
-        .eq('id', order.listing_id);
-      if (lerr) console.warn('listing visibility sync failed', lerr);
-    }
-
-    fetchOrders();
-  };
-
-  // Calls the shiprocket-create-order edge function for a single paid order:
-  // registers the seller's pickup location, creates the Shiprocket order,
-  // assigns a courier/AWB, and generates the label. See that function for
-  // the full flow - this just surfaces its result/warnings to the admin.
-  const [bookingId, setBookingId] = React.useState<string | null>(null);
-  const bookShiprocketPickup = async (orderId: string) => {
-    setBookingId(orderId);
-    try {
-      const { data, error } = await supabase.functions.invoke('shiprocket-create-order', { body: { order_id: orderId } });
-      if (error) throw error;
-      const result = data as { warnings?: string[]; tracking_number?: string | null } | null;
-      if (result?.warnings && result.warnings.length > 0) {
-        alert(`Booked, but: ${result.warnings.join(' ')}`);
-      }
-      fetchOrders();
-    } catch (err: any) {
-      alert(err?.message ?? 'Failed to book Shiprocket pickup.');
-    } finally {
-      setBookingId(null);
-    }
-  };
-
-  // claim_open is locked to admin-only writes at the DB level (migration
-  // 20260711000001) - this is the only place it can be changed. Buyers
-  // raise a claim by email (see RefundPolicy.tsx); admin opens it here to
-  // hold the payout, and closes it once resolved.
-  const toggleClaim = async (orderId: string, currentlyOpen: boolean) => {
-    if (!currentlyOpen && !confirm('Open a claim on this order? This holds the seller\'s payout until you close it.')) return;
-    const { error } = await supabase.from('orders').update({ claim_open: !currentlyOpen }).eq('id', orderId);
-    if (error) { alert(error.message); return; }
-    fetchOrders();
-  };
-
-  const refresh = () => {
-    if (tab === 'listings') fetchPendingListings();
-    if (tab === 'orders') fetchOrders();
-    if (tab === 'payouts') fetchPayouts();
-    if (tab === 'users') fetchUsers();
-  };
-
-  React.useEffect(() => {
-    if (tab === 'listings') fetchPendingListings();
-    else if (tab === 'orders') fetchOrders();
-    else if (tab === 'payouts') { fetchPayouts(); fetchOrders(); }
-    else if (tab === 'users') fetchUsers();
-  }, [tab]);
-
-  const handleListingAction = async (id: string, status: ListingStatus) => {
-    setActioningId(id);
-    try {
-      const { error } = await supabase.from('listings').update({ status }).eq('id', id);
-      if (error) throw error;
-      setListings(listings.filter((l) => l.id !== id));
-    } catch (err: any) {
-      alert(err?.message ?? `Failed to ${status} listing.`);
-    } finally { setActioningId(null); }
-  };
-
-  const handleListingDelete = async (id: string, title: string) => {
-    if (!confirm(`Permanently delete "${title}"? This cannot be undone. Existing orders keep their record.`)) return;
-    setActioningId(id);
-    try {
-      const { error } = await supabase.from('listings').delete().eq('id', id);
-      if (error) throw error;
-      setListings(listings.filter((l) => l.id !== id));
-    } catch (err: any) {
-      alert(err?.message ?? 'Failed to delete listing.');
-    } finally { setActioningId(null); }
-  };
-
-  const awaitingVerification = orders.filter((o) => o.status === 'awaiting_verification').length;
-  const awaitingPayouts = payouts.filter((p) => p.status === 'awaiting_payout').length;
-
-  const NAV: Array<{ key: AdminTab; label: string; count: number; needsAction: boolean }> = [
-    { key: 'listings', label: 'Listings', count: listings.length, needsAction: listings.length > 0 },
-    { key: 'orders', label: 'Orders', count: orders.length, needsAction: awaitingVerification > 0 },
-    { key: 'payouts', label: 'Payouts', count: payouts.length, needsAction: awaitingPayouts > 0 },
-    { key: 'users', label: 'Users', count: users.length, needsAction: false },
-  ];
-
-  const TAB_TITLE: Record<AdminTab, string> = {
-    listings: 'Listings Queue',
-    orders: 'Orders',
-    payouts: 'Payouts',
-    users: 'Users',
-  };
+  const drawerOrder = drawer?.type === 'order' ? orders.find((o) => o.id === drawer.id) ?? null : null;
+  const drawerListing = drawer?.type === 'listing' ? listings.find((l) => l.id === drawer.id) ?? null : null;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-28 pb-14 sm:pb-20">
-      <div className="flex flex-col md:flex-row gap-10 md:gap-14">
-        {/* Sidebar */}
-        <aside className="md:w-[220px] md:shrink-0 md:border-r md:border-black/10 md:pr-10 flex flex-col gap-8">
-          <div className="flex flex-col gap-0.5 min-w-0">
-            <span className="text-sm font-black uppercase tracking-tight">Admin</span>
-            <span className="text-[10px] font-bold text-black/40 truncate">{user?.email}</span>
-          </div>
-
-          <nav className="flex flex-col">
-            {NAV.map((item) => (
-              <button
-                key={item.key}
-                onClick={() => setTab(item.key)}
-                className={cn(
-                  'flex items-center justify-between py-3 text-[11px] font-black uppercase tracking-widest border-b border-black/5 text-left transition-colors',
-                  tab === item.key ? 'text-black' : 'text-black/40 hover:text-black',
-                )}
-              >
-                <span>{item.label}</span>
-                <span className={cn(item.needsAction && 'font-black underline')}>{item.count}</span>
-              </button>
-            ))}
-          </nav>
-
-          <button
-            onClick={refresh}
-            className="border border-black py-3 text-center text-[10px] font-black uppercase tracking-[0.3em] hover:bg-black hover:text-white transition-colors"
-          >
-            Refresh
-          </button>
-        </aside>
-
-        {/* Main panel */}
-        <div className="flex-1 min-w-0">
-          <h1 className="text-3xl font-black tracking-tighter uppercase mb-10">{TAB_TITLE[tab]}</h1>
-
-          {tab === 'listings' && (loading ? (
-            <Spinner />
-          ) : listings.length === 0 ? (
-            <p className="text-[11px] font-bold uppercase tracking-widest text-black/30">Queue is empty.</p>
-          ) : (
-            <ListingsTable listings={listings} actioningId={actioningId} onAction={handleListingAction} onDelete={handleListingDelete} />
+    <div className="min-h-screen pt-16 flex">
+      {/* Sidebar */}
+      <aside className="w-60 shrink-0 border-r border-black/10 h-[calc(100vh-4rem)] sticky top-16 overflow-y-auto py-6 px-3 hidden md:block">
+        <div className="px-3 pb-4 mb-2 border-b border-black/5">
+          <p className="text-[11px] font-black uppercase tracking-widest">Ops Console</p>
+          <p className="text-[10px] text-black/40 truncate">{user?.email}</p>
+        </div>
+        <nav className="flex flex-col gap-4">
+          {NAV.map((section) => (
+            <div key={section.key}>
+              <div className="flex items-center gap-2 px-3 mb-1">
+                <section.icon className="h-3 w-3 text-black/30" />
+                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-black/40">{section.label}</span>
+              </div>
+              <div className="flex flex-col">
+                {section.leaves.filter((l) => l.kind !== 'overview' || section.key === 'overview').map((l) => {
+                  const count = ['orders', 'listings', 'payouts', 'users'].includes(l.kind) ? countFor(l) : 0;
+                  const active = activeKey === l.key;
+                  return (
+                    <button key={l.key} onClick={() => setActiveKey(l.key)}
+                      className={cn('flex items-center justify-between pl-7 pr-3 py-1.5 text-left text-[11px] font-bold tracking-tight rounded transition-colors',
+                        active ? 'bg-black text-white' : 'text-black/60 hover:bg-black/[0.04] hover:text-black')}>
+                      <span>{l.label}</span>
+                      {count > 0 && <span className={cn('text-[9px] font-black tabular-nums', active ? 'text-white/70' : 'text-black/40')}>{count}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           ))}
+        </nav>
+      </aside>
 
-          {tab === 'orders' && (
-            <OrdersPanel
-              orders={orders} loading={loading} onUpdate={updateOrderStatus}
-              onBookPickup={bookShiprocketPickup} bookingId={bookingId}
-              onToggleClaim={toggleClaim}
+      {/* Main */}
+      <main className="flex-1 min-w-0 h-[calc(100vh-4rem)] overflow-y-auto">
+        <div className="sticky top-0 z-10 bg-white/90 backdrop-blur border-b border-black/10 px-6 py-3 flex items-center gap-4">
+          <GlobalSearch orders={orders} listings={listings} users={users}
+            onOpenOrder={(id) => setDrawer({ type: 'order', id })}
+            onOpenListing={(id) => setDrawer({ type: 'listing', id })} />
+          <button onClick={() => void loadAll()} title="Refresh"
+            className="text-[10px] font-black uppercase tracking-widest text-black/40 hover:text-black">
+            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Refresh'}
+          </button>
+        </div>
+
+        <div className="p-6">
+          <h1 className="text-2xl font-black tracking-tighter uppercase mb-6">{leaf.label}</h1>
+          {loading ? (
+            <div className="flex h-64 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-black/20" /></div>
+          ) : (
+            <LeafView
+              leaf={leaf} orders={orders} listings={listings} payouts={payouts} users={users}
+              emails={emails} audit={audit} userCtx={userCtx}
+              onOpenOrder={(id) => setDrawer({ type: 'order', id })}
+              onOpenListing={(id) => setDrawer({ type: 'listing', id })}
             />
           )}
-          {tab === 'payouts' && <PayoutsPanel payouts={payouts} orders={orders} loading={loading} onMarkPaid={markPaidOut} />}
-          {tab === 'users' && <UsersPanel users={users} loading={loading} currentUserId={user!.id} onToggleAdmin={toggleAdmin} />}
+        </div>
+      </main>
+
+      {/* Drawer */}
+      {drawerOrder && (
+        <OrderDrawer order={drawerOrder} orders={orders} payouts={payouts} emails={emails} audit={audit}
+          onClose={() => setDrawer(null)} onDone={loadAll} />
+      )}
+      {drawerListing && (
+        <ListingDrawer listing={drawerListing} orders={orders} payouts={payouts} audit={audit}
+          onClose={() => setDrawer(null)} onDone={loadAll}
+          onOpenOrder={(id) => setDrawer({ type: 'order', id })} />
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Global search
+// ---------------------------------------------------------------------------
+
+function GlobalSearch({ orders, listings, users, onOpenOrder, onOpenListing }: {
+  orders: Order[]; listings: Listing[]; users: AdminUser[];
+  onOpenOrder: (id: string) => void; onOpenListing: (id: string) => void;
+}) {
+  const [q, setQ] = React.useState('');
+  const term = q.trim().toLowerCase();
+  const results = React.useMemo(() => {
+    if (term.length < 2) return [] as { type: 'order' | 'listing'; id: string; label: string; sub: string }[];
+    const out: { type: 'order' | 'listing'; id: string; label: string; sub: string }[] = [];
+    for (const o of orders) {
+      const hay = [o.order_number, o.buyer_email, o.seller_email, o.buyer_phone, o.tracking_number,
+        o.shiprocket_order_id, o.listing_id, o.listing_title].filter(Boolean).join(' ').toLowerCase();
+      if (hay.includes(term)) out.push({ type: 'order', id: o.id, label: o.order_number, sub: `${o.listing_title ?? ''} · ${o.buyer_email}` });
+      if (out.length > 8) break;
+    }
+    for (const l of listings) {
+      const hay = [l.id, l.sku, l.title, l.seller_email].filter(Boolean).join(' ').toLowerCase();
+      if (hay.includes(term)) out.push({ type: 'listing', id: l.id, label: l.title, sub: l.seller_email ?? '' });
+      if (out.length > 16) break;
+    }
+    return out;
+  }, [term, orders, listings]);
+
+  return (
+    <div className="relative flex-1 max-w-xl">
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-black/30" />
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search order #, email, phone, tracking, AWB, listing id…"
+        className="w-full pl-9 pr-3 py-2 text-xs border border-black/10 rounded focus:outline-none focus:border-black" />
+      {results.length > 0 && (
+        <div className="absolute top-full mt-1 left-0 right-0 bg-white border border-black/10 rounded shadow-lg max-h-80 overflow-y-auto z-20">
+          {results.map((r) => (
+            <button key={`${r.type}-${r.id}`}
+              onClick={() => { r.type === 'order' ? onOpenOrder(r.id) : onOpenListing(r.id); setQ(''); }}
+              className="flex items-center justify-between w-full px-3 py-2 text-left hover:bg-black/[0.04] border-b border-black/5 last:border-0">
+              <div className="min-w-0">
+                <p className="text-xs font-bold truncate">{r.label}</p>
+                <p className="text-[10px] text-black/40 truncate">{r.sub}</p>
+              </div>
+              <span className="text-[9px] font-black uppercase tracking-widest text-black/30">{r.type}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Views
+// ---------------------------------------------------------------------------
+
+function LeafView({ leaf, orders, listings, payouts, users, emails, audit, userCtx, onOpenOrder, onOpenListing }: {
+  leaf: Leaf; orders: Order[]; listings: Listing[]; payouts: SellerPayout[]; users: AdminUser[];
+  emails: EmailLogRow[]; audit: AuditEntry[]; userCtx: UserCtx;
+  onOpenOrder: (id: string) => void; onOpenListing: (id: string) => void;
+}) {
+  if (leaf.kind === 'overview') return <OverviewView orders={orders} listings={listings} payouts={payouts} />;
+  if (leaf.kind === 'orders') return <OrdersView rows={orders.filter(leaf.order ?? (() => true))} onOpen={onOpenOrder} />;
+  if (leaf.kind === 'listings') return <ListingsView rows={listings.filter(leaf.listing ?? (() => true))} orders={orders} onOpen={onOpenListing} />;
+  if (leaf.kind === 'payouts') return <PayoutsView rows={payouts.filter(leaf.payout ?? (() => true))} orders={orders} />;
+  if (leaf.kind === 'users') return <UsersView rows={users.filter((u) => (leaf.user ?? (() => true))(u, userCtx))} />;
+  if (leaf.kind === 'emails') return <EmailsView rows={emails} />;
+  if (leaf.kind === 'audit') return <AuditView rows={audit} />;
+  if (leaf.kind === 'settings') return <SettingsView />;
+  return null;
+}
+
+function Empty({ label }: { label: string }) {
+  return <p className="text-[11px] font-bold uppercase tracking-widest text-black/30 py-6">{label}</p>;
+}
+
+function Th({ children, right }: { children: React.ReactNode; right?: boolean }) {
+  return <th className={cn('py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40', right && 'text-right')}>{children}</th>;
+}
+
+function OverviewView({ orders, listings, payouts }: { orders: Order[]; listings: Listing[]; payouts: SellerPayout[] }) {
+  const stat = (label: string, value: number | string) => (
+    <div className="border border-black/10 px-4 py-3">
+      <p className="text-[10px] font-black uppercase tracking-widest text-black/40">{label}</p>
+      <p className="text-xl font-black tabular-nums mt-1">{value}</p>
+    </div>
+  );
+  const pendingListings = listings.filter((l) => l.status === 'pending').length;
+  const toVerify = orders.filter((o) => o.status === 'awaiting_verification').length;
+  const toBook = orders.filter((o) => o.status === 'paid' && !o.shiprocket_order_id).length;
+  const openClaims = orders.filter((o) => o.claim_open).length;
+  const payoutsDue = payouts.filter((p) => p.status === 'awaiting_payout' && (!p.releasable_at || new Date(p.releasable_at) <= new Date())).length;
+  const shipFailed = orders.filter((o) => !!o.shiprocket_order_id && !o.tracking_number).length;
+  return (
+    <div className="flex flex-col gap-6 max-w-3xl">
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-2">Needs attention</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {stat('Pending listings', pendingListings)}
+          {stat('To verify', toVerify)}
+          {stat('To book pickup', toBook)}
+          {stat('Open claims', openClaims)}
+          {stat('Payouts due', payoutsDue)}
+          {stat('Shipping failures', shipFailed)}
         </div>
       </div>
     </div>
   );
 }
 
-function Spinner() {
-  return <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-black/20" /></div>;
-}
-
-function ListingsTable({ listings, actioningId, onAction, onDelete }: {
-  listings: Listing[]; actioningId: string | null;
-  onAction: (id: string, status: ListingStatus) => void;
-  onDelete: (id: string, title: string) => void;
-}) {
+function OrdersView({ rows, onOpen }: { rows: Order[]; onOpen: (id: string) => void }) {
+  if (rows.length === 0) return <Empty label="No orders." />;
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-left border-collapse">
-        <thead>
-          <tr className="border-b border-black/10">
-            <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Item</th>
-            <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Details</th>
-            <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Price</th>
-            <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Seller</th>
-            <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40 text-right">Actions</th>
-          </tr>
-        </thead>
+    <div className="overflow-x-auto border border-black/10">
+      <table className="w-full text-left">
+        <thead><tr className="border-b border-black/10 bg-black/[0.02]">
+          <Th>Order</Th><Th>Item</Th><Th>Buyer</Th><Th>Seller</Th><Th right>Amount</Th><Th>Date</Th><Th>Status</Th><Th right>Open</Th>
+        </tr></thead>
         <tbody>
-          {listings.map((listing) => (
-            <tr key={listing.id} className="border-b border-black/5">
-              <td className="py-4 px-3">
-                <div className="flex items-center gap-4">
-                  <div className="h-16 w-12 flex-shrink-0 overflow-hidden bg-zinc-100 border border-black/5">
-                    <img src={listing.image_url} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-                  </div>
-                  <div>
-                    <p className="font-black text-xs uppercase tracking-tight">{listing.title}</p>
-                    <p className="text-[10px] text-black/40 font-bold uppercase tracking-widest">{listing.brand}</p>
-                  </div>
-                </div>
-              </td>
-              <td className="py-4 px-3">
-                <div className="text-[10px] font-bold uppercase tracking-widest space-y-1">
-                  <p><span className="text-black/40">Size:</span> {listing.size} ({listing.size_type})</p>
-                  <p><span className="text-black/40">Cat:</span> {listing.category}</p>
-                  <p><span className="text-black/40">Cond:</span> {listing.condition}</p>
-                  <p>
-                    <span className="text-black/40">Flaws:</span>{' '}
-                    {listing.has_flaws ? <span className="text-amber-700">Disclosed</span> : 'None'}
-                  </p>
-                  <p>
-                    <span className="text-black/40">Authentic:</span>{' '}
-                    {listing.authenticity_confirmed ? <span className="text-emerald-700">Confirmed</span> : <span className="text-black/50">Not confirmed</span>}
-                  </p>
-                  {listing.has_flaws && listing.flaws_description && (
-                    <p className="normal-case font-medium text-black/60 max-w-[220px]">"{listing.flaws_description}"</p>
-                  )}
-                </div>
-              </td>
-              <td className="py-4 px-3">
-                <p className="font-black text-xs">{formatCurrency(listing.price)}</p>
-                {listing.sale_price && <p className="text-[10px] font-bold uppercase tracking-widest text-black/60">Sale: {formatCurrency(listing.sale_price)}</p>}
-              </td>
-              <td className="py-4 px-3">
-                <p className="text-xs font-medium">{listing.seller_email}</p>
-                <p className="text-[10px] text-black/40 font-mono">{listing.seller_upi_vpa}</p>
-                {listing.seller_instagram && (
-                  <a href={listing.seller_instagram} target="_blank" rel="noreferrer" className="text-[10px] underline">IG</a>
-                )}
-              </td>
-              <td className="py-4 px-3">
-                <div className="flex items-center justify-end gap-4">
-                  <button onClick={() => onAction(listing.id, 'approved')} disabled={actioningId === listing.id}
-                    className="text-black/50 hover:text-black disabled:opacity-50" title="Approve">
-                    <Check className="h-4 w-4" />
-                  </button>
-                  <button onClick={() => onAction(listing.id, 'rejected')} disabled={actioningId === listing.id}
-                    className="text-black/50 hover:text-black disabled:opacity-50" title="Reject">
-                    <X className="h-4 w-4" />
-                  </button>
-                  <Link to={`/product/${listing.id}`} className="text-black/50 hover:text-black" title="View">
-                    <ExternalLink className="h-4 w-4" />
-                  </Link>
-                  <button onClick={() => onDelete(listing.id, listing.title)} disabled={actioningId === listing.id}
-                    className="text-black/50 hover:text-black disabled:opacity-50" title="Delete">
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </td>
+          {rows.map((o) => (
+            <tr key={o.id} onClick={() => onOpen(o.id)} className="border-b border-black/5 last:border-0 hover:bg-black/[0.03] cursor-pointer">
+              <td className="py-3 px-3 text-[11px] font-black uppercase tracking-tight whitespace-nowrap">{o.order_number}</td>
+              <td className="py-3 px-3 text-xs font-medium max-w-[220px] truncate">{o.listing_title}</td>
+              <td className="py-3 px-3 text-[11px]">{o.buyer_email}</td>
+              <td className="py-3 px-3 text-[11px]">{o.seller_email}</td>
+              <td className="py-3 px-3 text-xs font-black text-right tabular-nums">{formatCurrency(Number(o.total_amount))}</td>
+              <td className="py-3 px-3 text-[10px] text-black/50 whitespace-nowrap">{new Date(o.created_at).toLocaleDateString()}</td>
+              <td className="py-3 px-3"><StatusBadge status={o.status} audience="seller" />{o.claim_open && <span className="ml-1 text-[9px] font-black uppercase text-red-600">Claim</span>}</td>
+              <td className="py-3 px-3 text-right"><ChevronRight className="h-4 w-4 text-black/30 inline" /></td>
             </tr>
           ))}
         </tbody>
@@ -378,155 +417,87 @@ function ListingsTable({ listings, actioningId, onAction, onDelete }: {
   );
 }
 
-function OrdersPanel({ orders, loading, onUpdate, onBookPickup, bookingId, onToggleClaim }: {
-  orders: Order[]; loading: boolean; onUpdate: (id: string, status: OrderStatus) => void;
-  onBookPickup: (id: string) => void; bookingId: string | null;
-  onToggleClaim: (id: string, currentlyOpen: boolean) => void;
-}) {
-  const [filter, setFilter] = React.useState<'all' | OrderStatus>('all');
-  const filtered = orders.filter((o) => filter === 'all' || o.status === filter);
-  if (loading) return <Spinner />;
+function ListingsView({ rows, orders, onOpen }: { rows: Listing[]; orders: Order[]; onOpen: (id: string) => void }) {
+  if (rows.length === 0) return <Empty label="No listings." />;
+  const orderByListing = new Map<string, Order>();
+  for (const o of orders) if (o.listing_id && o.status !== 'cancelled' && o.status !== 'refunded') orderByListing.set(o.listing_id, o);
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap gap-x-5 gap-y-2 border-b border-black/10 pb-4">
-        {(['all', ...ORDER_STATUSES] as const).map((f) => (
-          <button key={f} onClick={() => setFilter(f)}
-            className={cn('text-[10px] font-black uppercase tracking-widest',
-              filter === f ? 'text-black underline' : 'text-black/40 hover:text-black')}>
-            {f.replace(/_/g, ' ')}
-          </button>
-        ))}
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-left">
-          <thead><tr className="border-b border-black/10">
-            <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Order</th>
-            <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Item</th>
-            <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Buyer</th>
-            <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Seller</th>
-            <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Total</th>
-            <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Confirmed</th>
-            <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Status</th>
-            <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Claim</th>
-            <th className="py-4 px-3 text-[10px] font-black uppercase tracking-widest text-black/40 text-right">Actions</th>
-          </tr></thead>
-          <tbody>
-            {filtered.map((o) => (
-              <tr key={o.id} className="border-b border-black/5 align-top">
-                <td className="py-4 px-3 text-[10px] font-bold uppercase tracking-widest">
-                  {o.order_number}<br /><span className="text-black/40">{new Date(o.created_at).toLocaleDateString()}</span>
-                </td>
-                <td className="py-4 px-3 text-xs font-bold">{o.listing_title}<br /><span className="text-[10px] font-normal text-black/40">{o.listing_sku}</span></td>
-                <td className="py-4 px-3 text-[10px] font-bold">
-                  {o.buyer_name}<br /><span className="text-black/40">{o.buyer_email}</span>
-                  {o.buyer_note && (
-                    <p className="mt-2 max-w-[200px] whitespace-pre-wrap font-medium normal-case tracking-normal text-black/70 border-l-2 border-black/20 pl-2">
-                      <span className="block text-[8px] font-black uppercase tracking-widest text-black/40">Buyer note</span>
-                      {o.buyer_note}
-                    </p>
-                  )}
-                </td>
-                <td className="py-4 px-3 text-[10px] font-bold">{o.seller_email}<br /><span className="font-mono font-black text-black">{o.seller_upi_vpa_snapshot}</span></td>
-                <td className="py-4 px-3 text-xs font-black">{formatCurrency(Number(o.total_amount))}</td>
-                <td className="py-4 px-3 text-[10px] leading-relaxed">
-                  <ProofCell utr={o.payment_utr} receiptPath={o.payment_receipt_url} submittedAt={o.payment_submitted_at} />
-                </td>
-                <td className="py-4 px-3"><StatusBadge status={o.status} audience="seller" /></td>
-                <td className="py-4 px-3">
-                  <button onClick={() => onToggleClaim(o.id, o.claim_open)}
-                    className={cn('text-[10px] font-black uppercase tracking-widest underline-offset-2',
-                      o.claim_open ? 'text-red-600 underline' : 'text-black/30 hover:text-black hover:underline')}>
-                    {o.claim_open ? 'Open - close it' : 'None - open one'}
-                  </button>
-                </td>
-                <td className="py-4 px-3 text-right">
-                  <div className="flex flex-col gap-2 items-end">
-                    {o.status === 'awaiting_verification' && (
-                      <button onClick={() => onUpdate(o.id, 'paid')}
-                        className="border border-black px-3 py-1.5 text-[10px] font-black uppercase tracking-widest hover:bg-black hover:text-white">
-                        Mark Paid
-                      </button>
-                    )}
-                    {o.status === 'paid' && !o.shiprocket_order_id && (
-                      <button onClick={() => onBookPickup(o.id)} disabled={bookingId === o.id}
-                        className="border border-black px-3 py-1.5 text-[10px] font-black uppercase tracking-widest hover:bg-black hover:text-white disabled:opacity-50">
-                        {bookingId === o.id ? 'Booking…' : 'Book Pickup (Shiprocket)'}
-                      </button>
-                    )}
-                    {o.shiprocket_order_id && (
-                      <span className="text-[9px] font-bold uppercase tracking-widest text-black/40">
-                        Shiprocket #{o.shiprocket_order_id}
-                      </span>
-                    )}
-                    <select value={o.status} onChange={(e) => onUpdate(o.id, e.target.value as OrderStatus)}
-                      className="text-[10px] font-bold uppercase tracking-widest border border-black/10 px-2 py-1 bg-white">
-                      {ORDER_STATUSES.map((s) => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
-                    </select>
+    <div className="overflow-x-auto border border-black/10">
+      <table className="w-full text-left">
+        <thead><tr className="border-b border-black/10 bg-black/[0.02]">
+          <Th>Item</Th><Th>Seller</Th><Th right>Price</Th><Th>State</Th><Th>Order</Th><Th right>Open</Th>
+        </tr></thead>
+        <tbody>
+          {rows.map((l) => {
+            const ord = l.is_sold ? orderByListing.get(l.id) : undefined;
+            return (
+              <tr key={l.id} onClick={() => onOpen(l.id)} className="border-b border-black/5 last:border-0 hover:bg-black/[0.03] cursor-pointer">
+                <td className="py-3 px-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-11 w-8 shrink-0 overflow-hidden bg-zinc-100 border border-black/5">
+                      <img src={l.image_url} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                    </div>
+                    <div className="min-w-0"><p className="text-xs font-bold truncate max-w-[200px]">{l.title}</p>
+                      <p className="text-[10px] text-black/40 uppercase tracking-widest">{l.brand}</p></div>
                   </div>
                 </td>
+                <td className="py-3 px-3 text-[11px]">{l.seller_email}</td>
+                <td className="py-3 px-3 text-xs font-black text-right tabular-nums">{formatCurrency(l.price)}</td>
+                <td className="py-3 px-3">
+                  <span className={cn('text-[9px] font-black uppercase tracking-widest',
+                    l.is_sold ? 'text-red-600' : l.status === 'approved' ? 'text-emerald-700' : 'text-black/50')}>
+                    {l.is_sold ? 'Sold' : l.status === 'approved' ? 'Live' : l.status}
+                  </span>
+                </td>
+                <td className="py-3 px-3 text-[10px] font-bold uppercase tracking-widest text-black/50">{ord ? ord.order_number : '—'}</td>
+                <td className="py-3 px-3 text-right"><ChevronRight className="h-4 w-4 text-black/30 inline" /></td>
               </tr>
-            ))}
-          </tbody>
-        </table>
-        {filtered.length === 0 && <p className="text-[11px] font-bold uppercase tracking-widest text-black/30 py-6">No orders.</p>}
-      </div>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
 
-function PayoutsPanel({ payouts, orders, loading, onMarkPaid }: {
-  payouts: SellerPayout[]; orders: Order[]; loading: boolean; onMarkPaid: (id: string) => void;
-}) {
-  if (loading) return <Spinner />;
-  const orderById = new Map(orders.map((o) => [o.id, o]));
-  const awaiting = payouts.filter((p) => p.status === 'awaiting_payout');
-  const paidOut = payouts.filter((p) => p.status === 'paid_out');
-
-  const renderTable = (rows: SellerPayout[], showAction: boolean) => (
-    <div className="overflow-x-auto">
+function PayoutsView({ rows, orders }: { rows: SellerPayout[]; orders: Order[] }) {
+  const byId = new Map(orders.map((o) => [o.id, o]));
+  const [busy, setBusy] = React.useState<string | null>(null);
+  if (rows.length === 0) return <Empty label="No payouts." />;
+  const markPaid = async (p: SellerPayout) => {
+    if (p.releasable_at && new Date(p.releasable_at) > new Date()) { alert(`Held until ${new Date(p.releasable_at).toLocaleString()}.`); return; }
+    if (!confirm(`Mark payout of ${formatCurrency(Number(p.amount))} as paid? Confirm you have sent the UPI transfer.`)) return;
+    setBusy(p.id);
+    try {
+      const { error } = await supabase.from('seller_payouts').update({ status: 'paid_out', paid_at: new Date().toISOString() }).eq('id', p.id);
+      if (error) throw error;
+      await writeAudit({ entity: 'payout', entity_id: p.id, action: 'payout.mark_paid', old_state: { status: p.status }, new_state: { status: 'paid_out' } });
+      if (p.order_id) void sendEmail({ template: 'payout_released_seller', order_id: p.order_id });
+      location.reload();
+    } catch (err: any) { alert(err?.message ?? 'Failed.'); } finally { setBusy(null); }
+  };
+  return (
+    <div className="overflow-x-auto border border-black/10">
       <table className="w-full text-left">
-        <thead><tr className="border-b border-black/10">
-          <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Order</th>
-          <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Seller</th>
-          <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">UPI</th>
-          <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Amount</th>
-          <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Delivered</th>
-          {showAction ? (
-            <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40 text-right">Action</th>
-          ) : (
-            <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40 text-right">Paid On</th>
-          )}
+        <thead><tr className="border-b border-black/10 bg-black/[0.02]">
+          <Th>Order</Th><Th>Seller UPI</Th><Th right>Amount</Th><Th>Releasable</Th><Th>Status</Th><Th right>Action</Th>
         </tr></thead>
         <tbody>
           {rows.map((p) => {
-            const order = orderById.get(p.order_id);
-            const held = showAction && p.releasable_at && new Date(p.releasable_at) > new Date();
-            const claimBlocked = showAction && !!order?.claim_open;
+            const o = byId.get(p.order_id);
             return (
-              <tr key={p.id} className="border-b border-black/5">
-                <td className="py-3 px-3 text-xs font-bold">{order?.order_number ?? p.order_id.slice(0, 8)}<br /><span className="text-[10px] font-normal text-black/40">{order?.listing_title}</span></td>
-                <td className="py-3 px-3 text-[10px] font-bold">{order?.seller_email ?? '-'}</td>
-                <td className="py-3 px-3 text-[10px] font-mono font-black">{order?.seller_upi_vpa_snapshot ?? '-'}</td>
-                <td className="py-3 px-3 text-xs font-black">{formatCurrency(p.amount)}</td>
-                <td className="py-3 px-3 text-[10px] font-bold uppercase tracking-widest text-black/60">{new Date(p.created_at).toLocaleDateString()}</td>
+              <tr key={p.id} className="border-b border-black/5 last:border-0">
+                <td className="py-3 px-3 text-[11px] font-black uppercase">{o?.order_number ?? p.order_id.slice(0, 8)}</td>
+                <td className="py-3 px-3 text-[11px] font-mono">{o?.seller_upi_vpa_snapshot ?? '—'}</td>
+                <td className="py-3 px-3 text-xs font-black text-right tabular-nums">{formatCurrency(Number(p.amount))}</td>
+                <td className="py-3 px-3 text-[10px] text-black/50">{p.releasable_at ? new Date(p.releasable_at).toLocaleDateString() : '—'}</td>
+                <td className="py-3 px-3 text-[10px] font-black uppercase tracking-widest">{p.status === 'paid_out' ? 'Paid' : 'Pending'}</td>
                 <td className="py-3 px-3 text-right">
-                  {showAction ? (
-                    claimBlocked ? (
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-red-600">
-                        Open claim - see Orders
-                      </span>
-                    ) : held ? (
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-black/40">
-                        Held until {new Date(p.releasable_at as string).toLocaleDateString()}
-                      </span>
-                    ) : (
-                      <button onClick={() => onMarkPaid(p.id)}
-                        className="border border-black px-3 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-black hover:text-white">
-                        Mark Paid Out
-                      </button>
-                    )
-                  ) : (
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-black/60">{p.paid_at ? new Date(p.paid_at).toLocaleDateString() : '-'}</span>
+                  {p.status !== 'paid_out' && (
+                    <button onClick={() => markPaid(p)} disabled={busy === p.id}
+                      className="border border-black px-3 py-1 text-[10px] font-black uppercase tracking-widest hover:bg-black hover:text-white disabled:opacity-50">
+                      {busy === p.id ? '…' : 'Mark Paid'}
+                    </button>
                   )}
                 </td>
               </tr>
@@ -534,82 +505,450 @@ function PayoutsPanel({ payouts, orders, loading, onMarkPaid }: {
           })}
         </tbody>
       </table>
-      {rows.length === 0 && <p className="text-[11px] font-bold uppercase tracking-widest text-black/30 py-6">No payouts.</p>}
-    </div>
-  );
-
-  return (
-    <div className="flex flex-col gap-10">
-      <div>
-        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 mb-4">Awaiting Payout ({awaiting.length})</h3>
-        {renderTable(awaiting, true)}
-      </div>
-      <div>
-        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-black/40 mb-4">Paid Out ({paidOut.length})</h3>
-        {renderTable(paidOut, false)}
-      </div>
     </div>
   );
 }
 
-function ProofCell({ submittedAt }: {
-  utr: string | null; receiptPath: string | null; submittedAt: string | null;
-}) {
+function UsersView({ rows }: { rows: AdminUser[] }) {
+  const { user } = useAuth();
+  const [busy, setBusy] = React.useState<string | null>(null);
+  if (rows.length === 0) return <Empty label="No users." />;
+  const toggle = async (u: AdminUser, field: 'is_admin' | 'is_flagged' | 'is_banned') => {
+    const next = !u[field];
+    if (field === 'is_admin' && u.id === user?.id && !next && !confirm('Revoke your own admin access?')) return;
+    if (field === 'is_banned' && next && !confirm(`Ban ${u.email}? They will be blocked from the marketplace.`)) return;
+    setBusy(u.id);
+    try {
+      const { error } = await supabase.from('profiles').update({ [field]: next }).eq('id', u.id);
+      if (error) throw error;
+      await writeAudit({ entity: 'user', entity_id: u.id, action: `user.${field}.${next ? 'set' : 'unset'}`, old_state: { [field]: u[field] }, new_state: { [field]: next }, reason: u.email });
+      location.reload();
+    } catch (err: any) { alert(err?.message ?? 'Failed.'); } finally { setBusy(null); }
+  };
   return (
-    <div className="flex flex-col gap-1">
-      {submittedAt
-        ? <span className="text-black/60">Buyer confirmed {new Date(submittedAt).toLocaleString()}</span>
-        : <span className="text-black/30">Not yet</span>}
-    </div>
-  );
-}
-
-function UsersPanel({ users, loading, currentUserId, onToggleAdmin }: {
-  users: AdminProfile[]; loading: boolean; currentUserId: string;
-  onToggleAdmin: (uid: string, makeAdmin: boolean) => void;
-}) {
-  const [filter, setFilter] = React.useState('');
-  const filtered = users.filter((u) =>
-    !filter || (u.email ?? '').toLowerCase().includes(filter.toLowerCase()) || (u.full_name ?? '').toLowerCase().includes(filter.toLowerCase()),
-  );
-  if (loading) return <Spinner />;
-  return (
-    <div className="flex flex-col gap-6">
-      <input type="text" placeholder="Search by name or email…" value={filter} onChange={(e) => setFilter(e.target.value)}
-        className="border-b border-black/10 py-3 text-sm font-bold focus:border-black outline-none max-w-md" />
-      <div className="overflow-x-auto">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="border-b border-black/10">
-              <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Joined</th>
-              <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Email</th>
-              <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Name</th>
-              <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Role</th>
-              <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40 text-right">Actions</th>
+    <div className="overflow-x-auto border border-black/10">
+      <table className="w-full text-left">
+        <thead><tr className="border-b border-black/10 bg-black/[0.02]">
+          <Th>Email</Th><Th>Name</Th><Th>Phone</Th><Th>Joined</Th><Th right>Flags</Th>
+        </tr></thead>
+        <tbody>
+          {rows.map((u) => (
+            <tr key={u.id} className="border-b border-black/5 last:border-0">
+              <td className="py-3 px-3 text-[11px] font-bold">{u.email}{u.is_admin && <span className="ml-2 text-[8px] font-black uppercase bg-black text-white px-1 py-0.5">Admin</span>}</td>
+              <td className="py-3 px-3 text-[11px]">{u.full_name ?? '—'}</td>
+              <td className="py-3 px-3 text-[11px]">{u.phone ?? '—'}</td>
+              <td className="py-3 px-3 text-[10px] text-black/50">{new Date(u.created_at).toLocaleDateString()}</td>
+              <td className="py-3 px-3 text-right whitespace-nowrap">
+                <button onClick={() => toggle(u, 'is_flagged')} disabled={busy === u.id}
+                  className={cn('text-[9px] font-black uppercase tracking-widest mr-3', u.is_flagged ? 'text-amber-700 underline' : 'text-black/30 hover:text-black')}>Flag</button>
+                <button onClick={() => toggle(u, 'is_banned')} disabled={busy === u.id}
+                  className={cn('text-[9px] font-black uppercase tracking-widest mr-3', u.is_banned ? 'text-red-600 underline' : 'text-black/30 hover:text-black')}>Ban</button>
+                <button onClick={() => toggle(u, 'is_admin')} disabled={busy === u.id}
+                  className="text-[9px] font-black uppercase tracking-widest text-black/30 hover:text-black">{u.is_admin ? 'Unadmin' : 'Admin'}</button>
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {filtered.map((u) => (
-              <tr key={u.id} className="border-b border-black/5">
-                <td className="py-3 px-3 text-[10px] font-bold uppercase tracking-widest">{new Date(u.created_at).toLocaleDateString()}</td>
-                <td className="py-3 px-3 text-[11px] font-bold">{u.email}{u.id === currentUserId && <span className="ml-2 text-[9px] text-black/40">(you)</span>}</td>
-                <td className="py-3 px-3 text-[11px] font-bold">{u.full_name ?? '-'}</td>
-                <td className="py-3 px-3 text-[10px] font-black uppercase tracking-widest">
-                  {u.is_admin ? <span className="text-black">Admin</span> : <span className="text-black/40">User</span>}
-                </td>
-                <td className="py-3 px-3 text-right">
-                  {u.is_admin ? (
-                    <button onClick={() => onToggleAdmin(u.id, false)} className="border border-black/20 px-3 py-2 text-[10px] font-black uppercase tracking-widest hover:border-black">Revoke Admin</button>
-                  ) : (
-                    <button onClick={() => onToggleAdmin(u.id, true)} className="border border-black px-3 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-black hover:text-white">Make Admin</button>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {filtered.length === 0 && <p className="text-[11px] font-bold uppercase tracking-widest text-black/30 py-6">No users.</p>}
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function EmailsView({ rows }: { rows: EmailLogRow[] }) {
+  if (rows.length === 0) return <Empty label="No emails logged." />;
+  return (
+    <div className="overflow-x-auto border border-black/10">
+      <table className="w-full text-left">
+        <thead><tr className="border-b border-black/10 bg-black/[0.02]">
+          <Th>Sent</Th><Th>To</Th><Th>Template</Th><Th>Subject</Th><Th right>Status</Th>
+        </tr></thead>
+        <tbody>
+          {rows.map((e) => (
+            <tr key={e.id} className="border-b border-black/5 last:border-0">
+              <td className="py-3 px-3 text-[10px] text-black/50 whitespace-nowrap">{new Date(e.created_at).toLocaleString()}</td>
+              <td className="py-3 px-3 text-[11px]">{e.to_email}</td>
+              <td className="py-3 px-3 text-[10px] font-mono">{e.template}</td>
+              <td className="py-3 px-3 text-[11px] max-w-[280px] truncate">{e.subject}</td>
+              <td className="py-3 px-3 text-right text-[9px] font-black uppercase tracking-widest"
+                title={e.error_message ?? ''}>
+                <span className={e.status === 'sent' ? 'text-emerald-700' : e.status === 'failed' ? 'text-red-600' : 'text-black/40'}>{e.status}</span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function AuditView({ rows }: { rows: AuditEntry[] }) {
+  if (rows.length === 0) return <Empty label="No audit entries yet." />;
+  return (
+    <div className="overflow-x-auto border border-black/10">
+      <table className="w-full text-left">
+        <thead><tr className="border-b border-black/10 bg-black/[0.02]">
+          <Th>When</Th><Th>Admin</Th><Th>Action</Th><Th>Entity</Th><Th>Change</Th><Th>Reason</Th>
+        </tr></thead>
+        <tbody>
+          {rows.map((a) => (
+            <tr key={a.id} className="border-b border-black/5 last:border-0 align-top">
+              <td className="py-3 px-3 text-[10px] text-black/50 whitespace-nowrap">{new Date(a.created_at).toLocaleString()}</td>
+              <td className="py-3 px-3 text-[11px]">{a.admin_email ?? '—'}</td>
+              <td className="py-3 px-3 text-[10px] font-mono">{a.action}</td>
+              <td className="py-3 px-3 text-[10px] text-black/50">{a.entity}{a.entity_id ? ` · ${a.entity_id.slice(0, 8)}` : ''}</td>
+              <td className="py-3 px-3 text-[10px] font-mono text-black/60 max-w-[220px] truncate">
+                {a.old_state ? JSON.stringify(a.old_state) : ''} {a.new_state ? `→ ${JSON.stringify(a.new_state)}` : ''}
+              </td>
+              <td className="py-3 px-3 text-[10px] text-black/60 max-w-[200px] truncate">{a.reason ?? ''}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function SettingsView() {
+  const [cfg, setCfg] = React.useState<{ buyer_protection_percent: number; buyer_protection_floor: number; buyer_protection_cap: number | null } | null>(null);
+  const [cats, setCats] = React.useState<{ key: string; label: string; rate: number }[]>([]);
+  React.useEffect(() => {
+    void (async () => {
+      const { data: c } = await supabase.from('pricing_config').select('*').eq('id', 1).maybeSingle();
+      setCfg(c as any);
+      const { data: s } = await supabase.from('shipping_categories').select('key,label,rate').order('sort_order');
+      setCats((s as any) ?? []);
+    })();
+  }, []);
+  return (
+    <div className="flex flex-col gap-8 max-w-lg">
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-2">Buyer protection fee</p>
+        {cfg ? (
+          <div className="text-xs space-y-1 border border-black/10 p-4">
+            <p><span className="text-black/40">Percent:</span> {cfg.buyer_protection_percent}%</p>
+            <p><span className="text-black/40">Floor:</span> {formatCurrency(cfg.buyer_protection_floor)}</p>
+            <p><span className="text-black/40">Cap:</span> {cfg.buyer_protection_cap != null ? formatCurrency(cfg.buyer_protection_cap) : 'None'}</p>
+            <p className="text-[10px] text-black/40 pt-2">Fee = max(floor, percent × price), capped. Charged on every order server-side.</p>
+          </div>
+        ) : <p className="text-[11px] text-black/40">No pricing config.</p>}
+      </div>
+      <div>
+        <p className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-2">Shipping rates</p>
+        <div className="border border-black/10 divide-y divide-black/5">
+          {cats.map((c) => (
+            <div key={c.key} className="flex items-center justify-between px-4 py-2 text-xs">
+              <span>{c.label}</span><span className="font-black tabular-nums">{formatCurrency(c.rate)}</span>
+            </div>
+          ))}
+        </div>
+        <p className="text-[10px] text-black/40 pt-2">Edit rates directly in Supabase for now (they are the source of truth).</p>
       </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Drawer scaffolding
+// ---------------------------------------------------------------------------
+
+function DrawerShell({ title, subtitle, onClose, children }: { title: string; subtitle?: string; onClose: () => void; children: React.ReactNode }) {
+  return (
+    <div className="fixed inset-0 z-40 flex justify-end">
+      <div className="absolute inset-0 bg-black/20" onClick={onClose} />
+      <div className="relative w-full max-w-md bg-white h-full overflow-y-auto shadow-2xl">
+        <div className="sticky top-0 bg-white border-b border-black/10 px-5 py-4 flex items-start justify-between">
+          <div className="min-w-0"><p className="text-sm font-black uppercase tracking-tight truncate">{title}</p>
+            {subtitle && <p className="text-[10px] text-black/40 truncate">{subtitle}</p>}</div>
+          <button onClick={onClose} className="text-black/40 hover:text-black"><X className="h-4 w-4" /></button>
+        </div>
+        <div className="p-5 flex flex-col gap-6">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function Sec({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <p className="text-[9px] font-black uppercase tracking-[0.2em] text-black/40 mb-2 border-b border-black/5 pb-1">{title}</p>
+      <div className="text-xs space-y-1">{children}</div>
+    </div>
+  );
+}
+
+function Row({ k, v }: { k: string; v: React.ReactNode }) {
+  return <p className="flex justify-between gap-3"><span className="text-black/40">{k}</span><span className="text-right font-medium">{v || '—'}</span></p>;
+}
+
+// ---------------------------------------------------------------------------
+// Order drawer
+// ---------------------------------------------------------------------------
+
+function OrderDrawer({ order, payouts, emails, audit, onClose, onDone }: {
+  order: Order; orders: Order[]; payouts: SellerPayout[]; emails: EmailLogRow[]; audit: AuditEntry[];
+  onClose: () => void; onDone: () => Promise<void> | void;
+}) {
+  const [busy, setBusy] = React.useState(false);
+  const [note, setNote] = React.useState('');
+  const payout = payouts.find((p) => p.order_id === order.id);
+  const orderEmails = emails.filter((e) => e.related_order_id === order.id);
+  const orderAudit = audit.filter((a) => a.entity === 'order' && a.entity_id === order.id);
+
+  const setStatus = async (status: OrderStatus, reason?: string) => {
+    setBusy(true);
+    try {
+      const update: Record<string, unknown> = { status };
+      if (status === 'shipped') update.shipped_at = new Date().toISOString();
+      const { error } = await supabase.from('orders').update(update).eq('id', order.id);
+      if (error) throw error;
+      if (order.listing_id) {
+        const isSold = !(status === 'cancelled' || status === 'refunded');
+        await supabase.from('listings').update({ is_sold: isSold }).eq('id', order.listing_id);
+      }
+      await writeAudit({ entity: 'order', entity_id: order.id, action: `order.status.${status}`, old_state: { status: order.status }, new_state: { status }, reason: reason ?? null });
+      await onDone(); onClose();
+    } catch (err: any) { alert(err?.message ?? 'Failed.'); } finally { setBusy(false); }
+  };
+
+  const cancelAndRefund = async () => {
+    const reason = prompt('Reason for cancelling this order? (stored in the audit log)') ?? '';
+    if (!confirm('Cancel this order, relist the item, void any unpaid payout, and email both parties?\n\nRefund the payment in Razorpay manually.')) return;
+    setBusy(true);
+    try {
+      if (payout && payout.status !== 'paid_out') await supabase.from('seller_payouts').delete().eq('id', payout.id);
+      const { error } = await supabase.from('orders').update({ status: 'cancelled' }).eq('id', order.id);
+      if (error) throw error;
+      if (order.listing_id) await supabase.from('listings').update({ is_sold: false }).eq('id', order.listing_id);
+      await writeAudit({ entity: 'order', entity_id: order.id, action: 'order.cancel', old_state: { status: order.status }, new_state: { status: 'cancelled' }, reason });
+      void sendEmail({ template: 'order_cancelled_buyer', order_id: order.id });
+      void sendEmail({ template: 'order_cancelled_seller', order_id: order.id });
+      await onDone(); onClose();
+    } catch (err: any) { alert(err?.message ?? 'Failed.'); } finally { setBusy(false); }
+  };
+
+  const bookPickup = async () => {
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('shiprocket-create-order', { body: { order_id: order.id } });
+      if (error) throw error;
+      const r = data as { warnings?: string[] } | null;
+      await writeAudit({ entity: 'order', entity_id: order.id, action: 'order.book_pickup', new_state: { shiprocket: 'booked' } });
+      if (r?.warnings?.length) alert(`Booked, but: ${r.warnings.join(' ')}`);
+      await onDone(); onClose();
+    } catch (err: any) { alert(err?.message ?? 'Failed to book pickup.'); } finally { setBusy(false); }
+  };
+
+  const toggleClaim = async () => {
+    setBusy(true);
+    try {
+      const { error } = await supabase.from('orders').update({ claim_open: !order.claim_open }).eq('id', order.id);
+      if (error) throw error;
+      await writeAudit({ entity: 'order', entity_id: order.id, action: `order.claim.${order.claim_open ? 'close' : 'open'}`, old_state: { claim_open: order.claim_open }, new_state: { claim_open: !order.claim_open } });
+      await onDone(); onClose();
+    } catch (err: any) { alert(err?.message ?? 'Failed.'); } finally { setBusy(false); }
+  };
+
+  const addNote = async () => {
+    if (!note.trim()) return;
+    await writeAudit({ entity: 'order', entity_id: order.id, action: 'order.note', reason: note.trim() });
+    setNote(''); await onDone();
+  };
+
+  const timeline: { at: string | null; label: string }[] = [
+    { at: order.created_at, label: 'Order created' },
+    { at: order.payment_submitted_at, label: 'Payment submitted' },
+    { at: order.status === 'paid' || order.shipped_at || order.delivered_at ? order.updated_at : null, label: 'Payment confirmed' },
+    { at: order.shipped_at, label: 'Shipped / picked up' },
+    { at: order.delivered_at, label: 'Delivered' },
+    { at: order.review_ends_at, label: 'Review window ends' },
+  ].filter((t) => t.at);
+
+  const addr = order.shipping_address ?? {};
+
+  return (
+    <DrawerShell title={order.order_number} subtitle={order.listing_title ?? ''} onClose={onClose}>
+      <div className="flex items-center gap-2"><StatusBadge status={order.status} audience="seller" />{order.claim_open && <span className="text-[9px] font-black uppercase text-red-600">Claim open</span>}</div>
+
+      <Sec title="Timeline">
+        {timeline.length === 0 ? <p className="text-black/40">—</p> : timeline.map((t, i) => (
+          <p key={i} className="flex justify-between gap-3"><span>{t.label}</span><span className="text-black/40 text-[10px]">{t.at ? new Date(t.at).toLocaleString() : ''}</span></p>
+        ))}
+      </Sec>
+
+      <Sec title="Buyer">
+        <Row k="Name" v={order.buyer_name} /><Row k="Email" v={order.buyer_email} /><Row k="Phone" v={order.buyer_phone} />
+        <Row k="Ship to" v={[addr.address, addr.city, addr.state, addr.pincode].filter(Boolean).join(', ')} />
+        {order.buyer_note && <p className="mt-1 border-l-2 border-black/20 pl-2 text-black/70">{order.buyer_note}</p>}
+      </Sec>
+
+      <Sec title="Seller">
+        <Row k="Email" v={order.seller_email} /><Row k="UPI" v={order.seller_upi_vpa_snapshot} />
+      </Sec>
+
+      <Sec title="Payment">
+        <Row k="Item" v={formatCurrency(Number(order.amount))} />
+        <Row k="Shipping" v={formatCurrency(Number(order.shipping_cost))} />
+        <Row k="Protection fee" v={formatCurrency(Number(order.buyer_protection_fee))} />
+        <Row k="Total" v={<strong>{formatCurrency(Number(order.total_amount))}</strong>} />
+        <Row k="Razorpay order" v={order.razorpay_order_id} />
+        <Row k="Razorpay payment" v={order.razorpay_payment_id} />
+      </Sec>
+
+      <Sec title="Shipping">
+        <Row k="Shiprocket #" v={order.shiprocket_order_id} />
+        <Row k="AWB / tracking" v={order.tracking_number} />
+        <Row k="Courier" v={order.courier} />
+        {order.tracking_url && <a href={order.tracking_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[10px] underline">Track <ExternalLink className="h-3 w-3" /></a>}
+      </Sec>
+
+      <Sec title="Payout">
+        {payout ? (<><Row k="Amount" v={formatCurrency(Number(payout.amount))} /><Row k="Status" v={payout.status === 'paid_out' ? 'Paid' : 'Pending'} /><Row k="Releasable" v={payout.releasable_at ? new Date(payout.releasable_at).toLocaleDateString() : '—'} /></>) : <p className="text-black/40">No payout row.</p>}
+      </Sec>
+
+      <Sec title={`Emails sent (${orderEmails.length})`}>
+        {orderEmails.length === 0 ? <p className="text-black/40">None.</p> : orderEmails.map((e) => (
+          <p key={e.id} className="flex justify-between gap-3"><span className="truncate">{e.template}</span><span className={cn('text-[10px]', e.status === 'sent' ? 'text-emerald-700' : 'text-red-600')}>{e.status}</span></p>
+        ))}
+      </Sec>
+
+      <Sec title="Internal notes">
+        {orderAudit.filter((a) => a.action === 'order.note').map((a) => (
+          <p key={a.id} className="border-l-2 border-black/20 pl-2 text-black/70">{a.reason}<span className="block text-[9px] text-black/30">{a.admin_email} · {new Date(a.created_at).toLocaleString()}</span></p>
+        ))}
+        <div className="flex gap-2 mt-2">
+          <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add a note…" className="flex-1 border border-black/10 px-2 py-1 text-xs focus:outline-none focus:border-black" />
+          <button onClick={addNote} className="border border-black px-2 py-1 text-[10px] font-black uppercase">Add</button>
+        </div>
+      </Sec>
+
+      <Sec title="Admin actions">
+        <div className="flex flex-col gap-2 pt-1">
+          {order.status === 'awaiting_verification' && <ActBtn label="Mark Paid" onClick={() => setStatus('paid')} busy={busy} />}
+          {order.status === 'paid' && !order.shiprocket_order_id && <ActBtn label="Book Pickup (Shiprocket)" onClick={bookPickup} busy={busy} />}
+          {order.status === 'paid' && <ActBtn label="Mark Shipped" onClick={() => setStatus('shipped')} busy={busy} />}
+          {order.status === 'shipped' && <ActBtn label="Mark Delivered" onClick={() => setStatus('delivered')} busy={busy} />}
+          <ActBtn label={order.claim_open ? 'Close Claim' : 'Open Claim'} onClick={toggleClaim} busy={busy} />
+          {order.status !== 'cancelled' && order.status !== 'refunded' && <ActBtn label="Cancel & Refund" danger onClick={cancelAndRefund} busy={busy} />}
+        </div>
+      </Sec>
+    </DrawerShell>
+  );
+}
+
+function ActBtn({ label, onClick, busy, danger }: { label: string; onClick: () => void; busy: boolean; danger?: boolean }) {
+  return (
+    <button onClick={onClick} disabled={busy}
+      className={cn('border px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-colors disabled:opacity-50',
+        danger ? 'border-red-600 text-red-600 hover:bg-red-600 hover:text-white' : 'border-black hover:bg-black hover:text-white')}>
+      {busy ? '…' : label}
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Listing drawer
+// ---------------------------------------------------------------------------
+
+function ListingDrawer({ listing, orders, payouts, audit, onClose, onDone, onOpenOrder }: {
+  listing: Listing; orders: Order[]; payouts: SellerPayout[]; audit: AuditEntry[];
+  onClose: () => void; onDone: () => Promise<void> | void; onOpenOrder: (id: string) => void;
+}) {
+  const [busy, setBusy] = React.useState(false);
+  const order = orders.find((o) => o.listing_id === listing.id && o.status !== 'cancelled' && o.status !== 'refunded');
+  const payout = order ? payouts.find((p) => p.order_id === order.id) : undefined;
+  const modHistory = audit.filter((a) => a.entity === 'listing' && a.entity_id === listing.id);
+
+  const setStatus = async (status: ListingStatus, label: string) => {
+    if (!confirm(`${label} "${listing.title}"?`)) return;
+    setBusy(true);
+    try {
+      const { error } = await supabase.from('listings').update({ status }).eq('id', listing.id);
+      if (error) throw error;
+      await writeAudit({ entity: 'listing', entity_id: listing.id, action: `listing.${status}`, old_state: { status: listing.status }, new_state: { status }, reason: listing.title });
+      await onDone(); onClose();
+    } catch (err: any) { alert(err?.message ?? 'Failed.'); } finally { setBusy(false); }
+  };
+
+  const del = async () => {
+    if (!confirm(`Permanently delete "${listing.title}"? Existing orders keep their record.`)) return;
+    setBusy(true);
+    try {
+      const { error } = await supabase.from('listings').delete().eq('id', listing.id);
+      if (error) throw error;
+      await writeAudit({ entity: 'listing', entity_id: listing.id, action: 'listing.delete', old_state: { status: listing.status }, reason: listing.title });
+      await onDone(); onClose();
+    } catch (err: any) { alert(err?.message ?? 'Failed.'); } finally { setBusy(false); }
+  };
+
+  return (
+    <DrawerShell title={listing.title} subtitle={listing.brand ?? ''} onClose={onClose}>
+      <div className="grid grid-cols-3 gap-1">
+        {listing.image_urls.slice(0, 6).map((u, i) => (
+          <a key={i} href={u} target="_blank" rel="noreferrer" className="block aspect-[3/4] overflow-hidden bg-zinc-100 border border-black/5">
+            <img src={u} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+          </a>
+        ))}
+      </div>
+
+      <div className="flex items-center gap-2">
+        <span className={cn('text-[9px] font-black uppercase tracking-widest', listing.is_sold ? 'text-red-600' : listing.status === 'approved' ? 'text-emerald-700' : 'text-black/50')}>
+          {listing.is_sold ? 'Sold' : listing.status === 'approved' ? 'Live' : listing.status}
+        </span>
+      </div>
+
+      <Sec title="Item">
+        <Row k="Price" v={formatCurrency(listing.price)} />
+        {listing.sale_price && <Row k="Sale price" v={formatCurrency(listing.sale_price)} />}
+        <Row k="Category" v={listing.category} /><Row k="Size" v={`${listing.size ?? ''} (${listing.size_type ?? ''})`} />
+        <Row k="Condition" v={listing.condition} /><Row k="Shipping cat" v={listing.shipping_category} />
+        <Row k="Flaws" v={listing.has_flaws ? 'Disclosed' : 'None'} />
+        <Row k="Authenticity" v={listing.authenticity_confirmed ? 'Confirmed' : 'Not confirmed'} />
+        {listing.has_flaws && listing.flaws_description && <p className="text-black/60 mt-1">"{listing.flaws_description}"</p>}
+      </Sec>
+
+      <Sec title="Seller">
+        <Row k="Email" v={listing.seller_email} /><Row k="UPI" v={listing.seller_upi_vpa} />
+        {listing.seller_instagram && <a href={listing.seller_instagram} target="_blank" rel="noreferrer" className="text-[10px] underline">Instagram</a>}
+      </Sec>
+
+      {listing.is_sold && (
+        <Sec title="Sale">
+          <Row k="Order" v={order ? <button className="underline" onClick={() => onOpenOrder(order.id)}>{order.order_number}</button> : '—'} />
+          <Row k="Buyer" v={order?.buyer_email} />
+          <Row k="Shipment" v={order ? (order.tracking_number ? `${order.courier ?? ''} ${order.tracking_number}` : order.status) : '—'} />
+          <Row k="Payout" v={payout ? (payout.status === 'paid_out' ? 'Paid' : 'Pending') : '—'} />
+        </Sec>
+      )}
+
+      <Sec title={`Moderation history (${modHistory.length})`}>
+        {modHistory.length === 0 ? <p className="text-black/40">None.</p> : modHistory.map((a) => (
+          <p key={a.id} className="flex justify-between gap-2"><span className="font-mono text-[10px]">{a.action}</span><span className="text-[9px] text-black/40">{new Date(a.created_at).toLocaleDateString()}</span></p>
+        ))}
+      </Sec>
+
+      <Sec title="Admin actions">
+        <div className="flex flex-col gap-2 pt-1">
+          {listing.status !== 'approved' && <ActBtn label="Approve" onClick={() => setStatus('approved', 'Approve')} busy={busy} />}
+          {listing.status !== 'rejected' && <ActBtn label="Reject" onClick={() => setStatus('rejected', 'Reject')} busy={busy} />}
+          {listing.status === 'approved' && <ActBtn label="Suspend" onClick={() => setStatus('suspended', 'Suspend')} busy={busy} />}
+          {listing.status !== 'archived' && <ActBtn label="Archive" onClick={() => setStatus('archived', 'Archive')} busy={busy} />}
+          {listing.is_sold && order && <ActBtn label="Cancel order & relist" danger onClick={async () => {
+            const reason = prompt('Reason for cancelling & relisting?') ?? '';
+            if (!confirm('Cancel the order and put this listing back on sale? Refund in Razorpay manually.')) return;
+            setBusy(true);
+            try {
+              if (payout && payout.status !== 'paid_out') await supabase.from('seller_payouts').delete().eq('id', payout.id);
+              await supabase.from('orders').update({ status: 'cancelled' }).eq('id', order.id);
+              await supabase.from('listings').update({ is_sold: false }).eq('id', listing.id);
+              await writeAudit({ entity: 'order', entity_id: order.id, action: 'order.cancel', old_state: { status: order.status }, new_state: { status: 'cancelled' }, reason });
+              void sendEmail({ template: 'order_cancelled_buyer', order_id: order.id });
+              void sendEmail({ template: 'order_cancelled_seller', order_id: order.id });
+              await onDone(); onClose();
+            } catch (err: any) { alert(err?.message ?? 'Failed.'); } finally { setBusy(false); }
+          }} busy={busy} />}
+          <ActBtn label="Delete" danger onClick={del} busy={busy} />
+        </div>
+      </Sec>
+    </DrawerShell>
   );
 }
