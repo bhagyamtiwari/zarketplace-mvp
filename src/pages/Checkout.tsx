@@ -114,6 +114,13 @@ function CheckoutInner() {
 
   const [orderNumbers, setOrderNumbers] = React.useState<string[]>([]);
   const [reservationExpiresAt, setReservationExpiresAt] = React.useState<string | null>(null);
+  // Full order rows once payment is confirmed, so the success screen can show
+  // exactly what was bought and for how much - not just an order number.
+  const [confirmedOrders, setConfirmedOrders] = React.useState<Array<{
+    order_number: string; listing_title: string | null; listing_image_url: string | null;
+    amount: number; shipping_cost: number; buyer_protection_fee: number; total_amount: number;
+    free_shipping: boolean; shipping_address: Record<string, string> | null;
+  }>>([]);
   const [submitting, setSubmitting] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
@@ -265,15 +272,23 @@ function CheckoutInner() {
     const POLL_INTERVAL_MS = 2000;
     const POLL_MAX_ATTEMPTS = 30; // ~60s
     let result: 'paid' | 'payment_failed' | 'timeout' = 'timeout';
+    let rows: typeof confirmedOrders = [];
     for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS; attempt++) {
-      const { data } = await supabase.from('orders').select('status').in('order_number', orderNumbers);
+      const { data } = await supabase.from('orders')
+        .select('order_number, status, listing_title, listing_image_url, amount, shipping_cost, buyer_protection_fee, total_amount, free_shipping, shipping_address')
+        .in('order_number', orderNumbers);
       const statuses = (data ?? []).map((r: { status: string }) => r.status);
-      if (statuses.length > 0 && statuses.every((s) => s === 'paid')) { result = 'paid'; break; }
+      if (statuses.length > 0 && statuses.every((s) => s === 'paid')) {
+        result = 'paid';
+        rows = (data ?? []) as unknown as typeof confirmedOrders;
+        break;
+      }
       if (statuses.some((s) => s === 'payment_failed')) { result = 'payment_failed'; break; }
       await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
     }
 
     if (result === 'paid') {
+      setConfirmedOrders(rows);
       setStep('success');
       clearResume();
       if (!id) await cart.clear();
@@ -390,13 +405,46 @@ function CheckoutInner() {
           <CheckCircle2 className="h-12 w-12" />
         </motion.div>
         <span className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-600">Payment confirmed</span>
-        <h1 className="text-5xl font-black tracking-tighter uppercase">Your order has been confirmed</h1>
-        <p className="text-xs font-bold uppercase tracking-widest text-black/40">
-          Order{orderNumbers.length > 1 ? 's' : ''}: {orderNumbers.join(', ')}
-        </p>
+        <h1 className="text-5xl font-black tracking-tighter uppercase">You bought it.</h1>
         <p className="text-[11px] font-bold uppercase tracking-widest text-black/60 max-w-md leading-relaxed">
           Your payment has been received. The seller has been notified to ship your item. Track everything in My Orders.
         </p>
+
+        {confirmedOrders.length > 0 && (
+          <div className="w-full max-w-md flex flex-col gap-6 text-left">
+            {confirmedOrders.map((o) => (
+              <div key={o.order_number} className="border border-black/10 p-5 flex flex-col gap-4">
+                <div className="flex gap-4">
+                  {o.listing_image_url && (
+                    <div className="h-20 w-16 flex-shrink-0 overflow-hidden border border-black/5">
+                      <img src={o.listing_image_url} alt="" className="h-full w-full object-cover" />
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-1 min-w-0">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-black/40">#{o.order_number}</span>
+                    <h2 className="text-sm font-black uppercase tracking-tight truncate">{o.listing_title}</h2>
+                  </div>
+                </div>
+                <div className="border-t border-black/5 pt-3 flex flex-col gap-1.5 text-[11px] font-bold uppercase tracking-widest">
+                  <div className="flex justify-between"><span className="text-black/40">Item</span><span>{formatCurrency(Number(o.amount))}</span></div>
+                  <div className="flex justify-between">
+                    <span className="text-black/40">Shipping</span>
+                    <span>{o.free_shipping ? 'Free' : formatCurrency(Number(o.shipping_cost))}</span>
+                  </div>
+                  <div className="flex justify-between"><span className="text-black/40">Buyer protection</span><span>{formatCurrency(Number(o.buyer_protection_fee))}</span></div>
+                  <div className="flex justify-between border-t border-black/10 pt-1.5 mt-1"><span>Total paid</span><span>{formatCurrency(Number(o.total_amount))}</span></div>
+                </div>
+                {o.shipping_address && (
+                  <div className="border-t border-black/5 pt-3 text-[10px] font-bold uppercase tracking-widest text-black/40">
+                    Shipping to: <span className="text-black/70 normal-case font-medium">
+                      {[o.shipping_address.address, o.shipping_address.city, o.shipping_address.state, o.shipping_address.pincode].filter(Boolean).join(', ')}
+                    </span>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
         <p className="text-[11px] font-bold uppercase tracking-widest text-black/60 max-w-md leading-relaxed">
           For any questions or concerns, email{' '}
           <a href="mailto:contact@zarketplace.com" className="text-black underline">contact@zarketplace.com</a>.
