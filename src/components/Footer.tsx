@@ -19,17 +19,17 @@ interface FooterColumn {
   links: FooterLink[];
 }
 
-// The footer is now the only wayfinding for the info pages (the left sidebar
-// that used to link them was removed), so every public page must appear here.
+// The footer is the only wayfinding for the info pages (the left sidebar that
+// used to link them was removed), so every public page must appear here.
+// Columns are kept close in length (5/4/5/4) so the desktop grid stays even.
 const MARKETPLACE: FooterColumn = {
   title: 'Marketplace',
   links: [
+    { label: 'What Is zarketplace', to: '/about' },
     { label: 'Buy', to: '/browse' },
     { label: 'Sell', to: '/sell' },
     { label: 'Seller Portal', to: '/seller-portal' },
-    { label: 'Seller Guidelines', to: '/seller-policy' },
     { label: 'Conditions Guide', to: '/conditions-guide' },
-    { label: 'What Is zarketplace', to: '/about' },
   ],
 };
 
@@ -39,6 +39,7 @@ const ACCOUNT: FooterColumn = {
     { label: 'My Orders', to: '/track-order' },
     { label: 'My Profile', to: '/account' },
     { label: 'FAQ', to: '/faq' },
+    { label: 'Seller Guidelines', to: '/seller-policy' },
   ],
 };
 
@@ -50,28 +51,16 @@ const SUPPORT: FooterColumn = {
     { label: 'Shipping Policy', to: '/shipping-policy' },
     { label: 'Returns', to: '/returns' },
     { label: 'Refund Policy', to: '/refund-policy' },
-    { label: 'Grievance Officer', to: '/grievance-officer' },
   ],
 };
 
-// Desktop order (matches the visual column as specified).
 const COMPANY: FooterColumn = {
   title: 'Company',
   links: [
     { label: 'Terms', to: '/terms' },
     { label: 'Privacy', to: '/privacy' },
     { label: 'Trademark Notice', to: '/trademark-notice' },
-  ],
-};
-
-// Mobile order: Trademark Notice folds up above Terms/Privacy since the
-// bottom bar's separate legal line is dropped on mobile.
-const COMPANY_MOBILE: FooterColumn = {
-  title: 'Company',
-  links: [
-    { label: 'Trademark Notice', to: '/trademark-notice' },
-    { label: 'Terms', to: '/terms' },
-    { label: 'Privacy', to: '/privacy' },
+    { label: 'Grievance Officer', to: '/grievance-officer' },
   ],
 };
 
@@ -140,7 +129,7 @@ export function Footer() {
 
         {/* Mobile: accordion sections, one open at a time */}
         <div className="md:hidden flex flex-col">
-          {[MARKETPLACE, ACCOUNT, SUPPORT, COMPANY_MOBILE].map((column) => {
+          {[MARKETPLACE, ACCOUNT, SUPPORT, COMPANY].map((column) => {
             const isOpen = openSection === column.title;
             return (
               <div key={column.title} className="border-b border-white/10">
