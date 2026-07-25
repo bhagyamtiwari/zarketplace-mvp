@@ -2,7 +2,6 @@ import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
-import { InfoPageNav } from '../components/InfoPageNav';
 
 export function BuyerProtection() {
   useDocumentTitle('Buyer Protection');
@@ -13,8 +12,7 @@ export function BuyerProtection() {
         <ArrowLeft className="h-3 w-3" /> Back to Home
       </Link>
 
-      <div className="flex flex-col lg:flex-row gap-10 lg:gap-16">
-        <InfoPageNav />
+      <div className="flex flex-col">
 
         <motion.div
           initial={{ opacity: 0, y: 20 }}

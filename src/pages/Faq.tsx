@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft, ChevronDown } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
-import { InfoPageNav } from '../components/InfoPageNav';
 
 interface QA {
   q: string;
@@ -99,8 +98,7 @@ export function Faq() {
         <ArrowLeft className="h-3 w-3" /> Back to Home
       </Link>
 
-      <div className="flex flex-col lg:flex-row gap-10 lg:gap-16">
-        <InfoPageNav />
+      <div className="flex flex-col">
 
         <div className="flex-1 min-w-0 max-w-3xl">
           <div className="flex flex-col gap-4 mb-12">

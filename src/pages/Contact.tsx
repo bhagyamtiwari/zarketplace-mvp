@@ -2,7 +2,6 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Mail, Instagram, MessageCircle } from 'lucide-react';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
-import { InfoPageNav } from '../components/InfoPageNav';
 
 export function Contact() {
   useDocumentTitle('Contact');
@@ -13,8 +12,7 @@ export function Contact() {
         <ArrowLeft className="h-3 w-3" /> Back to Home
       </Link>
 
-      <div className="flex flex-col lg:flex-row gap-10 lg:gap-16">
-        <InfoPageNav />
+      <div className="flex flex-col">
 
         <div className="flex flex-col gap-16 flex-1 min-w-0">
         <div className="flex flex-col gap-4">

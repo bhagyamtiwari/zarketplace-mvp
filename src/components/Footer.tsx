@@ -19,13 +19,17 @@ interface FooterColumn {
   links: FooterLink[];
 }
 
+// The footer is now the only wayfinding for the info pages (the left sidebar
+// that used to link them was removed), so every public page must appear here.
 const MARKETPLACE: FooterColumn = {
   title: 'Marketplace',
   links: [
     { label: 'Buy', to: '/browse' },
     { label: 'Sell', to: '/sell' },
     { label: 'Seller Portal', to: '/seller-portal' },
+    { label: 'Seller Guidelines', to: '/seller-policy' },
     { label: 'Conditions Guide', to: '/conditions-guide' },
+    { label: 'What Is zarketplace', to: '/about' },
   ],
 };
 
@@ -54,7 +58,6 @@ const SUPPORT: FooterColumn = {
 const COMPANY: FooterColumn = {
   title: 'Company',
   links: [
-    { label: 'About', to: '/about' },
     { label: 'Terms', to: '/terms' },
     { label: 'Privacy', to: '/privacy' },
     { label: 'Trademark Notice', to: '/trademark-notice' },
@@ -66,7 +69,6 @@ const COMPANY: FooterColumn = {
 const COMPANY_MOBILE: FooterColumn = {
   title: 'Company',
   links: [
-    { label: 'About', to: '/about' },
     { label: 'Trademark Notice', to: '/trademark-notice' },
     { label: 'Terms', to: '/terms' },
     { label: 'Privacy', to: '/privacy' },

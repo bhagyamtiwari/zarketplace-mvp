@@ -643,19 +643,19 @@ function PhotosStep({ imagePreviews, onAdd, onRemove }: {
     <div className="flex flex-col gap-8">
       <div className="flex items-start gap-3 border-l-2 border-black pl-4">
         <AlertTriangle className="h-4 w-4 text-black mt-0.5 shrink-0" />
-        <InfoText>
+        <p className="text-xs font-bold uppercase tracking-widest text-black/60 leading-relaxed">
           One listing, one item. No "available in all sizes," no "DM for other colours." Got five of the same thing? List it five times.
-        </InfoText>
+        </p>
       </div>
 
       <div className="flex flex-col gap-2">
         <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Item Photos</h3>
-        <InfoText>
+        <p className="text-xs font-bold uppercase tracking-widest text-black/60 leading-relaxed">
           Use natural light and a plain, ideally white, background. Show the whole item. No screenshots or stock photos. Need to remove the background? We recommend{' '}
           <a href="https://www.photoroom.com/tools/background-remover" target="_blank" rel="noreferrer" className="underline text-black hover:text-black/60">Photoroom</a>
           {' '}or{' '}
           <a href="https://www.remove.bg/" target="_blank" rel="noreferrer" className="underline text-black hover:text-black/60">Remove.bg</a>.
-        </InfoText>
+        </p>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
