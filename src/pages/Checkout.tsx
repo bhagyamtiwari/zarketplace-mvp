@@ -19,6 +19,7 @@ import { useCart } from '../lib/cart';
 import { RequireAuth } from '../components/RequireAuth';
 import { log } from '../lib/log';
 import { getPricingConfig, buyerProtectionFee, type PricingConfig, getShippingCategories, shippingRateFor, type ShippingCategory } from '../lib/pricing';
+import { trackEvent } from '../lib/analytics';
 
 const clog = log('checkout');
 const RESUME_KEY = 'zk_checkout_v3';
@@ -288,15 +289,26 @@ function CheckoutInner() {
     }
 
     if (result === 'paid') {
+      // The conversion event. Revenue is taken from the server-confirmed rows,
+      // never from the client's own total.
+      trackEvent('order_completed', {
+        order_count: rows.length,
+        revenue: rows.reduce((s, r) => s + Number(r.total_amount ?? 0), 0),
+        order_numbers: rows.map((r) => r.order_number).join(','),
+      });
       setConfirmedOrders(rows);
       setStep('success');
       clearResume();
       if (!id) await cart.clear();
     } else if (result === 'payment_failed') {
+      trackEvent('order_payment_failed', { order_numbers: orderNumbers.join(',') });
       setErrorMsg('Payment failed. You can try again.');
       setStep('failed');
       persistResume({ step: 'failed' });
     } else {
+      // Distinct from an outright failure: the money may still land. Worth
+      // watching separately, since a spike here means the webhook is lagging.
+      trackEvent('order_confirmation_timeout', { order_numbers: orderNumbers.join(',') });
       setErrorMsg('Still confirming your payment with the bank. Check My Orders in a minute, or try again.');
       setStep('failed');
       persistResume({ step: 'failed' });
@@ -312,6 +324,9 @@ function CheckoutInner() {
   const startPayment = async () => {
     setErrorMsg(null);
     if (!user) return;
+    // Buyer pressed pay. The gap between this and order_completed is the
+    // payment-abandonment rate.
+    trackEvent('payment_started', { order_count: orderNumbers.length, total });
     setSubmitting(true);
     try {
       const { data, error } = await supabase.functions.invoke('create-razorpay-order', {

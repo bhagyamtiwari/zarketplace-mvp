@@ -21,6 +21,7 @@ import { RequireAuth } from '../components/RequireAuth';
 import { PromiseBanner } from '../components/PromiseBanner';
 import { UpiVpaInput, VPA_REGEX } from '../components/UpiVpaInput';
 import { getShippingCategories, type ShippingCategory } from '../lib/pricing';
+import { trackEvent } from '../lib/analytics';
 import { CONDITIONS } from '../lib/condition';
 import { log } from '../lib/log';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
@@ -380,6 +381,15 @@ function SellInner() {
       });
       if (error) throw error;
       tFull.end({ outcome: 'success' });
+      // Seller-side conversion. Compared against sell_started, this is the
+      // completion rate of the listing form.
+      trackEvent('listing_submitted', {
+        category: selectedCategory,
+        shipping_category: shippingCategory,
+        free_shipping: freeShipping,
+        price: Number(priceVal) || 0,
+        photo_count: imageFiles.length,
+      });
       setSubmitted(true);
     } catch (err: any) {
       slog.error('handlePublish THREW', err);

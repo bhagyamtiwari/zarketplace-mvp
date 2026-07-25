@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
@@ -36,6 +36,7 @@ import { ScrollToTop } from './components/ScrollToTop';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { CookieConsent } from './components/CookieConsent';
 import { useConsent } from './lib/cookieConsent';
+import { initAnalytics, trackPageview } from './lib/analytics';
 
 // Keying by pathname remounts the boundary (clearing any caught error) the
 // moment the user navigates to a different route, instead of leaving them
@@ -45,17 +46,33 @@ function RoutedErrorBoundary({ children }: { children: ReactNode }) {
   return <ErrorBoundary key={location.pathname}>{children}</ErrorBoundary>;
 }
 
-// Reject actually disables Analytics/Speed Insights - it isn't decorative.
-// Both stay off until a choice is made (no analytics-before-consent).
+// Reject actually disables Analytics/Speed Insights/PostHog - it isn't
+// decorative. All stay off until a choice is made (no analytics-before-consent).
 function ConsentedAnalytics() {
   const [consent] = useConsent();
-  if (consent !== 'accepted') return null;
+  const accepted = consent === 'accepted';
+
+  // PostHog is only loaded (and only ever collects) after acceptance.
+  useEffect(() => {
+    if (accepted) initAnalytics();
+  }, [accepted]);
+
+  if (!accepted) return null;
   return (
     <>
       <Analytics />
       <SpeedInsights />
+      <PageviewTracker />
     </>
   );
+}
+
+// Single place that reports SPA route changes to PostHog. Rendered only inside
+// the consented tree, so it cannot fire before consent.
+function PageviewTracker() {
+  const { pathname } = useLocation();
+  useEffect(() => { trackPageview(pathname); }, [pathname]);
+  return null;
 }
 
 export default function App() {

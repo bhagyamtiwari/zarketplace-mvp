@@ -20,6 +20,7 @@ import * as React from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { log } from './log';
+import { identifyUser, resetAnalytics } from './analytics';
 
 const alog = log('auth');
 
@@ -116,10 +117,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!newUserId) {
         setProfile(null);
         lastLoadedUserId = null;
+        resetAnalytics();
         return;
       }
 
       const identityChanged = newUserId !== lastLoadedUserId;
+      // Tie analytics to the user so a funnel can follow one person across
+      // sessions. No-op unless analytics is enabled and consented.
+      if (identityChanged) identifyUser(newUserId, newSession?.user?.email ?? null);
       const userMutated = event === 'USER_UPDATED';
       if (identityChanged || userMutated) {
         await loadProfile(newUserId);
@@ -206,6 +211,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // network call to Supabase is slow.
     setSession(null);
     setProfile(null);
+    resetAnalytics();
     try { await supabase.auth.signOut(); } catch (err) { alog.warn('signOut error', err); }
   }, []);
 

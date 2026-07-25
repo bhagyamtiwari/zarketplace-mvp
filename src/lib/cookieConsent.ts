@@ -1,10 +1,10 @@
-// Cookie consent state. Deliberately simple: the site currently sets no
-// marketing/ad cookies at all - Vercel Analytics and Speed Insights are the
-// only optional collection, everything else (Supabase auth, Razorpay
-// checkout) is functionally required to use the site and isn't gated here,
-// matching the standard "essential cookies need disclosure, not opt-in"
-// rule. Reject actually disables Analytics/Speed Insights - it isn't
-// decorative.
+// Cookie consent state. Deliberately simple: the site sets no marketing/ad
+// cookies at all - Vercel Analytics, Speed Insights and PostHog product
+// analytics are the only optional collection, everything else (Supabase auth,
+// Razorpay checkout) is functionally required to use the site and isn't gated
+// here, matching the standard "essential cookies need disclosure, not opt-in"
+// rule. Reject actually disables all three (PostHog is never even loaded) -
+// it isn't decorative.
 import * as React from 'react';
 
 export type ConsentValue = 'accepted' | 'rejected';
