@@ -306,7 +306,7 @@ export function Marketplace() {
               <button
                 type="button"
                 onClick={() => setShowFilters(true)}
-                className="lg:hidden shrink-0 flex items-center gap-2 border border-black bg-white px-4 py-2.5 text-[11px] font-black uppercase tracking-widest"
+                className="lg:hidden shrink-0 flex items-center gap-2 border border-black bg-white px-4 py-3 text-[11px] font-black uppercase tracking-widest"
               >
                 <SlidersHorizontal className="h-3.5 w-3.5" />
                 Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
@@ -629,7 +629,7 @@ function HeroBanner() {
         type="button"
         onClick={close}
         aria-label="Close introduction"
-        className="absolute top-3 right-3 z-10 p-2 text-white/60 hover:text-white transition-colors"
+        className="absolute top-2 right-2 z-10 flex h-11 w-11 items-center justify-center text-white/60 hover:text-white transition-colors"
       >
         <X className="h-5 w-5" strokeWidth={1.5} />
       </button>
@@ -638,10 +638,16 @@ function HeroBanner() {
         {/* Lockup sits left: mark first, then the one-line description beside it
             once there is room to set them on one line. */}
         <h1 className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-6">
+          {/* Inert: it is a brand mark, not a control. No drag, no selection,
+              no context menu, no pointer target at all. */}
           <img
             src="/images/zark-can-tp-web.png"
             alt="zarketplace"
-            className="h-10 sm:h-14 lg:h-16 w-auto"
+            draggable={false}
+            onDragStart={(e) => e.preventDefault()}
+            onContextMenu={(e) => e.preventDefault()}
+            className="h-10 sm:h-14 lg:h-16 w-auto pointer-events-none select-none"
+            style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
           />
           <span className="text-xs sm:text-lg lg:text-2xl font-black uppercase tracking-[0.2em]">
             Buy &amp; sell pre-owned fashion
@@ -656,7 +662,7 @@ function HeroBanner() {
           {steps.map((s) => (
             <div
               key={s.n}
-              className="snap-start shrink-0 w-[80%] sm:w-auto border border-white/25 bg-black/45 backdrop-blur-md p-4 sm:p-5 flex flex-col gap-1.5 sm:gap-2"
+              className="snap-start shrink-0 w-[80%] sm:w-auto border border-white/30 bg-black/25 backdrop-blur-md p-4 sm:p-5 flex flex-col gap-1.5 sm:gap-2"
             >
               <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/50">{s.n}</span>
               <h2 className="text-sm font-black uppercase tracking-widest">{s.title}</h2>
@@ -665,11 +671,13 @@ function HeroBanner() {
           ))}
         </div>
 
+        {/* min-h-11 gives these a 44px touch target on a phone without moving
+            the underline off the text. */}
         <Link
           to="/about"
-          className="self-start sm:self-center text-[11px] sm:text-xs font-black uppercase tracking-[0.25em] border-b-2 border-white pb-0.5 hover:text-white/70 hover:border-white/70 transition-colors"
+          className="self-start sm:self-center inline-flex items-center min-h-11 sm:min-h-0 text-[11px] sm:text-xs font-black uppercase tracking-[0.25em] text-white hover:text-white/70 transition-colors"
         >
-          What is zarketplace?
+          <span className="border-b-2 border-white pb-0.5 hover:border-white/70">What is zarketplace?</span>
         </Link>
 
         {/* Each claim is a link to the policy that backs it, so the line is
@@ -680,7 +688,7 @@ function HeroBanner() {
               {i > 0 && <span aria-hidden className="text-white/25">·</span>}
               <Link
                 to={t.to}
-                className="shrink-0 whitespace-nowrap text-[10px] font-black uppercase tracking-[0.2em] text-white/70 hover:text-white underline-offset-4 hover:underline"
+                className="shrink-0 inline-flex items-center min-h-11 sm:min-h-0 whitespace-nowrap text-[10px] font-black uppercase tracking-[0.2em] text-white/70 hover:text-white underline-offset-4 hover:underline"
               >
                 {t.label}
               </Link>
@@ -726,7 +734,7 @@ const Chip: React.FC<ToggleProps> = ({ active, onClick, children }) => {
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        'shrink-0 border px-4 py-2.5 text-[11px] font-black uppercase tracking-widest transition-colors',
+        'shrink-0 border px-4 py-3 sm:py-2.5 text-[11px] font-black uppercase tracking-widest transition-colors',
         active ? 'bg-black text-white border-black' : 'bg-white text-black border-black/10 hover:border-black',
       )}
     >

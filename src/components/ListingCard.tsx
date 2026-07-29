@@ -60,7 +60,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing, priority = fa
           aria-label={favorited ? 'Remove from favorites' : 'Save to favorites'}
           aria-pressed={favorited}
           className={cn(
-            'absolute top-2 right-2 flex h-9 w-9 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm transition-transform',
+            'absolute top-2 right-2 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm transition-transform',
             sold ? 'opacity-40 cursor-default' : 'hover:scale-110 active:scale-95',
           )}
         >
