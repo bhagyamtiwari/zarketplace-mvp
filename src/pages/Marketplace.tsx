@@ -5,7 +5,7 @@
 // it the page is search, filters and real inventory, and nothing else.
 import React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, SlidersHorizontal, X, Plus, Loader2, Heart, ChevronDown, Tag, ShieldCheck, BadgePercent } from 'lucide-react';
+import { Search, SlidersHorizontal, X, Plus, Loader2, Heart, ChevronDown, ShieldCheck, PackageCheck, BadgeCheck, Info } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Listing } from '../types';
 import { ListingCard } from '../components/ListingCard';
@@ -589,11 +589,11 @@ function FeedGrid({ children }: { children: React.ReactNode }) {
 // Trust claims, each one linking to the policy that backs it. They live on the
 // banner rather than under the filters: a promise belongs next to the pitch, not
 // wedged between a buyer and the grid.
-const TRUST_LINKS: Array<{ label: string; to: string }> = [
-  { label: 'Buyer protection', to: '/buyer-protection' },
-  { label: 'No selling fees', to: '/seller-policy' },
-  { label: 'Doorstep pickup', to: '/shipping-policy' },
-  { label: 'Condition graded', to: '/conditions-guide' },
+const PROMISES: Array<{ label: string; body: string; to: string; Icon: typeof ShieldCheck }> = [
+  { label: 'Buyer protection', body: "Pay when you're happy. We've got you.", to: '/buyer-protection', Icon: ShieldCheck },
+  { label: 'Doorstep pickup', body: 'We pick up from your door.', to: '/shipping-policy', Icon: PackageCheck },
+  { label: 'Condition graded', body: 'Keep 100%. We handle the rest.', to: '/conditions-guide', Icon: BadgeCheck },
+  { label: 'What is zarketplace?', body: '', to: '/about', Icon: Info },
 ];
 
 // Explainer banner for the visitor who has never heard of us. It sits above the
@@ -605,34 +605,6 @@ function HeroBanner() {
   const close = () => setDismissed(true);
 
   if (dismissed) return null;
-
-  // Two lengths of the same three promises. A phone gets the short form - the
-  // long one turns each row into a paragraph nobody reads on a 375px screen -
-  // and the full sentence appears once there is room for it. The icon carries
-  // the meaning at a glance, which is what lets the boxes go.
-  const steps: Array<{ n: string; title: string; short: string; body: string; Icon: typeof Tag }> = [
-    {
-      n: '01',
-      title: 'Transparent pricing',
-      short: 'Everything upfront.',
-      body: 'No DMs. Just price, size and condition.',
-      Icon: Tag,
-    },
-    {
-      n: '02',
-      title: 'Buyer protection',
-      short: 'Pay with confidence.',
-      body: 'Pay with confidence.',
-      Icon: ShieldCheck,
-    },
-    {
-      n: '03',
-      title: 'Zero selling fees',
-      short: 'Keep 100% of your sale.',
-      body: 'Keep 100%. We handle shipping.',
-      Icon: BadgePercent,
-    },
-  ];
 
   return (
     <section className="relative isolate overflow-hidden bg-black text-white">
@@ -657,67 +629,45 @@ function HeroBanner() {
       </button>
 
       <div className="relative mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6 sm:py-8 flex flex-col gap-5 sm:gap-6">
-        {/* Wide screens set the lockup against the three points as columns.
-            Below that the lockup stacks over them. */}
-        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:gap-16">
-          <h1 className="flex flex-col items-start gap-2 sm:items-center sm:gap-3 lg:flex-1 lg:items-start">
+        {/* Wide screens set the lockup left, the promise list right. Icons
+            baseline-align to their label and everything hangs off one left
+            edge and one divider rhythm, so the block reads as a single list
+            rather than loose fragments. */}
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:gap-16">
+          <h1 className="flex flex-col items-start gap-2 lg:flex-1">
             <img
               src="/images/zark-reg-tp-web.png"
               alt="zarketplace"
               draggable={false}
               onDragStart={(e) => e.preventDefault()}
               onContextMenu={(e) => e.preventDefault()}
-              className="h-8 sm:h-14 lg:h-16 w-auto pointer-events-none select-none"
+              className="h-8 sm:h-12 lg:h-16 w-auto pointer-events-none select-none"
               style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
             />
-            <span className="text-[11px] sm:text-lg lg:text-2xl font-black uppercase tracking-[0.2em]">
+            <span className="text-[11px] sm:text-base lg:text-2xl font-black uppercase tracking-[0.2em]">
               Buy &amp; sell pre-owned fashion
             </span>
           </h1>
 
-          {/* No panels: an icon, a numbered title and one line, sitting straight
-              on the photograph. Icons are baseline-aligned to the title and the
-              copy hangs off a single left edge, so the three read as a set. */}
-          <ul className="flex flex-col gap-3.5 sm:grid sm:grid-cols-3 sm:gap-8 lg:flex lg:w-[46%] lg:flex-col lg:gap-5">
-            {steps.map(({ n, title, short, body, Icon }) => (
-              <li key={n} className="flex items-start gap-3">
-                <Icon className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 mt-px sm:mt-0.5 text-white/70" strokeWidth={2} />
-                <div className="flex min-w-0 flex-col gap-0.5">
-                  <h2 className="flex items-baseline gap-2 text-[11px] sm:text-sm font-black uppercase tracking-widest">
-                    <span className="text-[9px] sm:text-[10px] tracking-[0.3em] text-white/50">{n}</span>
-                    {title}
-                  </h2>
-                  <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest leading-relaxed text-white/70">
-                    <span className="sm:hidden">{short}</span>
-                    <span className="hidden sm:inline">{body}</span>
-                  </p>
-                </div>
+          <ul className="flex flex-col lg:w-[42%]">
+            {PROMISES.map(({ label, body, to, Icon }, i) => (
+              <li key={label} className={cn(i > 0 && 'border-t border-white/15')}>
+                <Link to={to} className="group flex items-center gap-3 py-2.5 sm:py-3">
+                  <Icon className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-white/80" strokeWidth={1.75} />
+                  <span className="flex min-w-0 flex-1 items-baseline gap-2 sm:flex-col sm:items-start sm:gap-0.5">
+                    <span className="text-[11px] sm:text-sm font-black uppercase tracking-widest group-hover:text-white/80">
+                      {label}
+                    </span>
+                    {body && (
+                      <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-white/60">
+                        {body}
+                      </span>
+                    )}
+                  </span>
+                </Link>
               </li>
             ))}
           </ul>
-        </div>
-
-        <Link
-          to="/about"
-          className="self-start sm:self-center inline-flex items-center min-h-11 sm:min-h-0 text-[11px] sm:text-xs font-black uppercase tracking-[0.25em] text-white hover:text-white/70 transition-colors"
-        >
-          <span className="border-b-2 border-white pb-0.5 hover:border-white/70">What is zarketplace?</span>
-        </Link>
-
-        {/* Each claim is a link to the policy that backs it, so the line is
-            checkable rather than decorative. */}
-        <div className="w-full flex items-center justify-start sm:justify-center gap-x-3 overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap sm:gap-y-2">
-          {TRUST_LINKS.map((t, i) => (
-            <React.Fragment key={t.to}>
-              {i > 0 && <span aria-hidden className="text-white/25">·</span>}
-              <Link
-                to={t.to}
-                className="shrink-0 inline-flex items-center min-h-11 sm:min-h-0 whitespace-nowrap text-[10px] font-black uppercase tracking-[0.2em] text-white/70 hover:text-white underline-offset-4 hover:underline"
-              >
-                {t.label}
-              </Link>
-            </React.Fragment>
-          ))}
         </div>
       </div>
     </section>
