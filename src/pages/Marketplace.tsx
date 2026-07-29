@@ -639,7 +639,7 @@ function HeroBanner() {
             once there is room to set them on one line. */}
         <h1 className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-6">
           <img
-            src="/images/zark-can-web.png"
+            src="/images/zark-can-tp-web.png"
             alt="zarketplace"
             className="h-10 sm:h-14 lg:h-16 w-auto"
           />

@@ -33,11 +33,13 @@ export function CampaignBand({ image, heading, script, body, cta, align = 'left'
           whatever the photograph does behind it. */}
       <div aria-hidden className="absolute inset-0 bg-black/45" />
 
-      {/* Copy on one side, button on the other and vertically centred, so the
-          band is only as tall as its text instead of stacking into dead space. */}
+      {/* Copy on one side, button on the other and vertically centred. The
+          breathing room is padding inside the band, over the photograph - the
+          bands themselves stay flush, so the images read as one continuous
+          block rather than three cards separated by white gutters. */}
       <div
         className={cn(
-          'relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-10 sm:py-14',
+          'relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-16 sm:py-24',
           'flex flex-col gap-6 md:flex-row md:items-center md:justify-between md:gap-12',
           align === 'right' && 'md:flex-row-reverse',
         )}
