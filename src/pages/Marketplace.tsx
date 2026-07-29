@@ -634,10 +634,9 @@ function HeroBanner() {
         <X className="h-5 w-5" strokeWidth={1.5} />
       </button>
 
-      <div className="relative mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6 sm:py-10 flex flex-col gap-5 sm:gap-6">
-        {/* Lockup sits left: mark first, then the one-line description beside it
-            once there is room to set them on one line. */}
-        <h1 className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-6">
+      <div className="relative mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6 sm:py-10 flex flex-col items-center gap-5 sm:gap-6 text-center">
+        {/* Centred lockup: mark over the one-line description. */}
+        <h1 className="flex flex-col items-center gap-2 sm:gap-3">
           {/* Inert: it is a brand mark, not a control. No drag, no selection,
               no context menu, no pointer target at all. */}
           <img
@@ -658,7 +657,7 @@ function HeroBanner() {
             copy still passes contrast. On a phone the three steps swipe
             sideways instead of stacking, which would push the search box and
             the category chips clean off the first screen. */}
-        <div className="w-full flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible">
+        <div className="w-full flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible text-left">
           {steps.map((s) => (
             <div
               key={s.n}
@@ -675,7 +674,7 @@ function HeroBanner() {
             the underline off the text. */}
         <Link
           to="/about"
-          className="self-start sm:self-center inline-flex items-center min-h-11 sm:min-h-0 text-[11px] sm:text-xs font-black uppercase tracking-[0.25em] text-white hover:text-white/70 transition-colors"
+          className="self-center inline-flex items-center min-h-11 sm:min-h-0 text-[11px] sm:text-xs font-black uppercase tracking-[0.25em] text-white hover:text-white/70 transition-colors"
         >
           <span className="border-b-2 border-white pb-0.5 hover:border-white/70">What is zarketplace?</span>
         </Link>
