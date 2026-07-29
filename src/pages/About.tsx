@@ -124,7 +124,7 @@ export function About() {
         </motion.div>
       </div>
 
-      <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 flex flex-col gap-12 sm:gap-16">
+      <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 flex flex-col gap-6 sm:gap-8">
         <section className="flex flex-col gap-4 bg-zinc-50 p-6 sm:p-10 border border-black/5">
           <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight">The market exists</h2>
           <p className="text-sm font-medium uppercase tracking-[0.12em] leading-[1.8]">
@@ -152,9 +152,11 @@ export function About() {
           </p>
         </section>
 
-        <section className="flex flex-col gap-4">
+        {/* Centred: it closes the page, so it reads as an invitation rather
+            than another left-aligned block of content. */}
+        <section className="flex flex-col items-center gap-4 pt-6 sm:pt-10 text-center">
           <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight">Still have a question</h2>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap justify-center gap-3">
             <Link to="/faq" className="border border-black px-8 py-4 text-[10px] font-black uppercase tracking-[0.3em] hover:bg-black hover:text-white transition-colors">
               Read the FAQ
             </Link>

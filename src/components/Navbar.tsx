@@ -278,7 +278,7 @@ export function Navbar() {
               </div>
 
               <div className="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-1">
-                <DrawerSection title="Marketplace">
+                <DrawerSection>
                   <DrawerLink to="/browse" onClick={() => setIsMenuOpen(false)}>Buy</DrawerLink>
                   <DrawerLink to="/sell" onClick={() => setIsMenuOpen(false)}>Sell</DrawerLink>
                   <DrawerLink to="/cart" onClick={() => setIsMenuOpen(false)} badge={cartCount > 0 ? cartCount : undefined}>Cart</DrawerLink>
@@ -340,10 +340,10 @@ export function Navbar() {
   );
 }
 
-function DrawerSection({ title, children }: { title: string; children: React.ReactNode }) {
+function DrawerSection({ title, children }: { title?: string; children: React.ReactNode }) {
   return (
     <div className="pb-3 mb-3 border-b border-black/5">
-      <p className="text-[9px] font-black uppercase tracking-[0.3em] text-black/40 mb-1">{title}</p>
+      {title && <p className="text-[9px] font-black uppercase tracking-[0.3em] text-black/40 mb-1">{title}</p>}
       {children}
     </div>
   );

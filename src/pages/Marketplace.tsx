@@ -376,14 +376,27 @@ export function Marketplace() {
           {/* Result count and sort, as a single quiet line of text. */}
           <div className="flex items-center justify-between gap-4">
             <p className="text-[11px] font-black uppercase tracking-[0.2em] text-black/40">
-              {state === 'loading' ? 'Loading' : `${total ?? listings.length} item${(total ?? listings.length) === 1 ? '' : 's'}`}
+              {state === 'loading'
+                ? 'Loading'
+                : (total ?? listings.length) > 0
+                  ? `${total ?? listings.length} item${(total ?? listings.length) === 1 ? '' : 's'}`
+                  : ''}
             </p>
-            <label className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-black/40">
+            {/* index.css keeps a 16px floor on form controls so iOS Safari never
+                auto-zooms on tap. That floor made the sort value tower over its
+                own label, so the native select is kept (native picker, no zoom)
+                but rendered invisible over text we size ourselves. */}
+            <label className="relative flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-black/40">
               Sort
+              <span className="flex items-center gap-1 text-black underline underline-offset-4">
+                {SORT_OPTIONS.find((o) => o.value === sortBy)?.label ?? 'Newest'}
+                <ChevronDown className="h-3.5 w-3.5 text-black/40" />
+              </span>
               <select
                 value={sortBy}
                 onChange={(e) => setParam('sort', e.target.value === 'newest' ? null : e.target.value)}
-                className="bg-transparent text-black uppercase tracking-[0.2em] underline underline-offset-4 focus:outline-none"
+                aria-label="Sort listings"
+                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
               >
                 {SORT_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
@@ -611,18 +624,17 @@ function HeroBanner() {
 
   return (
     <section className="relative isolate overflow-hidden bg-black text-white">
-      {/* The image is 2.33:1 and its subject spans the full width. Cropping that
-          into a tall phone container throws away both the face and the
-          gravestone, so on mobile it runs as its own full-width strip, and on
-          desktop it anchors to the top rather than the middle for the same
-          reason. */}
-      <img
-        src="/images/new-banner3-web.jpg"
-        alt=""
+      {/* One banner, not a photo block with a panel bolted under it. The image
+          is a background layer either way; only how it is fitted changes.
+          Mobile pins it to the top at full width (100% auto), so the face and
+          the gravestone both survive - cover-cropping a 2.33:1 photo into a
+          tall phone container would throw both away. Desktop covers normally. */}
+      <div
         aria-hidden
-        className="block w-full h-auto object-cover sm:absolute sm:inset-0 sm:h-full sm:object-top sm:opacity-70"
+        className="absolute inset-0 bg-no-repeat bg-top bg-[length:100%_auto] sm:bg-cover opacity-80 sm:opacity-70"
+        style={{ backgroundImage: 'url(/images/new-banner3-web.jpg)' }}
       />
-      <div aria-hidden className="hidden sm:block absolute inset-0 bg-gradient-to-t from-black via-black/70 to-black/50" />
+      <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/75 to-black sm:bg-gradient-to-t sm:from-black sm:via-black/70 sm:to-black/50" />
 
       {/* Minimal dismiss: just the glyph, no chip behind it. */}
       <button
@@ -634,7 +646,7 @@ function HeroBanner() {
         <X className="h-5 w-5" strokeWidth={1.5} />
       </button>
 
-      <div className="relative mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6 sm:py-10 flex flex-col items-center gap-5 sm:gap-6 text-center">
+      <div className="relative mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 pt-[38vw] pb-6 sm:py-10 flex flex-col items-center gap-5 sm:gap-6 text-center">
         {/* Centred lockup: mark over the one-line description. */}
         <h1 className="flex flex-col items-center gap-2 sm:gap-3">
           {/* Inert: it is a brand mark, not a control. No drag, no selection,
