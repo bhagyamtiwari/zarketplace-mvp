@@ -7,9 +7,9 @@ export function ShippingPolicy() {
   useDocumentTitle('Shipping Policy');
 
   return (
-    <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
+    <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
       <Link to="/" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-12">
-        <ArrowLeft className="h-3 w-3" /> Back to Home
+        <ArrowLeft className="h-3 w-3" /> Back to zarketplace
       </Link>
 
       <motion.div
@@ -22,7 +22,7 @@ export function ShippingPolicy() {
           <p className="text-sm font-black uppercase tracking-widest text-black">How shipping works on zarketplace</p>
         </div>
 
-        <div className="flex flex-col gap-10 text-black leading-relaxed text-sm font-medium uppercase tracking-widest">
+        <div className="flex flex-col gap-10 text-black text-sm font-medium uppercase tracking-[0.12em] leading-[1.8]">
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Buyer-Paid, Platform-Arranged Shipping</h2>
             <p>Shipping is calculated from the item's shipping category. By default the buyer pays it at checkout. If the seller chose to offer free shipping on a listing, the buyer pays nothing for shipping and that cost is deducted from the seller's payout instead.</p>

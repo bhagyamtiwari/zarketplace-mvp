@@ -446,7 +446,7 @@ function SellInner() {
       <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 lg:px-8 pt-10 sm:pt-16">
         <div className="mb-10 flex flex-col gap-4">
           <h1 className="text-5xl sm:text-6xl font-black tracking-tighter uppercase leading-none">Create Listing</h1>
-          <p className="text-xs font-black uppercase tracking-[0.3em] text-black/40">Six steps. No selling fees. You keep 100% of your price.</p>
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-black/40">Six steps, about 5 minutes. No selling fees. You keep 100% of your price.</p>
         </div>
 
         {/* Progress - every step is reachable directly; only Publish is gated */}
@@ -634,11 +634,12 @@ function TrustNote({ children }: { children: React.ReactNode }) {
   return <p className="text-xs font-bold uppercase tracking-widest text-black/50 leading-relaxed">{children}</p>;
 }
 
-// Longer explanatory copy (photo tips, payout terms, disclosures). Sentence
-// case at readable weight - uppercase tracking-widest becomes a legibility
-// tax past one short line.
+// Longer explanatory copy (photo tips, payout terms, disclosures). Same
+// uppercase tracked face as TrustNote so the form speaks in one voice, but set
+// in full black and with generous leading, since these are the lines a seller
+// actually has to read and act on.
 function InfoText({ children }: { children: React.ReactNode }) {
-  return <p className="text-sm font-medium text-black/70 leading-relaxed">{children}</p>;
+  return <p className="text-xs font-bold uppercase tracking-widest text-black leading-[1.9]">{children}</p>;
 }
 
 function PhotosStep({ imagePreviews, onAdd, onRemove }: {
@@ -839,7 +840,7 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
               className={cn('border p-5 text-left transition-all flex flex-col gap-1.5',
                 condition === c.name ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
               <span className="text-xs font-black uppercase tracking-widest">{c.name}</span>
-              <span className={cn('text-xs font-medium leading-relaxed', condition === c.name ? 'text-white/80' : 'text-black/70')}>{c.desc}</span>
+              <span className={cn('text-[11px] font-bold uppercase tracking-widest leading-[1.8]', condition === c.name ? 'text-white' : 'text-black')}>{c.desc}</span>
             </button>
           ))}
         </div>
@@ -871,7 +872,7 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
                 <textarea value={flawsDescription} onChange={(e) => setFlawsDescription(e.target.value)} rows={3}
                   placeholder="e.g. small stain on the left cuff, loose stitching on the hem"
                   className="border border-black/10 p-6 text-sm font-medium focus:border-black focus:outline-none resize-none transition-all placeholder:text-black/20" />
-                <InfoText>Add a close-up photo of the flaw in Photos. Undisclosed flaws are the most common cause of disputes.</InfoText>
+                <InfoText>Add a close-up photo of the flaw in Photos.<br />Undisclosed flaws are the most common cause of disputes.</InfoText>
               </div>
             </motion.div>
           )}
@@ -901,9 +902,11 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
             <input type="number" min="1" value={priceVal} onChange={(e) => setPriceVal(e.target.value)} placeholder="3500"
               className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20" />
             <TrustNote>
-              {freeShipping
-                ? 'No selling fees. Since you offer free shipping, the shipping cost is deducted from this price at payout.'
-                : 'You keep 100% of this price. No selling fees.'}
+              {freeShipping ? (
+                <>No selling fees.<br />Since you offer free shipping, the shipping cost is deducted from this price at payout.</>
+              ) : (
+                <>You keep 100% of this price.<br />No selling fees.</>
+              )}
             </TrustNote>
           </div>
           <div className="flex flex-col gap-3">
@@ -943,16 +946,20 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
                 heavier than the category implies, we may recover the difference
                 or flag the account - but never silently, and never without
                 telling the seller before their payout. */}
-            <InfoText>
-              <span className="text-black/50">*</span> Pick the category honestly. Couriers weigh and measure every parcel at their hub. If what you send is much heavier or larger than the category you chose, we may recover the difference from your payout or flag your account. Someone will contact you first, and you will always be told before your payout is affected.
-            </InfoText>
+            <TrustNote>
+              <span aria-hidden>*</span> Pick the category honestly. Couriers weigh and measure every parcel at their hub.
+              <br />
+              If what you send is much heavier or larger than the category you chose, we may recover the difference from your payout or flag your account.
+              <br />
+              Someone will contact you first, and you will always be told before your payout is affected.
+            </TrustNote>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {shippingCategories.map((c) => (
                 <button key={c.key} type="button" onClick={() => setShippingCategory(c.key)}
                   className={cn('border p-5 text-left transition-all',
                     shippingCategory === c.key ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
                   <span className="block text-xs font-black uppercase tracking-widest">{c.label}</span>
-                  <span className="block text-[11px] mt-1 opacity-60">
+                  <span className="block text-[10px] font-bold uppercase tracking-widest mt-1.5 opacity-70">
                     {freeShipping ? 'Free for buyer' : `Buyer pays ${formatCurrency(c.rate)}`}
                   </span>
                 </button>
@@ -966,8 +973,10 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
                 <span className="block text-xs font-black uppercase tracking-widest">
                   Offer free shipping <span className={cn(freeShipping ? 'text-white/60' : 'text-black/40')}>(Recommended)</span>
                 </span>
-                <span className={cn('block text-[11px] mt-1 max-w-md', freeShipping ? 'text-white/70' : 'text-black/50')}>
-                  Buyers are far more likely to buy when shipping shows as free at checkout. The {formatCurrency(selectedRate)} shipping cost is deducted from your payout instead, the same amount you'd pay to ship it yourself.
+                <span className={cn('block text-[11px] font-bold uppercase tracking-widest leading-[1.8] mt-2 max-w-md', freeShipping ? 'text-white' : 'text-black')}>
+                  Buyers are far more likely to buy when shipping shows as free at checkout.
+                  <br />
+                  The {formatCurrency(selectedRate)} shipping cost is deducted from your payout instead, the same amount you'd pay to ship it yourself.
                 </span>
               </div>
               <div className="relative inline-flex items-center shrink-0 mt-1">
@@ -1037,7 +1046,7 @@ function PayoutStep({
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
           <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Pickup Address</h3>
-          <InfoText>Where the courier collects the item from once it sells. We buy the label - you just pack it and hand it off.</InfoText>
+          <InfoText>Where the courier collects the item from once it sells.<br />We buy the label - you just pack it and hand it off.</InfoText>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-8">
           <div className="flex flex-col gap-3 sm:col-span-2">
@@ -1158,11 +1167,17 @@ function ReviewStep({
         </div>
         {authenticity === 'unsure' && (
           <div className="max-w-md">
-            <InfoText>Buyers will see this item's authenticity hasn't been confirmed. Mentioning proof of purchase in your description may help it sell.</InfoText>
+            <InfoText>Buyers will see this item's authenticity hasn't been confirmed.<br />Mentioning proof of purchase in your description may help it sell.</InfoText>
           </div>
         )}
         <div className="max-w-md">
-          <InfoText>Counterfeit listings are prohibited. Sellers are responsible for ensuring every item is genuine.<br />Repeat violations can lead to account suspension.</InfoText>
+          <InfoText>
+            Counterfeit items are not permitted on zarketplace.
+            <br />
+            By listing an item, you confirm that, to the best of your knowledge, it is genuine.
+            <br />
+            We reserve the right to remove listings, request proof of authenticity where appropriate, and suspend accounts that repeatedly violate this policy.
+          </InfoText>
         </div>
       </div>
 
@@ -1179,9 +1194,9 @@ function ReviewStep({
               <input type="checkbox" checked={declarations[d.key]}
                 onChange={(e) => setDeclarations((prev) => ({ ...prev, [d.key]: e.target.checked }))}
                 className="mt-0.5 h-4 w-4 accent-black shrink-0" />
-              {/* Sentence case at readable weight: these are attestations the
-                  seller is agreeing to, so they have to be easy to actually read. */}
-              <span className="text-sm font-medium text-black/70 leading-relaxed group-hover:text-black">{d.label}</span>
+              {/* Attestations the seller is agreeing to, so they carry the same
+                  weight and face as every other instruction in the form. */}
+              <span className="text-[11px] font-bold uppercase tracking-widest text-black leading-[1.8]">{d.label}</span>
             </label>
           ))}
         </div>

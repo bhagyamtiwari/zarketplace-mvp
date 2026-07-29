@@ -7,9 +7,9 @@ export function Returns() {
   useDocumentTitle('Returns');
 
   return (
-    <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
+    <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
       <Link to="/" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-12">
-        <ArrowLeft className="h-3 w-3" /> Back to Home
+        <ArrowLeft className="h-3 w-3" /> Back to zarketplace
       </Link>
 
       <motion.div
@@ -22,7 +22,7 @@ export function Returns() {
           <p className="text-sm font-black uppercase tracking-widest text-black">The process for sending an item back, and for cancelling before it ships</p>
         </div>
 
-        <div className="flex flex-col gap-10 text-black leading-relaxed text-sm font-medium uppercase tracking-widest">
+        <div className="flex flex-col gap-10 text-black text-sm font-medium uppercase tracking-[0.12em] leading-[1.8]">
           <p>Since most items sold on zarketplace are pre-owned, one-of-a-kind pieces, there is generally no physical return process: returns are not accepted simply because of a change of mind.</p>
 
           <section className="flex flex-col gap-4">
@@ -32,14 +32,14 @@ export function Returns() {
 
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">If You Need to Send an Item Back</h2>
-            <p>Review all photos, descriptions, and measurements carefully before buying. If you have questions about an item, contact the seller directly via the information on the product page.</p>
+            <p>Review all photos, descriptions, and measurements carefully before buying. If you have a question about an item before ordering, email us and we will put it to the seller: zarketplace does not publish seller contact details, and no sale is ever arranged in a DM.</p>
             <p>If your item arrives as the wrong item, or materially different from how it was listed, email us at <a href="mailto:contact@zarketplace.com" className="font-bold text-black underline">contact@zarketplace.com</a> within 48 hours of delivery with your order number and photos. Our support team will tell you whether to ship the item back, and where, before any refund is processed. Do not return an item before we've confirmed the return is approved.</p>
             <p>For what happens to your money once a return is approved, see our <Link to="/refund-policy" className="font-bold text-black underline">Refund Policy</Link>.</p>
           </section>
 
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Final Sale Items</h2>
-            <p>Items marked as Final Sale, as well as underwear, swimwear, personal-use items, and digital products, are not eligible for return or cancellation.</p>
+            <p>Items marked as Final Sale, as well as underwear, swimwear and other personal-use items, are not eligible for return or cancellation.</p>
           </section>
 
           <section className="flex flex-col gap-4">

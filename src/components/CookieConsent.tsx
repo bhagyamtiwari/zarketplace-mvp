@@ -1,5 +1,7 @@
-// Bottom consent bar. Reject actually disables Vercel Analytics/Speed
-// Insights (see src/lib/cookieConsent.ts + App.tsx) - it isn't decorative.
+// Bottom consent bar. Reject actually disables PostHog, Vercel Analytics and
+// Speed Insights (see src/lib/cookieConsent.ts + App.tsx) - it isn't
+// decorative. Copy here has to stay true to what the site really stores; the
+// matching detail lives in the Privacy page's browser-storage section.
 import * as React from 'react';
 import { Link } from 'react-router-dom';
 import { X } from 'lucide-react';
@@ -21,7 +23,7 @@ export function CookieConsent() {
             <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">Always on</span>
           </div>
           <p className="text-xs font-medium text-white/60 leading-relaxed -mt-2">
-            Required for sign-in, cart, and checkout to work. Cannot be disabled.
+            Your sign-in session, cart, saved items and checkout progress. Stored on this device, needed for the site to work at all.
           </p>
           <div className="flex items-center justify-between pt-2 border-t border-white/10">
             <span className="text-xs font-black uppercase tracking-widest">Analytics</span>
@@ -40,7 +42,7 @@ export function CookieConsent() {
             </button>
           </div>
           <p className="text-xs font-medium text-white/60 leading-relaxed -mt-2">
-            Anonymous, aggregated page views. Helps us see what's working.
+            Which pages get used and where people drop off, under a random ID. Reject and the script is never loaded.
           </p>
           <button
             type="button"
@@ -54,10 +56,13 @@ export function CookieConsent() {
 
       <div className="px-4 sm:px-6 lg:px-8 py-5 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
         <p className="text-xs font-medium text-white/70 leading-relaxed flex-1">
-          We use cookies for essential site function (sign-in, checkout) and, if you allow it, anonymous analytics.
+          We store a few things in your browser to keep you signed in and your cart intact, and,
+          only if you allow it, anonymous analytics. No advertising or cross-site tracking, ever.
           See our <Link to="/privacy" className="underline text-white hover:text-white/80">Privacy Policy</Link>.
         </p>
-        <div className="flex items-center gap-3 shrink-0">
+        {/* Wraps on a phone: four controls in one non-shrinking row used to run
+            off the side of the screen. */}
+        <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap sm:shrink-0">
           <button
             type="button"
             onClick={() => setSettingsOpen((v) => !v)}

@@ -7,9 +7,9 @@ export function RefundPolicy() {
   useDocumentTitle('Refund Policy');
 
   return (
-    <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
+    <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
       <Link to="/" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-12">
-        <ArrowLeft className="h-3 w-3" /> Back to Home
+        <ArrowLeft className="h-3 w-3" /> Back to zarketplace
       </Link>
 
       <motion.div
@@ -22,7 +22,7 @@ export function RefundPolicy() {
           <p className="text-sm font-black uppercase tracking-widest text-black">When you get your money back, and how long it takes</p>
         </div>
 
-        <div className="flex flex-col gap-10 text-black leading-relaxed text-sm font-medium uppercase tracking-widest">
+        <div className="flex flex-col gap-10 text-black text-sm font-medium uppercase tracking-[0.12em] leading-[1.8]">
           <p>This page covers what happens to your money. For the process of cancelling an order or flagging an item to send back, see our <Link to="/returns" className="font-bold text-black underline">Returns</Link> page.</p>
 
           <section className="flex flex-col gap-4">

@@ -2,8 +2,7 @@ import { useEffect, type ReactNode } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
-import { Home } from './pages/Home';
-import { Browse } from './pages/Browse';
+import { Marketplace } from './pages/Marketplace';
 import { ProductPage } from './pages/ProductPage';
 import { Sell } from './pages/Sell';
 import { Admin } from './pages/Admin';
@@ -86,8 +85,11 @@ export default function App() {
         <main>
           <RoutedErrorBoundary>
           <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/browse" element={<Browse />} />
+            {/* Home *is* browse. Both paths render the same feed so existing
+                /browse links (and every filter query string on them) keep
+                working, with no "landing page" in between. */}
+            <Route path="/" element={<Marketplace />} />
+            <Route path="/browse" element={<Marketplace />} />
             <Route path="/product/:id" element={<ProductPage />} />
             <Route path="/item/:sku" element={<ProductPage />} />
             <Route path="/sell" element={<Sell />} />

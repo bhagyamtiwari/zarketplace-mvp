@@ -7,9 +7,9 @@ export function BuyerProtection() {
   useDocumentTitle('Buyer Protection');
 
   return (
-    <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
+    <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
       <Link to="/" className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-black hover:text-black/80 mb-8 lg:mb-12">
-        <ArrowLeft className="h-3 w-3" /> Back to Home
+        <ArrowLeft className="h-3 w-3" /> Back to zarketplace
       </Link>
 
       <div className="flex flex-col">
@@ -24,7 +24,7 @@ export function BuyerProtection() {
           <p className="text-sm font-black uppercase tracking-widest text-black">Every order is protected, so buying from a stranger feels as safe as buying from a store</p>
         </div>
 
-        <div className="flex flex-col gap-10 text-black leading-relaxed text-sm font-medium uppercase tracking-widest">
+        <div className="flex flex-col gap-10 text-black text-sm font-medium uppercase tracking-[0.12em] leading-[1.8]">
           <p>Buyer Protection is added to every purchase at checkout, shown as its own line so you always know what you are paying for. It is what lets you buy from an individual seller without the risks of a DM sale.</p>
 
           <section className="flex flex-col gap-4">

@@ -265,7 +265,7 @@ export function ProductPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-28 sm:pb-20">
       <Link to="/browse" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-6 sm:mb-10">
-        <ArrowLeft className="h-3 w-3" /> Back to Browse
+        <ArrowLeft className="h-3 w-3" /> Back to zarketplace
       </Link>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16">
