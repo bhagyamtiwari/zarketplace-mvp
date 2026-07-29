@@ -663,8 +663,12 @@ function HeroBanner() {
               key={s.n}
               className="snap-start shrink-0 w-[80%] sm:w-auto border border-white/30 bg-black/25 backdrop-blur-md p-4 sm:p-5 flex flex-col gap-1.5 sm:gap-2"
             >
-              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/50">{s.n}</span>
-              <h2 className="text-sm font-black uppercase tracking-widest">{s.title}</h2>
+              {/* Number and title share one line; baseline-aligned so the small
+                  number sits on the same line as the larger title. */}
+              <h2 className="flex items-baseline gap-2.5 text-sm font-black uppercase tracking-widest">
+                <span className="text-[10px] tracking-[0.3em] text-white/50">{s.n}</span>
+                {s.title}
+              </h2>
               <p className="text-[11px] font-bold uppercase tracking-widest leading-relaxed text-white/75">{s.body}</p>
             </div>
           ))}
