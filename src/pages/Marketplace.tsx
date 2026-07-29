@@ -94,7 +94,7 @@ function applyDevFilters(
 }
 
 export function Marketplace() {
-  useDocumentTitle('Buy & sell pre-owned fashion');
+  useDocumentTitle('buy & sell pre-owned fashion');
 
   const [searchParams, setSearchParams] = useSearchParams();
   const favorites = useFavorites();
@@ -604,37 +604,41 @@ function HeroBanner() {
 
   if (dismissed) return null;
 
-  const steps: Array<{ n: string; title: string; body: string }> = [
+  // Two lengths of the same three promises. A phone gets the short form - the
+  // long one turns each card into a paragraph nobody reads on a 375px screen -
+  // and the full sentence appears once there is room for it.
+  const steps: Array<{ n: string; title: string; short: string; body: string }> = [
     {
       n: '01',
       title: 'Transparent pricing',
+      short: 'Everything upfront.',
       body: 'Price, size and condition upfront. No DM for price. Sold items leave the feed, so you never scroll past something you cannot buy.',
     },
     {
       n: '02',
       title: 'Buyer protection',
+      short: 'Pay with confidence.',
       body: 'Your money is held until the item reaches you. Not as described and you are covered. The seller is paid once it lands.',
     },
     {
       n: '03',
-      title: 'Sell with zero fees',
+      title: 'Zero selling fees',
+      short: 'Keep 100% of your sale.',
       body: 'List for free and keep 100% of your price. Pickup from your door and delivery to the buyer are handled for you.',
     },
   ];
 
   return (
     <section className="relative isolate overflow-hidden bg-black text-white">
-      {/* One banner, not a photo block with a panel bolted under it. The image
-          is a background layer either way; only how it is fitted changes.
-          Mobile pins it to the top at full width (100% auto), so the face and
-          the gravestone both survive - cover-cropping a 2.33:1 photo into a
-          tall phone container would throw both away. Desktop covers normally. */}
+      {/* One banner: the image covers it edge to edge at every width. A 2.33:1
+          photo in a tall phone container has to lose one side, so it anchors
+          left and keeps the figure rather than centring on empty ground. */}
       <div
         aria-hidden
-        className="absolute inset-0 bg-no-repeat bg-top bg-[length:100%_auto] sm:bg-cover opacity-80 sm:opacity-70"
+        className="absolute inset-0 bg-cover bg-no-repeat bg-left sm:bg-top opacity-70"
         style={{ backgroundImage: 'url(/images/new-banner3-web.jpg)' }}
       />
-      <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/75 to-black sm:bg-gradient-to-t sm:from-black sm:via-black/70 sm:to-black/50" />
+      <div aria-hidden className="absolute inset-0 bg-black/45 sm:bg-transparent sm:bg-gradient-to-t sm:from-black sm:via-black/70 sm:to-black/50" />
 
       {/* Minimal dismiss: just the glyph, no chip behind it. */}
       <button
@@ -646,7 +650,7 @@ function HeroBanner() {
         <X className="h-5 w-5" strokeWidth={1.5} />
       </button>
 
-      <div className="relative mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 pt-[38vw] pb-6 sm:py-10 flex flex-col items-center gap-5 sm:gap-6 text-center">
+      <div className="relative mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-8 sm:py-10 flex flex-col items-center gap-5 sm:gap-6 text-center">
         {/* Centred lockup: mark over the one-line description. */}
         <h1 className="flex flex-col items-center gap-2 sm:gap-3">
           {/* Inert: it is a brand mark, not a control. No drag, no selection,
@@ -681,7 +685,10 @@ function HeroBanner() {
                 <span className="text-[10px] tracking-[0.3em] text-white/50">{s.n}</span>
                 {s.title}
               </h2>
-              <p className="text-[11px] font-bold uppercase tracking-widest leading-relaxed text-white/75">{s.body}</p>
+              <p className="text-[11px] font-bold uppercase tracking-widest leading-relaxed text-white/75">
+                <span className="sm:hidden">{s.short}</span>
+                <span className="hidden sm:inline">{s.body}</span>
+              </p>
             </div>
           ))}
         </div>
