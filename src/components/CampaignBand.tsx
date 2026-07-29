@@ -40,11 +40,14 @@ export function CampaignBand({ image, heading, script, body, cta, align = 'left'
       <div
         className={cn(
           'relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-16 sm:py-24',
-          'flex flex-col gap-6 md:flex-row md:items-center md:justify-between md:gap-12',
+          // Centred on a phone, where a single column looks adrift when it is
+          // left-aligned against a full-bleed photograph.
+          'flex flex-col items-center text-center gap-6',
+          'md:flex-row md:items-center md:justify-between md:gap-12 md:text-left',
           align === 'right' && 'md:flex-row-reverse',
         )}
       >
-        <div className={cn('flex flex-col gap-3', align === 'right' && 'md:text-right md:items-end')}>
+        <div className={cn('flex flex-col items-center gap-3 md:items-start', align === 'right' && 'md:text-right md:items-end')}>
           <div className="flex flex-col gap-1">
             <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tighter leading-[0.88]">
               {heading}
@@ -66,7 +69,7 @@ export function CampaignBand({ image, heading, script, body, cta, align = 'left'
         {cta && (
           <Link
             to={cta.to}
-            className="shrink-0 self-start md:self-auto border border-white bg-white px-8 py-4 text-[10px] font-black uppercase tracking-[0.3em] text-black hover:bg-transparent hover:text-white transition-colors"
+            className="shrink-0 self-center md:self-auto border border-white bg-white px-8 py-4 text-[10px] font-black uppercase tracking-[0.3em] text-black hover:bg-transparent hover:text-white transition-colors"
           >
             {cta.label}
           </Link>

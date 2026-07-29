@@ -151,7 +151,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                 </h2>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-black/50">
                   {message ?? (mode === 'signup'
-                    ? 'Email and password. No socials, no phone.'
+                    ? 'Email and password.'
                     : mode === 'forgot'
                     ? "Enter your email and we'll send you a reset link."
                     : 'Sign in with your email and password.')}
@@ -193,7 +193,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
                     autoComplete="email"
-                    className="flex-1 py-4 text-sm font-bold focus:outline-none placeholder:text-black/20"
+                    className="flex-1 py-4 text-sm font-bold focus:outline-none placeholder:text-xs placeholder:font-medium placeholder:tracking-widest placeholder:uppercase placeholder:text-black/25"
                   />
                 </div>
                 {email && !emailValid && (
@@ -224,7 +224,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder={mode === 'signup' ? 'At least 10 characters, a letter and a digit' : '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022'}
                       autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-                      className="flex-1 py-4 text-sm font-bold focus:outline-none placeholder:text-black/20"
+                      className="flex-1 py-4 text-sm font-bold focus:outline-none placeholder:text-xs placeholder:font-medium placeholder:tracking-widest placeholder:uppercase placeholder:text-black/25"
                     />
                   </div>
                   {mode === 'signup' && password && !passwordValid && (
@@ -247,7 +247,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Retype password"
                       autoComplete="new-password"
-                      className="flex-1 py-4 text-sm font-bold focus:outline-none placeholder:text-black/20"
+                      className="flex-1 py-4 text-sm font-bold focus:outline-none placeholder:text-xs placeholder:font-medium placeholder:tracking-widest placeholder:uppercase placeholder:text-black/25"
                     />
                   </div>
                   {confirmPassword && !confirmValid && (
@@ -283,8 +283,8 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                 </button>
               ) : (
                 <p className="text-[9px] font-bold uppercase tracking-widest text-black/30 text-center leading-relaxed">
-                  By continuing you agree to zarketplace's terms.<br />
-                  Same account works for buying and selling.
+                  By continuing, you agree to the zarketplace Terms.<br />
+                  One account for buying &amp; selling.
                 </p>
               )}
             </form>

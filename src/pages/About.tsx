@@ -41,7 +41,7 @@ export function About() {
             {/* Copy fills its box rather than stopping short of the right edge:
                 inside a bounded panel the panel is the measure. */}
             <div className="bg-black text-white p-6 sm:p-10">
-              <p className="text-sm font-medium uppercase tracking-[0.12em] leading-[1.8]">
+              <p className="body-copy">
                 India's resale market existed but was fragmented. Transactions shadily happened
                 through Instagram DMs and WhatsApp groups, with hidden prices, no buyer protection,
                 and no secure way to get paid. zarketplace brings it all into one trusted platform
@@ -64,7 +64,7 @@ export function About() {
                 ].map((step, i) => (
                   <li key={i} className="flex gap-4">
                     <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.3em] text-black/30 pt-1">0{i + 1}</span>
-                    <span className="text-[11px] font-bold uppercase tracking-[0.12em] leading-[1.7]">{step}</span>
+                    <span className="body-copy">{step}</span>
                   </li>
                 ))}
               </ol>
@@ -84,7 +84,7 @@ export function About() {
                 ].map((step, i) => (
                   <li key={i} className="flex gap-4">
                     <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.3em] text-white/30 pt-1">0{i + 1}</span>
-                    <span className="text-[11px] font-bold uppercase tracking-[0.12em] leading-[1.7]">{step}</span>
+                    <span className="body-copy">{step}</span>
                   </li>
                 ))}
               </ol>
@@ -112,7 +112,7 @@ export function About() {
                 >
                   <Icon className="h-6 w-6 shrink-0" />
                   <h3 className="text-sm font-black uppercase tracking-widest">{title}</h3>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.12em] leading-[1.7] text-black/50">{body}</p>
+                  <p className="body-copy text-black/50">{body}</p>
                   <span className="mt-auto pt-3 text-[10px] font-black uppercase tracking-[0.25em] text-black/30 group-hover:text-black">
                     Read the policy
                   </span>
@@ -127,7 +127,7 @@ export function About() {
       <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 flex flex-col gap-6 sm:gap-8">
         <section className="flex flex-col gap-4 bg-zinc-50 p-6 sm:p-10 border border-black/5">
           <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight">The market exists</h2>
-          <p className="text-sm font-medium uppercase tracking-[0.12em] leading-[1.8]">
+          <p className="body-copy">
             India's secondhand apparel market is worth roughly $3.5 billion and growing over 13% a year.
             {' '}
             <a
@@ -139,16 +139,16 @@ export function About() {
               (UniVDatos, 2025)
             </a>
             {' '}
-            The demand is already here. What's missing is infrastructure, not appetite.
+            People are already buying and selling this way. What they do not have is a safe place to do it.
           </p>
         </section>
 
         <section className="flex flex-col gap-4 bg-black text-white p-6 sm:p-10">
           <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight">Why it matters</h2>
-          <p className="text-sm font-medium uppercase tracking-[0.12em] leading-[1.8]">
-            Every sale on zarketplace keeps a garment in circulation instead of a landfill. At scale,
-            that's not a footnote - it's the point. The future of fashion isn't only what gets made.
-            It's what gets kept in use.
+          <p className="body-copy">
+            Fashion is one of the dirtiest industries on the planet, and most of what it makes ends up
+            in a landfill within a year. Every item resold here is one that stays in use instead. That
+            is the whole reason we built this.
           </p>
         </section>
 
@@ -166,7 +166,7 @@ export function About() {
           </div>
         </section>
 
-        <p className="text-xs font-medium uppercase tracking-widest text-black/40">
+        <p className="text-center text-xs font-medium uppercase tracking-widest text-black/40">
           zarketplace is an ADNIZ Private Limited project.
         </p>
       </div>

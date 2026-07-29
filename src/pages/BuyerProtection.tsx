@@ -24,7 +24,7 @@ export function BuyerProtection() {
           <p className="text-sm font-black uppercase tracking-widest text-black">Every order is protected, so buying from a stranger feels as safe as buying from a store</p>
         </div>
 
-        <div className="flex flex-col gap-10 text-black text-sm font-medium uppercase tracking-[0.12em] leading-[1.8]">
+        <div className="flex flex-col gap-10 text-black body-copy">
           <p>Buyer Protection is added to every purchase at checkout, shown as its own line so you always know what you are paying for. It is what lets you buy from an individual seller without the risks of a DM sale.</p>
 
           <section className="flex flex-col gap-4">

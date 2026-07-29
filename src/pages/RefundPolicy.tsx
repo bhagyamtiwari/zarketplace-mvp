@@ -22,7 +22,7 @@ export function RefundPolicy() {
           <p className="text-sm font-black uppercase tracking-widest text-black">When you get your money back, and how long it takes</p>
         </div>
 
-        <div className="flex flex-col gap-10 text-black text-sm font-medium uppercase tracking-[0.12em] leading-[1.8]">
+        <div className="flex flex-col gap-10 text-black body-copy">
           <p>This page covers what happens to your money. For the process of cancelling an order or flagging an item to send back, see our <Link to="/returns" className="font-bold text-black underline">Returns</Link> page.</p>
 
           <section className="flex flex-col gap-4">

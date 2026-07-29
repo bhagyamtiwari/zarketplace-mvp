@@ -81,7 +81,7 @@ export function UpiVpaInput({ value, onChange, disabled }: Props) {
       <div className="flex items-start gap-3 bg-zinc-50 border border-black/5 p-4">
         <Info className="h-3.5 w-3.5 text-black/30 mt-0.5 shrink-0" />
         <p className="text-xs font-bold uppercase tracking-widest leading-relaxed text-black/60">
-          UPI ID and Instagram are locked to this listing once submitted.<br />Make sure they're correct - we can't change them later.
+          UPI ID and Instagram lock once submitted.<br />Check them now. We can't change them later.
         </p>
       </div>
     </div>

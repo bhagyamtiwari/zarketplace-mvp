@@ -22,7 +22,7 @@ export function SellerPolicy() {
           <p className="text-sm font-black uppercase tracking-widest text-black">What's expected of every seller on zarketplace</p>
         </div>
 
-        <div className="flex flex-col gap-10 text-black text-sm font-medium uppercase tracking-[0.12em] leading-[1.8]">
+        <div className="flex flex-col gap-10 text-black body-copy">
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Accurate Descriptions</h2>
             <p>Listings must accurately reflect the item's condition, size, measurements, and any flaws. Misrepresenting an item is grounds for removal from the platform.</p>

@@ -22,7 +22,7 @@ export function Privacy() {
           <p className="text-sm font-black uppercase tracking-widest text-black">Last updated: July 29, 2026</p>
         </div>
 
-        <div className="flex flex-col gap-10 text-black text-sm font-medium uppercase tracking-[0.12em] leading-[1.8]">
+        <div className="flex flex-col gap-10 text-black body-copy">
           <p>This Privacy Policy explains how zarketplace ("we", "us", or "our") collects, uses, and shares your personal information when you use our services, including visiting zarketplace.com or contacting us. By using our site or services, you agree to this policy. If you disagree, please don’t use our services. We may update this policy from time to time, and the latest version will always be on our site with the updated date.</p>
 
           <section className="flex flex-col gap-4">

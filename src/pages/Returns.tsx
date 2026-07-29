@@ -22,7 +22,7 @@ export function Returns() {
           <p className="text-sm font-black uppercase tracking-widest text-black">The process for sending an item back, and for cancelling before it ships</p>
         </div>
 
-        <div className="flex flex-col gap-10 text-black text-sm font-medium uppercase tracking-[0.12em] leading-[1.8]">
+        <div className="flex flex-col gap-10 text-black body-copy">
           <p>Since most items sold on zarketplace are pre-owned, one-of-a-kind pieces, there is generally no physical return process: returns are not accepted simply because of a change of mind.</p>
 
           <section className="flex flex-col gap-4">

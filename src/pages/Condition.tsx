@@ -24,7 +24,7 @@ export function Condition() {
         <div className="flex flex-col gap-4">
           <h1 className="text-5xl font-black tracking-tighter uppercase">Conditions Guide</h1>
           <p className="text-sm font-black uppercase tracking-widest text-black">How every piece is graded</p>
-          <p className="text-sm font-medium uppercase tracking-widest leading-relaxed text-black/60">
+          <p className="body-copy text-black/60">
             Every item is listed under one of five condition tiers. This allows for complete transparency so you know exactly what you're getting.
           </p>
         </div>
@@ -45,7 +45,10 @@ export function Condition() {
                 idx === CONDITIONS.length - 1 && CONDITIONS.length % 2 === 1 && 'sm:col-span-2'
               )}
             >
-              <h2 className="text-lg font-black uppercase tracking-tight text-black">{c.name}</h2>
+              <h2 className="flex items-baseline gap-2.5 text-lg font-black uppercase tracking-tight text-black">
+                {c.name}
+                <span className="text-xs tracking-[0.2em] text-black/40">{c.grade}</span>
+              </h2>
               <p className="text-xs font-medium uppercase tracking-widest leading-relaxed text-black/60">{c.desc}</p>
             </div>
           ))}

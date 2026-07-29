@@ -4,7 +4,7 @@
 // matching detail lives in the Privacy page's browser-storage section.
 import * as React from 'react';
 import { Link } from 'react-router-dom';
-import { X } from 'lucide-react';
+import { SlidersHorizontal } from 'lucide-react';
 import { useConsent } from '../lib/cookieConsent';
 
 export function CookieConsent() {
@@ -17,12 +17,12 @@ export function CookieConsent() {
   return (
     <div className="fixed bottom-0 inset-x-0 z-[60] bg-black text-white border-t border-white/10">
       {settingsOpen && (
-        <div className="border-b border-white/10 px-4 sm:px-6 lg:px-8 py-5 flex flex-col gap-4 max-w-3xl">
+        <div className="border-b border-white/10 px-4 sm:px-6 lg:px-8 py-5 flex flex-col gap-4 max-w-3xl mx-auto sm:mx-0">
           <div className="flex items-center justify-between">
             <span className="text-xs font-black uppercase tracking-widest">Essential</span>
             <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">Always on</span>
           </div>
-          <p className="text-xs font-medium text-white/60 leading-relaxed -mt-2">
+          <p className="body-copy text-white/60 -mt-2">
             Your sign-in session, cart, saved items and checkout progress. Stored on this device, needed for the site to work at all.
           </p>
           <div className="flex items-center justify-between pt-2 border-t border-white/10">
@@ -41,56 +41,56 @@ export function CookieConsent() {
               />
             </button>
           </div>
-          <p className="text-xs font-medium text-white/60 leading-relaxed -mt-2">
+          <p className="body-copy text-white/60 -mt-2">
             Which pages get used and where people drop off, under a random ID. Reject and the script is never loaded.
           </p>
           <button
             type="button"
             onClick={() => setConsent(analyticsOn ? 'accepted' : 'rejected')}
-            className="self-start bg-white px-5 py-3 text-[11px] font-black uppercase tracking-widest text-black hover:bg-white/90 transition-colors"
+            className="self-start bg-white px-5 py-3 text-[10px] font-black uppercase tracking-widest text-black hover:bg-white/90 transition-colors"
           >
             Save Preferences
           </button>
         </div>
       )}
 
-      <div className="px-4 sm:px-6 lg:px-8 py-5 flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8">
-        <p className="text-xs font-medium text-white/70 leading-relaxed flex-1">
-          We store a few things in your browser to keep you signed in and your cart intact, and,
-          only if you allow it, anonymous analytics. No advertising or cross-site tracking, ever.
-          See our <Link to="/privacy" className="underline text-white hover:text-white/80">Privacy Policy</Link>.
+      <div className="px-4 sm:px-6 lg:px-8 py-3.5 sm:py-4 flex flex-col items-center gap-3 text-center sm:flex-row sm:items-center sm:gap-8 sm:text-left">
+        {/* Short form on a phone: five lines of consent copy over the fold is
+            its own dark pattern. The full wording stays where there is room,
+            and both link to the policy that spells it out. */}
+        <p className="body-copy text-white/70 flex-1">
+          <span className="sm:hidden">
+            Browser storage keeps you signed in. Analytics only if you allow it.{' '}
+            <Link to="/privacy" className="underline text-white">Privacy Policy</Link>.
+          </span>
+          <span className="hidden sm:inline">
+            We store a few things in your browser to keep you signed in and your cart intact, and,
+            only if you allow it, anonymous analytics. No advertising or cross-site tracking, ever.
+            See our <Link to="/privacy" className="underline text-white hover:text-white/80">Privacy Policy</Link>.
+          </span>
         </p>
-        {/* Wraps on a phone: four controls in one non-shrinking row used to run
-            off the side of the screen. */}
-        <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap sm:shrink-0">
-          <button
-            type="button"
-            onClick={() => setSettingsOpen((v) => !v)}
-            className="text-[11px] font-black uppercase tracking-widest text-white/60 hover:text-white underline underline-offset-4"
-          >
-            Cookie Settings
-          </button>
-          <button
-            type="button"
-            onClick={() => setConsent('rejected')}
-            className="border border-white/30 px-5 py-3 text-[11px] font-black uppercase tracking-widest text-white hover:border-white transition-colors"
-          >
-            Reject All
-          </button>
+        <div className="flex w-full items-center justify-center gap-2.5 sm:w-auto sm:shrink-0">
           <button
             type="button"
             onClick={() => setConsent('accepted')}
-            className="bg-white px-5 py-3 text-[11px] font-black uppercase tracking-widest text-black hover:bg-white/90 transition-colors"
+            className="flex-1 sm:flex-none bg-white px-5 py-3 text-[10px] font-black uppercase tracking-widest text-black hover:bg-white/90 transition-colors"
           >
-            Accept All Cookies
+            Accept all cookies
           </button>
           <button
             type="button"
             onClick={() => setConsent('rejected')}
-            aria-label="Dismiss"
-            className="text-white/40 hover:text-white sm:hidden"
+            className="flex-1 sm:flex-none border border-white/30 px-5 py-3 text-[10px] font-black uppercase tracking-widest text-white hover:border-white transition-colors"
           >
-            <X className="h-4 w-4" />
+            Only essential
+          </button>
+          <button
+            type="button"
+            onClick={() => setSettingsOpen((v) => !v)}
+            aria-label="Cookie settings"
+            className="shrink-0 p-2 text-white/50 hover:text-white transition-colors"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
           </button>
         </div>
       </div>

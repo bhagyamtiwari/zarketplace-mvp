@@ -22,7 +22,7 @@ export function Terms() {
           <p className="text-sm font-black uppercase tracking-widest text-black">The basics of using zarketplace</p>
         </div>
 
-        <div className="flex flex-col gap-10 text-black text-sm font-medium uppercase tracking-[0.12em] leading-[1.8]">
+        <div className="flex flex-col gap-10 text-black body-copy">
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">What zarketplace Is</h2>
             <p>zarketplace is a peer-to-peer (P2P/C2C) marketplace for pre-owned and one-of-one fashion. We connect individual buyers and sellers; we are not the seller of record for any listing.</p>

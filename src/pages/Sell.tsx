@@ -438,7 +438,7 @@ function SellInner() {
   }
 
   return (
-    <div className="flex flex-col pb-28 sm:pb-0">
+    <div className="flex flex-col">
       <div className="pt-20">
         <PromiseBanner variant="ticker" />
       </div>
@@ -582,8 +582,10 @@ function SellInner() {
         <div className="hidden sm:block mt-10 pt-10 border-t border-black/5" />
       </div>
 
-      {/* Sticky mobile nav */}
-      <div className="sm:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-black/10 px-4 py-4 flex items-center gap-3">
+      {/* Mobile step nav. Sits at the end of the step rather than riding the
+          scroll: a bar pinned over the form eats screen on a phone and covers
+          the field you are typing into. */}
+      <div className="sm:hidden mx-auto w-full max-w-3xl border-t border-black/10 px-4 py-6 flex items-center gap-3">
         {step > 0 && (
           <button type="button" onClick={goBack}
             className="shrink-0 h-14 w-14 flex items-center justify-center border border-black/20 text-black">
@@ -839,7 +841,10 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
             <button key={c.name} type="button" onClick={() => setCondition(c.name)}
               className={cn('border p-5 text-left transition-all flex flex-col gap-1.5',
                 condition === c.name ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
-              <span className="text-xs font-black uppercase tracking-widest">{c.name}</span>
+              <span className="flex items-baseline gap-2 text-xs font-black uppercase tracking-widest">
+                {c.name}
+                <span className={cn('text-[10px] tracking-[0.2em]', condition === c.name ? 'text-white/60' : 'text-black/40')}>{c.grade}</span>
+              </span>
               <span className={cn('text-[11px] font-bold uppercase tracking-widest leading-[1.8]', condition === c.name ? 'text-white' : 'text-black')}>{c.desc}</span>
             </button>
           ))}
@@ -935,7 +940,7 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
           <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Shipping</h3>
-          <InfoText>Pick the category closest to your item. Rates are set by typical weight and package size for that category, so heavier items cost more to ship.<br />We buy the label once it sells - you just hand it off at pickup.</InfoText>
+          <InfoText>Pick the category closest to your item. Heavier and bigger costs more.<br />We buy the label. You just hand it off at pickup.</InfoText>
         </div>
         {shippingCategories.length === 0 ? (
           <p className="text-xs font-bold uppercase tracking-widest text-black/30">Loading categories…</p>
@@ -947,11 +952,11 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
                 or flag the account - but never silently, and never without
                 telling the seller before their payout. */}
             <TrustNote>
-              <span aria-hidden>*</span> Pick the category honestly. Couriers weigh and measure every parcel at their hub.
+              <span aria-hidden>*</span> Pick honestly. Couriers weigh every parcel at the hub.
               <br />
-              If what you send is much heavier or larger than the category you chose, we may recover the difference from your payout or flag your account.
+              Send something much heavier and we may recover the difference from your payout.
               <br />
-              Someone will contact you first, and you will always be told before your payout is affected.
+              We will always contact you first.
             </TrustNote>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {shippingCategories.map((c) => (
@@ -1046,7 +1051,7 @@ function PayoutStep({
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
           <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Pickup Address</h3>
-          <InfoText>Where the courier collects the item from once it sells.<br />We buy the label - you just pack it and hand it off.</InfoText>
+          <InfoText>Where the courier collects once it sells.<br />Pack it, hand it off. We cover the label.</InfoText>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-8">
           <div className="flex flex-col gap-3 sm:col-span-2">
@@ -1080,7 +1085,7 @@ function PayoutStep({
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
           <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Payout</h3>
-          <InfoText>We pay this UPI ID once the order is delivered and the 48-hour review window closes.<br />Use the same ID you'd share on GPay, PhonePe, or Paytm.<br />Type it twice to catch typos.</InfoText>
+          <InfoText>Paid here once delivered and the 48-hour review window closes.<br />Same ID you'd use on GPay, PhonePe or Paytm.<br />Typed twice to catch typos.</InfoText>
         </div>
         <React.Fragment key={vpaPrefilled ? 'prefilled' : 'empty'}>
           <UpiVpaInput value={vpa} onChange={onVpaChange} />
@@ -1117,7 +1122,7 @@ function ReviewStep({
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
           <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Review</h3>
-          <TrustNote>This is what buyers will see. Go back to any step to edit.</TrustNote>
+          <TrustNote>What buyers will see. Go back to any step to edit.</TrustNote>
         </div>
 
         <div className="flex gap-5 p-6 bg-zinc-50 border border-black/5">
@@ -1172,11 +1177,11 @@ function ReviewStep({
         )}
         <div className="max-w-md">
           <InfoText>
-            Counterfeit items are not permitted on zarketplace.
+            Counterfeits are not permitted on zarketplace.
             <br />
-            By listing an item, you confirm that, to the best of your knowledge, it is genuine.
+            Listing an item confirms it is genuine as far as you know.
             <br />
-            We reserve the right to remove listings, request proof of authenticity where appropriate, and suspend accounts that repeatedly violate this policy.
+            We can remove listings, ask for proof, and suspend repeat offenders.
           </InfoText>
         </div>
       </div>
@@ -1185,7 +1190,9 @@ function ReviewStep({
         <div className="flex flex-col gap-1">
           <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Before You Publish</h3>
           <InfoText>
-            Confirm all five to publish. {declaredCount} of {DECLARATION_ITEMS.length} confirmed.
+            Confirm all five to publish.
+            <br />
+            {declaredCount} of {DECLARATION_ITEMS.length} confirmed.
           </InfoText>
         </div>
         <div className="flex flex-col gap-3">

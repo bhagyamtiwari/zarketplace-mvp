@@ -26,6 +26,15 @@
 }
 
 @layer utilities {
+  /* One body-copy voice for the whole site. Matches the Conditions Guide,
+     which is the reference: 12px, medium, uppercase, wide tracking, relaxed
+     leading. Every long-form page and panel uses this rather than inventing
+     its own size, so nothing reads a step larger or tighter than its
+     neighbour. */
+  .body-copy {
+    @apply text-xs font-medium uppercase tracking-widest leading-relaxed;
+  }
+
   .bg-gradient-dark {
     background: linear-gradient(180deg, #000000 0%, #1a1a1a 100%);
   }

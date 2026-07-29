@@ -27,6 +27,8 @@ interface ToggleProps {
   active: boolean;
   onClick: () => void;
   children: React.ReactNode;
+  /** Small corner flag, e.g. "New" on a freshly added filter. */
+  tag?: string;
 }
 
 // Neutralize PostgREST-significant characters before interpolating a user search
@@ -55,9 +57,9 @@ const ALL_SIZES = ['XXS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '28', '30', '
 
 // Discovery chips. These are shortcuts into the same filter surface, not
 // marketing sections - each one is a query anyone could have built by hand.
-const QUICK_CHIPS: Array<{ value: string; label: string }> = [
+const QUICK_CHIPS: Array<{ value: string; label: string; tag?: string }> = [
   { value: 'new_today', label: 'New today' },
-  { value: 'under_999', label: 'Under Rs. 999' },
+  { value: 'under_999', label: 'Under Rs. 999', tag: 'New' },
   { value: 'free_shipping', label: 'Free shipping' },
   { value: 'sale', label: 'On sale' },
 ];
@@ -313,9 +315,9 @@ export function Marketplace() {
               </button>
             </div>
 
-            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 lg:mx-0 lg:px-0 lg:justify-end">
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 py-2 -my-2 lg:mx-0 lg:px-0 lg:justify-end">
               {QUICK_CHIPS.map((c) => (
-                <Chip key={c.value} active={quick === c.value} onClick={() => toggleParam('q', c.value)}>
+                <Chip key={c.value} active={quick === c.value} onClick={() => toggleParam('q', c.value)} tag={c.tag}>
                   {c.label}
                 </Chip>
               ))}
@@ -540,11 +542,11 @@ export function Marketplace() {
           group, so they read as one block rather than three cards. */}
       <div className="flex flex-col">
         <CampaignBand
-          image="/images/resale-web.jpg"
-          heading="Good clothes deserve"
-          script="another life."
-          body="Resellers, Instagram thrift stores and everyday sellers, all in one place."
-          cta={{ label: 'What is zarketplace', to: '/about' }}
+          image="/images/boots-web.jpg"
+          heading="Reduce waste,"
+          script="buy pre-loved."
+          body="Keep clothes in circulation and out of landfills."
+          cta={{ label: 'See what is listed', to: '/' }}
         />
         <CampaignBand
           image="/images/red2-web.jpg"
@@ -555,11 +557,11 @@ export function Marketplace() {
           align="right"
         />
         <CampaignBand
-          image="/images/boots-web.jpg"
-          heading="Reduce waste,"
-          script="buy pre-loved."
-          body="Keep clothes in circulation and out of landfills."
-          cta={{ label: 'See what is listed', to: '/' }}
+          image="/images/resale-web.jpg"
+          heading="Good clothes deserve"
+          script="another life."
+          body="Resellers, Instagram thrift stores and everyday sellers, all in one place."
+          cta={{ label: 'What is zarketplace', to: '/about' }}
         />
       </div>
 
@@ -612,19 +614,19 @@ function HeroBanner() {
       n: '01',
       title: 'Transparent pricing',
       short: 'Everything upfront.',
-      body: 'Price, size and condition upfront. No DM for price. Sold items leave the feed, so you never scroll past something you cannot buy.',
+      body: 'No DMs. Just price, size and condition.',
     },
     {
       n: '02',
       title: 'Buyer protection',
       short: 'Pay with confidence.',
-      body: 'Your money is held until the item reaches you. Not as described and you are covered. The seller is paid once it lands.',
+      body: 'Pay with confidence.',
     },
     {
       n: '03',
       title: 'Zero selling fees',
       short: 'Keep 100% of your sale.',
-      body: 'List for free and keep 100% of your price. Pickup from your door and delivery to the buyer are handled for you.',
+      body: 'Keep 100%. We handle shipping.',
     },
   ];
 
@@ -645,7 +647,7 @@ function HeroBanner() {
         type="button"
         onClick={close}
         aria-label="Close introduction"
-        className="absolute top-2 right-2 z-10 flex h-11 w-11 items-center justify-center text-white/60 hover:text-white transition-colors"
+        className="absolute top-3 right-3 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm text-white/80 hover:bg-black/60 hover:text-white transition-colors"
       >
         <X className="h-5 w-5" strokeWidth={1.5} />
       </button>
@@ -656,7 +658,7 @@ function HeroBanner() {
           {/* Inert: it is a brand mark, not a control. No drag, no selection,
               no context menu, no pointer target at all. */}
           <img
-            src="/images/zark-can-tp-web.png"
+            src="/images/zark-reg-tp-web.png"
             alt="zarketplace"
             draggable={false}
             onDragStart={(e) => e.preventDefault()}
@@ -673,11 +675,11 @@ function HeroBanner() {
             copy still passes contrast. On a phone the three steps swipe
             sideways instead of stacking, which would push the search box and
             the category chips clean off the first screen. */}
-        <div className="w-full flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible text-left">
+        <div className="w-full flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible">
           {steps.map((s) => (
             <div
               key={s.n}
-              className="snap-start shrink-0 w-[80%] sm:w-auto border border-white/30 bg-black/25 backdrop-blur-md p-4 sm:p-5 flex flex-col gap-1.5 sm:gap-2"
+              className="snap-start shrink-0 w-[80%] sm:w-auto border border-white/30 bg-black/25 backdrop-blur-md p-4 sm:p-5 flex flex-col items-center gap-1.5 sm:gap-2 text-center"
             >
               {/* Number and title share one line; baseline-aligned so the small
                   number sits on the same line as the larger title. */}
@@ -749,18 +751,25 @@ function SellTile() {
   );
 }
 
-const Chip: React.FC<ToggleProps> = ({ active, onClick, children }) => {
+const Chip: React.FC<ToggleProps> = ({ active, onClick, children, tag }) => {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        'shrink-0 border px-4 py-3 sm:py-2.5 text-[11px] font-black uppercase tracking-widest transition-colors',
+        'relative shrink-0 border px-4 py-3 sm:py-2.5 text-[11px] font-black uppercase tracking-widest transition-colors',
         active ? 'bg-black text-white border-black' : 'bg-white text-black border-black/10 hover:border-black',
       )}
     >
       {children}
+      {tag && (
+        // Sits on the corner rather than in the label, so the filter name stays
+        // the thing you read and the flag is what you notice.
+        <span className="pointer-events-none absolute -top-1.5 -right-1.5 bg-black text-white border border-white px-1.5 py-0.5 text-[8px] font-black uppercase tracking-[0.15em] leading-none">
+          {tag}
+        </span>
+      )}
     </button>
   );
 };

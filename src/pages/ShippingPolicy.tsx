@@ -22,7 +22,7 @@ export function ShippingPolicy() {
           <p className="text-sm font-black uppercase tracking-widest text-black">How shipping works on zarketplace</p>
         </div>
 
-        <div className="flex flex-col gap-10 text-black text-sm font-medium uppercase tracking-[0.12em] leading-[1.8]">
+        <div className="flex flex-col gap-10 text-black body-copy">
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Buyer-Paid, Platform-Arranged Shipping</h2>
             <p>Shipping is calculated from the item's shipping category. By default the buyer pays it at checkout. If the seller chose to offer free shipping on a listing, the buyer pays nothing for shipping and that cost is deducted from the seller's payout instead.</p>
