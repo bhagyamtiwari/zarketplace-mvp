@@ -5,7 +5,7 @@
 // it the page is search, filters and real inventory, and nothing else.
 import React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, SlidersHorizontal, X, Plus, Loader2, Heart, ChevronDown } from 'lucide-react';
+import { Search, SlidersHorizontal, X, Plus, Loader2, Heart, ChevronDown, Tag, ShieldCheck, BadgePercent } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Listing } from '../types';
 import { ListingCard } from '../components/ListingCard';
@@ -607,26 +607,30 @@ function HeroBanner() {
   if (dismissed) return null;
 
   // Two lengths of the same three promises. A phone gets the short form - the
-  // long one turns each card into a paragraph nobody reads on a 375px screen -
-  // and the full sentence appears once there is room for it.
-  const steps: Array<{ n: string; title: string; short: string; body: string }> = [
+  // long one turns each row into a paragraph nobody reads on a 375px screen -
+  // and the full sentence appears once there is room for it. The icon carries
+  // the meaning at a glance, which is what lets the boxes go.
+  const steps: Array<{ n: string; title: string; short: string; body: string; Icon: typeof Tag }> = [
     {
       n: '01',
       title: 'Transparent pricing',
       short: 'Everything upfront.',
       body: 'No DMs. Just price, size and condition.',
+      Icon: Tag,
     },
     {
       n: '02',
       title: 'Buyer protection',
       short: 'Pay with confidence.',
       body: 'Pay with confidence.',
+      Icon: ShieldCheck,
     },
     {
       n: '03',
       title: 'Zero selling fees',
       short: 'Keep 100% of your sale.',
       body: 'Keep 100%. We handle shipping.',
+      Icon: BadgePercent,
     },
   ];
 
@@ -640,7 +644,7 @@ function HeroBanner() {
         className="absolute inset-0 bg-cover bg-no-repeat bg-left sm:bg-top opacity-70"
         style={{ backgroundImage: 'url(/images/new-banner3-web.jpg)' }}
       />
-      <div aria-hidden className="absolute inset-0 bg-black/45 sm:bg-transparent sm:bg-gradient-to-t sm:from-black sm:via-black/70 sm:to-black/50" />
+      <div aria-hidden className="absolute inset-0 bg-black/50 sm:bg-transparent sm:bg-gradient-to-t sm:from-black sm:via-black/70 sm:to-black/55" />
 
       {/* Minimal dismiss: just the glyph, no chip behind it. */}
       <button
@@ -652,9 +656,9 @@ function HeroBanner() {
         <X className="h-5 w-5" strokeWidth={1.5} />
       </button>
 
-      <div className="relative mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-8 sm:py-10 flex flex-col gap-5 sm:gap-6">
-        {/* Wide screens set the lockup against the cards as two columns. Below
-            that the lockup stacks over them, and on a phone the cards swipe. */}
+      <div className="relative mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6 sm:py-8 flex flex-col gap-5 sm:gap-6">
+        {/* Wide screens set the lockup against the three points as columns.
+            Below that the lockup stacks over them. */}
         <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:gap-16">
           <h1 className="flex flex-col items-start gap-2 sm:items-center sm:gap-3 lg:flex-1 lg:items-start">
             <img
@@ -671,27 +675,26 @@ function HeroBanner() {
             </span>
           </h1>
 
-          {/* Frosted rather than solid: the photograph still reads through, the
-              copy still passes contrast. On a phone the steps swipe sideways
-              instead of stacking, which would push the search box and the
-              category chips clean off the first screen. */}
-          <div className="flex gap-2.5 overflow-x-auto snap-x snap-mandatory scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible lg:flex lg:w-[46%] lg:flex-col lg:gap-2.5">
-            {steps.map((s) => (
-              <div
-                key={s.n}
-                className="snap-start shrink-0 w-[68%] sm:w-auto border border-white/20 bg-black/15 backdrop-blur-md p-3 sm:p-5 flex flex-col items-start gap-1 sm:items-center sm:gap-2 sm:text-center"
-              >
-                <h2 className="flex items-baseline gap-2 text-[11px] sm:text-sm font-black uppercase tracking-widest">
-                  <span className="text-[9px] sm:text-[10px] tracking-[0.3em] text-white/50">{s.n}</span>
-                  {s.title}
-                </h2>
-                <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest leading-relaxed text-white/70">
-                  <span className="sm:hidden">{s.short}</span>
-                  <span className="hidden sm:inline">{s.body}</span>
-                </p>
-              </div>
+          {/* No panels: an icon, a numbered title and one line, sitting straight
+              on the photograph. Icons are baseline-aligned to the title and the
+              copy hangs off a single left edge, so the three read as a set. */}
+          <ul className="flex flex-col gap-3.5 sm:grid sm:grid-cols-3 sm:gap-8 lg:flex lg:w-[46%] lg:flex-col lg:gap-5">
+            {steps.map(({ n, title, short, body, Icon }) => (
+              <li key={n} className="flex items-start gap-3">
+                <Icon className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 mt-px sm:mt-0.5 text-white/70" strokeWidth={2} />
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <h2 className="flex items-baseline gap-2 text-[11px] sm:text-sm font-black uppercase tracking-widest">
+                    <span className="text-[9px] sm:text-[10px] tracking-[0.3em] text-white/50">{n}</span>
+                    {title}
+                  </h2>
+                  <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest leading-relaxed text-white/70">
+                    <span className="sm:hidden">{short}</span>
+                    <span className="hidden sm:inline">{body}</span>
+                  </p>
+                </div>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
 
         <Link
