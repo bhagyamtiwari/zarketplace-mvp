@@ -281,7 +281,7 @@ export function Marketplace() {
 
       {/* Sticky control deck: search + chips. Sits directly under the fixed
           navbar so the user is never more than one tap from filtering. */}
-      <div className="sticky top-20 z-30 border-b border-black/5 bg-white/95 backdrop-blur-xl">
+      <div className="lg:sticky lg:top-20 z-30 border-b border-black/5 bg-white/95 backdrop-blur-xl">
         <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-3 flex flex-col gap-3">
           <form onSubmit={onSearchSubmit} className="relative">
             <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-black/40" />
@@ -652,54 +652,51 @@ function HeroBanner() {
         <X className="h-5 w-5" strokeWidth={1.5} />
       </button>
 
-      <div className="relative mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-8 sm:py-10 flex flex-col items-center gap-5 sm:gap-6 text-center">
-        {/* Centred lockup: mark over the one-line description. */}
-        <h1 className="flex flex-col items-center gap-2 sm:gap-3">
-          {/* Inert: it is a brand mark, not a control. No drag, no selection,
-              no context menu, no pointer target at all. */}
-          <img
-            src="/images/zark-reg-tp-web.png"
-            alt="zarketplace"
-            draggable={false}
-            onDragStart={(e) => e.preventDefault()}
-            onContextMenu={(e) => e.preventDefault()}
-            className="h-10 sm:h-14 lg:h-16 w-auto pointer-events-none select-none"
-            style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
-          />
-          <span className="text-xs sm:text-lg lg:text-2xl font-black uppercase tracking-[0.2em]">
-            Buy &amp; sell pre-owned fashion
-          </span>
-        </h1>
+      <div className="relative mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-8 sm:py-10 flex flex-col gap-5 sm:gap-6">
+        {/* Wide screens set the lockup against the cards as two columns. Below
+            that the lockup stacks over them, and on a phone the cards swipe. */}
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:gap-16">
+          <h1 className="flex flex-col items-start gap-2 sm:items-center sm:gap-3 lg:flex-1 lg:items-start">
+            <img
+              src="/images/zark-reg-tp-web.png"
+              alt="zarketplace"
+              draggable={false}
+              onDragStart={(e) => e.preventDefault()}
+              onContextMenu={(e) => e.preventDefault()}
+              className="h-8 sm:h-14 lg:h-16 w-auto pointer-events-none select-none"
+              style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
+            />
+            <span className="text-[11px] sm:text-lg lg:text-2xl font-black uppercase tracking-[0.2em]">
+              Buy &amp; sell pre-owned fashion
+            </span>
+          </h1>
 
-        {/* Frosted rather than solid: the photograph still reads through, the
-            copy still passes contrast. On a phone the three steps swipe
-            sideways instead of stacking, which would push the search box and
-            the category chips clean off the first screen. */}
-        <div className="w-full flex gap-3 overflow-x-auto snap-x snap-mandatory scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible">
-          {steps.map((s) => (
-            <div
-              key={s.n}
-              className="snap-start shrink-0 w-[80%] sm:w-auto border border-white/30 bg-black/25 backdrop-blur-md p-4 sm:p-5 flex flex-col items-center gap-1.5 sm:gap-2 text-center"
-            >
-              {/* Number and title share one line; baseline-aligned so the small
-                  number sits on the same line as the larger title. */}
-              <h2 className="flex items-baseline gap-2.5 text-sm font-black uppercase tracking-widest">
-                <span className="text-[10px] tracking-[0.3em] text-white/50">{s.n}</span>
-                {s.title}
-              </h2>
-              <p className="text-[11px] font-bold uppercase tracking-widest leading-relaxed text-white/75">
-                <span className="sm:hidden">{s.short}</span>
-                <span className="hidden sm:inline">{s.body}</span>
-              </p>
-            </div>
-          ))}
+          {/* Frosted rather than solid: the photograph still reads through, the
+              copy still passes contrast. On a phone the steps swipe sideways
+              instead of stacking, which would push the search box and the
+              category chips clean off the first screen. */}
+          <div className="flex gap-2.5 overflow-x-auto snap-x snap-mandatory scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible lg:flex lg:w-[46%] lg:flex-col lg:gap-2.5">
+            {steps.map((s) => (
+              <div
+                key={s.n}
+                className="snap-start shrink-0 w-[68%] sm:w-auto border border-white/20 bg-black/15 backdrop-blur-md p-3 sm:p-5 flex flex-col items-start gap-1 sm:items-center sm:gap-2 sm:text-center"
+              >
+                <h2 className="flex items-baseline gap-2 text-[11px] sm:text-sm font-black uppercase tracking-widest">
+                  <span className="text-[9px] sm:text-[10px] tracking-[0.3em] text-white/50">{s.n}</span>
+                  {s.title}
+                </h2>
+                <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest leading-relaxed text-white/70">
+                  <span className="sm:hidden">{s.short}</span>
+                  <span className="hidden sm:inline">{s.body}</span>
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* min-h-11 gives these a 44px touch target on a phone without moving
-            the underline off the text. */}
         <Link
           to="/about"
-          className="self-center inline-flex items-center min-h-11 sm:min-h-0 text-[11px] sm:text-xs font-black uppercase tracking-[0.25em] text-white hover:text-white/70 transition-colors"
+          className="self-start sm:self-center inline-flex items-center min-h-11 sm:min-h-0 text-[11px] sm:text-xs font-black uppercase tracking-[0.25em] text-white hover:text-white/70 transition-colors"
         >
           <span className="border-b-2 border-white pb-0.5 hover:border-white/70">What is zarketplace?</span>
         </Link>
