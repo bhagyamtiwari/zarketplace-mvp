@@ -530,7 +530,7 @@ export function Marketplace() {
           heading="Reduce waste,"
           script="buy pre-loved."
           body="Keep clothes in circulation and out of landfills."
-          cta={{ label: 'See what is listed', to: '/' }}
+          cta={{ label: 'What is zarketplace', to: '/about' }}
         />
         <CampaignBand
           image="/images/red2-web.jpg"
@@ -545,7 +545,7 @@ export function Marketplace() {
           heading="Good clothes deserve"
           script="another life."
           body="Resellers, Instagram thrift stores and everyday sellers, all in one place."
-          cta={{ label: 'What is zarketplace', to: '/about' }}
+          cta={{ label: "See what's listed", to: '/browse' }}
         />
       </div>
 

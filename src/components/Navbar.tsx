@@ -1,7 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, User, Menu, X, ArrowRight, LogOut, LayoutGrid, Package, ShoppingBag } from 'lucide-react';
+import { Search, User, Menu, X, ArrowRight, LogOut, LayoutGrid, Package, ShoppingBag, Tag, Heart, Instagram, Twitter, Youtube, MessageCircle } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -9,6 +9,15 @@ import { useAuth } from '../lib/auth';
 import { useCart } from '../lib/cart';
 import { AuthModal } from './AuthModal';
 import { Wordmark } from './Wordmark';
+
+// Same four accounts the footer lists. Kept here rather than imported so the
+// drawer does not depend on the footer's internals; if one moves, both change.
+const SOCIALS: Array<{ label: string; href: string; Icon: typeof Instagram }> = [
+  { label: 'zarketplace on Instagram', href: 'https://www.instagram.com/zarketplace', Icon: Instagram },
+  { label: 'zarketplace on X', href: 'https://x.com/zarketplace', Icon: Twitter },
+  { label: 'zarketplace on YouTube', href: 'https://www.youtube.com/@zarketplace', Icon: Youtube },
+  { label: 'zarketplace on WhatsApp', href: 'https://wa.me/918505927538', Icon: MessageCircle },
+];
 
 export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
@@ -33,6 +42,7 @@ export function Navbar() {
   };
 
   const GENDERS = ['Men', 'Women', 'Unisex'];
+  const closeMenu = () => setIsMenuOpen(false);
 
   // Lock background scroll while the mobile drawer is open.
   React.useEffect(() => {
@@ -267,6 +277,9 @@ export function Navbar() {
       {/* Mobile side drawer - portaled to body so it's never affected by the
           nav's own backdrop-blur/stacking context (backdrop-filter on an
           ancestor can break position:fixed descendants in some browsers). */}
+      {/* Drawer and its scrim sit above the consent bar (z-60): an open drawer
+          with its own primary action hidden behind the cookie notice is
+          unusable. */}
       {createPortal(
       <AnimatePresence>
         {isMenuOpen && [
@@ -276,7 +289,7 @@ export function Navbar() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setIsMenuOpen(false)}
-            className="md:hidden fixed inset-0 z-40 bg-black/40"
+            className="md:hidden fixed inset-0 z-[65] bg-black/40"
           />,
           <motion.div
             key="drawer-panel"
@@ -284,7 +297,7 @@ export function Navbar() {
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'tween', duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="md:hidden fixed inset-y-0 right-0 z-50 w-full max-w-xs bg-white border-l border-black/5 flex flex-col"
+            className="md:hidden fixed inset-y-0 right-0 z-[70] w-full max-w-xs bg-white border-l border-black/5 flex flex-col"
           >
               <div className="flex items-center justify-between h-20 px-4 border-b border-black/5 shrink-0">
                 <Link to="/" className="flex items-center" onClick={() => setIsMenuOpen(false)}>
@@ -296,57 +309,77 @@ export function Navbar() {
               </div>
 
               <div className="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-1">
+                {/* What you came to do, with an icon each. Everything below is
+                    plain text: the three actions should be the only things
+                    competing for the eye. */}
                 <DrawerSection>
-                  <DrawerLink to="/browse" onClick={() => setIsMenuOpen(false)}>Buy</DrawerLink>
-                  <DrawerLink to="/sell" onClick={() => setIsMenuOpen(false)}>Sell</DrawerLink>
-                  <DrawerLink to="/cart" onClick={() => setIsMenuOpen(false)} badge={cartCount > 0 ? cartCount : undefined}>Cart</DrawerLink>
+                  <DrawerLink to="/browse" Icon={Search} onClick={closeMenu}>Browse</DrawerLink>
+                  <DrawerLink to="/sell" Icon={Tag} onClick={closeMenu}>Sell an item</DrawerLink>
+                  <DrawerLink to="/browse?q=saved" Icon={Heart} onClick={closeMenu}>Saved items</DrawerLink>
+                  {/* The phone navbar has no cart icon, so the drawer is the
+                      only way to a basket that already has items in it. */}
+                  <DrawerLink to="/cart" Icon={ShoppingBag} onClick={closeMenu} badge={cartCount > 0 ? cartCount : undefined}>
+                    Cart
+                  </DrawerLink>
                 </DrawerSection>
 
-                {user && (
-                  <DrawerSection title="My Account">
-                    <DrawerLink to="/track-order" onClick={() => setIsMenuOpen(false)}>My Orders</DrawerLink>
-                    <DrawerLink to="/account" onClick={() => setIsMenuOpen(false)}>My Profile</DrawerLink>
-                    <DrawerLink to="/seller-portal" onClick={() => setIsMenuOpen(false)}>Seller Portal</DrawerLink>
-                    {profile?.is_admin && <DrawerLink to="/admin" onClick={() => setIsMenuOpen(false)}>Admin</DrawerLink>}
-                  </DrawerSection>
-                )}
-
-                <DrawerSection title="Help">
-                  <DrawerLink to="/faq" onClick={() => setIsMenuOpen(false)}>FAQ</DrawerLink>
-                  <DrawerLink to="/contact" onClick={() => setIsMenuOpen(false)}>Contact</DrawerLink>
+                <DrawerSection title="Support">
+                  <DrawerLink to="/contact" onClick={closeMenu}>Contact</DrawerLink>
+                  <DrawerLink to="/buyer-protection" onClick={closeMenu}>Buyer protection</DrawerLink>
+                  <DrawerLink to="/shipping-policy" onClick={closeMenu}>Shipping policy</DrawerLink>
+                  <DrawerLink to="/returns" onClick={closeMenu}>Returns</DrawerLink>
+                  <DrawerLink to="/refund-policy" onClick={closeMenu}>Refund policy</DrawerLink>
                 </DrawerSection>
 
-                {user ? (
-                  <div className="mt-3 pt-5 border-t border-black/5 flex flex-col gap-1">
-                    <p className="text-[9px] font-black uppercase tracking-widest text-black/40">Signed in as</p>
-                    <p className="text-xs font-bold truncate mb-3">{profile?.email ?? user.email}</p>
+                <DrawerSection title="Account">
+                  {user ? (
+                    <>
+                      <DrawerLink to="/track-order" onClick={closeMenu}>My orders</DrawerLink>
+                      <DrawerLink to="/account" onClick={closeMenu}>My profile</DrawerLink>
+                      <DrawerLink to="/seller-portal" onClick={closeMenu}>Seller portal</DrawerLink>
+                      {profile?.is_admin && <DrawerLink to="/admin" onClick={closeMenu}>Admin</DrawerLink>}
+                      <button
+                        onClick={async () => { await signOut(); closeMenu(); navigate('/'); }}
+                        className={cn(DRAWER_ROW_CLASS, 'w-full text-red-600')}
+                      >
+                        <span className="flex items-center gap-3">Sign out</span>
+                        <LogOut className="h-3.5 w-3.5" />
+                      </button>
+                    </>
+                  ) : (
                     <button
-                      onClick={async () => { await signOut(); setIsMenuOpen(false); navigate('/'); }}
-                      className="flex items-center justify-between py-3 text-[11px] font-black uppercase tracking-[0.3em] text-red-600"
+                      onClick={() => { setShowAuth(true); closeMenu(); }}
+                      className={cn(DRAWER_ROW_CLASS, 'w-full')}
                     >
-                      <span>Sign Out</span>
-                      <LogOut className="h-3.5 w-3.5" />
+                      <span className="flex items-center gap-3">Sign in / Sign up</span>
+                      <ArrowRight className="h-3.5 w-3.5 text-black/30" />
                     </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => { setShowAuth(true); setIsMenuOpen(false); }}
-                    className="flex items-center justify-between py-4 text-[11px] font-black uppercase tracking-[0.3em] text-black border-t border-black/5 mt-3"
-                  >
-                    <span>Sign In</span>
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </button>
-                )}
+                  )}
+                </DrawerSection>
               </div>
 
-              <div className="px-4 py-4 border-t border-black/5 shrink-0">
+              <div className="px-4 py-4 border-t border-black/5 shrink-0 flex flex-col gap-5">
                 <Link
                   to="/sell"
                   className="flex w-full items-center justify-center gap-3 bg-black py-5 text-[11px] font-black uppercase tracking-[0.3em] text-white"
-                  onClick={() => setIsMenuOpen(false)}
+                  onClick={closeMenu}
                 >
                   List Item
                 </Link>
+                <div className="flex items-center justify-center gap-8 pb-1">
+                  {SOCIALS.map(({ label, href, Icon }) => (
+                    <a
+                      key={label}
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={label}
+                      className="text-black/70 hover:text-black transition-colors"
+                    >
+                      <Icon className="h-[18px] w-[18px]" />
+                    </a>
+                  ))}
+                </div>
               </div>
             </motion.div>,
         ]}
@@ -360,21 +393,29 @@ export function Navbar() {
 
 function DrawerSection({ title, children }: { title?: string; children: React.ReactNode }) {
   return (
-    <div className="pb-3 mb-3 border-b border-black/5">
-      {title && <p className="text-[9px] font-black uppercase tracking-[0.3em] text-black/40 mb-1">{title}</p>}
+    <div className="pb-3 mb-3 border-b border-black/5 last:border-0">
+      {title && <p className="text-[9px] font-black uppercase tracking-[0.3em] text-black/40 mb-1 mt-3">{title}</p>}
       {children}
     </div>
   );
 }
 
-function DrawerLink({ to, onClick, badge, children }: { to: string; onClick: () => void; badge?: number; children: React.ReactNode }) {
+// One row shape for every line in the drawer, whether it navigates or acts, so
+// a link and a button never sit at different heights next to each other.
+const DRAWER_ROW_CLASS =
+  'flex items-center justify-between py-4 text-[11px] font-black uppercase tracking-[0.2em] text-black hover:text-black/60 transition-colors';
+
+function DrawerLink({ to, onClick, badge, Icon, children }: {
+  to: string;
+  onClick: () => void;
+  badge?: number;
+  Icon?: typeof Search;
+  children: React.ReactNode;
+}) {
   return (
-    <Link
-      to={to}
-      onClick={onClick}
-      className="flex items-center justify-between py-4 text-[11px] font-black uppercase tracking-[0.3em] text-black hover:text-black/60 transition-colors"
-    >
-      <span className="flex items-center gap-2">
+    <Link to={to} onClick={onClick} className={DRAWER_ROW_CLASS}>
+      <span className="flex items-center gap-3">
+        {Icon && <Icon className="h-4 w-4 shrink-0 text-black" strokeWidth={1.75} />}
         {children}
         {!!badge && (
           <span className="h-4 min-w-4 px-1 rounded-full bg-black text-white text-[9px] font-black flex items-center justify-center">

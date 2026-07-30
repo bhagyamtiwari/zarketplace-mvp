@@ -4,6 +4,7 @@
 // wraps identically instead of each page inventing its own.
 import * as React from 'react';
 import { Link } from 'react-router-dom';
+import { ArrowRight } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface Props {
@@ -40,14 +41,15 @@ export function CampaignBand({ image, heading, script, body, cta, align = 'left'
       <div
         className={cn(
           'relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-16 sm:py-24',
-          // Centred on a phone, where a single column looks adrift when it is
-          // left-aligned against a full-bleed photograph.
-          'flex flex-col items-center text-center gap-6',
-          'md:flex-row md:items-center md:justify-between md:gap-12 md:text-left',
+          // Left-aligned at every width: the copy hangs off the same edge as
+          // the rest of the page, and on a phone the button lands directly
+          // under the line that earned it rather than centred below it.
+          'flex flex-col items-start text-left gap-6',
+          'md:flex-row md:items-center md:justify-between md:gap-12',
           align === 'right' && 'md:flex-row-reverse',
         )}
       >
-        <div className={cn('flex flex-col items-center gap-3 md:items-start', align === 'right' && 'md:text-right md:items-end')}>
+        <div className={cn('flex flex-col items-start gap-3', align === 'right' && 'md:text-right md:items-end')}>
           <div className="flex flex-col gap-1">
             <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tighter leading-[0.88]">
               {heading}
@@ -69,9 +71,10 @@ export function CampaignBand({ image, heading, script, body, cta, align = 'left'
         {cta && (
           <Link
             to={cta.to}
-            className="shrink-0 self-center md:self-auto border border-white bg-white px-8 py-4 text-[10px] font-black uppercase tracking-[0.3em] text-black hover:bg-transparent hover:text-white transition-colors"
+            className="group shrink-0 flex items-center gap-4 border border-white bg-white px-8 py-4 text-[10px] font-black uppercase tracking-[0.3em] text-black hover:bg-transparent hover:text-white transition-colors"
           >
             {cta.label}
+            <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         )}
       </div>
