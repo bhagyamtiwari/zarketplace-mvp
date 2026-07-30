@@ -579,7 +579,7 @@ const PROMISES: Array<{ label: string; body: string; to: string; Icon: typeof Sh
   { label: 'Doorstep pickup', body: 'We collect it.', to: '/shipping-policy', Icon: PackageCheck },
 ];
 
-const HERO_IMAGE = 'url(/images/new-banner3-web.jpg)';
+const HERO_IMAGE = 'url(/images/new-banner3.png)';
 
 // The home banner: the pitch, the three promises that back it, and the only two
 // things a visitor can do here. It is permanent rather than dismissible - it is
@@ -641,7 +641,7 @@ function HeroBanner() {
           </Link>
           <Link
             to="/sell"
-            className="flex items-center justify-between gap-3 border border-white/40 px-5 py-4 sm:min-w-[230px] sm:px-7 text-[11px] font-black uppercase tracking-widest text-white transition-colors hover:border-white hover:bg-white/10"
+            className="flex items-center justify-between gap-3 border border-white/40 bg-black sm:bg-transparent px-5 py-4 sm:min-w-[230px] sm:px-7 text-[11px] font-black uppercase tracking-widest text-white transition-colors hover:border-white hover:bg-white/10"
           >
             Sell an item
             <ArrowRight className="h-4 w-4" />

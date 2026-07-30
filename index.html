@@ -9,6 +9,11 @@
     <meta name="robots" content="index, follow" />
     <meta name="theme-color" content="#000000" />
 
+    <!-- The home banner is the first thing on the page and the largest thing we
+         serve, so it starts downloading with the HTML rather than waiting for
+         the CSS that references it. -->
+    <link rel="preload" as="image" href="/images/new-banner3.png" fetchpriority="high" />
+
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="zarketplace" />
     <meta property="og:title" content="zarketplace - secondhand fashion resale buy and sell" />
