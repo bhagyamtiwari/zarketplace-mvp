@@ -1174,9 +1174,11 @@ function ReviewStep({
 }) {
   const shipRate = shippingCategories.find((c) => c.key === shippingCategory);
 
-  // Word for word, and five separate taps: these are the attestations we stand
-  // on when a buyer disputes a listing. Shortening them, or collapsing them into
-  // one "agree to all", makes them worth less if they are ever challenged.
+  // Word for word: these are the attestations we stand on when a buyer disputes
+  // a listing, so the wording never gets shortened. Ticking them together is
+  // fine - only seller_declared_at is stored, so the record is "affirmed at time
+  // T" rather than which boxes were tapped, and each one stays visible and
+  // individually clearable.
   const DECLARATION_ITEMS: Array<{ key: keyof typeof declarations; label: string }> = [
     { key: 'oneItem', label: 'This listing represents one physical item only.' },
     { key: 'photosActual', label: 'The photos show the actual item being sold.' },
@@ -1251,7 +1253,22 @@ function ReviewStep({
 
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Before you publish</h3>
+          <div className="flex items-baseline justify-between gap-4 border-b border-black/5 pb-3">
+            <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50">Before you publish</h3>
+            <button
+              type="button"
+              onClick={() => {
+                const next = declaredCount < DECLARATION_ITEMS.length;
+                setDeclarations({
+                  oneItem: next, photosActual: next, disclosedFlaws: next,
+                  accurate: next, authenticIfMarked: next,
+                });
+              }}
+              className="shrink-0 text-[10px] font-black uppercase tracking-[0.2em] text-black border-b border-black pb-0.5 hover:text-black/60 hover:border-black/60 transition-colors"
+            >
+              {declaredCount === DECLARATION_ITEMS.length ? 'Clear all' : 'Select all'}
+            </button>
+          </div>
           <TrustNote>{declaredCount} of {DECLARATION_ITEMS.length} confirmed.</TrustNote>
         </div>
         <div className="flex flex-col gap-3">
