@@ -279,9 +279,11 @@ export function Marketplace() {
           gets the marketplace. */}
       <HeroBanner />
 
-      {/* Sticky control deck: search + chips. Sits directly under the fixed
-          navbar so the user is never more than one tap from filtering. */}
-      <div className="lg:sticky lg:top-20 z-30 border-b border-black/5 bg-white/95 backdrop-blur-xl">
+      {/* Control deck: search + chips. It stays where it sits, between the
+          banner and the grid, rather than following the scroll - pinned, it
+          rode all the way down to the footer, where a search box over the
+          closing bands is just something in the way. */}
+      <div className="border-b border-black/5 bg-white">
         <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-3 flex flex-col gap-3">
           {/* Search keeps sentence case rather than the sitewide uppercase: the
               full hint has to fit a phone's width without truncating. */}
@@ -343,7 +345,9 @@ export function Marketplace() {
         {/* Desktop filter rail. Persistent because once the screen is wide
             enough, horizontal chips are a mobile compromise. */}
         <aside className="hidden lg:block w-56 shrink-0">
-          <div className="sticky top-56 flex flex-col gap-2 pb-10">
+          {/* The rail still pins, now under the navbar rather than under a
+              control deck that no longer stays. */}
+          <div className="sticky top-24 flex flex-col gap-2 pb-10">
             {/* Category and condition are how people actually narrow a resale
                 feed. Size is the long list, so it stays folded until asked for
                 rather than filling the rail with eighteen dead options. */}
