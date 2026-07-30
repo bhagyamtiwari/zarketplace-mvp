@@ -2,9 +2,13 @@
 // the seller has to type their VPA twice. Surfaces inline validation +
 // match status to the parent. Once both fields are valid + match, parent
 // receives the normalized VPA string via onChange.
+//
+// The "locks once submitted" warning used to sit here as grey text under the
+// fields. It is the only irreversible thing on the page, so it now lives in the
+// Sell form as a warning box above both fields it applies to (UPI, Instagram).
 
 import * as React from 'react';
-import { Check, AlertTriangle, Info } from 'lucide-react';
+import { Check, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 const VPA_REGEX = /^[A-Za-z0-9._\-]{2,256}@[A-Za-z]{2,64}$/;
@@ -56,7 +60,7 @@ export function UpiVpaInput({ value, onChange, disabled }: Props) {
 
       <div className="flex flex-col gap-2">
         <label className="text-[11px] font-black uppercase tracking-widest">
-          Confirm UPI ID - type it again (paste disabled)
+          Confirm UPI ID (paste disabled)
         </label>
         <input
           type="text"
@@ -76,13 +80,6 @@ export function UpiVpaInput({ value, onChange, disabled }: Props) {
             {matches ? <><Check className="h-3 w-3" /> Matches</> : <><AlertTriangle className="h-3 w-3" /> UPI IDs do not match</>}
           </p>
         )}
-      </div>
-
-      <div className="flex items-start gap-3 bg-zinc-50 border border-black/5 p-4">
-        <Info className="h-3.5 w-3.5 text-black/30 mt-0.5 shrink-0" />
-        <p className="text-xs font-bold uppercase tracking-widest leading-relaxed text-black/60">
-          UPI ID and Instagram lock once submitted.<br />Check them now. We can't change them later.
-        </p>
       </div>
     </div>
   );
