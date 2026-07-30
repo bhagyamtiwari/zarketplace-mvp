@@ -112,7 +112,7 @@ function CartInner() {
           </div>
           <div className="flex justify-between text-xs font-bold uppercase tracking-widest">
             <span>Shipping</span>
-            <span>{shippingCategories.length === 0 ? 'Calculating...' : formatCurrency(shipping)}</span>
+            <span>{shippingCategories.length === 0 ? 'Calculating...' : shipping === 0 ? 'Free' : formatCurrency(shipping)}</span>
           </div>
         </div>
 

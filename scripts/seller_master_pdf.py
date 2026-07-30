@@ -373,17 +373,20 @@ for t in KEEP:
     ty -= 2
 rx = M + half + 26
 tracked(rx, y - 10, "BUYER PAYS SHIPPING", BLACK_F, 7.6, 1.6, black)
-RATES = [("Accessories & small", "Rs. 79"), ("T-shirts & tops", "Rs. 80"),
-         ("Jeans & bottoms", "Rs. 99"), ("Footwear", "Rs. 129"),
-         ("Jackets & heavy", "Rs. 149")]
+# Live values from public.shipping_categories, checked 2026-07-30. The repo's
+# seed migration is stale (79/80/99/129/149) - always read the database before
+# reprinting this, rates have already drifted once.
+RATES = [("Accessories & small", "Rs. 99"), ("T-shirts & tops", "Rs. 149"),
+         ("Jeans & bottoms", "Rs. 149"), ("Footwear", "Rs. 249"),
+         ("Jackets & heavy", "Rs. 259")]
 ry = y - 25
 for label, rate in RATES:
     tracked(rx, ry, label.upper(), BOLD_F, 6.9, 1.0, GREY)
     tracked(W - M, ry, rate, BLACK_F, 7.2, 0.8, black, align="r")
     ry -= 11.2
 y = min(my, ry) - 16
-y = body(M, y, "Your price can't be lower than the shipping rate for its category. "
-               "Below that you earn nothing, so the form won't accept it.")
+y = body(M, y, "Turn on free delivery and the courier cost comes out of your payout, so your "
+               "price has to be above it. With buyer-paid shipping, price it however you like.")
 footer("Page 1 of 3 · How it works")
 
 # =============================================================================

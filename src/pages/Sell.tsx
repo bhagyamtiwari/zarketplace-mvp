@@ -291,13 +291,14 @@ function SellInner() {
       if (!priceVal || Number(priceVal) <= 0) return 'Enter a price.';
       if (salePriceInvalid) return 'Sale price must be lower than the regular price.';
       if (!shippingCategory) return 'Choose a shipping category.';
-      // Below the shipping rate the seller cannot come out ahead, and with free
-      // shipping on they would actively lose money, so the floor is the rate
-      // itself rather than a warning they can click past.
+      // Only bites when the seller is absorbing the courier cost. With
+      // buyer-paid shipping a low price is fine, the seller keeps all of it.
+      // Mirrors the server rule listings_require_positive_payout, which is what
+      // actually rejects the insert.
       const floor = shippingCategories.find((c) => c.key === shippingCategory)?.rate ?? 0;
       const lowest = Number(showSalePrice && salePriceVal ? salePriceVal : priceVal);
-      if (floor > 0 && lowest < floor) {
-        return `Price it at ${formatCurrency(floor)} or more. That is the shipping cost for this category, so anything below it earns you nothing.`;
+      if (freeShipping && floor > 0 && lowest <= floor) {
+        return `With free delivery the ${formatCurrency(floor)} courier cost comes out of your payout, so ${formatCurrency(lowest)} would pay you nothing. Price it above ${formatCurrency(floor)}, or turn free delivery off.`;
       }
     }
     if (s === 4) {
@@ -958,7 +959,7 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
   const selectedRate = shippingCategories.find((c) => c.key === shippingCategory)?.rate ?? 0;
   // The number a buyer would actually pay: the sale price when one is set.
   const effectivePrice = Number(showSalePrice && salePriceVal ? salePriceVal : priceVal);
-  const belowFloor = selectedRate > 0 && effectivePrice > 0 && effectivePrice < selectedRate;
+  const belowFloor = freeShipping && selectedRate > 0 && effectivePrice > 0 && effectivePrice <= selectedRate;
   return (
     <div className="flex flex-col gap-10">
       <div className="flex flex-col gap-6">
@@ -966,7 +967,7 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-8">
           <div className="flex flex-col gap-3">
             <FieldLabel>Price (INR) *</FieldLabel>
-            <input type="number" min={selectedRate || 1} value={priceVal} onChange={(e) => setPriceVal(e.target.value)}
+            <input type="number" min={freeShipping && selectedRate ? selectedRate + 1 : 1} value={priceVal} onChange={(e) => setPriceVal(e.target.value)}
               placeholder={selectedRate ? String(selectedRate) : '3500'}
               className={cn('border-b py-4 text-sm font-bold focus:outline-none transition-all placeholder:text-black/20',
                 belowFloor ? 'border-red-500 focus:border-red-600' : 'border-black/10 focus:border-black')} />
@@ -974,8 +975,8 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
                 the number is still under their cursor. */}
             {belowFloor && (
               <p className="text-[11px] font-bold uppercase tracking-widest text-red-600 leading-relaxed">
-                Below {formatCurrency(selectedRate)} you earn nothing.<br />
-                That is the shipping cost for this category. Price at {formatCurrency(selectedRate)} or more.
+                With free delivery, {formatCurrency(selectedRate)} comes out of your payout.<br />
+                At this price you'd receive nothing. Price above {formatCurrency(selectedRate)}, or turn free delivery off.
               </p>
             )}
             <TrustNote>

@@ -766,7 +766,7 @@ function RazorpayPayStep({
 
       <div className="flex flex-col gap-3 border-y border-black/10 py-6">
         <Row label="Item price" value={formatCurrency(subtotal)} />
-        <Row label="Shipping" value={shippingLoading ? 'Calculating...' : formatCurrency(shipping)} />
+        <Row label="Shipping" value={shippingLoading ? 'Calculating...' : shipping === 0 ? 'Free' : formatCurrency(shipping)} />
         {buyerProtection > 0 && <Row label="Buyer Protection" value={formatCurrency(buyerProtection)} />}
       </div>
 
@@ -834,7 +834,7 @@ function Summary({ items, subtotal, shipping, shippingLoading, buyerProtection, 
 
       <div className="flex flex-col gap-3 border-y border-black/5 py-6">
         <Row label="Item price" value={formatCurrency(subtotal)} />
-        <Row label="Shipping" value={shippingLoading ? 'Calculating...' : formatCurrency(shipping)} />
+        <Row label="Shipping" value={shippingLoading ? 'Calculating...' : shipping === 0 ? 'Free' : formatCurrency(shipping)} />
         {buyerProtection > 0 && <Row label="Buyer Protection" value={formatCurrency(buyerProtection)} />}
       </div>
 
