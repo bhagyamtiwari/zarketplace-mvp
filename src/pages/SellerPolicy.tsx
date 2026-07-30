@@ -29,6 +29,12 @@ export function SellerPolicy() {
           </section>
 
           <section className="flex flex-col gap-4">
+            <h2 className="text-xl font-black uppercase tracking-tight text-black">Photos</h2>
+            <p>Shoot in natural light against a plain background, ideally white, with the whole item in frame. Screenshots and stock photos are not allowed. Every listing needs at least a front and a back shot, and a close-up of any flaw you have disclosed.</p>
+            <p>To clear a busy background, free tools like <a href="https://www.photoroom.com/tools/background-remover" target="_blank" rel="noreferrer" className="font-bold text-black underline">Photoroom</a> or <a href="https://www.remove.bg/" target="_blank" rel="noreferrer" className="font-bold text-black underline">Remove.bg</a> do the job in one step.</p>
+          </section>
+
+          <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Authentic Products Only</h2>
             <p>Only authentic, genuine items may be listed. Counterfeit or replica items are strictly prohibited and will be removed on discovery.</p>
           </section>

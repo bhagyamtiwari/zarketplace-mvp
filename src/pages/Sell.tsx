@@ -46,8 +46,9 @@ const WEAR_OPTIONS: Array<{ key: string; label: string }> = [
 
 // Recommended photo order - purely a labeling/placeholder aid over the same
 // image array (index 0 is still the cover). Not a hard per-slot requirement.
-// One word each: the tile is the instruction, so it does not need a sentence.
-const PHOTO_SLOT_LABELS = ['Front', 'Back', 'Label', 'Size', 'Detail', 'Flaws'];
+// These are the instruction: they say what to shoot, so no paragraph above the
+// grid has to.
+const PHOTO_SLOT_LABELS = ['Front of item', 'Back of item', 'Brand label', 'Size tag', 'Close-up detail', 'Any flaws'];
 
 // Highest-priority rule: one listing = one physical item. Checked
 // case-insensitively across title/brand/description.
@@ -450,8 +451,9 @@ function SellInner() {
       </div>
 
       <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 lg:px-8 pt-10 sm:pt-16">
-        <div className="mb-8">
+        <div className="mb-10 flex flex-col gap-4">
           <h1 className="text-5xl sm:text-6xl font-black tracking-tighter uppercase leading-none">Create Listing</h1>
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-black/40">Six steps, about five minutes.</p>
         </div>
 
         {/* Progress. Every step is reachable directly and only Publish is gated,
@@ -590,10 +592,8 @@ function SellInner() {
           )}
         </div>
 
-        {/* The one place fees are restated: once per page, at the bottom, not
-            on every step. */}
         <p className="hidden sm:block mt-6 text-center text-[10px] font-bold uppercase tracking-widest text-black/30">
-          No selling fees.{' '}
+          Something here not working?{' '}
           <Link to="/contact" className="underline text-black/50 hover:text-black">Send feedback</Link>
         </p>
         <div className="hidden sm:block mt-10 pt-10 border-t border-black/5" />
@@ -653,43 +653,6 @@ function TrustNote({ children }: { children: React.ReactNode }) {
   return <p className="text-xs font-bold uppercase tracking-widest text-black/50 leading-relaxed">{children}</p>;
 }
 
-// Detail on demand. The form asks first and explains second, so the long
-// version of a rule lives behind this rather than above the field. Click, not
-// hover: half the sellers are on a phone. Never used for a consequence the
-// seller has to know before acting - those stay on screen.
-function InfoTip({ label, children }: { label: string; children: React.ReactNode }) {
-  const [open, setOpen] = React.useState(false);
-
-  return (
-    <span className="relative inline-flex">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-label={label}
-        aria-expanded={open}
-        className={cn(
-          'flex h-7 w-7 items-center justify-center rounded-full border text-[10px] font-black transition-colors',
-          open ? 'border-black bg-black text-white' : 'border-current/25 text-current opacity-60 hover:opacity-100',
-        )}
-      >
-        i
-      </button>
-      {open && (
-        <>
-          {/* Tapping anywhere else closes it, without trapping the page. */}
-          <span aria-hidden className="fixed inset-0 z-10 cursor-default" onClick={() => setOpen(false)} />
-          <span
-            role="tooltip"
-            className="absolute right-0 top-9 z-20 w-64 border border-black bg-white p-4 text-left text-[11px] font-bold uppercase tracking-widest text-black leading-[1.7] shadow-[0_12px_40px_rgba(0,0,0,0.18)]"
-          >
-            {children}
-          </span>
-        </>
-      )}
-    </span>
-  );
-}
-
 // For the one thing in the form that cannot be undone. Deliberately the only
 // coloured element on the page.
 function WarningBox({ children }: { children: React.ReactNode }) {
@@ -711,12 +674,19 @@ function PhotosStep({ imagePreviews, onAdd, onRemove }: {
 
   return (
     <div className="flex flex-col gap-8">
+      {/* The one-item rule stays on screen and stays first: it is the only rule
+          that blocks publishing (banned-phrase check on step 2), so it cannot
+          hide in a tip the seller reads after being stopped. */}
+      <div className="flex items-start gap-3 border-l-2 border-black pl-4">
+        <AlertTriangle className="h-4 w-4 text-black mt-0.5 shrink-0" />
+        <p className="text-xs font-bold uppercase tracking-widest text-black/60 leading-relaxed">
+          One listing, one item. Five of the same thing means five listings.
+        </p>
+      </div>
+
       <div className="flex flex-col gap-2">
-        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Photos</h3>
-        {/* The one-item rule stays on screen: it is the only rule that blocks
-            publishing (banned-phrase check on step 2), so it cannot hide in a
-            tip the seller reads after being stopped. */}
-        <TrustNote>Up to {MAX_IMAGES}. One listing, one item.</TrustNote>
+        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Item Photos</h3>
+        <TrustNote>Natural light, plain background, whole item in frame. No screenshots or stock photos.</TrustNote>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -748,17 +718,11 @@ function PhotosStep({ imagePreviews, onAdd, onRemove }: {
         })}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-xs text-black font-black uppercase tracking-widest">
-          {imagePreviews.length}/{MAX_IMAGES} uploaded
-        </p>
-        <p className="text-[11px] font-bold uppercase tracking-widest text-black/40">
-          Need a clean background?{' '}
-          <a href="https://www.photoroom.com/tools/background-remover" target="_blank" rel="noreferrer" className="underline text-black/60 hover:text-black">Photoroom</a>
-          {' '}or{' '}
-          <a href="https://www.remove.bg/" target="_blank" rel="noreferrer" className="underline text-black/60 hover:text-black">Remove.bg</a>
-        </p>
-      </div>
+      {/* Background-remover recommendations live in the Seller Policy now: they
+          are useful, but not worth sending someone out of a half-finished form. */}
+      <p className="text-xs text-black font-black uppercase tracking-widest">
+        {imagePreviews.length}/{MAX_IMAGES} photos uploaded.
+      </p>
     </div>
   );
 }
@@ -838,15 +802,14 @@ function DetailsStep(props: {
 
         <div className="flex flex-col gap-3">
           <FieldLabel>Description *</FieldLabel>
-          {/* An example, not an instruction: sellers copy the shape of it. */}
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4}
-            placeholder={'Oversized fit.\nBought from END.\n100% cotton.\nWorn twice.'}
+            placeholder="Fit, material, how it runs, anything a photo can't show."
             className="border border-black/10 p-6 text-sm font-medium focus:border-black focus:outline-none resize-none transition-all placeholder:text-black/20" />
         </div>
       </div>
 
       <div className="flex flex-col gap-6">
-        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Optional details</h3>
+        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">More details (optional)</h3>
         {/* Yes/No rather than switches: an unset switch would publish "no
             packaging" as a claim the seller never made. Three states matter
             here (yes, no, unanswered) and a switch only has two. */}
@@ -890,34 +853,22 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
     <div className="flex flex-col gap-10">
       <div className="flex flex-col gap-6">
         <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Condition *</h3>
-        {/* One line per tier, ranked by grade, with the full definition behind
-            the tip. Five stacked paragraphs is a page nobody reads before
-            choosing. Numerals rather than stars: the same labels render on
-            product pages, where one star out of five reads as a bad listing
-            instead of a worn one. */}
-        <div className="flex flex-col gap-2">
-          {CONDITIONS.map((c) => {
-            const selected = condition === c.name;
-            return (
-              <div key={c.name}
-                className={cn('relative border transition-colors',
-                  selected ? 'bg-black border-black text-white' : 'border-black/10 hover:border-black text-black')}>
-                <button type="button" onClick={() => setCondition(c.name)}
-                  className="flex w-full flex-col items-start gap-1 p-5 pr-14 text-left sm:flex-row sm:items-baseline sm:gap-4">
-                  <span className="flex items-baseline gap-2.5 shrink-0">
-                    <span className={cn('text-[10px] font-black tracking-[0.2em]', selected ? 'text-white/60' : 'text-black/40')}>{c.grade}</span>
-                    <span className="text-xs font-black uppercase tracking-widest">{c.name}</span>
-                  </span>
-                  <span className={cn('text-[11px] font-bold uppercase tracking-widest', selected ? 'text-white/80' : 'text-black/60')}>
-                    {c.short}
-                  </span>
-                </button>
-                <span className="absolute top-1/2 right-4 -translate-y-1/2">
-                  <InfoTip label={`What ${c.name} means`}>{c.desc}</InfoTip>
-                </span>
-              </div>
-            );
-          })}
+        {/* Numerals rather than stars: the same labels render on product pages,
+            where one star out of five reads as a bad listing instead of a worn
+            one. The definitions are short enough to sit on the card, so nothing
+            hides behind a tip here. */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {CONDITIONS.map((c) => (
+            <button key={c.name} type="button" onClick={() => setCondition(c.name)}
+              className={cn('border p-5 text-left transition-all flex flex-col gap-1.5',
+                condition === c.name ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
+              <span className="flex items-baseline gap-2 text-xs font-black uppercase tracking-widest">
+                {c.name}
+                <span className={cn('text-[10px] tracking-[0.2em]', condition === c.name ? 'text-white/60' : 'text-black/40')}>{c.grade}</span>
+              </span>
+              <span className={cn('text-[11px] font-bold uppercase tracking-widest leading-[1.8]', condition === c.name ? 'text-white' : 'text-black')}>{c.desc}</span>
+            </button>
+          ))}
         </div>
       </div>
 
@@ -942,7 +893,7 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
               <div className="flex flex-col gap-3">
                 <FieldLabel>Describe the flaw *</FieldLabel>
                 <textarea value={flawsDescription} onChange={(e) => setFlawsDescription(e.target.value)} rows={3}
-                  placeholder="Small stain on the left cuff. Loose stitching on the hem."
+                  placeholder="e.g. small stain on the left cuff, loose stitching on the hem"
                   className="border border-black/10 p-6 text-sm font-medium focus:border-black focus:outline-none resize-none transition-all placeholder:text-black/20" />
                 <TrustNote>Add a close-up in Photos. Undisclosed flaws are what disputes are made of.</TrustNote>
               </div>
@@ -975,8 +926,8 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
               className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20" />
             <TrustNote>
               {freeShipping
-                ? "You keep this minus shipping, since you're covering it."
-                : 'You keep this in full.'}
+                ? "You keep this minus shipping, since you're covering it. No selling fees."
+                : 'You keep this in full. No selling fees.'}
             </TrustNote>
           </div>
           <div className="flex flex-col gap-3">
@@ -1003,27 +954,19 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
       </div>
 
       <div className="flex flex-col gap-6">
-        <div className="flex items-center justify-between gap-4 border-b border-black/5 pb-3">
-          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50">Shipping</h3>
-          {/* Couriers re-weigh at the hub. The consequence stays on screen
-              below; only the mechanics move in here. */}
-          <InfoTip label="How shipping works">
-            We buy the label. You pack it and hand it to the courier at pickup.
-            Rates go up with size and weight, and every parcel is weighed at the hub.
-          </InfoTip>
+        <div className="flex flex-col gap-1">
+          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Shipping</h3>
+          <TrustNote>Closest category to your item. Bigger and heavier costs more. We buy the label.</TrustNote>
         </div>
         {shippingCategories.length === 0 ? (
           <p className="text-xs font-bold uppercase tracking-widest text-black/30">Loading categories…</p>
         ) : (
           <>
-            <TrustNote>
-              {freeShipping ? 'You cover shipping.' : 'Buyer pays shipping.'} Pick the closest category.
-            </TrustNote>
             {/* Money can leave the seller's payout because of this choice, so it
-                is stated on the page rather than behind the tip. */}
+                is stated on the page rather than tucked behind an icon. */}
             <TrustNote>
-              Couriers weigh every parcel. If it is much heavier than the category, we may recover
-              the difference from your payout, and we will tell you first.
+              Couriers weigh every parcel. If it's much heavier than the category, we may recover
+              the difference from your payout, and we'll tell you first.
             </TrustNote>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {shippingCategories.map((c) => (
@@ -1031,7 +974,9 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
                   className={cn('border p-5 text-left transition-all',
                     shippingCategory === c.key ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
                   <span className="block text-xs font-black uppercase tracking-widest">{c.label}</span>
-                  <span className="block text-sm font-black mt-1.5">{formatCurrency(c.rate)}</span>
+                  <span className="block text-[10px] font-bold uppercase tracking-widest mt-1.5 opacity-70">
+                    {freeShipping ? 'Free for buyer' : `Buyer pays ${formatCurrency(c.rate)}`}
+                  </span>
                 </button>
               ))}
             </div>
@@ -1041,10 +986,10 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
                 freeShipping ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
               <div>
                 <span className="block text-xs font-black uppercase tracking-widest">
-                  Free shipping <span className={cn(freeShipping ? 'text-white/60' : 'text-black/40')}>(Recommended)</span>
+                  Offer free shipping <span className={cn(freeShipping ? 'text-white/60' : 'text-black/40')}>(Recommended)</span>
                 </span>
                 <span className={cn('block text-[11px] font-bold uppercase tracking-widest leading-[1.8] mt-2 max-w-md', freeShipping ? 'text-white/80' : 'text-black/60')}>
-                  {formatCurrency(selectedRate)} comes out of your payout instead. Items sell better when checkout says free.
+                  Items sell better when checkout says free. The {formatCurrency(selectedRate)} comes out of your payout instead.
                 </span>
               </div>
               <div className="relative inline-flex items-center shrink-0 mt-1">
@@ -1084,7 +1029,7 @@ function PayoutStep({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-8">
           <div className="flex flex-col gap-3">
             <FieldLabel>Full Name *</FieldLabel>
-            <input value={fullName} onChange={(e) => setFullName(e.target.value)} type="text" placeholder="Name on your UPI account"
+            <input value={fullName} onChange={(e) => setFullName(e.target.value)} type="text" placeholder="Full name as on your UPI account"
               className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20" />
           </div>
           <div className="flex flex-col gap-3">
@@ -1116,7 +1061,10 @@ function PayoutStep({
       </div>
 
       <div className="flex flex-col gap-6">
-        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Pickup address</h3>
+        <div className="flex flex-col gap-1">
+          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Pickup address</h3>
+          <TrustNote>Where the courier collects once it sells.</TrustNote>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-8">
           <div className="flex flex-col gap-3 sm:col-span-2">
             <FieldLabel>Address *</FieldLabel>
@@ -1172,15 +1120,15 @@ function ReviewStep({
 }) {
   const shipRate = shippingCategories.find((c) => c.key === shippingCategory);
 
-  // Five separate taps, not one "agree to all": these are the attestations we
-  // stand on when a buyer disputes a listing, and one tap covering five distinct
-  // claims is worth less if it is ever challenged. Shortened, not merged.
+  // Word for word, and five separate taps: these are the attestations we stand
+  // on when a buyer disputes a listing. Shortening them, or collapsing them into
+  // one "agree to all", makes them worth less if they are ever challenged.
   const DECLARATION_ITEMS: Array<{ key: keyof typeof declarations; label: string }> = [
-    { key: 'oneItem', label: 'One item only' },
-    { key: 'photosActual', label: 'Photos show the actual item' },
-    { key: 'disclosedFlaws', label: 'All known flaws disclosed' },
-    { key: 'accurate', label: 'Description is accurate' },
-    { key: 'authenticIfMarked', label: 'Genuine if marked authentic' },
+    { key: 'oneItem', label: 'This listing represents one physical item only.' },
+    { key: 'photosActual', label: 'The photos show the actual item being sold.' },
+    { key: 'disclosedFlaws', label: 'I have disclosed all known flaws.' },
+    { key: 'accurate', label: 'The description and details above are accurate.' },
+    { key: 'authenticIfMarked', label: 'If marked authentic, this item is genuine.' },
   ];
   const declaredCount = DECLARATION_ITEMS.filter((d) => declarations[d.key]).length;
 
@@ -1242,21 +1190,15 @@ function ReviewStep({
             <TrustNote>Buyers will see this as unconfirmed. Proof of purchase in your description helps.</TrustNote>
           </div>
         )}
-        <div className="flex items-center gap-2 max-w-md">
-          <TrustNote>Counterfeits aren&apos;t allowed.</TrustNote>
-          <InfoTip label="Counterfeit policy">
-            Listing an item confirms it is genuine as far as you know. We remove listings,
-            ask for proof, and suspend repeat offenders.
-          </InfoTip>
+        <div className="max-w-md">
+          <TrustNote>No counterfeits. We remove listings, ask for proof, and suspend repeat offenders.</TrustNote>
         </div>
       </div>
 
       <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between gap-4 border-b border-black/5 pb-3">
-          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50">Before you publish</h3>
-          <span className="text-[11px] font-black uppercase tracking-[0.2em] text-black/40">
-            {declaredCount}/{DECLARATION_ITEMS.length}
-          </span>
+        <div className="flex flex-col gap-1">
+          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Before you publish</h3>
+          <TrustNote>{declaredCount} of {DECLARATION_ITEMS.length} confirmed.</TrustNote>
         </div>
         <div className="flex flex-col gap-3">
           {DECLARATION_ITEMS.map((d) => (
