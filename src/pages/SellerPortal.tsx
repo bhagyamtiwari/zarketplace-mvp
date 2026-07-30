@@ -10,6 +10,7 @@
 
 import * as React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { scrollToTop } from '../lib/scrollToTop';
 import { supabase } from '../lib/supabase';
 import { Listing, Order, OrderStatus, SellerPayout } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
@@ -52,6 +53,7 @@ function SellerInner() {
   const [tab, setTabState] = React.useState<Tab>(initialTab);
   const setTab = React.useCallback((next: Tab) => {
     setTabState(next);
+    scrollToTop();
     const p = new URLSearchParams(searchParams);
     if (next === 'listings') p.delete('tab');
     else p.set('tab', next);

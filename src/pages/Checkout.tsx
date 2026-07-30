@@ -8,6 +8,7 @@
 //   3. Success / Failed.
 
 import React from 'react';
+import { scrollToTop } from '../lib/scrollToTop';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { supabase } from '../lib/supabase';
@@ -256,6 +257,7 @@ function CheckoutInner() {
       setOrderNumbers(nums);
       setReservationExpiresAt(expiresAt);
       setStep('pay');
+      scrollToTop();
       persistResume({ step: 'pay', order_numbers: nums, reservation_expires_at: expiresAt });
     } catch (err: any) {
       clog.error('createOrders failed', err);
@@ -298,12 +300,14 @@ function CheckoutInner() {
       });
       setConfirmedOrders(rows);
       setStep('success');
+      scrollToTop();
       clearResume();
       if (!id) await cart.clear();
     } else if (result === 'payment_failed') {
       trackEvent('order_payment_failed', { order_numbers: orderNumbers.join(',') });
       setErrorMsg('Payment failed. You can try again.');
       setStep('failed');
+      scrollToTop();
       persistResume({ step: 'failed' });
     } else {
       // Distinct from an outright failure: the money may still land. Worth
@@ -311,6 +315,7 @@ function CheckoutInner() {
       trackEvent('order_confirmation_timeout', { order_numbers: orderNumbers.join(',') });
       setErrorMsg('Still confirming your payment with the bank. Check My Orders in a minute, or try again.');
       setStep('failed');
+      scrollToTop();
       persistResume({ step: 'failed' });
     }
     setSubmitting(false);

@@ -24,6 +24,7 @@ import { getShippingCategories, type ShippingCategory } from '../lib/pricing';
 import { trackEvent } from '../lib/analytics';
 import { CONDITIONS } from '../lib/condition';
 import { log } from '../lib/log';
+import { scrollToTop } from '../lib/scrollToTop';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
 import { cn, formatCurrency } from '../lib/utils';
 
@@ -168,13 +169,15 @@ function SellInner() {
   // handle and pickup address. All of it is the seller's own data, so there is
   // nothing to leak. Condition, flaws, title, price and size are never
   // prefilled - those genuinely differ per item, and a stale value there would
-  // be a false claim about the garment rather than a saved keystroke.
+  // be a false claim about the garment rather than a saved keystroke. Free
+  // shipping is left out for the same reason: it costs the seller money, so it
+  // gets decided per listing rather than inherited.
   const prefilledFromLast = React.useRef(false);
   React.useEffect(() => {
     if (!user || prefilledFromLast.current) return;
     supabase
       .from('listings')
-      .select('gender, category, shipping_category, free_shipping, seller_instagram, pickup_address')
+      .select('gender, category, shipping_category, seller_instagram, pickup_address')
       .eq('seller_id', user.id)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -185,9 +188,6 @@ function SellInner() {
         if (data.gender) setGender((prev) => prev || data.gender);
         if (data.category) setSelectedCategory((prev) => prev || data.category);
         if (data.shipping_category) setShippingCategory((prev) => prev || data.shipping_category);
-        // Boolean, so the `prev || value` idiom used above would be wrong here.
-        // The ref guard is what keeps this from clobbering a deliberate toggle.
-        if (typeof data.free_shipping === 'boolean') setFreeShipping(data.free_shipping);
         if (data.seller_instagram) {
           const handle = data.seller_instagram.replace(/^https?:\/\/(www\.)?instagram\.com\//, '').replace(/\/$/, '');
           if (handle) setIgHandle((prev) => prev || handle);
@@ -316,7 +316,7 @@ function SellInner() {
   const goToStep = (s: number) => {
     setStepError(null);
     setStep(Math.max(0, Math.min(s, STEP_LABELS.length - 1)));
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    scrollToTop();
   };
   const goNext = () => goToStep(step + 1);
   const goBack = () => goToStep(step - 1);
@@ -335,10 +335,10 @@ function SellInner() {
 
     for (let s = 0; s <= 4; s++) {
       const err = validateStep(s);
-      if (err) { setStep(s); setStepError(err); window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+      if (err) { setStep(s); setStepError(err); scrollToTop(); return; }
     }
-    if (authenticity === null) { setStepError('Confirm whether this item is authentic.'); return; }
-    if (!allDeclared) { setStepError('Check every declaration below before publishing.'); return; }
+    if (authenticity === null) { setStepError('Confirm whether this item is authentic.'); scrollToTop(); return; }
+    if (!allDeclared) { setStepError('Check every declaration below before publishing.'); scrollToTop(); return; }
 
     setLoading(true);
     const tFull = slog.time('full submit');
@@ -416,6 +416,7 @@ function SellInner() {
         photo_count: imageFiles.length,
       });
       setSubmitted(true);
+      scrollToTop();
     } catch (err: any) {
       slog.error('handlePublish THREW', err);
       tFull.end({ outcome: 'error' });
@@ -428,6 +429,7 @@ function SellInner() {
   const resetForm = () => {
     setSubmitted(false);
     setStep(0);
+    scrollToTop();
     setImageFiles([]); setImagePreviews([]);
     setTitle(''); setBrand(''); setDescription('');
     setSelectedCategory(''); setSizeType(''); setSizeDetail('');
@@ -1006,19 +1008,6 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
               Couriers weigh every parcel. If it's much heavier than the category, we may recover
               the difference from your payout, and we'll tell you first.
             </TrustNote>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {shippingCategories.map((c) => (
-                <button key={c.key} type="button" onClick={() => setShippingCategory(c.key)}
-                  className={cn('border p-5 text-left transition-all',
-                    shippingCategory === c.key ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
-                  <span className="block text-xs font-black uppercase tracking-widest">{c.label}</span>
-                  <span className="block text-[10px] font-bold uppercase tracking-widest mt-1.5 opacity-70">
-                    {freeShipping ? 'Free for buyer' : `Buyer pays ${formatCurrency(c.rate)}`}
-                  </span>
-                </button>
-              ))}
-            </div>
-
             <button type="button" onClick={() => setFreeShipping(!freeShipping)}
               className={cn('border p-5 text-left transition-all flex items-start justify-between gap-4',
                 freeShipping ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
@@ -1037,6 +1026,19 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
                 </div>
               </div>
             </button>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {shippingCategories.map((c) => (
+                <button key={c.key} type="button" onClick={() => setShippingCategory(c.key)}
+                  className={cn('border p-5 text-left transition-all',
+                    shippingCategory === c.key ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
+                  <span className="block text-xs font-black uppercase tracking-widest">{c.label}</span>
+                  <span className="block text-[10px] font-bold uppercase tracking-widest mt-1.5 opacity-70">
+                    {freeShipping ? 'Free for buyer' : `Buyer pays ${formatCurrency(c.rate)}`}
+                  </span>
+                </button>
+              ))}
+            </div>
           </>
         )}
       </div>
