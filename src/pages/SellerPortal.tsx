@@ -9,7 +9,7 @@
 // even confirmed the item arrived.
 
 import * as React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Listing, Order, OrderStatus, SellerPayout } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
@@ -43,7 +43,20 @@ export function SellerPortal() {
 
 function SellerInner() {
   const { user } = useAuth();
-  const [tab, setTab] = React.useState<Tab>('listings');
+  // Deep-linkable: /seller-portal?tab=tools lands straight on Seller Tools, which
+  // is where the post-publish screen sends a seller to share their new listing.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const initialTab: Tab = (['listings', 'tools', 'orders', 'payouts'] as const)
+    .includes(tabParam as Tab) ? (tabParam as Tab) : 'listings';
+  const [tab, setTabState] = React.useState<Tab>(initialTab);
+  const setTab = React.useCallback((next: Tab) => {
+    setTabState(next);
+    const p = new URLSearchParams(searchParams);
+    if (next === 'listings') p.delete('tab');
+    else p.set('tab', next);
+    setSearchParams(p, { replace: true });
+  }, [searchParams, setSearchParams]);
   const [loading, setLoading] = React.useState(false);
   const [listings, setListings] = React.useState<Listing[]>([]);
   const [orders, setOrders] = React.useState<Order[]>([]);

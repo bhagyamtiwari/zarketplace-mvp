@@ -163,29 +163,39 @@ function SellInner() {
     setPhone((prev) => prev || profile?.phone || '');
   }, [profile]);
 
-  // Prefill the fields most likely to repeat across a seller's own listings
-  // (gender, shipping category, Instagram handle, pickup address) from their
-  // most recent listing, so listing a second or third similar item is
-  // faster. Never prefills condition/flaws - those genuinely vary per item.
+  // Prefill everything that repeats across a seller's own listings, from their
+  // most recent one: name, phone, gender, category, shipping choice, Instagram
+  // handle and pickup address. All of it is the seller's own data, so there is
+  // nothing to leak. Condition, flaws, title, price and size are never
+  // prefilled - those genuinely differ per item, and a stale value there would
+  // be a false claim about the garment rather than a saved keystroke.
+  const prefilledFromLast = React.useRef(false);
   React.useEffect(() => {
-    if (!user) return;
+    if (!user || prefilledFromLast.current) return;
     supabase
       .from('listings')
-      .select('gender, shipping_category, seller_instagram, pickup_address')
+      .select('gender, category, shipping_category, free_shipping, seller_instagram, pickup_address')
       .eq('seller_id', user.id)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
       .then(({ data }) => {
         if (!data) return;
+        prefilledFromLast.current = true;
         if (data.gender) setGender((prev) => prev || data.gender);
+        if (data.category) setSelectedCategory((prev) => prev || data.category);
         if (data.shipping_category) setShippingCategory((prev) => prev || data.shipping_category);
+        // Boolean, so the `prev || value` idiom used above would be wrong here.
+        // The ref guard is what keeps this from clobbering a deliberate toggle.
+        if (typeof data.free_shipping === 'boolean') setFreeShipping(data.free_shipping);
         if (data.seller_instagram) {
           const handle = data.seller_instagram.replace(/^https?:\/\/(www\.)?instagram\.com\//, '').replace(/\/$/, '');
           if (handle) setIgHandle((prev) => prev || handle);
         }
         const addr = data.pickup_address as Record<string, string> | null;
         if (addr) {
+          setFullName((prev) => prev || addr.fullName || '');
+          setPhone((prev) => prev || addr.phone || '');
           setPickupAddress((prev) => prev || addr.address || '');
           setPickupLandmark((prev) => prev || addr.landmark || '');
           setPickupCity((prev) => prev || addr.city || '');
@@ -281,6 +291,14 @@ function SellInner() {
       if (!priceVal || Number(priceVal) <= 0) return 'Enter a price.';
       if (salePriceInvalid) return 'Sale price must be lower than the regular price.';
       if (!shippingCategory) return 'Choose a shipping category.';
+      // Below the shipping rate the seller cannot come out ahead, and with free
+      // shipping on they would actively lose money, so the floor is the rate
+      // itself rather than a warning they can click past.
+      const floor = shippingCategories.find((c) => c.key === shippingCategory)?.rate ?? 0;
+      const lowest = Number(showSalePrice && salePriceVal ? salePriceVal : priceVal);
+      if (floor > 0 && lowest < floor) {
+        return `Price it at ${formatCurrency(floor)} or more. That is the shipping cost for this category, so anything below it earns you nothing.`;
+      }
     }
     if (s === 4) {
       if (!fullName.trim()) return 'Enter your full name.';
@@ -427,19 +445,26 @@ function SellInner() {
           <CheckCircle2 className="h-12 w-12" />
         </div>
         <h1 className="text-5xl font-black tracking-tighter uppercase mb-4">Listing Submitted</h1>
-        <p className="text-black font-medium uppercase tracking-widest text-xs mb-12 max-w-md">
+        <p className="text-black font-medium uppercase tracking-widest text-xs mb-3 max-w-md">
           We review every listing before it goes live.
         </p>
+        <p className="text-black/50 font-medium uppercase tracking-widest text-xs mb-10 max-w-md">
+          Meanwhile, generate a branded Instagram image and share it.
+        </p>
         <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
-          <button onClick={() => navigate('/browse')}
-            className="bg-black px-12 py-5 text-xs font-black uppercase tracking-widest text-white hover:bg-zinc-800">
-            Browse All
+          <button onClick={() => navigate('/seller-portal?tab=tools')}
+            className="bg-black px-10 py-5 text-xs font-black uppercase tracking-widest text-white hover:bg-zinc-800">
+            Generate Instagram image
           </button>
           <button onClick={resetForm}
-            className="border border-black px-12 py-5 text-xs font-black uppercase tracking-widest text-black hover:bg-black hover:text-white">
+            className="border border-black px-10 py-5 text-xs font-black uppercase tracking-widest text-black hover:bg-black hover:text-white">
             List Another
           </button>
         </div>
+        <button onClick={() => navigate('/')}
+          className="mt-6 text-[11px] font-black uppercase tracking-[0.25em] text-black/40 hover:text-black">
+          Back to zarketplace
+        </button>
       </div>
     );
   }
@@ -915,6 +940,9 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
   freeShipping: boolean; setFreeShipping: (v: boolean) => void;
 }) {
   const selectedRate = shippingCategories.find((c) => c.key === shippingCategory)?.rate ?? 0;
+  // The number a buyer would actually pay: the sale price when one is set.
+  const effectivePrice = Number(showSalePrice && salePriceVal ? salePriceVal : priceVal);
+  const belowFloor = selectedRate > 0 && effectivePrice > 0 && effectivePrice < selectedRate;
   return (
     <div className="flex flex-col gap-10">
       <div className="flex flex-col gap-6">
@@ -922,8 +950,18 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-8">
           <div className="flex flex-col gap-3">
             <FieldLabel>Price (INR) *</FieldLabel>
-            <input type="number" min="1" value={priceVal} onChange={(e) => setPriceVal(e.target.value)} placeholder="3500"
-              className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20" />
+            <input type="number" min={selectedRate || 1} value={priceVal} onChange={(e) => setPriceVal(e.target.value)}
+              placeholder={selectedRate ? String(selectedRate) : '3500'}
+              className={cn('border-b py-4 text-sm font-bold focus:outline-none transition-all placeholder:text-black/20',
+                belowFloor ? 'border-red-500 focus:border-red-600' : 'border-black/10 focus:border-black')} />
+            {/* Caught here rather than at Continue, so the seller sees it while
+                the number is still under their cursor. */}
+            {belowFloor && (
+              <p className="text-[11px] font-bold uppercase tracking-widest text-red-600 leading-relaxed">
+                Below {formatCurrency(selectedRate)} you earn nothing.<br />
+                That is the shipping cost for this category. Price at {formatCurrency(selectedRate)} or more.
+              </p>
+            )}
             <TrustNote>
               {freeShipping
                 ? "You keep this minus shipping, since you're covering it. No selling fees."
@@ -1169,7 +1207,7 @@ function ReviewStep({
 
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Is this item authentic? *</h3>
+          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">To the best of your knowledge, is this item authentic? *</h3>
         </div>
         <div className="grid grid-cols-2 gap-3 max-w-md">
           <button type="button" onClick={() => setAuthenticity('confirmed')}
