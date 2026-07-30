@@ -42,13 +42,30 @@ export function Navbar() {
     return () => { document.body.style.overflow = prev; };
   }, [isMenuOpen]);
 
+  // The marketplace opens on a black hero. On a phone the bar sits directly on
+  // top of it, so it goes black and merges into the banner rather than cutting a
+  // white strip across it. Desktop keeps the white bar the mockups show.
+  const onFeed = location.pathname === '/' || location.pathname === '/browse';
+
   return (
-    <nav className="fixed top-0 z-50 w-full border-b border-black/5 bg-white/80 backdrop-blur-xl">
+    <nav
+      className={cn(
+        'fixed top-0 z-50 w-full border-b backdrop-blur-xl md:border-black/5 md:bg-white/80',
+        onFeed ? 'border-white/10 bg-black' : 'border-black/5 bg-white/80',
+      )}
+    >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-20 items-center justify-between">
           <div className="flex items-center gap-12">
             <Link to="/" className="flex items-center group">
-              <Wordmark on="light" heightClassName="h-7 sm:h-8" className="group-hover:scale-105 transition-transform" />
+              {onFeed && (
+                <Wordmark on="dark" heightClassName="h-7" className="md:hidden group-hover:scale-105 transition-transform" />
+              )}
+              <Wordmark
+                on="light"
+                heightClassName="h-7 sm:h-8"
+                className={cn('group-hover:scale-105 transition-transform', onFeed && 'hidden md:block')}
+              />
             </Link>
             <div className="hidden md:block">
               <div className="flex items-baseline space-x-10">
@@ -237,8 +254,9 @@ export function Navbar() {
             </div>
 
             <button
-              className="md:hidden p-2"
+              className={cn('md:hidden p-2', onFeed && 'text-white')}
               onClick={() => setIsMenuOpen(!isMenuOpen)}
+              aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
             >
               {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>

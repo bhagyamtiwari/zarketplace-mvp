@@ -54,41 +54,43 @@ export function CookieConsent() {
         </div>
       )}
 
-      <div className="px-4 sm:px-6 lg:px-8 py-3.5 sm:py-4 flex flex-col items-center gap-3 text-center sm:flex-row sm:items-center sm:gap-8 sm:text-left">
+      <div className="px-4 sm:px-6 lg:px-8 py-3.5 sm:py-4 flex items-center gap-4 text-left sm:gap-8">
         {/* Short form on a phone: five lines of consent copy over the fold is
             its own dark pattern. The full wording stays where there is room,
             and both link to the policy that spells it out. */}
-        <p className="body-copy text-white/70 flex-1">
-          <span className="sm:hidden">
-            Browser storage keeps you signed in. Analytics only if you allow it.{' '}
+        <p className="text-white/70 flex-1 text-[13px] leading-snug sm:text-xs sm:leading-relaxed">
+          {/* Sentence case on a phone: the uppercase body voice needs six lines
+              for the same sentence and pushes the buttons off the bar. */}
+          <span className="sm:hidden text-[13px] font-bold leading-snug">
+            We use cookies to improve your experience.{' '}
             <Link to="/privacy" className="underline text-white">Privacy Policy</Link>.
           </span>
-          <span className="hidden sm:inline">
+          <span className="hidden sm:inline body-copy">
             We store a few things in your browser to keep you signed in and your cart intact, and,
             only if you allow it, anonymous analytics. No advertising or cross-site tracking, ever.
             See our <Link to="/privacy" className="underline text-white hover:text-white/80">Privacy Policy</Link>.
           </span>
         </p>
-        <div className="flex w-full items-center justify-center gap-2.5 sm:w-auto sm:shrink-0">
+        <div className="flex shrink-0 items-center gap-2.5">
           <button
             type="button"
             onClick={() => setConsent('accepted')}
-            className="flex-1 sm:flex-none bg-white px-5 py-3 text-[10px] font-black uppercase tracking-widest text-black hover:bg-white/90 transition-colors"
+            className="bg-white px-4 sm:px-5 py-3 text-[10px] font-black uppercase tracking-widest text-black hover:bg-white/90 transition-colors"
           >
-            Accept all cookies
+            Accept<span className="hidden sm:inline"> all cookies</span>
           </button>
           <button
             type="button"
             onClick={() => setConsent('rejected')}
-            className="flex-1 sm:flex-none border border-white/30 px-5 py-3 text-[10px] font-black uppercase tracking-widest text-white hover:border-white transition-colors"
+            className="border border-white/30 px-4 sm:px-5 py-3 text-[10px] font-black uppercase tracking-widest text-white hover:border-white transition-colors"
           >
-            Only essential
+            Essential only
           </button>
           <button
             type="button"
             onClick={() => setSettingsOpen((v) => !v)}
             aria-label="Cookie settings"
-            className="shrink-0 p-2 text-white/50 hover:text-white transition-colors"
+            className="hidden sm:block shrink-0 p-2 text-white/50 hover:text-white transition-colors"
           >
             <SlidersHorizontal className="h-4 w-4" />
           </button>

@@ -5,7 +5,7 @@
 // it the page is search, filters and real inventory, and nothing else.
 import React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, SlidersHorizontal, X, Plus, Loader2, Heart, ChevronDown, ShieldCheck, PackageCheck, BadgeCheck, Info } from 'lucide-react';
+import { Search, SlidersHorizontal, X, Plus, Loader2, Heart, ChevronDown, ShieldCheck, PackageCheck, Tag, ArrowRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Listing } from '../types';
 import { ListingCard } from '../components/ListingCard';
@@ -59,7 +59,7 @@ const ALL_SIZES = ['XXS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '28', '30', '
 // marketing sections - each one is a query anyone could have built by hand.
 const QUICK_CHIPS: Array<{ value: string; label: string; tag?: string }> = [
   { value: 'new_today', label: 'New today' },
-  { value: 'under_999', label: 'Under Rs. 999', tag: 'New' },
+  { value: 'under_999', label: 'Under ₹999', tag: 'New' },
   { value: 'free_shipping', label: 'Free shipping' },
   { value: 'sale', label: 'On sale' },
 ];
@@ -283,6 +283,8 @@ export function Marketplace() {
           navbar so the user is never more than one tap from filtering. */}
       <div className="lg:sticky lg:top-20 z-30 border-b border-black/5 bg-white/95 backdrop-blur-xl">
         <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-3 flex flex-col gap-3">
+          {/* Search keeps sentence case rather than the sitewide uppercase: the
+              full hint has to fit a phone's width without truncating. */}
           <form onSubmit={onSearchSubmit} className="relative">
             <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-black/40" />
             <input
@@ -291,7 +293,7 @@ export function Marketplace() {
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Search brands, items, sizes"
               aria-label="Search listings"
-              className="w-full border border-black/10 bg-zinc-50 py-3 pl-11 pr-4 text-xs font-bold uppercase tracking-widest placeholder:text-black/30 focus:border-black focus:outline-none"
+              className="w-full border border-black/10 bg-zinc-50 py-3 pl-11 pr-4 text-sm font-bold tracking-normal placeholder:text-black/30 focus:border-black focus:outline-none"
             />
           </form>
 
@@ -305,17 +307,12 @@ export function Marketplace() {
               {GENDERS.map((g) => (
                 <Chip key={g} active={gender === g} onClick={() => toggleParam('gender', g)}>{g}</Chip>
               ))}
-              <button
-                type="button"
-                onClick={() => setShowFilters(true)}
-                className="lg:hidden shrink-0 flex items-center gap-2 border border-black bg-white px-4 py-3 text-[11px] font-black uppercase tracking-widest"
-              >
-                <SlidersHorizontal className="h-3.5 w-3.5" />
-                Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
-              </button>
             </div>
 
+            {/* Sort leads this row and Filters closes it, so everything that
+                changes what the grid shows lives on one line. */}
             <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 py-2 -my-2 lg:mx-0 lg:px-0 lg:justify-end">
+              <SortChip value={sortBy} onChange={(v) => setParam('sort', v === 'newest' ? null : v)} />
               {QUICK_CHIPS.map((c) => (
                 <Chip key={c.value} active={quick === c.value} onClick={() => toggleParam('q', c.value)} tag={c.tag}>
                   {c.label}
@@ -329,6 +326,14 @@ export function Marketplace() {
                   </span>
                 </Chip>
               )}
+              <button
+                type="button"
+                onClick={() => setShowFilters(true)}
+                className="lg:hidden shrink-0 flex items-center gap-2 border border-black bg-white px-4 py-3 text-[11px] font-black uppercase tracking-widest"
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+              </button>
             </div>
           </div>
         </div>
@@ -384,27 +389,6 @@ export function Marketplace() {
                   ? `${total ?? listings.length} item${(total ?? listings.length) === 1 ? '' : 's'}`
                   : ''}
             </p>
-            {/* index.css keeps a 16px floor on form controls so iOS Safari never
-                auto-zooms on tap. That floor made the sort value tower over its
-                own label, so the native select is kept (native picker, no zoom)
-                but rendered invisible over text we size ourselves. */}
-            <label className="relative flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-black/40">
-              Sort
-              <span className="flex items-center gap-1 text-black underline underline-offset-4">
-                {SORT_OPTIONS.find((o) => o.value === sortBy)?.label ?? 'Newest'}
-                <ChevronDown className="h-3.5 w-3.5 text-black/40" />
-              </span>
-              <select
-                value={sortBy}
-                onChange={(e) => setParam('sort', e.target.value === 'newest' ? null : e.target.value)}
-                aria-label="Sort listings"
-                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-              >
-                {SORT_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </label>
           </div>
 
           {state === 'error' && listings.length === 0 ? (
@@ -590,84 +574,78 @@ function FeedGrid({ children }: { children: React.ReactNode }) {
 // banner rather than under the filters: a promise belongs next to the pitch, not
 // wedged between a buyer and the grid.
 const PROMISES: Array<{ label: string; body: string; to: string; Icon: typeof ShieldCheck }> = [
-  { label: 'Buyer protection', body: "Pay when you're happy. We've got you.", to: '/buyer-protection', Icon: ShieldCheck },
-  { label: 'Doorstep pickup', body: 'We pick up from your door.', to: '/shipping-policy', Icon: PackageCheck },
-  { label: 'Condition graded', body: 'Keep 100%. We handle the rest.', to: '/conditions-guide', Icon: BadgeCheck },
-  { label: 'What is zarketplace?', body: '', to: '/about', Icon: Info },
+  { label: 'Buyer protection', body: 'Pay with confidence.', to: '/buyer-protection', Icon: ShieldCheck },
+  { label: 'No selling fees', body: 'Keep 100%.', to: '/sell', Icon: Tag },
+  { label: 'Doorstep pickup', body: 'We collect it.', to: '/shipping-policy', Icon: PackageCheck },
 ];
 
-// Explainer banner for the visitor who has never heard of us. It sits above the
-// controls, over the campaign image, and the X clears it for this visit - a
-// reload brings it back, so nobody loses the explanation permanently by tapping
-// the wrong thing.
+const HERO_IMAGE = 'url(/images/new-banner3-web.jpg)';
+
+// The home banner: the pitch, the three promises that back it, and the only two
+// things a visitor can do here. It is permanent rather than dismissible - it is
+// the top of the marketplace, not a first-visit notice.
 function HeroBanner() {
-  const [dismissed, setDismissed] = React.useState(false);
-  const close = () => setDismissed(true);
-
-  if (dismissed) return null;
-
   return (
     <section className="relative isolate overflow-hidden bg-black text-white">
-      {/* One banner: the image covers it edge to edge at every width. A 2.33:1
-          photo in a tall phone container has to lose one side, so it anchors
-          left and keeps the figure rather than centring on empty ground. */}
-      <div
-        aria-hidden
-        className="absolute inset-0 bg-cover bg-no-repeat bg-left sm:bg-top opacity-70"
-        style={{ backgroundImage: 'url(/images/new-banner3-web.jpg)' }}
-      />
-      <div aria-hidden className="absolute inset-0 bg-black/50 sm:bg-transparent sm:bg-gradient-to-t sm:from-black sm:via-black/70 sm:to-black/55" />
+      {/* Phone: the photo takes the right side whole, so the figure stays intact
+          and the copy sits on flat black instead of fighting the image. The
+          horizontal position keeps the face in frame at this crop. */}
+      <div aria-hidden className="absolute inset-y-0 right-0 w-[68%] sm:hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-no-repeat"
+          style={{ backgroundImage: HERO_IMAGE, backgroundPosition: '14% center' }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/55 to-black/10" />
+      </div>
 
-      {/* Minimal dismiss: just the glyph, no chip behind it. */}
-      <button
-        type="button"
-        onClick={close}
-        aria-label="Close introduction"
-        className="absolute top-3 right-3 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm text-white/80 hover:bg-black/60 hover:text-white transition-colors"
-      >
-        <X className="h-5 w-5" strokeWidth={1.5} />
-      </button>
+      {/* Wide: same idea with more room. The photo holds the right side, where
+          the whole frame fits (figure and headstone both), and fades into flat
+          black under the copy rather than being dimmed all the way across. */}
+      <div aria-hidden className="hidden sm:block absolute inset-y-0 right-0 w-[64%]">
+        <div className="absolute inset-0 bg-cover bg-no-repeat bg-center" style={{ backgroundImage: HERO_IMAGE }} />
+        <div className="absolute inset-0 bg-gradient-to-r from-black via-black/45 via-35% to-transparent to-75%" />
+      </div>
 
-      <div className="relative mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-6 sm:py-8 flex flex-col gap-5 sm:gap-6">
-        {/* Wide screens set the lockup left, the promise list right. Icons
-            baseline-align to their label and everything hangs off one left
-            edge and one divider rhythm, so the block reads as a single list
-            rather than loose fragments. */}
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:gap-16">
-          <h1 className="flex flex-col items-start gap-2 lg:flex-1">
-            <img
-              src="/images/zark-reg-tp-web.png"
-              alt="zarketplace"
-              draggable={false}
-              onDragStart={(e) => e.preventDefault()}
-              onContextMenu={(e) => e.preventDefault()}
-              className="h-8 sm:h-12 lg:h-16 w-auto pointer-events-none select-none"
-              style={{ WebkitTouchCallout: 'none', WebkitUserSelect: 'none', userSelect: 'none' }}
-            />
-            <span className="text-[11px] sm:text-base lg:text-2xl font-black uppercase tracking-[0.2em]">
-              Buy &amp; sell pre-owned fashion
-            </span>
-          </h1>
+      <div className="relative mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-7 sm:py-14 lg:py-16 flex flex-col gap-6 sm:gap-7">
+        <h1 className="max-w-[8ch] sm:max-w-none text-[2.1rem] leading-[0.95] sm:text-4xl lg:text-5xl font-black tracking-tighter">
+          Buy &amp; sell<br className="hidden sm:block" /> pre-owned fashion.
+        </h1>
 
-          <ul className="flex flex-col lg:w-[42%]">
-            {PROMISES.map(({ label, body, to, Icon }, i) => (
-              <li key={label} className={cn(i > 0 && 'border-t border-white/15')}>
-                <Link to={to} className="group flex items-center gap-3 py-2.5 sm:py-3">
-                  <Icon className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-white/80" strokeWidth={1.75} />
-                  <span className="flex min-w-0 flex-1 items-baseline gap-2 sm:flex-col sm:items-start sm:gap-0.5">
-                    <span className="text-[11px] sm:text-sm font-black uppercase tracking-widest group-hover:text-white/80">
-                      {label}
-                    </span>
-                    {body && (
-                      <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-white/60">
-                        {body}
-                      </span>
-                    )}
+        {/* One promise row at every width. The phone drops the second line -
+            three labels and three sentences do not fit side by side - and keeps
+            the dividers so the claims read as a set. */}
+        <ul className="grid grid-cols-3 divide-x divide-white/20 sm:flex sm:divide-x-0 sm:gap-10">
+          {PROMISES.map(({ label, body, to, Icon }) => (
+            <li key={label} className="min-w-0 pr-2 first:pl-0 pl-3 sm:p-0">
+              <Link to={to} className="group flex items-start gap-2.5 sm:items-center sm:gap-3">
+                <Icon className="mt-0.5 h-5 w-5 sm:mt-0 sm:h-6 sm:w-6 shrink-0 text-white/85" strokeWidth={1.5} />
+                <span className="flex min-w-0 flex-col gap-0.5">
+                  <span className="text-[13px] sm:text-sm font-black tracking-tight group-hover:text-white/70">
+                    {label}
                   </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+                  <span className="hidden sm:block text-xs font-bold text-white/60">{body}</span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+
+        <div className="grid grid-cols-2 gap-3 sm:flex sm:gap-4">
+          <Link
+            to="/browse"
+            className="flex items-center justify-between gap-3 bg-white px-5 py-4 sm:min-w-[230px] sm:px-7 text-[11px] font-black uppercase tracking-widest text-black transition-colors hover:bg-white/85"
+          >
+            <span className="sm:hidden">Browse</span>
+            <span className="hidden sm:inline">Browse items</span>
+            <ArrowRight className="h-4 w-4" />
+          </Link>
+          <Link
+            to="/sell"
+            className="flex items-center justify-between gap-3 border border-white/40 px-5 py-4 sm:min-w-[230px] sm:px-7 text-[11px] font-black uppercase tracking-widest text-white transition-colors hover:border-white hover:bg-white/10"
+          >
+            Sell an item
+            <ArrowRight className="h-4 w-4" />
+          </Link>
         </div>
       </div>
     </section>
@@ -698,6 +676,29 @@ function SellTile() {
         List an item
       </span>
     </Link>
+  );
+}
+
+// Sort, wearing the same chip as the filters beside it. index.css keeps a 16px
+// floor on form controls so iOS Safari never auto-zooms on tap, so the native
+// select is kept (native picker, no zoom) but rendered invisible over a label we
+// size ourselves.
+function SortChip({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <label className="relative shrink-0 flex items-center gap-2 border border-black/10 bg-white px-4 py-3 sm:py-2.5 text-[11px] font-black uppercase tracking-widest hover:border-black transition-colors">
+      {SORT_OPTIONS.find((o) => o.value === value)?.label ?? 'Newest'}
+      <ChevronDown className="h-3.5 w-3.5 text-black/40" />
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label="Sort listings"
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+      >
+        {SORT_OPTIONS.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+    </label>
   );
 }
 
