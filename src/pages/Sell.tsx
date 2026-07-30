@@ -713,7 +713,16 @@ function PhotosStep({ imagePreviews, onAdd, onRemove }: {
 
       <div className="flex flex-col gap-2">
         <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Item Photos</h3>
-        <TrustNote>Natural light, plain background, whole item in frame. No screenshots or stock photos.</TrustNote>
+        <TrustNote>
+          Natural light, plain background, whole item in frame. No screenshots or stock photos.
+          <br />
+          Messy background? Strip it free with{' '}
+          <a href="https://www.photoroom.com/tools/background-remover" target="_blank" rel="noreferrer"
+            className="underline text-black hover:text-black/60">PhotoRoom</a>
+          {' '}or{' '}
+          <a href="https://www.remove.bg/" target="_blank" rel="noreferrer"
+            className="underline text-black hover:text-black/60">remove.bg</a>.
+        </TrustNote>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
@@ -832,6 +841,11 @@ function DetailsStep(props: {
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4}
             placeholder="Fit, material, how it runs, anything a photo can't show."
             className="border border-black/10 p-6 text-sm font-medium focus:border-black focus:outline-none resize-none transition-all placeholder:text-black/20" />
+          <TrustNote>
+            Stuck? Upload your photo to ChatGPT and ask it for a zarketplace description.
+            <br />
+            Read it back and fix anything that isn't true of your item. You own what it says.
+          </TrustNote>
         </div>
       </div>
 
