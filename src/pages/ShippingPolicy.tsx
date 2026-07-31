@@ -24,14 +24,16 @@ export function ShippingPolicy() {
 
         <div className="flex flex-col gap-10 text-black body-copy">
           <section className="flex flex-col gap-4">
-            <h2 className="text-xl font-black uppercase tracking-tight text-black">Buyer-Paid, Platform-Arranged Shipping</h2>
-            <p>Shipping is calculated from the item's shipping category. By default the buyer pays it at checkout. If the seller chose to offer free shipping on a listing, the buyer pays nothing for shipping and that cost is deducted from the seller's payout instead.</p>
-            <p>Either way, zarketplace books and pays the courier. Sellers never arrange a pickup or buy a label themselves. They only pack the item and hand it off at pickup.</p>
+            <h2 className="text-xl font-black uppercase tracking-tight text-black">Who Pays, And Who Ships</h2>
+            <p>Shipping is calculated from the item's shipping category. The seller picks one of three options when they list an item.</p>
+            <p><strong>Buyer pays shipping.</strong> The buyer pays the shipping charge at checkout. zarketplace books and pays the courier, and the seller keeps their full asking price.</p>
+            <p><strong>Free shipping, arranged by us.</strong> The buyer pays nothing for shipping. zarketplace books and pays the courier, and that cost is deducted from the seller's payout.</p>
+            <p><strong>Free shipping, shipped by the seller.</strong> The buyer pays nothing for shipping. The seller books and pays for their own courier and keeps their full asking price. Before their payout is released they must give us the courier name, the tracking number, and a photo of the packed parcel with the shipping label visible.</p>
           </section>
 
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">72-Hour Handoff Window</h2>
-            <p>Once an item sells, the seller has 72 hours to pack it and hand it off for pickup. This keeps the marketplace fast and predictable for buyers.</p>
+            <p>Once an item sells, the seller has 72 hours to pack it and hand it off, whether that means handing it to our courier at pickup or posting it themselves. This keeps the marketplace fast and predictable for buyers.</p>
           </section>
 
           <section className="flex flex-col gap-4">

@@ -1,3 +1,6 @@
+import type { ShippingPayer, FulfillmentMethod } from './lib/pricing';
+export type { ShippingPayer, FulfillmentMethod };
+
 export type ListingStatus = 'pending' | 'approved' | 'rejected' | 'suspended' | 'archived';
 
 export interface Listing {
@@ -24,9 +27,13 @@ export interface Listing {
   image_url: string;
   image_urls: string[];
   shipping_category: string;
-  // Seller-funded free shipping: buyer pays no shipping line, and the real
-  // courier cost is deducted from the seller's payout at delivery instead.
+  // Shipping v2 (docs/SHIPPING_V2_PLAN.md). free_shipping answers only "does
+  // checkout say Free?" and equals (shipping_payer === 'seller'). It is NOT
+  // the deduction predicate: self-ship also shows Free but takes no deduction.
+  // Use shippingDeducted() from lib/pricing for anything touching payout.
   free_shipping: boolean;
+  shipping_payer: ShippingPayer;
+  fulfillment_method: FulfillmentMethod;
   pickup_address?: Record<string, string> | null;
   has_flaws: boolean;
   flaws_description: string | null;
@@ -98,7 +105,10 @@ export interface Order {
   shipping_category: string | null;
   // True when the seller offered free shipping - shipping_cost was NOT added
   // to total_amount, and is instead deducted from the seller's payout.
+  // See the note on Listing.free_shipping: this flag is display-only.
   free_shipping: boolean;
+  shipping_payer: ShippingPayer;
+  fulfillment_method: FulfillmentMethod;
   buyer_protection_fee: number;
   total_amount: number;
   payment_utr: string | null;

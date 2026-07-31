@@ -80,6 +80,8 @@ export const devListings: Listing[] = SEED.map((row, i) => ({
   image_urls: [],
   shipping_category: 'standard',
   free_shipping: !!row.free,
+  shipping_payer: row.free ? 'seller' : 'buyer',
+  fulfillment_method: 'zarketplace',
   has_flaws: false,
   flaws_description: null,
   original_tags_attached: null,

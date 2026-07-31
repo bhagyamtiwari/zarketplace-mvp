@@ -1,7 +1,14 @@
 // SellerPortal - seller-facing dashboard.
-// Listings (active/sold) + sold orders. For each sold order, the seller can:
-//   - Add tracking (URL required, courier/number/photo optional) to ship.
-//   - Edit tracking after submission.
+// Listings (active/sold) + sold orders. What a seller does with a sold order
+// depends entirely on how the listing was fulfilled (docs/SHIPPING_V2_PLAN.md):
+//   - fulfillment_method 'zarketplace': nothing to enter. We book the courier
+//     and buy the label; the seller packs and waits. Showing them a tracking
+//     form here would invite them to post it separately, leaving us paying for
+//     a pickup that never happens.
+//   - fulfillment_method 'self': the seller books their own courier and must
+//     submit courier + tracking number + a photo of the packed parcel before
+//     the order can be marked shipped. All three are also required by the DB
+//     (orders_require_self_ship_evidence), and freeze once shipped.
 // MVP: buyer pays admin UPI; admin verifies, and once the order is marked
 // delivered, a payout row is created automatically (48-hour review window,
 // see docs/REALIGNMENT_PLAN.md). Sellers no longer create their own payout
@@ -123,7 +130,7 @@ function SellerInner() {
   const TAB_META: Record<Tab, { title: string; description: string }> = {
     listings: { title: 'My Listings', description: 'Items you have put up for sale. Active items appear on browse; sold items move below once a buyer purchases them.' },
     tools: { title: 'Seller Tools', description: 'Generate a branded Instagram post or story image for any of your listings in one click.' },
-    orders: { title: 'Sales', description: 'Orders for items you sold. Add tracking once a buyer pays. Your payout is released after delivery is confirmed and the 48-hour buyer review window closes.' },
+    orders: { title: 'Sales', description: 'Orders for items you sold. If you chose to ship it yourself, add the courier, tracking number and parcel photo once the buyer pays. Otherwise we book the courier and you just pack it. Your payout is released after delivery is confirmed and the 48-hour buyer review window closes.' },
     payouts: { title: 'Payouts', description: 'What you’re owed and what you’ve already been paid. Payouts are held until 48 hours after delivery.' },
   };
 
@@ -346,6 +353,10 @@ function OrdersList({ rows, payouts, onUpdated }: { rows: Order[]; payouts: Sell
 
 function OrderRow({ order, payout, onUpdated }: { order: Order; payout: SellerPayout | null; onUpdated: () => void }) {
   const [editing, setEditing] = React.useState(false);
+  const shippedOrDelivered = order.status === 'shipped' || order.status === 'delivered';
+  // Self-ship evidence is locked by the DB once the order is shipped
+  // (orders_lock_self_ship_evidence), so the form is only offered before that.
+  const selfShipAwaiting = order.status === 'awaiting_verification' || order.status === 'paid';
   return (
     <div className="bg-zinc-50 border border-black/5 p-6 flex flex-col gap-4">
       <div className="flex items-start justify-between gap-4">
@@ -380,23 +391,35 @@ function OrderRow({ order, payout, onUpdated }: { order: Order; payout: SellerPa
 
       <OrderTimeline order={order} payout={payout} audience="seller" />
 
+      {/* The seller's job is completely different on the two fulfillment
+          paths, so the panel is split rather than showing one form that only
+          sometimes applies. On a zarketplace order the seller must NOT ship it
+          themselves: we buy the label, and a seller who couriers it separately
+          leaves us paying for a pickup that never happens. */}
       <div className="pt-4 border-t border-black/5">
-        {order.status === 'paid' && order.shiprocket_order_id ? (
+        {order.fulfillment_method === 'self' ? (
+          selfShipAwaiting ? (
+            <SelfShipForm order={order} onSaved={() => { setEditing(false); onUpdated(); }} />
+          ) : shippedOrDelivered ? (
+            <SelfShipEvidence order={order} />
+          ) : null
+        ) : order.status === 'paid' && order.shiprocket_order_id ? (
           <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 leading-relaxed">
             Pickup booked with Shiprocket - waiting on courier assignment. We'll notify you once it's on its way; pack the item in the meantime.
           </p>
-        ) : order.status === 'awaiting_verification' || order.status === 'paid' || (order.status === 'shipped' && editing) ? (
-          <TrackingForm order={order} onSaved={() => { setEditing(false); onUpdated(); }} />
-        ) : (order.status === 'shipped' || order.status === 'delivered') && order.tracking_url ? (
+        ) : order.status === 'awaiting_verification' || order.status === 'paid' ? (
+          <div className="flex flex-col gap-2">
+            <p className="text-[10px] font-black uppercase tracking-widest">We're arranging the courier</p>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-black/50 leading-relaxed max-w-lg">
+              Pack the item and keep it ready. We book the pickup and send you the label, so there's
+              nothing to enter here. Don't post it yourself: we've already paid for this shipment.
+            </p>
+          </div>
+        ) : shippedOrDelivered && order.tracking_url ? (
           <div className="flex flex-col gap-2 text-[10px] font-bold uppercase tracking-widest text-black/60">
-            <div className="flex items-center justify-between gap-3">
-              <a href={order.tracking_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-black underline">
-                <ExternalLink className="h-3 w-3" /> {order.courier ?? 'Tracking link'}
-              </a>
-              <button onClick={() => setEditing(true)} className="inline-flex items-center gap-1 text-black/60 hover:text-black">
-                <Edit3 className="h-3 w-3" /> Edit
-              </button>
-            </div>
+            <a href={order.tracking_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-black underline self-start">
+              <ExternalLink className="h-3 w-3" /> {order.courier ?? 'Tracking link'}
+            </a>
             {order.tracking_number && <span className="font-mono">{order.tracking_number}</span>}
             {order.package_image_url && <PackagePhoto path={order.package_image_url} />}
           </div>
@@ -419,7 +442,16 @@ function PackagePhoto({ path }: { path: string }) {
   return <img src={url} alt="package" className="h-24 w-24 object-cover border border-black/10" />;
 }
 
-function TrackingForm({ order, onSaved }: { order: Order; onSaved: () => void }) {
+// Self-ship only. On this path the seller books and pays for their own
+// courier, so the evidence they submit here is the ONLY record we have that
+// the parcel exists. All three fields are required by the DB as well
+// (orders_require_self_ship_evidence), so a bypass of this form fails too.
+//
+// The photo is not fraud prevention: the escrow gate already covers the
+// empty-envelope case, since payout waits for delivery plus the review window.
+// It is what makes a contested claim adjudicable, which is why the label has
+// to be in frame.
+function SelfShipForm({ order, onSaved }: { order: Order; onSaved: () => void }) {
   const [trackingUrl, setTrackingUrl] = React.useState(order.tracking_url ?? '');
   const [trackingNumber, setTrackingNumber] = React.useState(order.tracking_number ?? '');
   const [courier, setCourier] = React.useState(order.courier ?? '');
@@ -427,21 +459,34 @@ function TrackingForm({ order, onSaved }: { order: Order; onSaved: () => void })
   const [saving, setSaving] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
 
+  const photoPreview = React.useMemo(
+    () => (photo ? URL.createObjectURL(photo) : null), [photo]);
+  React.useEffect(() => () => { if (photoPreview) URL.revokeObjectURL(photoPreview); }, [photoPreview]);
+
+  const hasPhoto = !!photo || !!order.package_image_url;
+  const ready = !!courier && !!trackingNumber.trim() && hasPhoto;
+
   const save = async () => {
     setErr(null);
+    if (!courier) { setErr('Choose the courier you shipped with.'); return; }
+    if (!trackingNumber.trim()) { setErr('Enter the tracking number.'); return; }
+    if (!hasPhoto) { setErr('Upload a photo of the packed parcel with the label visible.'); return; }
+    // Optional, but if given it has to be a real courier link the buyer can
+    // open. India Post has no per-consignment URL, which is why this is not
+    // required: that is the courier most self-shipping sellers use.
     const url = trackingUrl.trim();
-    if (!url) { setErr('Tracking URL is required.'); return; }
-    // Must be a valid http(s) URL with a real host (not localhost / bare strings).
-    try {
-      const parsed = new URL(url);
-      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-        setErr('Tracking URL must start with http:// or https://'); return;
+    if (url) {
+      try {
+        const parsed = new URL(url);
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+          setErr('Tracking link must start with http:// or https://'); return;
+        }
+        if (!parsed.hostname.includes('.') || parsed.hostname === 'localhost') {
+          setErr('Tracking link must point to the courier\u2019s website.'); return;
+        }
+      } catch {
+        setErr('That doesn\u2019t look like a valid link. Paste the full courier tracking URL, or leave it blank.'); return;
       }
-      if (!parsed.hostname.includes('.') || parsed.hostname === 'localhost') {
-        setErr('Tracking URL must point to the courier’s website.'); return;
-      }
-    } catch {
-      setErr('That doesn’t look like a valid URL. Paste the full courier tracking link.'); return;
     }
     setSaving(true);
     try {
@@ -455,26 +500,16 @@ function TrackingForm({ order, onSaved }: { order: Order; onSaved: () => void })
         pkgPath = path;
       }
       const update: Record<string, unknown> = {
-        tracking_url: trackingUrl.trim(),
-        tracking_number: trackingNumber.trim() || null,
-        courier: courier.trim() || null,
+        tracking_url: url || null,
+        tracking_number: trackingNumber.trim(),
+        courier,
         package_image_url: pkgPath,
+        status: 'shipped',
+        shipped_at: new Date().toISOString(),
       };
-      if (order.status !== 'shipped') {
-        update.status = 'shipped';
-        update.shipped_at = new Date().toISOString();
-      }
       const { error } = await supabase.from('orders').update(update).eq('id', order.id);
       if (error) throw error;
-
-      // Notify buyer that their item has shipped (best effort). The payout
-      // row is no longer created here - it's created automatically by a DB
-      // trigger once an admin (or, later, the Shiprocket webhook) marks the
-      // order delivered, starting the 48-hour review window first.
-      if (update.status === 'shipped') {
-        void sendEmail({ template: 'tracking_update_buyer', order_id: order.id });
-      }
-
+      void sendEmail({ template: 'tracking_update_buyer', order_id: order.id });
       onSaved();
     } catch (e: any) {
       setErr(e?.message ?? 'Failed to save');
@@ -482,39 +517,61 @@ function TrackingForm({ order, onSaved }: { order: Order; onSaved: () => void })
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-2">
-        <label className="text-[10px] font-black uppercase tracking-widest">Tracking URL *</label>
-        <input value={trackingUrl} onChange={(e) => setTrackingUrl(e.target.value)}
-          placeholder="https://www.delhivery.com/track/AWB123"
-          className="border-b border-black/10 py-2 text-sm font-bold focus:border-black outline-none" />
-        <p className="text-[9px] font-bold uppercase tracking-widest text-black/40">
-          Paste the courier's tracking link (Delhivery, BlueDart, India Post, etc.).
+        <p className="text-[10px] font-black uppercase tracking-widest">You're shipping this one yourself</p>
+        <p className="text-[10px] font-bold uppercase tracking-widest text-black/50 leading-relaxed max-w-lg">
+          Book any courier you like and pay for it yourself. You keep your full asking price.
+          We need all three of the details below before your payout can be released.
         </p>
       </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="flex flex-col gap-2">
-          <label className="text-[10px] font-black uppercase tracking-widest">Courier</label>
+          <label className="text-[10px] font-black uppercase tracking-widest">Courier *</label>
           <select value={courier} onChange={(e) => setCourier(e.target.value)}
-            className="border-b border-black/10 py-2 text-sm font-bold bg-white">
+            className="border-b border-black/10 py-2 text-sm font-bold bg-white focus:border-black outline-none">
             <option value="">Select courier</option>
             {COURIERS.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-[10px] font-black uppercase tracking-widest">Tracking Number</label>
+          <label className="text-[10px] font-black uppercase tracking-widest">Tracking number *</label>
           <input value={trackingNumber} onChange={(e) => setTrackingNumber(e.target.value)}
-            placeholder="AWB123" className="border-b border-black/10 py-2 text-sm font-bold focus:border-black outline-none" />
+            placeholder="EA123456789IN"
+            className="border-b border-black/10 py-2 text-sm font-bold focus:border-black outline-none" />
         </div>
       </div>
+
       <div className="flex flex-col gap-2">
-        <label className="text-[10px] font-black uppercase tracking-widest">Package Photo (recommended)</label>
-        <p className="text-[9px] font-bold uppercase tracking-widest text-black/40 leading-relaxed">
-          Upload a photo of the packed item before handing it to the courier - protects you and the buyer.
+        <label className="text-[10px] font-black uppercase tracking-widest">Tracking link (optional)</label>
+        <input value={trackingUrl} onChange={(e) => setTrackingUrl(e.target.value)}
+          placeholder="https://www.indiapost.gov.in/..."
+          className="border-b border-black/10 py-2 text-sm font-bold focus:border-black outline-none" />
+        <p className="text-[9px] font-bold uppercase tracking-widest text-black/40">
+          Leave blank if your courier has no per-parcel link. India Post doesn't.
         </p>
-        {photo ? (
-          <div className="text-[10px] font-bold flex items-center gap-3">
-            {photo.name} <button onClick={() => setPhoto(null)} className="underline text-red-600">Remove</button>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <label className="text-[10px] font-black uppercase tracking-widest">Photo of the packed parcel *</label>
+        <p className="text-[9px] font-bold uppercase tracking-widest text-black/40 leading-relaxed max-w-lg">
+          The shipping label and the parcel have to be in the same frame. If the buyer says the item
+          never arrived, this photo is what we use to settle it in your favour.
+        </p>
+        {photoPreview ? (
+          <div className="flex items-center gap-3">
+            <img src={photoPreview} alt="Packed parcel" className="h-24 w-24 object-cover border border-black/10" />
+            <button onClick={() => setPhoto(null)} className="text-[10px] font-bold uppercase tracking-widest underline text-red-600">Remove</button>
+          </div>
+        ) : order.package_image_url ? (
+          <div className="flex items-center gap-3">
+            <PackagePhoto path={order.package_image_url} />
+            <label className="text-[10px] font-bold uppercase tracking-widest underline cursor-pointer">
+              Replace
+              <input type="file" accept="image/*" className="hidden"
+                onChange={(e) => setPhoto(e.target.files?.[0] ?? null)} />
+            </label>
           </div>
         ) : (
           <label className="border border-dashed border-black/20 p-4 inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest cursor-pointer hover:border-black self-start">
@@ -524,11 +581,37 @@ function TrackingForm({ order, onSaved }: { order: Order; onSaved: () => void })
           </label>
         )}
       </div>
-      {err && <p className="text-[10px] font-bold uppercase tracking-widest text-red-600">{err}</p>}
-      <button onClick={save} disabled={saving}
-        className="self-start border border-black px-6 py-3 text-[10px] font-black uppercase tracking-[0.3em] hover:bg-black hover:text-white disabled:opacity-50">
-        {saving ? 'Saving…' : 'Save & mark shipped'}
-      </button>
+
+      {err && <p className="text-[10px] font-bold uppercase tracking-widest text-red-600 leading-relaxed">{err}</p>}
+      <div className="flex flex-col gap-2 items-start">
+        <button onClick={save} disabled={saving || !ready}
+          className="border border-black px-6 py-3 text-[10px] font-black uppercase tracking-[0.3em] hover:bg-black hover:text-white disabled:opacity-30 disabled:hover:bg-white disabled:hover:text-black">
+          {saving ? 'Saving\u2026' : 'Save & mark shipped'}
+        </button>
+        <p className="text-[9px] font-bold uppercase tracking-widest text-black/40">
+          These details lock once you mark it shipped. Contact us if something needs correcting.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Locked view, after orders_lock_self_ship_evidence has frozen the record.
+function SelfShipEvidence({ order }: { order: Order }) {
+  return (
+    <div className="flex flex-col gap-3 text-[10px] font-bold uppercase tracking-widest text-black/60">
+      <span className="text-black/40">You shipped this one yourself</span>
+      <div className="flex items-center gap-3">
+        {order.tracking_url ? (
+          <a href={order.tracking_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-black underline">
+            <ExternalLink className="h-3 w-3" /> {order.courier ?? 'Tracking link'}
+          </a>
+        ) : (
+          <span className="text-black">{order.courier}</span>
+        )}
+        {order.tracking_number && <span className="font-mono normal-case tracking-normal">{order.tracking_number}</span>}
+      </div>
+      {order.package_image_url && <PackagePhoto path={order.package_image_url} />}
     </div>
   );
 }

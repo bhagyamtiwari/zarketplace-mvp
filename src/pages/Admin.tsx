@@ -26,6 +26,13 @@ import { shipmentStatusLabel } from '../lib/orderStatus';
 import { log } from '../lib/log';
 import { sendEmail } from '../lib/email';
 import { writeAudit, AuditEntry } from '../lib/adminAudit';
+import { fulfillmentRoute, FULFILLMENT_ROUTE_LABEL, type FulfillmentRoute } from '../lib/pricing';
+
+// Orders placed before shipping v2 have no fulfillment columns; they were all
+// zarketplace-fulfilled, which is what the defaults resolve to.
+function routeOf(o: Order): FulfillmentRoute {
+  return fulfillmentRoute(o.shipping_payer ?? 'buyer', o.fulfillment_method ?? 'zarketplace');
+}
 
 const adlog = log('admin');
 
@@ -125,8 +132,15 @@ const NAV: Section[] = [
     { key: 's_shipping', label: 'Shipping Problems', kind: 'orders', order: (o) => !!o.shiprocket_order_id && !o.tracking_number && o.status !== 'delivered' },
     { key: 's_payment', label: 'Payment Problems', kind: 'orders', order: (o) => o.status === 'payment_failed' || o.status === 'payment_conflict' },
   ] },
+  // The pickup queue is split by fulfillment route so the answer to "does this
+  // order need a courier booked, and who paid for it?" is the queue you are
+  // standing in, rather than something to work out per order. Self-shipped
+  // orders must never appear in a booking queue: the seller has already
+  // couriered it, and booking would buy a second label.
   { key: 'shiprocket', label: 'Shiprocket', icon: Truck, leaves: [
-    { key: 'sr_queue', label: 'Pickup Queue', kind: 'orders', order: (o) => o.status === 'paid' && !o.shiprocket_order_id },
+    { key: 'sr_queue_buyer', label: 'Book · buyer paid', kind: 'orders', order: (o) => o.status === 'paid' && !o.shiprocket_order_id && routeOf(o) === 'book_buyer_paid' },
+    { key: 'sr_queue_seller', label: 'Book · deduct from seller', kind: 'orders', order: (o) => o.status === 'paid' && !o.shiprocket_order_id && routeOf(o) === 'book_seller_paid' },
+    { key: 'sr_selfship', label: 'Self-ship · awaiting seller', kind: 'orders', order: (o) => o.status === 'paid' && routeOf(o) === 'self_ship' },
     { key: 'sr_active', label: 'Active Shipments', kind: 'orders', order: (o) => !!o.shiprocket_order_id && o.status !== 'delivered' && o.status !== 'cancelled' && o.status !== 'refunded' },
     { key: 'sr_failed', label: 'Failed / RTO / NDR', kind: 'orders', order: (o) => (!!o.shiprocket_order_id && !o.tracking_number) || o.shipment_status === 'rto' || o.shipment_status === 'ndr' },
   ] },
@@ -403,7 +417,7 @@ function OrdersView({ rows, onOpen }: { rows: Order[]; onOpen: (id: string) => v
     <div className="overflow-x-auto border border-black/10">
       <table className="w-full text-left">
         <thead><tr className="border-b border-black/10 bg-black/[0.02]">
-          <Th>Order</Th><Th>Item</Th><Th>Buyer</Th><Th>Seller</Th><Th right>Amount</Th><Th>Date</Th><Th>Status</Th><Th right>Open</Th>
+          <Th>Order</Th><Th>Item</Th><Th>Buyer</Th><Th>Seller</Th><Th right>Amount</Th><Th>Fulfillment</Th><Th>Date</Th><Th>Status</Th><Th right>Open</Th>
         </tr></thead>
         <tbody>
           {rows.map((o) => (
@@ -413,6 +427,12 @@ function OrdersView({ rows, onOpen }: { rows: Order[]; onOpen: (id: string) => v
               <td className="py-3 px-3 text-[11px]">{o.buyer_email}</td>
               <td className="py-3 px-3 text-[11px]">{o.seller_email}</td>
               <td className="py-3 px-3 text-xs font-black text-right tabular-nums">{formatCurrency(Number(o.total_amount))}</td>
+              {/* Underlined rather than coloured: self-ship is the row where
+                  booking a courier would be an expensive mistake. */}
+              <td className={cn('py-3 px-3 text-[9px] font-black uppercase tracking-widest whitespace-nowrap',
+                routeOf(o) === 'self_ship' ? 'text-black underline' : 'text-black/50')}>
+                {FULFILLMENT_ROUTE_LABEL[routeOf(o)]}
+              </td>
               <td className="py-3 px-3 text-[10px] text-black/50 whitespace-nowrap">{new Date(o.created_at).toLocaleDateString()}</td>
               <td className="py-3 px-3"><StatusBadge status={o.status} audience="admin" />{o.claim_open && <span className="ml-1 text-[9px] font-black uppercase text-red-600">Claim</span>}</td>
               <td className="py-3 px-3 text-right"><ChevronRight className="h-4 w-4 text-black/30 inline" /></td>
@@ -815,7 +835,7 @@ function OrderDrawer({ order, payouts, emails, audit, onClose, onDone }: {
 
       <Sec title="Payment">
         <Row k="Item" v={formatCurrency(Number(order.amount))} />
-        <Row k="Shipping (buyer paid)" v={order.free_shipping ? 'Free (seller-funded)' : formatCurrency(Number(order.shipping_cost))} />
+        <Row k="Shipping (buyer paid)" v={order.shipping_payer === 'buyer' ? formatCurrency(Number(order.shipping_cost)) : 'Free to buyer'} />
         <Row k="Protection fee" v={formatCurrency(Number(order.buyer_protection_fee))} />
         <Row k="Total" v={<strong>{formatCurrency(Number(order.total_amount))}</strong>} />
         <Row k="Razorpay order" v={order.razorpay_order_id} />
@@ -823,17 +843,38 @@ function OrderDrawer({ order, payouts, emails, audit, onClose, onDone }: {
       </Sec>
 
       <Sec title="Shipping">
+        {/* First line of this section, because it is the decision: book a
+            courier, or leave it to the seller. Booking a self-shipped order
+            buys a second label for a parcel already in transit. */}
+        <Row k="Route" v={<strong className={cn(routeOf(order) === 'self_ship' && 'underline')}>{FULFILLMENT_ROUTE_LABEL[routeOf(order)]}</strong>} />
+        {routeOf(order) === 'self_ship' && (
+          <p className="mt-1 border-l-2 border-black pl-2 text-black/70">
+            Do not book Shiprocket. The seller couriers this themselves and submits tracking plus a
+            parcel photo in their portal. They keep the full asking price, so no shipping is deducted.
+          </p>
+        )}
         <Row k="Shiprocket #" v={order.shiprocket_order_id} />
         <Row k="AWB / tracking" v={order.tracking_number} />
         <Row k="Courier" v={order.courier} />
         <Row k="Shipment status" v={shipmentStatusLabel(order.shipment_status) ?? '—'} />
         {order.tracking_url && <a href={order.tracking_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[10px] underline">Track <ExternalLink className="h-3 w-3" /></a>}
+        {order.package_image_url && <PackagePhotoAdmin path={order.package_image_url} />}
+        {/* Booking is done by hand in the Shiprocket dashboard (see
+            docs/SHIPPING_V2_PLAN.md), so the AWB comes back in through here.
+            Sellers no longer enter tracking for orders we fulfil, which makes
+            this the only way those orders reach 'shipped'. */}
+        {routeOf(order) !== 'self_ship' && order.status === 'paid' && !order.tracking_number && (
+          <ManualBookingForm order={order} onDone={onDone} onClose={onClose} />
+        )}
       </Sec>
 
       <Sec title="Payout">
         {payout ? (<>
           <Row k="Amount" v={formatCurrency(Number(payout.amount))} />
-          {order.free_shipping && <Row k="Shipping deducted" v={formatCurrency(Number(order.shipping_cost))} />}
+          {/* Only the route where WE bought the label deducts. A self-shipping
+              seller shows Free to the buyer but paid their own courier, so
+              showing a deduction here would misreport what they are owed. */}
+          {routeOf(order) === 'book_seller_paid' && <Row k="Shipping deducted" v={formatCurrency(Number(order.shipping_cost))} />}
           <Row k="Status" v={payout.status === 'paid_out' ? 'Paid' : 'Pending'} />
           <Row k="Releasable" v={payout.releasable_at ? new Date(payout.releasable_at).toLocaleDateString() : '—'} />
         </>) : <p className="text-black/40">No payout row.</p>}
@@ -858,7 +899,9 @@ function OrderDrawer({ order, payouts, emails, audit, onClose, onDone }: {
       <Sec title="Admin actions">
         <div className="flex flex-col gap-2 pt-1">
           {order.status === 'awaiting_verification' && <ActBtn label="Mark Paid" onClick={() => setStatus('paid')} busy={busy} />}
-          {order.status === 'paid' && !order.shiprocket_order_id && <ActBtn label="Book Pickup (Shiprocket)" onClick={bookPickup} busy={busy} />}
+          {/* Self-ship orders are already on their way with a courier the
+              seller paid for. The edge function refuses them too. */}
+          {order.status === 'paid' && !order.shiprocket_order_id && routeOf(order) !== 'self_ship' && <ActBtn label="Book Pickup (Shiprocket)" onClick={bookPickup} busy={busy} />}
           {order.status === 'paid' && <ActBtn label="Mark Shipped" onClick={() => setStatus('shipped')} busy={busy} />}
           {order.status === 'shipped' && <ActBtn label="Mark Delivered" onClick={() => setStatus('delivered')} busy={busy} />}
           <ActBtn label={order.claim_open ? 'Close Claim' : 'Open Claim'} onClick={toggleClaim} busy={busy} />
@@ -873,6 +916,77 @@ function OrderDrawer({ order, payouts, emails, audit, onClose, onDone }: {
         </div>
       </Sec>
     </DrawerShell>
+  );
+}
+
+// order-attachments is a private bucket, so the self-ship parcel photo is
+// served through a short-lived signed URL rather than a public path.
+function PackagePhotoAdmin({ path }: { path: string }) {
+  const [url, setUrl] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    let cancelled = false;
+    supabase.storage.from('order-attachments').createSignedUrl(path, 3600).then(({ data }) => {
+      if (!cancelled) setUrl(data?.signedUrl ?? null);
+    });
+    return () => { cancelled = true; };
+  }, [path]);
+  if (!url) return null;
+  return (
+    <a href={url} target="_blank" rel="noreferrer" className="mt-1 inline-block">
+      <img src={url} alt="Packed parcel" className="h-24 w-24 object-cover border border-black/10" />
+    </a>
+  );
+}
+
+// Records a booking made by hand in the Shiprocket dashboard. Marks the order
+// shipped in the same write, since in the manual flow those are one action.
+function ManualBookingForm({ order, onDone, onClose }: {
+  order: Order; onDone: () => Promise<void> | void; onClose: () => void;
+}) {
+  const [courier, setCourier] = React.useState('');
+  const [awb, setAwb] = React.useState('');
+  const [url, setUrl] = React.useState('');
+  const [busy, setBusy] = React.useState(false);
+
+  const save = async () => {
+    if (!courier.trim() || !awb.trim()) { alert('Courier and AWB are both needed.'); return; }
+    setBusy(true);
+    try {
+      const { error } = await supabase.from('orders').update({
+        courier: courier.trim(),
+        tracking_number: awb.trim(),
+        tracking_url: url.trim() || null,
+        status: 'shipped',
+        shipped_at: new Date().toISOString(),
+      }).eq('id', order.id);
+      if (error) throw error;
+      await writeAudit({
+        entity: 'order', entity_id: order.id, action: 'order.manual_booking',
+        old_state: { status: order.status },
+        new_state: { status: 'shipped', courier: courier.trim(), tracking_number: awb.trim() },
+        reason: 'Booked by hand in Shiprocket',
+      });
+      void sendEmail({ template: 'tracking_update_buyer', order_id: order.id });
+      await onDone(); onClose();
+    } catch (e: any) { alert(e?.message ?? 'Failed.'); } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="mt-3 border-t border-black/10 pt-3 flex flex-col gap-2">
+      <p className="text-[10px] font-black uppercase tracking-widest">Record a manual booking</p>
+      <div className="flex gap-2">
+        <input value={courier} onChange={(e) => setCourier(e.target.value)} placeholder="Courier"
+          className="flex-1 border border-black/10 px-2 py-1 text-xs focus:outline-none focus:border-black" />
+        <input value={awb} onChange={(e) => setAwb(e.target.value)} placeholder="AWB"
+          className="flex-1 border border-black/10 px-2 py-1 text-xs focus:outline-none focus:border-black" />
+      </div>
+      <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Tracking URL (optional)"
+        className="border border-black/10 px-2 py-1 text-xs focus:outline-none focus:border-black" />
+      <button onClick={save} disabled={busy}
+        className="self-start border border-black px-3 py-2 text-[10px] font-black uppercase tracking-widest hover:bg-black hover:text-white disabled:opacity-50">
+        {busy ? '…' : 'Save & mark shipped'}
+      </button>
+    </div>
   );
 }
 

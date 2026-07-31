@@ -158,6 +158,26 @@ export function shippingDeducted(payer: ShippingPayer, fulfillment: FulfillmentM
   return payer === 'seller' && fulfillment === 'zarketplace';
 }
 
+// The one question ops needs answered per paid order: do we book a courier,
+// and if so who is paying for it? Everything about how an order is fulfilled
+// follows from this, so it is derived in one place and used by the admin queue
+// and the order detail alike.
+export type FulfillmentRoute = 'book_buyer_paid' | 'book_seller_paid' | 'self_ship';
+
+export function fulfillmentRoute(
+  payer: ShippingPayer,
+  fulfillment: FulfillmentMethod,
+): FulfillmentRoute {
+  if (fulfillment === 'self') return 'self_ship';
+  return payer === 'buyer' ? 'book_buyer_paid' : 'book_seller_paid';
+}
+
+export const FULFILLMENT_ROUTE_LABEL: Record<FulfillmentRoute, string> = {
+  book_buyer_paid: 'Book courier · buyer paid',
+  book_seller_paid: 'Book courier · deduct from seller',
+  self_ship: 'Seller ships · do not book',
+};
+
 // What the seller actually receives after delivery. Mirrors the payout amount
 // in handle_order_delivered():
 //   GREATEST(0, amount - (CASE WHEN <deducted> THEN shipping_cost ELSE 0 END))

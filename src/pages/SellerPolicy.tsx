@@ -40,14 +40,15 @@ export function SellerPolicy() {
           </section>
 
           <section className="flex flex-col gap-4">
-            <h2 className="text-xl font-black uppercase tracking-tight text-black">Pack and Hand Off for Pickup</h2>
-            <p>When your item sells, pack it well and hand it off for pickup within 72 hours. zarketplace books and pays the courier, so you never arrange a pickup or buy a label yourself.</p>
-            <p>By default the buyer pays shipping at checkout and you keep your full asking price. If you turn on free shipping for a listing, the shipping cost is deducted from your payout instead, which is the same cost you would pay to ship it yourself.</p>
+            <h2 className="text-xl font-black uppercase tracking-tight text-black">Pack and Hand Off Within 72 Hours</h2>
+            <p>When your item sells, pack it well and hand it off within 72 hours.</p>
+            <p>You choose how shipping works on each listing. If the buyer pays shipping, or if you offer free shipping and let us arrange it, zarketplace books and pays the courier and you only pack the item. With buyer-paid shipping you keep your full asking price; with free shipping the shipping cost is deducted from your payout instead.</p>
+            <p>If you choose to ship it yourself, you book and pay for your own courier and keep your full asking price. In the seller portal you must then supply the courier name, the tracking number, and a photo of the packed parcel with the shipping label visible. Your order cannot be marked shipped, and your payout cannot be released, until all three are there. That photo is also what we use to settle a dispute in your favour if a buyer says the parcel never arrived.</p>
           </section>
 
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Payout Timing</h2>
-            <p>Your payout is released after the item is delivered and the buyer's 48-hour review window closes with no open claim. There are no selling fees, so you keep 100% of your asking price. The only deduction is shipping, and only on listings where you chose to offer free shipping.</p>
+            <p>Your payout is released after the item is delivered and the buyer's 48-hour review window closes with no open claim. There are no selling fees, so you keep 100% of your asking price. The only deduction is shipping, and only on listings where you offered free shipping <em>and</em> asked us to arrange the courier. If you shipped it yourself, nothing is deducted.</p>
           </section>
 
           <section className="flex flex-col gap-4">

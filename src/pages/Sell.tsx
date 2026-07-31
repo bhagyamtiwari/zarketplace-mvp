@@ -608,6 +608,7 @@ function SellInner() {
                 title={title} brand={brand} price={priceVal} salePrice={showSalePrice ? salePriceVal : ''}
                 condition={condition} hasFlaws={hasFlaws} flawsDescription={flawsDescription}
                 shippingCategory={shippingCategory} shippingCategories={shippingCategories}
+                shippingPayer={shippingPayer} fulfillmentMethod={fulfillmentMethod}
                 authenticity={authenticity} setAuthenticity={setAuthenticity}
                 declarations={declarations} setDeclarations={setDeclarations}
               />
@@ -1251,11 +1252,13 @@ function PayoutStep({
 
 function ReviewStep({
   imagePreviews, title, brand, price, salePrice, condition, hasFlaws, flawsDescription,
-  shippingCategory, shippingCategories, authenticity, setAuthenticity, declarations, setDeclarations,
+  shippingCategory, shippingCategories, shippingPayer, fulfillmentMethod,
+  authenticity, setAuthenticity, declarations, setDeclarations,
 }: {
   imagePreviews: string[]; title: string; brand: string; price: string; salePrice: string;
   condition: string; hasFlaws: boolean | null; flawsDescription: string;
   shippingCategory: string; shippingCategories: ShippingCategory[];
+  shippingPayer: ShippingPayer; fulfillmentMethod: FulfillmentMethod;
   authenticity: 'confirmed' | 'unsure' | null; setAuthenticity: (v: 'confirmed' | 'unsure') => void;
   declarations: Declarations;
   setDeclarations: React.Dispatch<React.SetStateAction<Declarations>>;
@@ -1305,11 +1308,33 @@ function ReviewStep({
               <span className="text-[11px] font-bold uppercase tracking-widest text-emerald-700">No flaws disclosed</span>
             )}
             {shipRate && (
-              <span className="text-[11px] font-bold uppercase tracking-widest text-black/40">Shipping: {shipRate.label} ({formatCurrency(shipRate.rate)}, buyer pays)</span>
+              <span className="text-[11px] font-bold uppercase tracking-widest text-black/40">
+                Shipping: {shipRate.label}
+                {fulfillmentMethod === 'self'
+                  ? ' (free for the buyer, you ship it)'
+                  : shippingPayer === 'seller'
+                    ? ` (${formatCurrency(shipRate.rate)}, from your payout)`
+                    : ` (${formatCurrency(shipRate.rate)}, buyer pays)`}
+              </span>
             )}
           </div>
         </div>
       </div>
+
+      {/* Restated at the last screen before publishing, because it is the one
+          choice on this form that creates an obligation the seller has to meet
+          later. Finding out after the item sells is too late. */}
+      {fulfillmentMethod === 'self' && (
+        <div className="border border-black p-5 flex flex-col gap-2">
+          <p className="text-[11px] font-black uppercase tracking-widest">You're shipping this one yourself</p>
+          <p className="text-[11px] font-bold uppercase tracking-widest text-black/60 leading-[1.8] max-w-xl">
+            You book and pay for the courier, and you keep your full asking price with nothing
+            deducted. When it sells you have to add the courier, the tracking number and a photo of
+            the packed parcel with the label visible in your seller portal. Your payout is not
+            released until all three are there.
+          </p>
+        </div>
+      )}
 
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">

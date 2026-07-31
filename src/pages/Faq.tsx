@@ -45,11 +45,11 @@ const SECTIONS: FaqSection[] = [
       },
       {
         q: 'When do I get paid?',
-        a: 'Once your item is delivered, your payout is held for 48 hours (the buyer’s review window) and then released, as long as there’s no open claim. There are no selling fees, so you keep 100% of your asking price. The only deduction is shipping, and only on listings where you chose to offer free shipping.',
+        a: 'Once your item is delivered, your payout is held for 48 hours (the buyer’s review window) and then released, as long as there’s no open claim. There are no selling fees, so you keep 100% of your asking price. The only deduction is shipping, and only on listings where you offered free shipping and asked us to arrange the courier. If you shipped it yourself, nothing is deducted.',
       },
       {
         q: 'How long do I have to send it?',
-        a: 'You have 72 hours from the time an item sells to pack it and hand it off for pickup. zarketplace books and pays the courier, so you never arrange a pickup or buy a label yourself. The buyer pays shipping at checkout unless you turned on free shipping for that listing, in which case the shipping cost comes out of your payout instead.',
+        a: 'You have 72 hours from the time an item sells to pack it and hand it off. If the buyer paid shipping, or you offered free shipping and asked us to arrange it, zarketplace books and pays the courier and you just pack the item. If you chose to ship it yourself, book your own courier and then add the courier name, tracking number and a photo of the packed parcel in your seller portal. All three are required before the order can be marked shipped.',
       },
       {
         q: 'What happens if I miss the pickup deadline?',
