@@ -449,7 +449,15 @@ function CheckoutInner() {
                   <div className="flex justify-between"><span className="text-black/40">Item</span><span>{formatCurrency(Number(o.amount))}</span></div>
                   <div className="flex justify-between">
                     <span className="text-black/40">Shipping</span>
-                    <span>{o.free_shipping ? 'Free' : formatCurrency(Number(o.shipping_cost))}</span>
+                    {/* Zero counts as free even when the flag says otherwise.
+                        orders_snapshot_from_listing returns early for admin and
+                        service_role callers, so on those orders free_shipping is
+                        never stamped and falls back to its column default of
+                        false, while shipping_cost is correctly 0. Keyed on the
+                        flag alone this printed "Rs. 0", which reads as a charge.
+                        The amount is the thing the buyer actually paid, so it
+                        wins. */}
+                    <span>{o.free_shipping || Number(o.shipping_cost) === 0 ? 'Free' : formatCurrency(Number(o.shipping_cost))}</span>
                   </div>
                   <div className="flex justify-between"><span className="text-black/40">Buyer protection</span><span>{formatCurrency(Number(o.buyer_protection_fee))}</span></div>
                   <div className="flex justify-between border-t border-black/10 pt-1.5 mt-1"><span>Total paid</span><span>{formatCurrency(Number(o.total_amount))}</span></div>

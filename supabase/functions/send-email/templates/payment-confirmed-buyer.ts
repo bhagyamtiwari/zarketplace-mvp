@@ -19,7 +19,12 @@ export function paymentConfirmedBuyer(ctx: EmailContext): EmailContent {
       <p><strong>Order #:</strong> ${esc(o.order_number)}</p>
       <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%; font-size:13px; margin:12px 0; border-top:1px solid #eee; padding-top:12px;">
         <tr><td style="color:#666; padding:2px 0;">Item</td><td style="text-align:right; padding:2px 0;">Rs. ${o.amount}</td></tr>
-        <tr><td style="color:#666; padding:2px 0;">Shipping</td><td style="text-align:right; padding:2px 0;">${o.free_shipping ? "Free" : `Rs. ${o.shipping_cost}`}</td></tr>
+        ${/* Zero counts as free even when the flag says otherwise: admin and
+             service_role purchases skip orders_snapshot_from_listing entirely,
+             so free_shipping is never stamped and defaults to false while
+             shipping_cost is correctly 0. Keyed on the flag alone this said
+             "Rs. 0", which reads as a charge. */ ""}
+        <tr><td style="color:#666; padding:2px 0;">Shipping</td><td style="text-align:right; padding:2px 0;">${o.free_shipping || Number(o.shipping_cost) === 0 ? "Free" : `Rs. ${o.shipping_cost}`}</td></tr>
         <tr><td style="color:#666; padding:2px 0;">Buyer protection</td><td style="text-align:right; padding:2px 0;">Rs. ${o.buyer_protection_fee}</td></tr>
         <tr><td style="font-weight:900; padding:6px 0 2px; border-top:1px solid #eee;">Total paid</td><td style="text-align:right; font-weight:900; padding:6px 0 2px; border-top:1px solid #eee;">Rs. ${o.total_amount}</td></tr>
       </table>
