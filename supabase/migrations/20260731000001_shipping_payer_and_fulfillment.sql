@@ -68,10 +68,75 @@ alter table public.listings add constraint listings_valid_shipping_combo
 -- and orders_snapshot_from_listing() both write it and generated columns
 -- cannot be written.
 --
--- A CHECK is used instead of a sync trigger on purpose: a writer that sets one
--- and not the other fails loudly at the insert rather than drifting silently.
--- Drift between duplicated shipping state is exactly how the rate card broke
--- twice already.
+-- RECONCILIATION, AND WHY IT EXISTS:
+-- The obvious move is a bare CHECK asserting the two agree, so a writer that
+-- sets one and not the other fails loudly instead of drifting silently. That
+-- is right for steady state and wrong for the deploy.
+--
+-- The currently deployed sell form writes free_shipping and knows nothing
+-- about shipping_payer. Under a bare CHECK, the moment this migration is
+-- applied, every free-shipping listing from the live site inserts
+-- free_shipping = true with shipping_payer defaulting to 'buyer' and fails the
+-- constraint. That couples the migration to the front-end deploy: the sell
+-- form is broken for whatever window sits between them.
+--
+-- So the two are reconciled first, and the CHECK is kept behind it as a final
+-- assertion. BEFORE triggers run before constraint evaluation, so anything
+-- this can reconcile passes and anything it cannot still fails loudly.
+-- Old code, new code, and admin edits from either all work, and the migration
+-- can be applied whenever.
+create or replace function public.listings_reconcile_shipping_model()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    -- free_shipping = true with the DEFAULT payer is the signature of a writer
+    -- that predates these columns: nothing else produces that combination,
+    -- since buyer-pays plus free-to-buyer is a contradiction. Trust
+    -- free_shipping and derive the payer.
+    IF NEW.free_shipping AND NEW.shipping_payer = 'buyer' THEN
+      NEW.shipping_payer := 'seller';
+    ELSE
+      -- A writer that knows about the new columns is authoritative.
+      NEW.free_shipping := (NEW.shipping_payer = 'seller');
+    END IF;
+
+  ELSIF NEW.free_shipping IS DISTINCT FROM OLD.free_shipping
+        AND NEW.shipping_payer IS NOT DISTINCT FROM OLD.shipping_payer THEN
+    -- Only the old column moved, so the write came from old code (or the admin
+    -- UI toggling free shipping). Follow it.
+    NEW.shipping_payer := CASE WHEN NEW.free_shipping THEN 'seller' ELSE 'buyer' END;
+
+  ELSE
+    -- The new columns moved, or nothing did. They win.
+    NEW.free_shipping := (NEW.shipping_payer = 'seller');
+  END IF;
+
+  -- buyer-pays + self-ship is rejected by listings_valid_shipping_combo. When
+  -- the reconciliation above lands on 'buyer', a stale 'self' would trip that
+  -- constraint on a row the writer never meant to make invalid.
+  IF NEW.shipping_payer = 'buyer' THEN
+    NEW.fulfillment_method := 'zarketplace';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+revoke execute on function public.listings_reconcile_shipping_model() from public;
+revoke execute on function public.listings_reconcile_shipping_model() from anon;
+revoke execute on function public.listings_reconcile_shipping_model() from authenticated;
+
+-- Name matters: BEFORE triggers fire alphabetically, and this has to run
+-- before listings_require_positive_payout so the floor sees reconciled values.
+-- 'reconcile' sorts before 'require'.
+drop trigger if exists listings_reconcile_shipping_model on public.listings;
+create trigger listings_reconcile_shipping_model
+  before insert or update on public.listings
+  for each row execute function public.listings_reconcile_shipping_model();
+
 alter table public.listings drop constraint if exists listings_free_shipping_agrees;
 alter table public.listings add constraint listings_free_shipping_agrees
   check (free_shipping = (shipping_payer = 'seller'));

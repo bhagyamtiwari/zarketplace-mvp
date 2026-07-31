@@ -126,11 +126,42 @@ self-ship did not exist.
 it to a generated column: it is written by `Sell.tsx` and by
 `orders_snapshot_from_listing()`, and generated columns cannot be written.
 
-Keep it a real column, maintained by trigger as `shipping_payer = 'seller'`,
-so legacy readers keep working. It stays correct for display purposes
+Keep it a real column, reconciled by trigger against `shipping_payer`, so
+legacy readers keep working. It stays correct for display purposes
 ("does the buyer see Free?") in all three rows. It is **only** wrong as a
 deduction predicate, so the migration must convert every payout site in the
 same change. Drop the column once nothing reads it.
+
+### The deploy hazard a bare CHECK creates
+
+Asserting `free_shipping = (shipping_payer = 'seller')` with a plain CHECK and
+nothing else is wrong, and it took a near miss to notice.
+
+The deployed sell form writes `free_shipping` and knows nothing about
+`shipping_payer`. Under a bare CHECK, the moment the migration lands, every
+free-shipping listing from the live site inserts `free_shipping = true` with
+`shipping_payer` defaulting to `'buyer'` and violates the constraint. The sell
+form is then broken for the entire window between applying the SQL and
+deploying the front end, which is the worst possible thing to break while
+onboarding sellers.
+
+`listings_reconcile_shipping_model` fixes this by normalising the two before
+the constraint is evaluated:
+
+- **INSERT**, `free_shipping = true` with the default payer: the signature of a
+  writer that predates these columns, since buyer-pays-and-free is a
+  contradiction nothing else produces. Trust `free_shipping`, derive the payer.
+- **INSERT**, anything else: the writer knows about the new columns and wins.
+- **UPDATE** where only `free_shipping` moved: old code or the admin toggle.
+  Follow it.
+- **UPDATE** otherwise: the new columns win.
+- Landing on `payer = 'buyer'` forces `fulfillment_method = 'zarketplace'`, so
+  a stale `'self'` cannot trip `listings_valid_shipping_combo` on a row the
+  writer never meant to invalidate.
+
+The CHECK stays behind it. BEFORE triggers run before constraint evaluation, so
+anything reconcilable passes and genuine drift still fails loudly. Migration and
+deploy are decoupled: the SQL can be applied at any time, in either order.
 
 ## The three payout sites
 
