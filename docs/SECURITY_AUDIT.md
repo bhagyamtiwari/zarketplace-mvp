@@ -17,6 +17,19 @@ feature exists (contact is email-only) — nothing to audit there.
 Legend: [ ] open · [~] partial · [x] done. Severity: C=Critical, H=High,
 M=Medium, L=Low.
 
+**Re-verified against live prod on 2026-07-31.** Both launch blockers remain
+closed; the fixes were not lost to later migrations or drift.
+- Finding 1: live `orders_snapshot_from_listing` still stamps
+  `reservation_expires_at`, still lapses stale `awaiting_payment` rows to
+  `payment_failed`, and still raises the friendly reserved-by-another-buyer
+  error.
+- Finding 2: `public.listings` has exactly one SELECT policy,
+  `listings_public_select`, with predicate `seller_id = auth.uid() OR
+  is_admin()` and no `status = 'approved'` branch. An anon REST read of
+  `seller_upi_vpa,seller_email,pickup_address` returns `[]` while five approved
+  listings render publicly from the `public_listings` view, so the base table is
+  genuinely closed rather than merely empty.
+
 ---
 
 ## A. Payment / escrow correctness — the parts that ARE solid
