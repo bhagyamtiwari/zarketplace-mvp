@@ -152,6 +152,15 @@ serve(async (req) => {
     if (order.shiprocket_order_id) {
       return json({ error: "This order already has a Shiprocket booking", shiprocket_order_id: order.shiprocket_order_id }, 409);
     }
+    // Shipping v2: the seller books and pays for their own courier on these,
+    // so buying a label here would charge zarketplace for a shipment that is
+    // already on its way. The seller supplies tracking and a parcel photo
+    // instead. See docs/SHIPPING_V2_PLAN.md.
+    if (order.fulfillment_method === "self") {
+      return json({
+        error: "This order is self-shipped by the seller. Do not book a pickup; collect tracking and the parcel photo from the seller instead.",
+      }, 409);
+    }
 
     const pickup: Addr = (order.pickup_address as Addr) ?? {};
     const delivery: Addr = (order.shipping_address as Addr) ?? {};

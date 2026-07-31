@@ -3,11 +3,21 @@ import { baseStyle, button, EmailContent, EmailContext, esc, header, sellerUrl }
 
 export function payoutReleasedSeller(ctx: EmailContext): EmailContent {
   const o = ctx.order ?? {};
-  // Must mirror handle_order_delivered: a seller who offered free shipping has
-  // the real shipping cost deducted from their payout (floored at 0). Never
-  // quote the full asking price when that deduction applied.
+  // Must mirror handle_order_delivered and calculateSellerPayout() in
+  // src/lib/pricing.ts. The deduction applies only when WE bought the label:
+  //
+  //   shipping_payer = 'seller' AND fulfillment_method = 'zarketplace'
+  //
+  // NOT when free_shipping is true. A self-shipping seller also shows Free at
+  // checkout but paid their own courier, so deducting would underpay them by
+  // the full rate. See docs/SHIPPING_V2_PLAN.md.
+  //
+  // Orders predating shipping v2 have no fulfillment_method; they default to
+  // 'zarketplace', which is correct since self-ship did not exist then.
   const shipping = Number(o.shipping_cost ?? 0);
-  const payout = o.free_shipping ? Math.max(0, Number(o.amount) - shipping) : Number(o.amount);
+  const deducted = o.shipping_payer === "seller"
+    && (o.fulfillment_method ?? "zarketplace") === "zarketplace";
+  const payout = deducted ? Math.max(0, Number(o.amount) - shipping) : Number(o.amount);
   return {
     to: o.seller_email,
     subject: `Payout released · Rs. ${payout}`,
@@ -15,7 +25,7 @@ export function payoutReleasedSeller(ctx: EmailContext): EmailContent {
       ${header(ctx.siteUrl)}
       <h1 style="font-weight:900; text-transform:uppercase;">Payout released</h1>
       <p>Your payout of <strong>Rs. ${payout}</strong> for order ${esc(o.order_number)} is on its way to your UPI.</p>
-      ${o.free_shipping
+      ${deducted
         ? `<p>Asking price Rs. ${o.amount}, less Rs. ${shipping} shipping you offered to cover. zarketplace takes no platform fee.</p>`
         : `<p>That is 100% of your asking price. zarketplace takes no platform fee.</p>`}
       ${button(sellerUrl(o, ctx.siteUrl), "View seller portal")}

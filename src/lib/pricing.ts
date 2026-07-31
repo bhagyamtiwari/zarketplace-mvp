@@ -137,3 +137,45 @@ export function shippingRateFor(categoryKey: string | null | undefined, categori
   if (!categoryKey) return 0;
   return categories.find((c) => c.key === categoryKey)?.rate ?? 0;
 }
+
+// Shipping v2: who pays, and who ships, are independent. See
+// docs/SHIPPING_V2_PLAN.md and migration 20260731000001.
+export type ShippingPayer = 'buyer' | 'seller';
+export type FulfillmentMethod = 'zarketplace' | 'self';
+
+// True when the buyer is charged shipping at checkout.
+export function buyerPaysShipping(payer: ShippingPayer): boolean {
+  return payer === 'buyer';
+}
+
+// True when the flat rate comes out of the seller's payout.
+//
+// This is NOT the same predicate as "the buyer sees Free". Under self-ship the
+// buyer also sees Free, but the seller already paid a courier directly, so
+// deducting would underpay them by the full rate. Every payout site must use
+// this function and never the free_shipping flag.
+export function shippingDeducted(payer: ShippingPayer, fulfillment: FulfillmentMethod): boolean {
+  return payer === 'seller' && fulfillment === 'zarketplace';
+}
+
+// What the seller actually receives after delivery. Mirrors the payout amount
+// in handle_order_delivered():
+//   GREATEST(0, amount - (CASE WHEN <deducted> THEN shipping_cost ELSE 0 END))
+// where `amount` is COALESCE(sale_price, price), so callers must pass the
+// EFFECTIVE price (sale price when one is set), not the list price.
+//
+// The deduction is the flat category rate, never the real courier bill, so
+// this number is exact and fixed at listing time, not an estimate. zarketplace
+// absorbs any difference between the flat rate and what the courier charges.
+//
+// Three places compute this independently and must agree: this function,
+// handle_order_delivered() in SQL, and the payout-released-seller email.
+export function calculateSellerPayout(
+  effectivePrice: number,
+  rate: number,
+  payer: ShippingPayer,
+  fulfillment: FulfillmentMethod,
+): number {
+  if (!(effectivePrice > 0)) return 0;
+  return Math.max(0, effectivePrice - (shippingDeducted(payer, fulfillment) ? rate : 0));
+}
