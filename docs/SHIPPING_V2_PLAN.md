@@ -188,16 +188,56 @@ The proposed status list mixes two axes onto one, which cannot represent
   `delivered`, `exception`
 - payout state: the existing `seller_payouts.status` plus `releasable_at`
 
-Batch booking: select orders, fetch courier options per order, pick cheapest
-**from an allowlist**, show the admin a review table with the chosen courier
-and price per order, confirm, then book. Cheapest-overall is the wrong rule:
-the cheapest quote is often a courier not serviceable on that lane, and a bad
-courier generates claims worth more than the ₹30 saved. Prefer Delhivery
-Surface as the planning default (see `docs/SHIPPING.md`).
+### Booking stays manual, by design
 
-Booking is a write loop against a third-party API. It needs idempotency per
-order (the function already keys on order id), a per-order failure that does
-not abort the batch, and a visible partial-success result.
+Decided 2026-07-31. Bookings are made by hand in the Shiprocket dashboard, not
+by an automated call. This is not a stopgap, it is the right call at this
+volume, for a reason worth writing down:
+
+**Manual booking is the margin control point.** The flat rate we charge is a
+bet against the real courier bill. Automated booking commits to that bill with
+nobody looking. A human booking each order sees the actual quote before
+committing and can stop when it exceeds what was collected, when the courier
+options on that lane look wrong, or when shipping a cheap item costs more than
+the item is worth. Automating that away would mean building alerting to
+recover the judgement the human already provides for free.
+
+So the admin surface is a **queue plus a paste-back field**, not a booking
+robot:
+
+- list orders needing booking, with pickup and delivery address, the package
+  profile, declared value, and what shipping we actually collected
+- admin books in Shiprocket, then pastes the AWB and courier back
+- self-shipped orders never appear in this queue at all
+
+Cheapest-courier selection is therefore a human judgement for now. When it is
+eventually automated, cheapest-overall is still the wrong rule: the cheapest
+quote is often a courier not serviceable on that lane, and a bad courier
+generates claims worth more than the ₹30 saved. Prefer Delhivery Surface as
+the planning default (see `docs/SHIPPING.md`).
+
+## Razorpay and Shiprocket are not linked
+
+There is no integration between them and there should not be one. They are two
+separate ledgers joined only by the bank account:
+
+- **Razorpay** is money in from buyers, settling out to the bank on a T+2 cycle.
+- **Shiprocket** is a prepaid wallet that is topped up manually.
+
+Run Shiprocket as a **float**: keep a working balance, top it up when it drops.
+The float is working capital, not just convenience, because the courier is paid
+up front while the buyer's money is still settling. Every order is fronted.
+
+Sizing: at roughly 10 orders a week averaging ₹180 of shipping, ₹10,000 is
+about five weeks of runway and ₹5,000 about two and a half. Start at ₹10,000
+and watch the drawdown rate rather than the balance.
+
+The discipline that matters is **monthly reconciliation**: compare shipping
+collected (`sum(orders.shipping_cost)` for the period) against Shiprocket
+wallet spend. That single number says whether the rate card is priced right,
+per category, from real invoices instead of from quotes. It is also exactly the
+data needed for the deferred question of what to do when charged and actual
+differ.
 
 ## Self-ship (Model C)
 
@@ -284,14 +324,35 @@ it. The answer decides whether Model C is the main path or a minority one.
 
 ## Build order
 
-| Phase | Scope | Risk |
+| Phase | Scope | Status |
 |---|---|---|
-| 1 | Rate single-sourcing, checked mirror, PDF from live | low, no schema |
-| 2 | Schema: two axes, backfill, `free_shipping` shim | medium |
-| 3 | Payout predicate at all three sites, floor narrowing | **high, money** |
-| 4 | `pg_cron`, `auto_deliver_at`, pre-release email | medium |
-| 5 | Self-ship, gated, evidence-required | medium |
-| 6 | Admin queue, batch booking | medium |
+| 1 | Rate single-sourcing, checked mirror, PDF from live | partly done (`3038f0f`) |
+| 2 | Schema: two axes, backfill, `free_shipping` CHECK | written, **not applied** |
+| 3a | Seller form, payout helper, email, Shiprocket refusal | done (`fec12c7`) |
+| 3b | `handle_order_delivered` predicate | **blocked on a live dump** |
+| 4 | `pg_cron`, `auto_deliver_at`, pre-release email | not started |
+| 5 | Self-ship evidence capture: tracking, photo, courier list | not started |
+| 6 | Admin booking queue and paste-back | not started |
+
+All three options are live on the form as of `fec12c7`, ahead of 3b and 5,
+which is safe only because of the ordering below. Read it before assuming
+this is finished.
+
+### Why shipping the form before 3b is safe, and when it stops being safe
+
+The buyer side is already correct for all three models: the buyer charge keys
+off `free_shipping`, which is still exactly right for "does checkout say Free".
+Nothing about money in is wrong.
+
+The payout side is not. `handle_order_delivered` still deducts on
+`free_shipping`, so it would underpay a self-shipping seller. That cannot fire
+yet, because reaching a payout requires admin approval of the listing, a
+purchase, a shipment, an admin-set `delivered`, and then 48 hours. Days, with a
+human in the loop at two points.
+
+**3b must land before the first self-shipped order is marked delivered.** Until
+then the exposure is zero; after then it is the full shipping rate per order,
+silently.
 
 Phases 5 and 6 were originally the other way round. Self-ship moved ahead once
 it became clear it is the migration path for existing IG supply rather than an
