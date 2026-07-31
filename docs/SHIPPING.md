@@ -69,13 +69,55 @@ https://<project>.supabase.co/functions/v1/shiprocket-webhook?token=<SHIPROCKET_
 Shiprocket doesn't sign webhook payloads with an HMAC secret the way Razorpay
 does, so the `?token=` query param is the shared-secret check.
 
+## Rate card: where the numbers came from (2026-07-29)
+
+Couriers bill on `max(dead weight, volumetric)` where volumetric is
+`L x B x H / 5000`. **Volumetric exceeds dead weight in all five of our
+categories**, so the invoice is decided by parcel size, not scale weight. That
+is why the Sell form gives packing instructions instead of asking sellers to
+weigh anything: a seller-entered weight would be collected and then ignored by
+the billing formula.
+
+Measured from Shiprocket's rate API, Delhi 110030 -> Mumbai 400001 and
+Bengaluru 560001 (both zone C, the lane most orders take), surface, prepaid,
+declared value Rs. 1500. Cost column is Delhivery Surface, which quoted
+identically on both lanes; cheaper Shadowfax quotes exist but are not available
+on every lane, so they are not safe to price against.
+
+| Category | Declared package | Billed | Cost (zone C) | We charge |
+|---|---|---|---|---|
+| Accessories | 0.2 kg, 25x20x4 | 0.40 kg | Rs. 68 | Rs. 99 |
+| Tops | 0.3 kg, 30x25x4 | 0.60 kg | Rs. 131 | Rs. 149 |
+| Bottoms | 0.5 kg, 30x25x6 | 0.90 kg | Rs. 131 | Rs. 149 |
+| Footwear | 1.0 kg, 35x22x14 | 2.16 kg | Rs. 320 boxed / Rs. 194 unboxed | Rs. 249 |
+| Outerwear | 0.8 kg, 35x28x10 | 1.96 kg | Rs. 257 | Rs. 259 |
+
+Same-city is much cheaper (Rs. 53 to Rs. 156) and the North East much dearer
+(Rs. 104 to Rs. 265), so a single national rate earns on short lanes and loses
+on long ones. Rates are priced at zone C plus a thin buffer.
+
+**Footwear is the one deliberate bet.** A pair shipped in its original box
+costs Rs. 320; the same pair in a courier bag costs Rs. 194. Rs. 249 sits
+between them, so it depends on most sellers packing flat. The Sell form tells
+them to, except when the listing declares original packaging, where the box is
+part of what the buyer paid for. Watch this one against real invoices first.
+
+Rates live in `shipping_categories.rate` and are snapshotted onto every order
+(`orders.shipping_cost` and `orders.package_snapshot`), so repricing is a SQL
+update that can never alter an in-flight or historical order. Keep the
+`FALLBACK_SHIPPING_CATEGORIES` list in `src/lib/pricing.ts` in sync.
+
 ## Known simplifications (MVP, documented rather than hidden)
 
 - **Weight/dimensions are fixed defaults per shipping category**, not real
   per-item values - the flat-rate shipping model deliberately never asks a
-  seller for parcel weight (`CATEGORY_WEIGHT_KG` in
-  `supabase/functions/shiprocket-create-order/index.ts`). Tune from real
-  Shiprocket invoices once volume exists.
+  seller for parcel weight. The profile now lives in `shipping_categories`
+  (`default_weight_kg`, `pkg_*_cm`); the constants in
+  `supabase/functions/shiprocket-create-order/index.ts` are only the last-resort
+  fallback. Tune from real Shiprocket invoices once volume exists.
+- **One flat rate per category, nationwide** - no zone pricing, so short lanes
+  subsidise long ones. Zone-based pricing off the buyer's pincode is the known
+  next step (`docs/REALIGNMENT_PLAN.md` P2) and matters most for footwear.
 - **Courier selection is automatic** (no courier_id passed, so Shiprocket
   picks its recommended courier for the route) - no rate-comparison UI.
 - **Booking is admin-triggered**, not automatic on payment - matches

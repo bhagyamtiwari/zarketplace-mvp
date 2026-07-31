@@ -72,16 +72,25 @@ export interface ShippingCategory {
 
 // Emergency fallback so the shipping selector (and the seller/listing form)
 // can never be permanently blocked by a failed or hung network read. This
-// MUST mirror the seed rows in migration 20260710000004_shipping_categories.
+// MUST mirror the LIVE shipping_categories.rate values, which have been
+// repriced since the 20260710000004 seed and no longer match any migration
+// file in this repo. Verify against production before editing:
+//   curl "$VITE_SUPABASE_URL/rest/v1/shipping_categories?select=key,rate" \
+//     -H "apikey: $VITE_SUPABASE_ANON_KEY"
 // The database remains the source of truth: this is only used when the read
 // fails or times out, and the amount actually charged is always the
-// server-derived orders.total_amount, never these display values.
+// server-derived orders.total_amount, never these display values. But a stale
+// value here quotes a seller a shipping deduction we do not actually charge.
+//
+// Rates set 2026-07-29 from measured Shiprocket surface quotes (Delhi ->
+// Mumbai/Bengaluru, zone C, the lane most orders actually take), priced at
+// cost plus a thin buffer. See docs/SHIPPING.md for the cost table.
 const FALLBACK_SHIPPING_CATEGORIES: ShippingCategory[] = [
-  { key: 'accessories', label: 'Accessories & Small Items', rate: 79 },
-  { key: 'tops', label: 'T-Shirts & Tops', rate: 80 },
-  { key: 'bottoms', label: 'Jeans & Bottoms', rate: 99 },
-  { key: 'footwear', label: 'Footwear', rate: 129 },
-  { key: 'outerwear', label: 'Jackets & Heavy Items', rate: 149 },
+  { key: 'accessories', label: 'Accessories & Small Items', rate: 99 },
+  { key: 'tops', label: 'T-Shirts & Tops', rate: 149 },
+  { key: 'bottoms', label: 'Jeans & Bottoms', rate: 149 },
+  { key: 'footwear', label: 'Footwear', rate: 249 },
+  { key: 'outerwear', label: 'Jackets & Heavy Items', rate: 259 },
 ];
 
 // supabase-js can hang indefinitely when its session lock can't be acquired

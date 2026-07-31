@@ -36,10 +36,22 @@ import { buildEmail } from "../send-email/templates/index.ts";
 
 const SHIPROCKET_BASE = "https://apiv2.shiprocket.in/v1/external";
 
-// Declared weight in kg per shipping category - the flat-rate shipping model
-// never asks the seller for a real parcel weight, so this is a reasonable
-// fixed default per category rather than a precise per-item value. Tune from
-// real Shiprocket invoices once volume exists (see docs/SHIPPING.md).
+// Package resolution hierarchy, most to least specific:
+//
+//   order.package_snapshot  -> captured from shipping_categories when the
+//                              order was placed, so a later profile edit can
+//                              never change what an in-flight order declared.
+//                              Admin may correct it while the booking is still
+//                              pending; it freezes once shiprocket_order_id
+//                              is set (orders_lock_package_snapshot trigger).
+//   shipping_categories     -> live profile, for orders placed before
+//                              package_snapshot existed.
+//   the constants below     -> final fallback, so a booking can never fail
+//                              just because profile data is missing.
+//
+// The flat-rate shipping model never asks the seller for a real parcel weight
+// or size. Tune the profiles from real Shiprocket invoices as volume builds
+// (see docs/SHIPPING.md).
 const CATEGORY_WEIGHT_KG: Record<string, number> = {
   tops: 0.3,
   bottoms: 0.5,
@@ -50,6 +62,25 @@ const CATEGORY_WEIGHT_KG: Record<string, number> = {
 const DEFAULT_WEIGHT_KG = 0.5;
 // Generic parcel dimensions in cm - same reasoning as weight above.
 const PARCEL_DIMS = { length: 30, breadth: 25, height: 5 };
+
+interface PackageDims {
+  weight: number;
+  length: number;
+  breadth: number;
+  height: number;
+}
+
+function packageFromSnapshot(snap: unknown): PackageDims | null {
+  if (!snap || typeof snap !== "object") return null;
+  const s = snap as Record<string, unknown>;
+  const num = (v: unknown) => (typeof v === "number" && v > 0 ? v : null);
+  const weight = num(s.weight_kg);
+  const length = num(s.length_cm);
+  const breadth = num(s.breadth_cm);
+  const height = num(s.height_cm);
+  if (weight == null || length == null || breadth == null || height == null) return null;
+  return { weight, length, breadth, height };
+}
 
 interface RequestBody {
   order_id: string;
@@ -174,7 +205,31 @@ serve(async (req) => {
     }
 
     // 3. Create the adhoc order.
-    const weight = CATEGORY_WEIGHT_KG[order.shipping_category ?? ""] ?? DEFAULT_WEIGHT_KG;
+    // Resolve the declared package: snapshot -> live category profile ->
+    // constants (see the hierarchy comment at the top of this file).
+    let pkg = packageFromSnapshot(order.package_snapshot);
+    if (!pkg && order.shipping_category) {
+      const { data: cat } = await supabase
+        .from("shipping_categories")
+        .select("default_weight_kg, pkg_length_cm, pkg_breadth_cm, pkg_height_cm")
+        .eq("key", order.shipping_category)
+        .maybeSingle();
+      if (cat) {
+        pkg = packageFromSnapshot({
+          weight_kg: Number(cat.default_weight_kg),
+          length_cm: Number(cat.pkg_length_cm),
+          breadth_cm: Number(cat.pkg_breadth_cm),
+          height_cm: Number(cat.pkg_height_cm),
+        });
+      }
+    }
+    if (!pkg) {
+      pkg = {
+        weight: CATEGORY_WEIGHT_KG[order.shipping_category ?? ""] ?? DEFAULT_WEIGHT_KG,
+        ...PARCEL_DIMS,
+      };
+    }
+    const weight = pkg.weight;
     const now = new Date();
     const orderDate = `${now.toISOString().slice(0, 10)} ${now.toTimeString().slice(0, 5)}`;
     const createOrderRes = await fetch(`${SHIPROCKET_BASE}/orders/create/adhoc`, {
@@ -203,9 +258,9 @@ serve(async (req) => {
         }],
         payment_method: "Prepaid",
         sub_total: Number(order.amount),
-        length: PARCEL_DIMS.length,
-        breadth: PARCEL_DIMS.breadth,
-        height: PARCEL_DIMS.height,
+        length: pkg.length,
+        breadth: pkg.breadth,
+        height: pkg.height,
         weight,
       }),
     });
