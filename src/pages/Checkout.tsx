@@ -429,6 +429,14 @@ function CheckoutInner() {
         <p className="text-[11px] font-bold uppercase tracking-widest text-black/60 max-w-md leading-relaxed">
           Your payment has been received. The seller has been notified to ship your item. Track everything in My Orders.
         </p>
+        {/* Named explicitly rather than "check your email": the receipt goes to
+            the address typed at checkout, which is often not the account email,
+            and a buyer looking in the wrong inbox reads as a missing receipt. */}
+        <p className="text-[11px] font-bold uppercase tracking-widest text-black/60 max-w-md leading-relaxed">
+          A confirmation email is on its way to{' '}
+          <span className="text-black normal-case font-medium">{shippingAddress.email}</span>. If you
+          don't see it in a few minutes, check your spam folder.
+        </p>
 
         {confirmedOrders.length > 0 && (
           <div className="w-full max-w-md flex flex-col gap-6 text-left">

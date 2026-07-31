@@ -208,7 +208,7 @@ export function Navbar() {
                               onClick={async () => {
                                 setVerifyNotice(null);
                                 const { error } = await resendVerification();
-                                setVerifyNotice(error ? error : 'Verification email sent.');
+                                setVerifyNotice(error ? error : 'Verification email sent. Check your spam folder if it does not arrive.');
                               }}
                               className="self-start text-[10px] font-black uppercase tracking-widest underline hover:text-black/60"
                             >

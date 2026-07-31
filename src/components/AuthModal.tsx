@@ -95,7 +95,10 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
         const { error: err } = await sendPasswordReset(email);
         t.end({ error: err });
         if (err) setError(err);
-        else setNotice(`If an account exists for ${email}, a password reset link is on its way. Check your inbox.`);
+        // Spam prompt on every "we emailed you" notice: transactional mail from
+        // a young sending domain lands in spam often enough that "it never
+        // arrived" is usually "it arrived somewhere else".
+        else setNotice(`If an account exists for ${email}, a password reset link is on its way. Check your inbox, and your spam folder if it isn't there in a minute.`);
       } else if (mode === 'signin') {
         const t = mlog.time('signInWithPassword');
         const { error: err } = await signInWithPassword(email, password);
@@ -109,7 +112,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
         if (err) { setError(err); return; }
         if (needsConfirmation) {
           setMode('signin');
-          setNotice(`Account created. We sent a verification link to ${email}. Click the link in your inbox, then sign in here.`);
+          setNotice(`Account created. We sent a verification link to ${email}. Click the link in your inbox, then sign in here. If it isn't there in a minute, check your spam folder.`);
         } else {
           succeed();
         }
