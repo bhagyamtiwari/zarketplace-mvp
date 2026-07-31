@@ -14,7 +14,7 @@ export function listingApprovedSeller(ctx: EmailContext): EmailContent {
       ${header(ctx.siteUrl)}
       <h1 style="font-weight:900; text-transform:uppercase; letter-spacing:-1px;">You're live.</h1>
       <p><strong>${esc(title)}</strong> has been approved and is now live on zarketplace for buyers to see and buy.</p>
-      <p>When it sells, we'll email you right away with what to do next. You just pack it and hand it to the courier at pickup, zarketplace covers the label.</p>
+      <p>When it sells, we'll email you right away with what to do next. If you left shipping to us, you just pack it and hand it to the courier at pickup and zarketplace covers the label. If you chose to ship it yourself, you'll book your own courier and add the tracking number and a photo of the packed parcel in your seller portal.</p>
       ${listingId ? button(`${ctx.siteUrl}/product/${listingId}`, "View your listing") : ""}
     </div>`,
   };

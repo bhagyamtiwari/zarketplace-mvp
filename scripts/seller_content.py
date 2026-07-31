@@ -27,14 +27,14 @@ D1_INTRO = "Thanks for selling on zarketplace. Here is everything, once."
 PROMISES = [
     ("BadgePercent", "No selling fees", "We take 0%. Not a launch offer."),
     ("Wallet", "You keep 100%", "Your asking price is your payout."),
-    ("Truck", "Buyer pays shipping", "And the Buyer Protection fee."),
+    ("Truck", "You pick who ships", "Buyer pays, we cover it, or you do."),
     ("ShieldCheck", "We handle the rest", "Secure payments and delivery."),
 ]
 
 HOW_SELLING = [
     ("Create your listing", "Photos, details, condition, price."),
     ("A buyer purchases", "Their money is held, not sent to you."),
-    ("We arrange pickup", "From your door. No labels, no courier queue."),
+    ("It gets shipped", "We collect from your door, or you post it."),
     ("Your item is delivered", "Tracked the whole way."),
     ("48-hour review", "The buyer checks it over."),
     ("Payout released", "To your UPI."),
@@ -44,7 +44,7 @@ KEEP_HEAD = "100%"
 KEEP_LINES = [
     "You receive 100% of your listing price.",
     "No listing fees. No selling fees. No hidden commissions.",
-    "The only deduction is shipping, and only if you chose to offer free shipping.",
+    "The only deduction is shipping, and only if we arrange it for you.",
 ]
 
 ALLOWED = ["One hoodie", "One pair of shoes", "One jacket"]
@@ -95,7 +95,7 @@ D2_WHISPER = "now what."
 AFTER_SALE = [
     ("We notify you", "Straight away."),
     ("Pack it securely", "You have 72 hours."),
-    ("We arrange pickup", "At your door."),
+    ("It goes out", "We collect, or you post it and add tracking."),
     ("Track it", "Seller Portal, then Sales."),
     ("48-hour review", "Starts on delivery."),
     ("Payout released", "To your UPI, no open claim."),
@@ -128,8 +128,9 @@ FAQ = [
     ("When do I get paid?",
      "After delivery and the 48-hour buyer review window."),
     ("Who pays shipping?",
-     "The buyer, at checkout. Unless you switched on free shipping, in which case "
-     "it comes out of your payout."),
+     "You choose per listing. The buyer at checkout, or you can offer free "
+     "shipping and we take the flat rate out of your payout, or you can ship it "
+     "yourself, pay your own courier and keep your full price."),
     ("Are there selling fees?",
      "No. You keep 100% of your asking price."),
     ("What if my item doesn't sell?",

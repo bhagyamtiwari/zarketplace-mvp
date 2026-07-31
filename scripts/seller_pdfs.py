@@ -515,7 +515,7 @@ def build_guide(path):
 
     d.section("WHO PAYS WHAT")
     half = (CW - 40) / 2
-    d.tracked(M, d.y, "BUYER PAYS SHIPPING AT CHECKOUT", BLACK_F, 7.4, 1.5, black)
+    d.tracked(M, d.y, "YOU CHOOSE WHO PAYS SHIPPING", BLACK_F, 7.4, 1.5, black)
     ry = d.y - 16
     for label, rate in T.SHIPPING:
         d.tracked(M, ry, label.upper(), BOLD_F, 7, 1.0, GREY)
@@ -523,7 +523,7 @@ def build_guide(path):
         ry -= 11.6
     x2 = M + half + 40
     d.tracked(x2, d.y, "YOU PAY NOTHING", BLACK_F, 7.4, 1.5, black)
-    d.body(x2, d.y - 16, "Unless you switch on free shipping for a listing, in which "
+    d.body(x2, d.y - 16, "Unless you offer free shipping and we arrange it, in which "
                          "case that cost comes out of your payout. Everything else, "
                          "including Buyer Protection, is on the buyer.",
            size=7, lead=10.4, max_w=half, track=0.55)

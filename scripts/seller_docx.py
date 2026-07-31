@@ -268,13 +268,13 @@ def build_guide(path):
     heading(doc, "Who pays what")
     t = doc.add_table(rows=len(T.SHIPPING) + 1, cols=2)
     p = t.rows[0].cells[0].paragraphs[0]
-    run(p, "Buyer pays shipping at checkout", 9.5, True, BLACK, caps=True, spacing=1.2)
+    run(p, "You choose who pays shipping", 9.5, True, BLACK, caps=True, spacing=1.2)
     for i, (label, rate) in enumerate(T.SHIPPING, 1):
         run(t.rows[i].cells[0].paragraphs[0], label, 9.5, False, GREY)
         rp = t.rows[i].cells[1].paragraphs[0]
         rp.alignment = WD_ALIGN_PARAGRAPH.RIGHT
         run(rp, rate, 9.5, True, BLACK)
-    para(doc, "You pay nothing, unless you switch on free shipping for a listing, in "
+    para(doc, "You pay nothing, unless you offer free shipping and we arrange it, in "
               "which case that cost comes out of your payout. Everything else, "
               "including Buyer Protection, is on the buyer.",
          size=9.5, colour=GREY, space_before=8)
