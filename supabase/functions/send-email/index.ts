@@ -14,9 +14,27 @@
 //
 // Required env vars:
 //   - RESEND_API_KEY        (sign up at resend.com — free tier covers MVP)
-//   - EMAIL_FROM            e.g. "zarketplace <orders@zarketplace.com>"
-//                           Until your domain is verified in Resend, you can
-//                           use "onboarding@resend.dev" for testing.
+//   - EMAIL_FROM            e.g. "zarketplace <no-reply@send.zarketplace.com>"
+//
+//     SEND FROM A SUBDOMAIN, NOT THE ROOT DOMAIN. Transactional mail must not
+//     share a sending identity with human mail from @zarketplace.com. Mailbox
+//     providers build reputation per sending domain and per DKIM d= value, so
+//     an automated stream and a human stream on the same identity share one
+//     fate: whichever gets complained about drags the other down with it.
+//     Keeping them apart means a spam hit on one cannot bury the other.
+//
+//     Each sending domain needs its own DKIM, SPF and a bounce/return-path
+//     record in Resend, so this is a DNS change, not just an env var edit.
+//     Change EMAIL_FROM only AFTER the subdomain verifies green in Resend:
+//     an unverified From is either rejected outright or lands straight in
+//     spam, which is the opposite of the intent.
+//
+//     Until your domain is verified in Resend, you can use
+//     "onboarding@resend.dev" for testing.
+//   - EMAIL_REPLY_TO        optional, e.g. "support@zarketplace.com"
+//                           A no-reply From with no working reply path is
+//                           itself a mild spam signal, and a buyer chasing an
+//                           order will hit reply regardless.
 //   - PUBLIC_SITE_URL       e.g. https://zarketplace.com
 //   - SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (auto-injected)
 //
@@ -76,6 +94,7 @@ serve(async (req) => {
   try {
     const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
     const EMAIL_FROM = Deno.env.get("EMAIL_FROM") ?? "onboarding@resend.dev";
+    const EMAIL_REPLY_TO = Deno.env.get("EMAIL_REPLY_TO");
     const SITE_URL = Deno.env.get("PUBLIC_SITE_URL") ?? "https://zarketplace.com";
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -156,6 +175,12 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         from: EMAIL_FROM,
+        // A no-reply From with nowhere to reply is a mild spam signal, and a
+        // buyer chasing an order will hit reply whatever the address says.
+        // Points at a human mailbox on the root domain while the send itself
+        // stays on the subdomain, so replies reach someone without putting the
+        // root domain's reputation on the automated stream.
+        ...(EMAIL_REPLY_TO ? { reply_to: EMAIL_REPLY_TO } : {}),
         to: recipient,
         subject: built.subject,
         html: built.html,

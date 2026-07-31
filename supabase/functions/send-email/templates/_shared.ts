@@ -36,16 +36,21 @@ export function button(href: string, label: string): string {
 // ignores modern CSS layout entirely - tables are the one layout primitive
 // every email client renders consistently.
 //
-// The source PNG is a square canvas with the wordmark glyphs occupying
-// only the middle ~14% of its height, so it's cropped to that band with a
-// fixed-size cell (overflow:hidden) plus a shifted full-size image -
-// object-fit/aspect-ratio aren't reliable enough across mail clients
-// (Outlook desktop in particular) for this to be done with modern CSS.
+// wordmark-reg-email.png is the registered (R) wordmark, pre-cropped to the
+// glyph band at 1083x202, so the old crop hack is gone: the previous asset was
+// a 1254x1254 square with the glyphs in the middle ~14%, which had to be
+// clipped with a fixed cell plus a negatively-offset full-size image.
+//
+// It is black glyphs on an OPAQUE WHITE background, and that matters. The
+// registered wordmark also ships as white-on-transparent (zark-reg-tp.png),
+// which is built for dark surfaces and would be invisible here, since mail
+// bodies render on white. An opaque background also survives clients that
+// recolour the body in dark mode, where a transparent PNG would disappear.
 export function header(siteUrl: string): string {
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px; padding-bottom:20px; border-bottom:1px solid #eee; width:100%;">
     <tr>
-      <td style="width:169px; height:24px; overflow:hidden; line-height:0;">
-        <img src="${siteUrl}/images/wordmark-w-tp.png" alt="zarketplace" width="169" style="display:block; width:169px; height:169px; margin-top:-73px;" />
+      <td style="line-height:0;">
+        <img src="${siteUrl}/images/wordmark-reg-email.png" alt="zarketplace" width="172" height="32" style="display:block; width:172px; height:32px;" />
       </td>
     </tr>
   </table>`;
