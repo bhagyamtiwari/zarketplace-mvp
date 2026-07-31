@@ -94,8 +94,20 @@ export function escrowCaption(
       case 'pickup':
         return 'Payment secured. The item is being packed and picked up. Your money stays protected until it reaches you.';
       case 'delivered':
-        return 'On its way. Your payment stays in escrow until the courier confirms delivery.';
+        // Not "until the courier confirms": on a self-shipped order there is no
+        // courier feed of ours to confirm anything.
+        return 'On its way. Your payment stays in escrow until delivery is confirmed.';
       case 'review':
+        // Nobody confirmed an assumed delivery, so do not tell the buyer it was
+        // delivered. This caption is also the only warning they get before the
+        // payout clock runs down: sending mail from the auto-delivery sweep
+        // needs pg_net and a stored service key, which does not exist yet
+        // (see migration 20260731000004), so the in-product line carries it.
+        if (order.delivery_source === 'assumed') {
+          return deadline
+            ? `Your order should have arrived by now, though no one has confirmed it. If it hasn't reached you, tell us by ${deadline}, before the seller is paid.`
+            : "Your order should have arrived by now, though no one has confirmed it. If it hasn't reached you, tell us within 48 hours, before the seller is paid.";
+        }
         return deadline
           ? `Delivered. You have until ${deadline} to flag any problem before the seller is paid.`
           : 'Delivered. You have a 48-hour window to flag any problem before the seller is paid.';

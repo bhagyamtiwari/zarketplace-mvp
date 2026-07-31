@@ -143,6 +143,10 @@ const NAV: Section[] = [
     { key: 'sr_selfship', label: 'Self-ship · awaiting seller', kind: 'orders', order: (o) => o.status === 'paid' && routeOf(o) === 'self_ship' },
     { key: 'sr_active', label: 'Active Shipments', kind: 'orders', order: (o) => !!o.shiprocket_order_id && o.status !== 'delivered' && o.status !== 'cancelled' && o.status !== 'refunded' },
     { key: 'sr_failed', label: 'Failed / RTO / NDR', kind: 'orders', order: (o) => (!!o.shiprocket_order_id && !o.tracking_number) || o.shipment_status === 'rto' || o.shipment_status === 'ndr' },
+    // Nobody confirmed these arrived; the sweep assumed it after the deadline
+    // passed. A payout row exists but paying it is still a manual act, so this
+    // is the list to look at before releasing money on an assumption.
+    { key: 'sr_assumed', label: 'Assumed delivered · review', kind: 'orders', order: (o) => o.delivery_source === 'assumed' },
   ] },
   { key: 'razorpay', label: 'Razorpay', icon: CreditCard, leaves: [
     { key: 'rz_failures', label: 'Payment Failures', kind: 'orders', order: (o) => o.status === 'payment_failed' },
@@ -726,6 +730,9 @@ function OrderDrawer({ order, payouts, emails, audit, onClose, onDone }: {
     try {
       const update: Record<string, unknown> = { status };
       if (status === 'shipped') update.shipped_at = new Date().toISOString();
+      // Records that a human asserted this, not a courier and not the
+      // auto-delivery sweep. See orders.delivery_source.
+      if (status === 'delivered') update.delivery_source = 'admin';
       const { error } = await supabase.from('orders').update(update).eq('id', order.id);
       if (error) throw error;
       if (order.listing_id) {
@@ -857,6 +864,13 @@ function OrderDrawer({ order, payouts, emails, audit, onClose, onDone }: {
         <Row k="AWB / tracking" v={order.tracking_number} />
         <Row k="Courier" v={order.courier} />
         <Row k="Shipment status" v={shipmentStatusLabel(order.shipment_status) ?? '—'} />
+        {order.delivery_source === 'assumed' && (
+          <p className="mt-1 border-l-2 border-black pl-2 text-black/70">
+            Nobody confirmed this arrived. The auto-delivery sweep assumed it after the deadline
+            passed, which opened the review window and created the payout row. Check with the buyer
+            before releasing the payout.
+          </p>
+        )}
         {order.tracking_url && <a href={order.tracking_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[10px] underline">Track <ExternalLink className="h-3 w-3" /></a>}
         {order.package_image_url && <PackagePhotoAdmin path={order.package_image_url} />}
         {/* Booking is done by hand in the Shiprocket dashboard (see

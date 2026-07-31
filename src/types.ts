@@ -128,6 +128,12 @@ export interface Order {
   package_image_url: string | null;
   shipped_at: string | null;
   delivered_at: string | null;
+  // Auto-delivery fallback (migration 20260731000004). auto_deliver_at is when
+  // the sweep will assume delivery if no better signal arrives.
+  // delivery_source records where the signal came from: buyer-facing copy must
+  // not claim a courier confirmed delivery when it is 'assumed'.
+  auto_deliver_at: string | null;
+  delivery_source: 'courier' | 'assumed' | 'admin' | null;
   review_ends_at: string | null;
   claim_open: boolean;
   last_nudge_sent_at: string | null;

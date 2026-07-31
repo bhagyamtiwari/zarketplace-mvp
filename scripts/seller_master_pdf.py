@@ -307,7 +307,7 @@ y = cy - 26
 section("WHY SELL HERE")
 PROMISES = [("No selling fees", "We take 0%. Not a launch offer."),
             ("You keep 100%", "Your asking price is your payout."),
-            ("Buyer pays shipping", "And the Buyer Protection fee."),
+            ("You pick who ships", "Buyer pays, we cover it, or you do."),
             ("We handle the rest", "Payments, pickup, delivery.")]
 cols, gap = 4, 16
 colw = (CW - gap * (cols - 1)) / cols
@@ -349,8 +349,9 @@ tracked(M + CW / 2, ty0 + 16, notes, BOLD_F, 6.4, 1.0, W70, align="c")
 y = ty0 - 24
 
 # 72-hour rule
-txt = ("You have 72 hours from the moment an item sells to pack it and hand it to the courier. "
-       "We book and pay for the pickup. Miss it repeatedly and you lose selling access.")
+txt = ("You have 72 hours from the moment an item sells to pack it and hand it over. "
+       "We book and pay for the pickup, unless you chose to ship it yourself. "
+       "Miss it repeatedly and you lose selling access.")
 h = 26 + block_h(txt, BODY_F, 8.2, CW - 34, 0.55, 12.0)
 ky = card(h)
 tracked(M + 17, ky + h - 17, "THE ONE DEADLINE", BLACK_F, 8.4, 1.8, black)
@@ -361,7 +362,7 @@ y = ky - 24
 section("THE MONEY")
 half = (CW - 26) / 2
 KEEP = ["No listing fees. No selling fees. No hidden commissions.",
-        "The only deduction is shipping, and only if you switch on free shipping."]
+        "The only deduction is shipping, and only if we arrange it for you."]
 kh = 26 + sum(block_h(t, BOLD_F, 6.9, half - 32, 0.9, 10.0) for t in KEEP) + 20
 my = dark(kh, half)
 tracked(M + 18, my + kh - 30, "100%", BLACK_F, 27, -0.4, white)
@@ -372,7 +373,7 @@ for t in KEEP:
         ty -= 10.0
     ty -= 2
 rx = M + half + 26
-tracked(rx, y - 10, "BUYER PAYS SHIPPING", BLACK_F, 7.6, 1.6, black)
+tracked(rx, y - 10, "SHIPPING RATES", BLACK_F, 7.6, 1.6, black)
 # Live values from public.shipping_categories, checked 2026-07-30. The repo's
 # seed migration is stale (79/80/99/129/149) - always read the database before
 # reprinting this, rates have already drifted once.
@@ -385,8 +386,11 @@ for label, rate in RATES:
     tracked(W - M, ry, rate, BLACK_F, 7.2, 0.8, black, align="r")
     ry -= 11.2
 y = min(my, ry) - 16
-y = body(M, y, "Turn on free delivery and the courier cost comes out of your payout, so your "
-               "price has to be above it. With buyer-paid shipping, price it however you like.")
+y = body(M, y, "Three choices per listing. Let the buyer pay the rate above and keep your full "
+               "price. Or offer free delivery and we take that rate out of your payout, so price "
+               "above it. Or ship it yourself, pay your own courier, and keep your full price - "
+               "you then owe us the tracking number and a photo of the packed parcel before we "
+               "release your payout.")
 footer("Page 1 of 3 · How it works")
 
 # =============================================================================
@@ -493,7 +497,7 @@ y -= 12
 section("5. AFTER IT SELLS")
 STEPS = [("We notify you", "Straight away."),
          ("Pack it", "The exact item, clean, with everything shown."),
-         ("We collect", "Doorstep pickup, booked and paid by us."),
+         ("It goes out", "Doorstep pickup on us, or you post it."),
          ("Track it", "Seller Portal, then Sales.")]
 cols, gap = 4, 16
 colw = (CW - gap * (cols - 1)) / cols
