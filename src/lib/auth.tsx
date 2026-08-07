@@ -32,6 +32,12 @@ export interface Profile {
   is_admin: boolean;
   default_address: Record<string, string> | null;
   default_upi_vpa: string | null;
+  // Payout details, collected at first sale rather than at listing time.
+  // payout_locked_at is set the moment they are submitted; from then on UPI
+  // and Instagram are frozen.
+  instagram: string | null;
+  pickup_address: Record<string, string> | null;
+  payout_locked_at: string | null;
 }
 
 interface AuthContextValue {

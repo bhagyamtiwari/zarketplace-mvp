@@ -38,6 +38,9 @@ function AccountInner() {
   }, [profile]);
 
   const upiValid = !upiVpa || VPA_REGEX.test(upiVpa);
+  // Once payout details are submitted at first sale, the UPI ID is frozen -
+  // the database rejects a change either way, so don't offer the field.
+  const upiLocked = !!profile?.payout_locked_at;
 
   const handleSave = async () => {
     if (!user) return;
@@ -54,7 +57,7 @@ function AccountInner() {
         .update({
           full_name: fullName.trim() || null,
           phone: phone.trim() || null,
-          default_upi_vpa: upiVpa.trim() || null,
+          ...(upiLocked ? {} : { default_upi_vpa: upiVpa.trim() || null }),
         })
         .eq('id', user.id);
       if (error) throw error;
@@ -113,8 +116,12 @@ function AccountInner() {
             placeholder="yourname@upi"
             autoComplete="off"
             spellCheck={false}
-            className="border-b border-black/10 py-3 text-sm font-bold focus:border-black focus:outline-none transition-all tracking-wider"
+            disabled={upiLocked}
+            className="border-b border-black/10 py-3 text-sm font-bold focus:border-black focus:outline-none transition-all tracking-wider disabled:text-black/50"
           />
+          {upiLocked && (
+            <p className="text-[9px] font-bold uppercase tracking-widest text-black/40">Locked since your first sale. Contact support to change it.</p>
+          )}
           {upiVpa && !upiValid && (
             <p className="text-[9px] font-bold uppercase tracking-widest text-red-600">Enter a valid VPA like name@upi.</p>
           )}

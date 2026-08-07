@@ -3,8 +3,12 @@
   "configurations": [
     {
       "name": "zarketplace-dev",
-      "runtimeExecutable": "sh",
-      "runtimeArgs": ["-c", "cd /Users/bhagyam/Downloads/zarketplace-mvp/.claude/worktrees/modest-hopper-dd4070 && ./node_modules/.bin/vite --host=127.0.0.1 --port=$PORT"],
+      "runtimeExecutable": "/Users/bhagyam/Downloads/zarketplace-mvp/.claude/worktrees/founders-desk-concept-4bf07b/node_modules/.bin/vite",
+      "runtimeArgs": [
+        "/Users/bhagyam/Downloads/zarketplace-mvp/.claude/worktrees/founders-desk-concept-4bf07b",
+        "--host=127.0.0.1",
+        "--port=$PORT"
+      ],
       "autoPort": true
     }
   ]

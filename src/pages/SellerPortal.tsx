@@ -15,7 +15,7 @@ import { supabase } from '../lib/supabase';
 import { Listing, Order, OrderStatus, SellerPayout } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import {
-  Loader2, Edit3, Upload, ExternalLink, Trash2, Share2,
+  Loader2, Edit3, Upload, ExternalLink, Trash2, Share2, AlertTriangle,
 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
@@ -23,6 +23,7 @@ import { StatusBadge } from '../components/StatusBadge';
 import { listingStatusLabel } from '../lib/orderStatus';
 import { OrderTimeline } from '../components/OrderTimeline';
 import { ShareInstagramModal } from '../components/ShareInstagramModal';
+import { PayoutDetailsForm } from '../components/PayoutDetailsForm';
 import { log } from '../lib/log';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
 import { sendEmail } from '../lib/email';
@@ -346,6 +347,16 @@ function OrdersList({ rows, payouts, onUpdated }: { rows: Order[]; payouts: Sell
 
 function OrderRow({ order, payout, onUpdated }: { order: Order; payout: SellerPayout | null; onUpdated: () => void }) {
   const [editing, setEditing] = React.useState(false);
+  const { profile } = useAuth();
+
+  // The first-sale gate. Payout details are no longer asked for at listing
+  // time, so this is where they get collected: a seller cannot act on an order
+  // until we know where the money goes and where the courier collects from.
+  // Once submitted, payout_locked_at is set and every later sale skips this.
+  const needsPayoutDetails = !profile?.payout_locked_at;
+  const orderIsActionable =
+    order.status === 'awaiting_verification' || order.status === 'paid' || order.status === 'shipped';
+
   return (
     <div className="bg-zinc-50 border border-black/5 p-6 flex flex-col gap-4">
       <div className="flex items-start justify-between gap-4">
@@ -381,7 +392,17 @@ function OrderRow({ order, payout, onUpdated }: { order: Order; payout: SellerPa
       <OrderTimeline order={order} payout={payout} audience="seller" />
 
       <div className="pt-4 border-t border-black/5">
-        {order.status === 'paid' && order.shiprocket_order_id ? (
+        {needsPayoutDetails && orderIsActionable ? (
+          <div className="flex flex-col gap-6">
+            <div className="flex items-start gap-3 border border-amber-400 bg-amber-50 p-4">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-700 mt-0.5" />
+              <p className="text-[11px] font-bold uppercase tracking-widest text-amber-900 leading-[1.7]">
+                You have {formatCurrency(Number(order.amount))} waiting. Tell us where to send it and where the courier collects from, then you can ship.
+              </p>
+            </div>
+            <PayoutDetailsForm onSaved={onUpdated} />
+          </div>
+        ) : order.status === 'paid' && order.shiprocket_order_id ? (
           <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 leading-relaxed">
             Pickup booked with Shiprocket - waiting on courier assignment. We'll notify you once it's on its way; pack the item in the meantime.
           </p>
