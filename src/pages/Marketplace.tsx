@@ -338,7 +338,7 @@ export function Marketplace() {
               <button
                 type="button"
                 onClick={() => setShowFilters(true)}
-                className="lg:hidden shrink-0 flex items-center gap-2 border border-black bg-white px-4 py-3 text-[11px] font-black uppercase tracking-widest"
+                className="lg:hidden shrink-0 flex min-h-[44px] items-center gap-2 border border-black bg-white px-4 py-3 text-[11px] font-black uppercase tracking-widest"
               >
                 <SlidersHorizontal className="h-3.5 w-3.5" />
                 Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
@@ -590,7 +590,7 @@ const PROMISES: Array<{ label: string; body: string; to: string; Icon: typeof Sh
   { label: 'Doorstep pickup', body: 'We collect it.', to: '/shipping-policy', Icon: PackageCheck },
 ];
 
-const HERO_IMAGE = 'url(/images/new-banner3.png)';
+const HERO_IMAGE = 'url(/images/new-banner3.jpg)';
 
 // The home banner: the pitch, the three promises that back it, and the only two
 // things a visitor can do here. It is permanent rather than dismissible - it is
@@ -696,7 +696,7 @@ function SellTile() {
 // size ourselves.
 function SortChip({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
-    <label className="relative shrink-0 flex items-center gap-2 border border-black/10 bg-white px-4 py-3 sm:py-2.5 text-[11px] font-black uppercase tracking-widest hover:border-black transition-colors">
+    <label className="relative shrink-0 flex min-h-[44px] items-center gap-2 border border-black/10 bg-white px-4 py-3 sm:py-2.5 text-[11px] font-black uppercase tracking-widest hover:border-black transition-colors">
       {SORT_OPTIONS.find((o) => o.value === value)?.label ?? 'Newest'}
       <ChevronDown className="h-3.5 w-3.5 text-black/40" />
       <select
@@ -720,7 +720,7 @@ const Chip: React.FC<ToggleProps> = ({ active, onClick, children, tag }) => {
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        'relative shrink-0 border px-4 py-3 sm:py-2.5 text-[11px] font-black uppercase tracking-widest transition-colors',
+        'relative shrink-0 min-h-[44px] border px-4 py-3 sm:py-2.5 text-[11px] font-black uppercase tracking-widest transition-colors',
         active ? 'bg-black text-white border-black' : 'bg-white text-black border-black/10 hover:border-black',
       )}
     >
@@ -822,7 +822,7 @@ const SheetChip: React.FC<ToggleProps> = ({ active, onClick, children }) => {
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        'border px-4 py-2.5 text-[11px] font-black uppercase tracking-widest transition-colors',
+        'border px-4 py-2.5 min-h-[44px] text-[11px] font-black uppercase tracking-widest transition-colors',
         active ? 'bg-black text-white border-black' : 'bg-white text-black border-black/10',
       )}
     >

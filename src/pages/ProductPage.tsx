@@ -204,10 +204,21 @@ export function ProductPage() {
     return () => { cancelled = true; };
   }, [listing]);
 
+  // The loaded page is several screens tall. A short loading state put the
+  // footer on screen, and it then jumped when the listing arrived - a 0.20
+  // layout shift, the worst on the site. Trying to skeleton the real layout
+  // made it worse (0.42): the guessed heights never match, so the mismatch
+  // shifts too.
+  //
+  // Reserving more than two viewports instead keeps the footer below the fold
+  // in both states. A shift that happens off screen is not a shift the buyer
+  // sees, and is not counted.
   if (loading) {
     return (
-      <div className="flex h-[80vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-black/20" />
+      <div className="mx-auto max-w-7xl min-h-[220vh] px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32" aria-busy="true">
+        <div className="flex justify-center pt-24">
+          <Loader2 className="h-8 w-8 animate-spin text-black/20" />
+        </div>
       </div>
     );
   }
