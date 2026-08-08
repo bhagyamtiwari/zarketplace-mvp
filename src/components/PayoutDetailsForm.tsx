@@ -9,8 +9,10 @@
 // Everything is written through submit_seller_payout_details(), one
 // SECURITY DEFINER function that saves the details to the profile, backfills
 // any listings and orders that were published without them, and locks UPI +
-// Instagram from that point on. Partial data is saved to the profile as it
-// goes, so a seller who abandons halfway does not retype anything.
+// Instagram from that point on. Name, phone and address are saved to the
+// profile on every blur, so a seller who abandons halfway comes back to them
+// already filled. UPI and Instagram are the exception: they lock on submit, so
+// a half-typed value is never persisted.
 
 import React from 'react';
 import { Loader2, AlertTriangle } from 'lucide-react';
@@ -51,6 +53,11 @@ export function PayoutDetailsForm({ onSaved, onCancel }: { onSaved: () => void; 
 
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  // Nothing renders until the prefill below has run. UpiVpaInput seeds both of
+  // its fields from `value` at mount and never re-reads it, so mounting it
+  // before the profile arrives would make a seller who already has a UPI on
+  // file type it out twice for nothing.
+  const [ready, setReady] = React.useState(false);
 
   // Anything already on the profile is a field the seller never sees again.
   const prefilled = React.useRef(false);
@@ -70,6 +77,7 @@ export function PayoutDetailsForm({ onSaved, onCancel }: { onSaved: () => void; 
     setCity(addr.city ?? '');
     setStateName(addr.state ?? '');
     setPincode(addr.pincode ?? '');
+    setReady(true);
   }, [profile]);
 
   const igValid = IG_HANDLE_REGEX.test(igHandle);
@@ -130,6 +138,10 @@ export function PayoutDetailsForm({ onSaved, onCancel }: { onSaved: () => void; 
       setSaving(false);
     }
   };
+
+  if (!ready) {
+    return <Loader2 className="h-4 w-4 animate-spin text-black/30" />;
+  }
 
   return (
     <div className="flex flex-col gap-10">

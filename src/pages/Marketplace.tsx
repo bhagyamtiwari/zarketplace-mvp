@@ -11,6 +11,7 @@ import { Listing } from '../types';
 import { ListingCard } from '../components/ListingCard';
 import { EmptyState } from '../components/EmptyState';
 import { CampaignBand } from '../components/CampaignBand';
+import { PromiseBanner } from '../components/PromiseBanner';
 import { cn } from '../lib/utils';
 import { log } from '../lib/log';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
@@ -278,6 +279,12 @@ export function Marketplace() {
           newcomer gets the pitch, and closes permanently so a returning buyer
           gets the marketplace. */}
       <HeroBanner />
+
+      {/* The zero-fee promise. It used to run over the Create Listing form,
+          where brand noise on top of a form is pure friction. Here it reaches
+          the same sellers - people browsing are the ones who go on to list -
+          without standing between anyone and a field they have to fill. */}
+      <PromiseBanner variant="ticker" />
 
       {/* Control deck: search + chips. It stays where it sits, between the
           banner and the grid, rather than following the scroll - pinned, it
