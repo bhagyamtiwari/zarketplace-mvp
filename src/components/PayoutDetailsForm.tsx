@@ -86,7 +86,7 @@ export function PayoutDetailsForm({ onSaved, onCancel }: { onSaved: () => void; 
   // Saved on every blur so an abandoned form still leaves the seller better
   // off than they started. Never touches UPI or Instagram - those are the two
   // that lock, so they are only ever written by the submit below.
-  const savePartial = () => {
+  const savePartial = React.useCallback(() => {
     if (!user) return;
     void supabase.from('profiles').update({
       full_name: fullName.trim() || null,
@@ -97,7 +97,20 @@ export function PayoutDetailsForm({ onSaved, onCancel }: { onSaved: () => void; 
         city: city.trim(), state: stateName.trim(), pincode: pincode.trim(),
       },
     }).eq('id', user.id);
-  };
+  }, [user, fullName, phone, address, landmark, city, stateName, pincode]);
+
+  // Blur alone is not enough on a phone: the last field a seller types into
+  // often never blurs, because they switch apps or close the tab with the
+  // cursor still in it - and an address is exactly the field that happens to.
+  // So the same save also runs 800ms after they stop typing.
+  const skipFirstAutosave = React.useRef(true);
+  React.useEffect(() => {
+    if (!ready) return;
+    // The prefill itself is not an edit; nothing to write back.
+    if (skipFirstAutosave.current) { skipFirstAutosave.current = false; return; }
+    const t = setTimeout(savePartial, 800);
+    return () => clearTimeout(t);
+  }, [ready, savePartial]);
 
   const validate = (): string | null => {
     if (!fullName.trim()) return 'Enter your full name.';
