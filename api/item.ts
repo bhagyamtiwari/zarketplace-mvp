@@ -13,8 +13,11 @@
 //
 // Only /item/* is routed here (see vercel.json). Everything else stays static.
 
-const SITE = 'https://zarketplace.com';
-const FALLBACK_IMAGE = `${SITE}/images/wordmark-modified.png`;
+// Canonical host is taken from the request, not hardcoded: the apex
+// 307-redirects to www, so a hardcoded apex made every og:url and canonical
+// point at a redirect. Scrapers follow it, but it splits the signals for a
+// link that is meant to be the growth loop.
+const FALLBACK_IMAGE = 'https://www.zarketplace.com/images/wordmark-modified.png';
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
@@ -176,7 +179,7 @@ export default async function handler(req: any, res: any) {
   }
 
   if (listing) {
-    const canonical = `${SITE}/item/${encodeURIComponent(listing.sku ?? sku)}`;
+    const canonical = `${origin}/item/${encodeURIComponent(listing.sku ?? sku)}`;
     const total = await checkoutTotal(listing);
     html = html.replace(STRIP_RE, '').replace('</head>', `  ${buildTags(listing, total, canonical)}\n  </head>`);
     // Short shared cache: a scraper re-fetching after a price edit should not
