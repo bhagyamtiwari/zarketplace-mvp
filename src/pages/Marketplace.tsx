@@ -596,6 +596,13 @@ const HERO_IMAGE = 'url(/images/new-banner3.jpg)';
 // things a visitor can do here. It is permanent rather than dismissible - it is
 // the top of the marketplace, not a first-visit notice.
 function HeroBanner() {
+  // Hand off from the static hero in index.html. A layout effect runs after
+  // this component is in the DOM but before the browser paints, so the swap
+  // happens between two frames: never two heroes, never a gap where one was.
+  React.useLayoutEffect(() => {
+    document.getElementById('static-hero')?.remove();
+  }, []);
+
   return (
     <section className="relative isolate overflow-hidden bg-black text-white">
       {/* Phone: the photo takes the right side whole, so the figure stays intact
