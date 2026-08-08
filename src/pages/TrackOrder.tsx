@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Order } from '../types';
 import { formatCurrency } from '../lib/utils';
+import { variantUrl } from '../lib/images';
 import { Loader2, ExternalLink } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
@@ -93,7 +94,7 @@ function OrderCard({ order }: { order: Order }) {
       <div className="flex gap-4">
         {order.listing_image_url && (
           <div className="h-24 w-20 flex-shrink-0 overflow-hidden border border-black/5">
-            <img src={order.listing_image_url} alt="" className="h-full w-full object-cover" />
+            <img src={variantUrl(order.listing_image_url, 'thumb')} alt="" className="h-full w-full object-cover" />
           </div>
         )}
         <div className="flex flex-col gap-1 flex-1 min-w-0">

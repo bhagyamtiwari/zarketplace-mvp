@@ -24,6 +24,7 @@ import { trackEvent } from '../lib/analytics';
 import { CONDITIONS } from '../lib/condition';
 import { log } from '../lib/log';
 import { scrollToTop } from '../lib/scrollToTop';
+import { encodeVariants } from '../lib/images';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
 import { cn, formatCurrency } from '../lib/utils';
 
@@ -93,6 +94,9 @@ function SellInner() {
   const [submitted, setSubmitted] = React.useState(false);
   const [step, setStep] = React.useState(0);
   const [stepError, setStepError] = React.useState<string | null>(null);
+  // Compressing eight photos takes a few seconds on a mid-range phone. A
+  // spinner with no count reads as a hang, so say which photo we are on.
+  const [uploadProgress, setUploadProgress] = React.useState<{ done: number; total: number } | null>(null);
 
   const [imageFiles, setImageFiles] = React.useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = React.useState<string[]>([]);
@@ -283,17 +287,31 @@ function SellInner() {
     setLoading(true);
     const tFull = slog.time('full submit');
     try {
+      // Resize and re-encode in the browser before anything is uploaded. A
+      // phone photo is 1.5-8 MB and no browser ever needs more than a fraction
+      // of that; sending the original would cost storage and egress on every
+      // view forever. Three variants go up per photo and the stored URL is the
+      // 1600px one - variantUrl() derives the smaller two from its name.
       const uploadedUrls: string[] = [];
+      const stamp = Date.now();
       for (let i = 0; i < imageFiles.length; i++) {
-        const file = imageFiles[i];
-        const fileExt = (file.name.split('.').pop() || 'jpg').toLowerCase();
-        const fileName = `${user.id}-${Date.now()}-${i}.${fileExt}`;
-        const filePath = `listings/${fileName}`;
-        const { error: uploadError } = await supabase.storage.from('listing-images').upload(filePath, file);
-        if (uploadError) throw uploadError;
-        const { data: { publicUrl } } = supabase.storage.from('listing-images').getPublicUrl(filePath);
-        uploadedUrls.push(publicUrl);
+        const variants = await encodeVariants(imageFiles[i]);
+        setUploadProgress({ done: i, total: imageFiles.length });
+        let fullUrl = '';
+        for (const variant of ['thumb', 'grid', 'full'] as const) {
+          const { blob, width, ext } = variants[variant];
+          const filePath = `listings/${user.id}-${stamp}-${i}-${width}.${ext}`;
+          const { error: uploadError } = await supabase.storage
+            .from('listing-images')
+            .upload(filePath, blob, { contentType: blob.type, cacheControl: '31536000' });
+          if (uploadError) throw uploadError;
+          if (variant === 'full') {
+            fullUrl = supabase.storage.from('listing-images').getPublicUrl(filePath).data.publicUrl;
+          }
+        }
+        uploadedUrls.push(fullUrl);
       }
+      setUploadProgress(null);
 
       const price = Number(priceVal);
       const sale_price = showSalePrice && salePriceVal ? Number(salePriceVal) : null;
@@ -352,6 +370,7 @@ function SellInner() {
       setStepError(err?.message || 'Failed to submit listing');
     } finally {
       setLoading(false);
+      setUploadProgress(null);
     }
   };
 
@@ -506,6 +525,12 @@ function SellInner() {
 
         {stepError && (
           <p className="mt-6 text-xs font-bold uppercase tracking-widest text-red-600">{stepError}</p>
+        )}
+
+        {uploadProgress && (
+          <p className="mt-6 text-xs font-bold uppercase tracking-widest text-black/50">
+            Optimising photo {uploadProgress.done + 1} of {uploadProgress.total}...
+          </p>
         )}
 
         {/* Desktop nav */}
