@@ -1,12 +1,13 @@
 // Sell page. Guided multi-step listing flow (Photos -> Details ->
-// Condition -> Price -> Payout -> Review) optimized for mobile and for
-// sellers listing several similar items in one sitting.
+// Condition -> Price -> Review) optimized for mobile and for sellers listing
+// several similar items in one sitting.
+//
+// No payout data is collected here. UPI, Instagram and the pickup address are
+// asked for once, at the seller's first sale, in PayoutDetailsForm - see the
+// gate in SellerPortal. A brand new seller can publish with nothing but their
+// photos and the item itself.
 //
 // Per-listing requirements:
-//   * UPI VPA collected twice with paste blocked on the confirm field
-//     (admin pays seller to this UPI after delivery + review window).
-//   * Instagram handle entered with a fixed `https://www.instagram.com/`
-//     prefix; we persist the full URL.
 //   * Every listing is exactly one physical item - no multi-size/bulk/
 //     wholesale listings. Enforced with a banned-phrase check, not just a
 //     notice, since that's the highest-priority rule for a P2P marketplace.
@@ -18,13 +19,12 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Loader2, CheckCircle2, Check, X, Plus, ChevronLeft, ChevronRight, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
-import { PromiseBanner } from '../components/PromiseBanner';
-import { UpiVpaInput, VPA_REGEX } from '../components/UpiVpaInput';
 import { getShippingCategories, type ShippingCategory } from '../lib/pricing';
 import { trackEvent } from '../lib/analytics';
 import { CONDITIONS } from '../lib/condition';
 import { log } from '../lib/log';
 import { scrollToTop } from '../lib/scrollToTop';
+import { encodeVariants, encodeSocialCard, SOCIAL_CARD_SUFFIX } from '../lib/images';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
 import { cn, formatCurrency } from '../lib/utils';
 
@@ -65,10 +65,9 @@ function findBannedPhrase(text: string): string | null {
   return BANNED_PHRASES.find((p) => lower.includes(p)) ?? null;
 }
 
-const IG_HANDLE_REGEX = /^[A-Za-z0-9._]{1,30}$/;
 const MAX_IMAGES = 8;
 
-const STEP_LABELS = ['Photos', 'Details', 'Condition', 'Price', 'Payout', 'Review'];
+const STEP_LABELS = ['Photos', 'Details', 'Condition', 'Price', 'Review'];
 
 interface Declarations {
   oneItem: boolean;
@@ -95,6 +94,9 @@ function SellInner() {
   const [submitted, setSubmitted] = React.useState(false);
   const [step, setStep] = React.useState(0);
   const [stepError, setStepError] = React.useState<string | null>(null);
+  // Compressing eight photos takes a few seconds on a mid-range phone. A
+  // spinner with no count reads as a hang, so say which photo we are on.
+  const [uploadProgress, setUploadProgress] = React.useState<{ done: number; total: number } | null>(null);
 
   const [imageFiles, setImageFiles] = React.useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = React.useState<string[]>([]);
@@ -126,23 +128,6 @@ function SellInner() {
   // default - it's a choice, not the default cost to the seller.
   const [freeShipping, setFreeShipping] = React.useState(false);
 
-  const [fullName, setFullName] = React.useState('');
-  const [phone, setPhone] = React.useState('');
-  const [igHandle, setIgHandle] = React.useState('');
-  const [vpa, setVpa] = React.useState('');
-  const [vpaValid, setVpaValid] = React.useState(false);
-  const [vpaPrefilled, setVpaPrefilled] = React.useState(false);
-
-  // Pickup address - where the courier collects the item from. Never asked
-  // of buyers; this is the seller's own address, entered once per listing
-  // (prefilled from their most recent listing below) so zarketplace can book
-  // the Shiprocket pickup without the seller doing anything at ship time.
-  const [pickupAddress, setPickupAddress] = React.useState('');
-  const [pickupLandmark, setPickupLandmark] = React.useState('');
-  const [pickupCity, setPickupCity] = React.useState('');
-  const [pickupState, setPickupState] = React.useState('');
-  const [pickupPincode, setPickupPincode] = React.useState('');
-
   const [authenticity, setAuthenticity] = React.useState<'confirmed' | 'unsure' | null>(null);
   const [declarations, setDeclarations] = React.useState<Declarations>({
     oneItem: false, photosActual: false, disclosedFlaws: false, accurate: false, authenticIfMarked: false,
@@ -150,25 +135,9 @@ function SellInner() {
 
   React.useEffect(() => { getShippingCategories().then(setShippingCategories); }, []);
 
-  // Prefill payout + contact details from the saved profile so a seller
-  // never retypes them.
-  React.useEffect(() => {
-    if (!vpaPrefilled && profile?.default_upi_vpa) {
-      setVpa(profile.default_upi_vpa);
-      setVpaValid(VPA_REGEX.test(profile.default_upi_vpa));
-      setVpaPrefilled(true);
-    }
-  }, [profile, vpaPrefilled]);
-  React.useEffect(() => {
-    setFullName((prev) => prev || profile?.full_name || '');
-    setPhone((prev) => prev || profile?.phone || '');
-  }, [profile]);
-
-  // Prefill everything that repeats across a seller's own listings, from their
-  // most recent one: name, phone, gender, category, shipping choice, Instagram
-  // handle and pickup address. All of it is the seller's own data, so there is
-  // nothing to leak. Condition, flaws, title, price and size are never
-  // prefilled - those genuinely differ per item, and a stale value there would
+  // Prefill what repeats across a seller's own listings, from their most
+  // recent one: gender, category and shipping choice. Condition, flaws, title,
+  // price and size are never prefilled - those genuinely differ per item, and a stale value there would
   // be a false claim about the garment rather than a saved keystroke. Free
   // shipping is left out for the same reason: it costs the seller money, so it
   // gets decided per listing rather than inherited.
@@ -177,7 +146,7 @@ function SellInner() {
     if (!user || prefilledFromLast.current) return;
     supabase
       .from('listings')
-      .select('gender, category, shipping_category, seller_instagram, pickup_address')
+      .select('gender, category, shipping_category')
       .eq('seller_id', user.id)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -188,20 +157,6 @@ function SellInner() {
         if (data.gender) setGender((prev) => prev || data.gender);
         if (data.category) setSelectedCategory((prev) => prev || data.category);
         if (data.shipping_category) setShippingCategory((prev) => prev || data.shipping_category);
-        if (data.seller_instagram) {
-          const handle = data.seller_instagram.replace(/^https?:\/\/(www\.)?instagram\.com\//, '').replace(/\/$/, '');
-          if (handle) setIgHandle((prev) => prev || handle);
-        }
-        const addr = data.pickup_address as Record<string, string> | null;
-        if (addr) {
-          setFullName((prev) => prev || addr.fullName || '');
-          setPhone((prev) => prev || addr.phone || '');
-          setPickupAddress((prev) => prev || addr.address || '');
-          setPickupLandmark((prev) => prev || addr.landmark || '');
-          setPickupCity((prev) => prev || addr.city || '');
-          setPickupState((prev) => prev || addr.state || '');
-          setPickupPincode((prev) => prev || addr.pincode || '');
-        }
       });
   }, [user]);
 
@@ -213,7 +168,6 @@ function SellInner() {
     }
   }, [shippingCategories]);
 
-  const igValid = IG_HANDLE_REGEX.test(igHandle);
   const salePriceInvalid =
     showSalePrice && !!salePriceVal && !!priceVal && Number(salePriceVal) >= Number(priceVal);
 
@@ -277,7 +231,6 @@ function SellInner() {
       if (!gender) return 'Select a gender.';
       if (!selectedCategory) return 'Select a category.';
       if (!sizeType) return 'Select a size.';
-      if (!description.trim()) return 'Add a description.';
       const banned = findBannedPhrase(`${title} ${brand} ${description}`);
       if (banned) return `Remove "${banned}" - each listing is one item, not a batch or store catalogue.`;
     }
@@ -300,16 +253,6 @@ function SellInner() {
       if (freeShipping && floor > 0 && lowest <= floor) {
         return `With free delivery the ${formatCurrency(floor)} courier cost comes out of your payout, so ${formatCurrency(lowest)} would pay you nothing. Price it above ${formatCurrency(floor)}, or turn free delivery off.`;
       }
-    }
-    if (s === 4) {
-      if (!fullName.trim()) return 'Enter your full name.';
-      if (!phone.trim()) return 'Enter your phone number.';
-      if (!igValid) return 'Enter a valid Instagram handle (letters, numbers, _ or ., max 30).';
-      if (!vpaValid) return 'Enter a valid UPI ID, typed twice.';
-      if (!pickupAddress.trim()) return 'Enter the address we should pick up from.';
-      if (!pickupCity.trim()) return 'Enter your city.';
-      if (!pickupState.trim()) return 'Enter your state.';
-      if (!/^\d{6}$/.test(pickupPincode.trim())) return 'Enter a valid 6-digit pincode.';
     }
     return null;
   };
@@ -334,7 +277,7 @@ function SellInner() {
     setStepError(null);
     if (!user) { setStepError('Sign in first.'); return; }
 
-    for (let s = 0; s <= 4; s++) {
+    for (let s = 0; s <= 3; s++) {
       const err = validateStep(s);
       if (err) { setStep(s); setStepError(err); scrollToTop(); return; }
     }
@@ -344,25 +287,42 @@ function SellInner() {
     setLoading(true);
     const tFull = slog.time('full submit');
     try {
-      await supabase.from('profiles').update({
-        full_name: fullName.trim(),
-        phone: phone.trim(),
-        default_upi_vpa: vpa,
-      }).eq('id', user.id);
-
+      // Resize and re-encode in the browser before anything is uploaded. A
+      // phone photo is 1.5-8 MB and no browser ever needs more than a fraction
+      // of that; sending the original would cost storage and egress on every
+      // view forever. Three variants go up per photo and the stored URL is the
+      // 1600px one - variantUrl() derives the smaller two from its name.
       const uploadedUrls: string[] = [];
+      const stamp = Date.now();
       for (let i = 0; i < imageFiles.length; i++) {
-        const file = imageFiles[i];
-        const fileExt = (file.name.split('.').pop() || 'jpg').toLowerCase();
-        const fileName = `${user.id}-${Date.now()}-${i}.${fileExt}`;
-        const filePath = `listings/${fileName}`;
-        const { error: uploadError } = await supabase.storage.from('listing-images').upload(filePath, file);
-        if (uploadError) throw uploadError;
-        const { data: { publicUrl } } = supabase.storage.from('listing-images').getPublicUrl(filePath);
-        uploadedUrls.push(publicUrl);
+        const variants = await encodeVariants(imageFiles[i]);
+        setUploadProgress({ done: i, total: imageFiles.length });
+        let fullUrl = '';
+        for (const variant of ['thumb', 'grid', 'full'] as const) {
+          const { blob, width, ext } = variants[variant];
+          const filePath = `listings/${user.id}-${stamp}-${i}-${width}.${ext}`;
+          const { error: uploadError } = await supabase.storage
+            .from('listing-images')
+            .upload(filePath, blob, { contentType: blob.type, cacheControl: '31536000' });
+          if (uploadError) throw uploadError;
+          if (variant === 'full') {
+            fullUrl = supabase.storage.from('listing-images').getPublicUrl(filePath).data.publicUrl;
+          }
+        }
+        // Cover photo only: the 1200x630 JPEG that WhatsApp and Facebook
+        // actually render in a link preview. See encodeSocialCard.
+        if (i === 0) {
+          const card = await encodeSocialCard(imageFiles[i]);
+          const cardPath = `listings/${user.id}-${stamp}-${i}${SOCIAL_CARD_SUFFIX}`;
+          const { error: cardErr } = await supabase.storage
+            .from('listing-images')
+            .upload(cardPath, card, { contentType: 'image/jpeg', cacheControl: '31536000' });
+          if (cardErr) throw cardErr;
+        }
+        uploadedUrls.push(fullUrl);
       }
+      setUploadProgress(null);
 
-      const seller_instagram = `https://www.instagram.com/${igHandle}`;
       const price = Number(priceVal);
       const sale_price = showSalePrice && salePriceVal ? Number(salePriceVal) : null;
 
@@ -376,25 +336,21 @@ function SellInner() {
         size_type: sizeType,
         size: sizeDetail.trim() || null,
         condition,
-        description: description.trim(),
+        description: description.trim() || null,
         image_url: uploadedUrls[0],
         image_urls: uploadedUrls,
         seller_id: user.id,
         seller_email: user.email,
-        seller_display_name: fullName.trim() || null,
-        seller_instagram,
-        seller_upi_vpa: vpa,
+        // Payout identity and pickup address are collected at first sale and
+        // backfilled onto this row by submit_seller_payout_details(). For a
+        // seller who already has them on file, they are copied in here so the
+        // order snapshot chain has them from the moment the item sells.
+        seller_display_name: profile?.full_name || null,
+        seller_instagram: profile?.instagram ?? null,
+        seller_upi_vpa: profile?.default_upi_vpa ?? null,
+        pickup_address: profile?.pickup_address ?? null,
         shipping_category: shippingCategory,
         free_shipping: freeShipping,
-        pickup_address: {
-          fullName: fullName.trim(),
-          phone: phone.trim(),
-          address: pickupAddress.trim(),
-          landmark: pickupLandmark.trim(),
-          city: pickupCity.trim(),
-          state: pickupState.trim(),
-          pincode: pickupPincode.trim(),
-        },
         has_flaws: !!hasFlaws,
         flaws_description: hasFlaws ? flawsDescription.trim() : null,
         original_tags_attached: originalTags,
@@ -424,6 +380,7 @@ function SellInner() {
       setStepError(err?.message || 'Failed to submit listing');
     } finally {
       setLoading(false);
+      setUploadProgress(null);
     }
   };
 
@@ -474,19 +431,15 @@ function SellInner() {
 
   return (
     <div className="flex flex-col">
-      <div className="pt-20">
-        <PromiseBanner variant="ticker" />
-      </div>
-
-      <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 lg:px-8 pt-10 sm:pt-16">
+      <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 lg:px-8 pt-28 sm:pt-32">
         <div className="mb-10 flex flex-col gap-4">
           <h1 className="text-5xl sm:text-6xl font-black tracking-tighter uppercase leading-none">Create Listing</h1>
-          <p className="text-xs font-black uppercase tracking-[0.3em] text-black/40">Six steps, about five minutes.</p>
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-black/40">List in under two minutes.</p>
         </div>
 
         {/* Progress. Every step is reachable directly and only Publish is gated,
             so the names carry a tick once their step validates: seeing what is
-            already done is what makes six steps feel like fewer. */}
+            already done is what makes the flow feel shorter. */}
         <div className="mb-10 flex flex-col gap-3">
           <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-[0.2em] text-black/40">
             <span>Step {step + 1} of {STEP_LABELS.length}</span>
@@ -568,22 +521,6 @@ function SellInner() {
             )}
 
             {step === 4 && (
-              <PayoutStep
-                fullName={fullName} setFullName={setFullName}
-                phone={phone} setPhone={setPhone}
-                userEmail={user?.email}
-                igHandle={igHandle} setIgHandle={setIgHandle} igValid={igValid}
-                vpa={vpa} vpaPrefilled={vpaPrefilled}
-                onVpaChange={(v, valid) => { setVpa(v); setVpaValid(valid); }}
-                pickupAddress={pickupAddress} setPickupAddress={setPickupAddress}
-                pickupLandmark={pickupLandmark} setPickupLandmark={setPickupLandmark}
-                pickupCity={pickupCity} setPickupCity={setPickupCity}
-                pickupState={pickupState} setPickupState={setPickupState}
-                pickupPincode={pickupPincode} setPickupPincode={setPickupPincode}
-              />
-            )}
-
-            {step === 5 && (
               <ReviewStep
                 imagePreviews={imagePreviews}
                 title={title} brand={brand} price={priceVal} salePrice={showSalePrice ? salePriceVal : ''}
@@ -598,6 +535,12 @@ function SellInner() {
 
         {stepError && (
           <p className="mt-6 text-xs font-bold uppercase tracking-widest text-red-600">{stepError}</p>
+        )}
+
+        {uploadProgress && (
+          <p className="mt-6 text-xs font-bold uppercase tracking-widest text-black/50">
+            Optimising photo {uploadProgress.done + 1} of {uploadProgress.total}...
+          </p>
         )}
 
         {/* Desktop nav */}
@@ -679,17 +622,6 @@ function YesNoToggle({ value, onChange }: { value: boolean | null; onChange: (v:
 // system-voice register.
 function TrustNote({ children }: { children: React.ReactNode }) {
   return <p className="text-xs font-bold uppercase tracking-widest text-black/50 leading-relaxed">{children}</p>;
-}
-
-// For the one thing in the form that cannot be undone. Deliberately the only
-// coloured element on the page.
-function WarningBox({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="flex items-start gap-3 border border-amber-400 bg-amber-50 p-4">
-      <AlertTriangle className="h-4 w-4 shrink-0 text-amber-700 mt-0.5" />
-      <p className="text-[11px] font-bold uppercase tracking-widest text-amber-900 leading-[1.7]">{children}</p>
-    </div>
-  );
 }
 
 function PhotosStep({ imagePreviews, onAdd, onRemove }: {
@@ -838,15 +770,11 @@ function DetailsStep(props: {
         </div>
 
         <div className="flex flex-col gap-3">
-          <FieldLabel>Description *</FieldLabel>
+          <FieldLabel>Description</FieldLabel>
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4}
             placeholder="Fit, material, how it runs, anything a photo can't show."
             className="border border-black/10 p-6 text-sm font-medium focus:border-black focus:outline-none resize-none transition-all placeholder:text-black/20" />
-          <TrustNote>
-            Stuck? Upload your photo to ChatGPT and ask it for a zarketplace description.
-            <br />
-            Read it back and fix anything that isn't true of your item. You own what it says.
-          </TrustNote>
+          <TrustNote>Optional, but items with one sell faster. You own what it says.</TrustNote>
         </div>
       </div>
 
@@ -1056,107 +984,6 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
             </div>
           </>
         )}
-      </div>
-    </div>
-  );
-}
-
-function PayoutStep({
-  fullName, setFullName, phone, setPhone, userEmail, igHandle, setIgHandle, igValid, vpa, vpaPrefilled, onVpaChange,
-  pickupAddress, setPickupAddress, pickupLandmark, setPickupLandmark, pickupCity, setPickupCity, pickupState, setPickupState, pickupPincode, setPickupPincode,
-}: {
-  fullName: string; setFullName: (v: string) => void;
-  phone: string; setPhone: (v: string) => void;
-  userEmail?: string | null;
-  igHandle: string; setIgHandle: (v: string) => void; igValid: boolean;
-  vpa: string; vpaPrefilled: boolean;
-  onVpaChange: (v: string, valid: boolean) => void;
-  pickupAddress: string; setPickupAddress: (v: string) => void;
-  pickupLandmark: string; setPickupLandmark: (v: string) => void;
-  pickupCity: string; setPickupCity: (v: string) => void;
-  pickupState: string; setPickupState: (v: string) => void;
-  pickupPincode: string; setPickupPincode: (v: string) => void;
-}) {
-  return (
-    <div className="flex flex-col gap-10">
-      <div className="flex flex-col gap-6">
-        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Your details</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-8">
-          <div className="flex flex-col gap-3">
-            <FieldLabel>Full Name *</FieldLabel>
-            <input value={fullName} onChange={(e) => setFullName(e.target.value)} type="text" placeholder="Full name as on your UPI account"
-              className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20" />
-          </div>
-          <div className="flex flex-col gap-3">
-            <FieldLabel>Phone Number *</FieldLabel>
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} type="tel" placeholder="+91 98765 43210"
-              className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20" />
-          </div>
-          <div className="flex flex-col gap-3">
-            <FieldLabel>Seller Email</FieldLabel>
-            <div className="border-b border-black/10 py-4 text-sm font-bold text-black/60">{userEmail}</div>
-          </div>
-          <div className="flex flex-col gap-3">
-            <FieldLabel>Instagram *</FieldLabel>
-            <div className="flex items-center border-b border-black/10 focus-within:border-black transition-all">
-              <span className="text-sm font-bold text-black/40 select-none">https://www.instagram.com/</span>
-              <input type="text" value={igHandle} onChange={(e) => setIgHandle(e.target.value.replace(/^@/, '').trim())}
-                placeholder="username" autoComplete="off"
-                className="flex-1 py-4 text-sm font-bold focus:outline-none placeholder:text-black/20" />
-            </div>
-            {igHandle && !igValid && (
-              <p className="text-[11px] font-bold uppercase tracking-widest text-red-600">Letters, numbers, _ or . only - max 30 characters.</p>
-            )}
-          </div>
-        </div>
-
-        {/* The only irreversible thing in the form, and previously the quietest
-            line on the page. It sits above both fields it applies to. */}
-        <WarningBox>Instagram and UPI lock once you publish. Check both now.</WarningBox>
-      </div>
-
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-1">
-          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Pickup address</h3>
-          <TrustNote>Where the courier collects once it sells.</TrustNote>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-8">
-          <div className="flex flex-col gap-3 sm:col-span-2">
-            <FieldLabel>Address *</FieldLabel>
-            <input value={pickupAddress} onChange={(e) => setPickupAddress(e.target.value)} type="text" placeholder="Flat / House no., Street"
-              className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20" />
-          </div>
-          <div className="flex flex-col gap-3">
-            <FieldLabel>Landmark</FieldLabel>
-            <input value={pickupLandmark} onChange={(e) => setPickupLandmark(e.target.value)} type="text" placeholder="Optional"
-              className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20" />
-          </div>
-          <div className="flex flex-col gap-3">
-            <FieldLabel>City *</FieldLabel>
-            <input value={pickupCity} onChange={(e) => setPickupCity(e.target.value)} type="text" placeholder="Mumbai"
-              className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20" />
-          </div>
-          <div className="flex flex-col gap-3">
-            <FieldLabel>State *</FieldLabel>
-            <input value={pickupState} onChange={(e) => setPickupState(e.target.value)} type="text" placeholder="Maharashtra"
-              className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20" />
-          </div>
-          <div className="flex flex-col gap-3">
-            <FieldLabel>Pincode *</FieldLabel>
-            <input value={pickupPincode} onChange={(e) => setPickupPincode(e.target.value.replace(/\D/g, '').slice(0, 6))} type="text" inputMode="numeric" placeholder="400001"
-              className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20" />
-          </div>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-1">
-          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Payout</h3>
-          <TrustNote>Paid here once the buyer&apos;s 48-hour review window closes. Same ID as GPay, PhonePe or Paytm.</TrustNote>
-        </div>
-        <React.Fragment key={vpaPrefilled ? 'prefilled' : 'empty'}>
-          <UpiVpaInput value={vpa} onChange={onVpaChange} />
-        </React.Fragment>
       </div>
     </div>
   );

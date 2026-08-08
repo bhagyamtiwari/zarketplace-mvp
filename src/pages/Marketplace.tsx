@@ -11,6 +11,7 @@ import { Listing } from '../types';
 import { ListingCard } from '../components/ListingCard';
 import { EmptyState } from '../components/EmptyState';
 import { CampaignBand } from '../components/CampaignBand';
+import { PromiseBanner } from '../components/PromiseBanner';
 import { cn } from '../lib/utils';
 import { log } from '../lib/log';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
@@ -279,6 +280,12 @@ export function Marketplace() {
           gets the marketplace. */}
       <HeroBanner />
 
+      {/* The zero-fee promise. It used to run over the Create Listing form,
+          where brand noise on top of a form is pure friction. Here it reaches
+          the same sellers - people browsing are the ones who go on to list -
+          without standing between anyone and a field they have to fill. */}
+      <PromiseBanner variant="ticker" />
+
       {/* Control deck: search + chips. It stays where it sits, between the
           banner and the grid, rather than following the scroll - pinned, it
           rode all the way down to the footer, where a search box over the
@@ -331,7 +338,7 @@ export function Marketplace() {
               <button
                 type="button"
                 onClick={() => setShowFilters(true)}
-                className="lg:hidden shrink-0 flex items-center gap-2 border border-black bg-white px-4 py-3 text-[11px] font-black uppercase tracking-widest"
+                className="lg:hidden shrink-0 flex min-h-[44px] items-center gap-2 border border-black bg-white px-4 py-3 text-[11px] font-black uppercase tracking-widest"
               >
                 <SlidersHorizontal className="h-3.5 w-3.5" />
                 Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
@@ -583,12 +590,19 @@ const PROMISES: Array<{ label: string; body: string; to: string; Icon: typeof Sh
   { label: 'Doorstep pickup', body: 'We collect it.', to: '/shipping-policy', Icon: PackageCheck },
 ];
 
-const HERO_IMAGE = 'url(/images/new-banner3.png)';
+const HERO_IMAGE = 'url(/images/new-banner3.jpg)';
 
 // The home banner: the pitch, the three promises that back it, and the only two
 // things a visitor can do here. It is permanent rather than dismissible - it is
 // the top of the marketplace, not a first-visit notice.
 function HeroBanner() {
+  // Hand off from the static hero in index.html. A layout effect runs after
+  // this component is in the DOM but before the browser paints, so the swap
+  // happens between two frames: never two heroes, never a gap where one was.
+  React.useLayoutEffect(() => {
+    document.getElementById('static-hero')?.remove();
+  }, []);
+
   return (
     <section className="relative isolate overflow-hidden bg-black text-white">
       {/* Phone: the photo takes the right side whole, so the figure stays intact
@@ -621,7 +635,7 @@ function HeroBanner() {
         <ul className="grid grid-cols-3 divide-x divide-white/20 sm:flex sm:divide-x-0 sm:gap-10">
           {PROMISES.map(({ label, body, to, Icon }) => (
             <li key={label} className="min-w-0 pr-2 first:pl-0 pl-3 sm:p-0">
-              <Link to={to} className="group flex items-start gap-2.5 sm:items-center sm:gap-3">
+              <Link to={to} className="group flex min-h-[44px] items-start gap-2.5 py-1 sm:items-center sm:gap-3 sm:py-0">
                 <Icon className="mt-0.5 h-5 w-5 sm:mt-0 sm:h-6 sm:w-6 shrink-0 text-white/85" strokeWidth={1.5} />
                 <span className="flex min-w-0 flex-col gap-0.5">
                   <span className="text-[13px] sm:text-sm font-black tracking-tight group-hover:text-white/70">
@@ -689,14 +703,14 @@ function SellTile() {
 // size ourselves.
 function SortChip({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
-    <label className="relative shrink-0 flex items-center gap-2 border border-black/10 bg-white px-4 py-3 sm:py-2.5 text-[11px] font-black uppercase tracking-widest hover:border-black transition-colors">
+    <label className="relative shrink-0 flex min-h-[44px] items-center gap-2 border border-black/10 bg-white px-4 py-3 sm:py-2.5 text-[11px] font-black uppercase tracking-widest hover:border-black transition-colors">
       {SORT_OPTIONS.find((o) => o.value === value)?.label ?? 'Newest'}
       <ChevronDown className="h-3.5 w-3.5 text-black/40" />
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-label="Sort listings"
-        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+        className="absolute inset-0 h-full min-h-[44px] w-full cursor-pointer opacity-0"
       >
         {SORT_OPTIONS.map((o) => (
           <option key={o.value} value={o.value}>{o.label}</option>
@@ -713,7 +727,7 @@ const Chip: React.FC<ToggleProps> = ({ active, onClick, children, tag }) => {
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        'relative shrink-0 border px-4 py-3 sm:py-2.5 text-[11px] font-black uppercase tracking-widest transition-colors',
+        'relative shrink-0 min-h-[44px] border px-4 py-3 sm:py-2.5 text-[11px] font-black uppercase tracking-widest transition-colors',
         active ? 'bg-black text-white border-black' : 'bg-white text-black border-black/10 hover:border-black',
       )}
     >
@@ -815,7 +829,7 @@ const SheetChip: React.FC<ToggleProps> = ({ active, onClick, children }) => {
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        'border px-4 py-2.5 text-[11px] font-black uppercase tracking-widest transition-colors',
+        'border px-4 py-2.5 min-h-[44px] text-[11px] font-black uppercase tracking-widest transition-colors',
         active ? 'bg-black text-white border-black' : 'bg-white text-black border-black/10',
       )}
     >

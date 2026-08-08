@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Heart, Truck } from 'lucide-react';
 import { Listing } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
+import { variantUrl, variantSrcSet } from '../lib/images';
 import { toggleFavorite, useFavorites } from '../lib/favorites';
 
 interface ListingCardProps {
@@ -36,7 +37,8 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing, priority = fa
     >
       <div className="relative aspect-[3/4] overflow-hidden bg-zinc-50 rounded-sm border border-black/5">
         <img
-          src={listing.image_url || 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?q=80&w=600'}
+          src={variantUrl(listing.image_url, 'grid') || 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?q=80&w=600'}
+          srcSet={variantSrcSet(listing.image_url, ['thumb', 'grid'])}
           alt={listing.title}
           className={cn(
             'h-full w-full object-cover transition-transform duration-700 group-hover:scale-105',
@@ -60,7 +62,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing, priority = fa
           aria-label={favorited ? 'Remove from favorites' : 'Save to favorites'}
           aria-pressed={favorited}
           className={cn(
-            'absolute top-2 right-2 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm transition-transform',
+            'absolute top-1 right-1 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 backdrop-blur-sm transition-transform',
             sold ? 'opacity-40 cursor-default' : 'hover:scale-110 active:scale-95',
           )}
         >

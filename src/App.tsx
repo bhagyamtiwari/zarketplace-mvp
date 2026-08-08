@@ -1,33 +1,10 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, lazy, Suspense, type ReactNode } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { Marketplace } from './pages/Marketplace';
-import { ProductPage } from './pages/ProductPage';
-import { Sell } from './pages/Sell';
-import { Admin } from './pages/Admin';
-import { Returns } from './pages/Returns';
-import { Privacy } from './pages/Privacy';
-import { Trademark } from './pages/Trademark';
-import { Condition } from './pages/Condition';
-import { Checkout } from './pages/Checkout';
-import { About } from './pages/About';
-import { Contact } from './pages/Contact';
-import { TrackOrder } from './pages/TrackOrder';
-import { SellerPortal } from './pages/SellerPortal';
-import { Account } from './pages/Account';
-import { Faq } from './pages/Faq';
-import { ShippingPolicy } from './pages/ShippingPolicy';
-import { SellerPolicy } from './pages/SellerPolicy';
-import { RefundPolicy } from './pages/RefundPolicy';
-import { BuyerProtection } from './pages/BuyerProtection';
-import { Terms } from './pages/Terms';
-import { GrievanceOfficer } from './pages/GrievanceOfficer';
-import { AuthCallback } from './pages/AuthCallback';
-import { ResetPassword } from './pages/ResetPassword';
 import { AuthProvider } from './lib/auth';
 import { CartProvider } from './lib/cart';
-import { Cart } from './pages/Cart';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
 
@@ -36,6 +13,35 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { CookieConsent } from './components/CookieConsent';
 import { useConsent } from './lib/cookieConsent';
 import { initAnalytics, trackPageview } from './lib/analytics';
+
+// Route-level code splitting. The entry bundle was 917 KB, and a first-time
+// visitor on mobile data was downloading the admin console, checkout and the
+// listing form before the feed could paint. Only the marketplace - which is
+// "/" - is eager; everything else arrives when its route does.
+const ProductPage = lazy(() => import('./pages/ProductPage').then((m) => ({ default: m.ProductPage })));
+const Sell = lazy(() => import('./pages/Sell').then((m) => ({ default: m.Sell })));
+const Admin = lazy(() => import('./pages/Admin').then((m) => ({ default: m.Admin })));
+const Returns = lazy(() => import('./pages/Returns').then((m) => ({ default: m.Returns })));
+const Privacy = lazy(() => import('./pages/Privacy').then((m) => ({ default: m.Privacy })));
+const Trademark = lazy(() => import('./pages/Trademark').then((m) => ({ default: m.Trademark })));
+const Condition = lazy(() => import('./pages/Condition').then((m) => ({ default: m.Condition })));
+const Checkout = lazy(() => import('./pages/Checkout').then((m) => ({ default: m.Checkout })));
+const About = lazy(() => import('./pages/About').then((m) => ({ default: m.About })));
+const Contact = lazy(() => import('./pages/Contact').then((m) => ({ default: m.Contact })));
+const TrackOrder = lazy(() => import('./pages/TrackOrder').then((m) => ({ default: m.TrackOrder })));
+const SellerPortal = lazy(() => import('./pages/SellerPortal').then((m) => ({ default: m.SellerPortal })));
+const Account = lazy(() => import('./pages/Account').then((m) => ({ default: m.Account })));
+const Faq = lazy(() => import('./pages/Faq').then((m) => ({ default: m.Faq })));
+const ShippingPolicy = lazy(() => import('./pages/ShippingPolicy').then((m) => ({ default: m.ShippingPolicy })));
+const SellerPolicy = lazy(() => import('./pages/SellerPolicy').then((m) => ({ default: m.SellerPolicy })));
+const RefundPolicy = lazy(() => import('./pages/RefundPolicy').then((m) => ({ default: m.RefundPolicy })));
+const BuyerProtection = lazy(() => import('./pages/BuyerProtection').then((m) => ({ default: m.BuyerProtection })));
+const Terms = lazy(() => import('./pages/Terms').then((m) => ({ default: m.Terms })));
+const GrievanceOfficer = lazy(() => import('./pages/GrievanceOfficer').then((m) => ({ default: m.GrievanceOfficer })));
+const AuthCallback = lazy(() => import('./pages/AuthCallback').then((m) => ({ default: m.AuthCallback })));
+const ResetPassword = lazy(() => import('./pages/ResetPassword').then((m) => ({ default: m.ResetPassword })));
+const Cart = lazy(() => import('./pages/Cart').then((m) => ({ default: m.Cart })));
+
 
 // Keying by pathname remounts the boundary (clearing any caught error) the
 // moment the user navigates to a different route, instead of leaving them
@@ -84,6 +90,11 @@ export default function App() {
         <Navbar />
         <main>
           <RoutedErrorBoundary>
+          {/* Reserve more than two viewports while a route chunk loads. At
+              80vh the footer sat on screen and was then shoved down as the real
+              page mounted, which is where most of the site's layout shift came
+              from. Below the fold, the same growth costs nothing. */}
+          <Suspense fallback={<div className="min-h-[220vh]" aria-busy="true" />}>
           <Routes>
             {/* Home *is* browse. Both paths render the same feed so existing
                 /browse links (and every filter query string on them) keep
@@ -118,6 +129,7 @@ export default function App() {
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/reset-password" element={<ResetPassword />} />
           </Routes>
+          </Suspense>
           </RoutedErrorBoundary>
         </main>
 

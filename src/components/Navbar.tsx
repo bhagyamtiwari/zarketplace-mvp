@@ -67,7 +67,7 @@ export function Navbar() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-20 items-center justify-between">
           <div className="flex items-center gap-12">
-            <Link to="/" className="flex items-center group">
+            <Link to="/" className="flex min-h-[44px] items-center group">
               {onFeed && (
                 <Wordmark on="dark" heightClassName="h-7" className="md:hidden group-hover:scale-105 transition-transform" />
               )}
@@ -133,7 +133,7 @@ export function Navbar() {
               <div className="relative flex items-center">
                 <button 
                   onClick={() => setIsSearchOpen(!isSearchOpen)}
-                  className="p-2 text-black hover:text-black/80 transition-colors"
+                  className="flex h-11 w-11 items-center justify-center text-black hover:text-black/80 transition-colors"
                 >
                   <Search className="h-4 w-4" />
                 </button>
@@ -158,7 +158,7 @@ export function Navbar() {
               {user ? (
                 <Link
                   to="/cart"
-                  className="relative p-2 text-black hover:text-black/80 transition-colors"
+                  className="relative flex h-11 w-11 items-center justify-center text-black hover:text-black/80 transition-colors"
                   aria-label="Cart"
                 >
                   <ShoppingBag className="h-4 w-4" />
@@ -171,7 +171,7 @@ export function Navbar() {
               ) : (
                 <button
                   onClick={() => setShowAuth(true)}
-                  className="relative p-2 text-black hover:text-black/80 transition-colors"
+                  className="relative flex h-11 w-11 items-center justify-center text-black hover:text-black/80 transition-colors"
                   aria-label="Cart"
                 >
                   <ShoppingBag className="h-4 w-4" />
@@ -264,7 +264,7 @@ export function Navbar() {
             </div>
 
             <button
-              className={cn('md:hidden p-2', onFeed && 'text-white')}
+              className={cn('md:hidden flex h-11 w-11 items-center justify-center -mr-2', onFeed && 'text-white')}
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               aria-label={isMenuOpen ? 'Close menu' : 'Open menu'}
             >
@@ -300,10 +300,10 @@ export function Navbar() {
             className="md:hidden fixed inset-y-0 right-0 z-[70] w-full max-w-xs bg-white border-l border-black/5 flex flex-col"
           >
               <div className="flex items-center justify-between h-20 px-4 border-b border-black/5 shrink-0">
-                <Link to="/" className="flex items-center" onClick={() => setIsMenuOpen(false)}>
+                <Link to="/" className="flex min-h-[44px] items-center" onClick={() => setIsMenuOpen(false)}>
                   <Wordmark on="light" heightClassName="h-7" />
                 </Link>
-                <button className="p-2" onClick={() => setIsMenuOpen(false)} aria-label="Close menu">
+                <button className="flex h-11 w-11 items-center justify-center -mr-2" onClick={() => setIsMenuOpen(false)} aria-label="Close menu">
                   <X className="h-5 w-5" />
                 </button>
               </div>

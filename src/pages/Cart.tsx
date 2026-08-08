@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingBag, Trash2, ArrowRight, ArrowLeft, Package, AlertTriangle } from 'lucide-react';
 import { useCart } from '../lib/cart';
 import { formatCurrency } from '../lib/utils';
+import { variantUrl } from '../lib/images';
 import { RequireAuth } from '../components/RequireAuth';
 import { getShippingCategories, shippingRateFor, type ShippingCategory } from '../lib/pricing';
 
@@ -77,7 +78,7 @@ function CartInner() {
                 className="h-20 w-16 bg-zinc-200 overflow-hidden border border-black/5 flex-shrink-0"
               >
                 {item.image_url && (
-                  <img src={item.image_url} alt={item.title} className="h-full w-full object-cover" />
+                  <img src={variantUrl(item.image_url, 'thumb')} alt={item.title} className="h-full w-full object-cover" />
                 )}
               </Link>
               <div className="flex-1 flex flex-col gap-0.5 min-w-0">

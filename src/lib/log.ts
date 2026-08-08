@@ -21,6 +21,7 @@ type Tag =
   | 'marketplace'
   | 'product'
   | 'sell'
+  | 'payout'
   | 'checkout'
   | 'track'
   | 'seller'

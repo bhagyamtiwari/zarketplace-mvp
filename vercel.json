@@ -1,6 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
+    { "source": "/item/:sku", "destination": "/api/item?sku=:sku" },
     { "source": "/((?!api/|assets/|images/|favicon\\.ico|.*\\..*).*)", "destination": "/index.html" }
   ],
   "headers": [

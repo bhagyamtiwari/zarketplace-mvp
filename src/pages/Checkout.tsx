@@ -14,6 +14,7 @@ import { motion } from 'motion/react';
 import { supabase } from '../lib/supabase';
 import { CartItem, Listing } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
+import { variantUrl } from '../lib/images';
 import { Loader2, ArrowLeft, ArrowRight, ShieldCheck, CheckCircle2, XCircle, Package } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { useCart } from '../lib/cart';
@@ -437,7 +438,7 @@ function CheckoutInner() {
                 <div className="flex gap-4">
                   {o.listing_image_url && (
                     <div className="h-20 w-16 flex-shrink-0 overflow-hidden border border-black/5">
-                      <img src={o.listing_image_url} alt="" className="h-full w-full object-cover" />
+                      <img src={variantUrl(o.listing_image_url, 'thumb')} alt="" className="h-full w-full object-cover" />
                     </div>
                   )}
                   <div className="flex flex-col gap-1 min-w-0">
@@ -753,7 +754,7 @@ function RazorpayPayStep({
         {items.map((i) => (
           <div key={i.listing_id} className="flex gap-4 items-center">
             <div className="h-20 w-16 bg-zinc-200 overflow-hidden border border-black/5 flex-shrink-0">
-              {i.image_url && <img src={i.image_url} alt={i.title} className="h-full w-full object-cover" />}
+              {i.image_url && <img src={variantUrl(i.image_url, 'thumb')} alt={i.title} className="h-full w-full object-cover" />}
             </div>
             <div className="flex flex-col justify-center gap-0.5 min-w-0 flex-1">
               <span className="text-xs font-bold uppercase tracking-widest truncate">{i.title}</span>
@@ -820,7 +821,7 @@ function Summary({ items, subtotal, shipping, shippingLoading, buyerProtection, 
         {items.map((i) => (
           <div key={i.listing_id} className="flex gap-4">
             <div className="h-20 w-16 bg-zinc-200 overflow-hidden border border-black/5 flex-shrink-0">
-              {i.image_url && <img src={i.image_url} alt={i.title} className="h-full w-full object-cover" />}
+              {i.image_url && <img src={variantUrl(i.image_url, 'thumb')} alt={i.title} className="h-full w-full object-cover" />}
             </div>
             <div className="flex flex-col justify-center gap-0.5 min-w-0">
               <span className="text-[9px] font-black uppercase tracking-widest text-black/60">{i.brand}</span>

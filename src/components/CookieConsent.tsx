@@ -47,7 +47,7 @@ export function CookieConsent() {
           <button
             type="button"
             onClick={() => setConsent(analyticsOn ? 'accepted' : 'rejected')}
-            className="self-start bg-white px-5 py-3 text-[10px] font-black uppercase tracking-widest text-black hover:bg-white/90 transition-colors"
+            className="self-start bg-white px-5 min-h-[44px] py-3 text-[10px] font-black uppercase tracking-widest text-black hover:bg-white/90 transition-colors"
           >
             Save Preferences
           </button>
@@ -63,26 +63,26 @@ export function CookieConsent() {
               for the same sentence and pushes the buttons off the bar. */}
           <span className="sm:hidden text-[13px] font-bold leading-snug">
             We use cookies to improve your experience.{' '}
-            <Link to="/privacy" className="underline text-white">Privacy Policy</Link>.
+            <Link to="/privacy" className="inline-block py-3.5 -my-3.5 underline text-white">Privacy Policy</Link>.
           </span>
           <span className="hidden sm:inline body-copy">
             We store a few things in your browser to keep you signed in and your cart intact, and,
             only if you allow it, anonymous analytics. No advertising or cross-site tracking, ever.
-            See our <Link to="/privacy" className="underline text-white hover:text-white/80">Privacy Policy</Link>.
+            See our <Link to="/privacy" className="inline-block py-3.5 -my-3.5 underline text-white hover:text-white/80">Privacy Policy</Link>.
           </span>
         </p>
         <div className="flex shrink-0 items-center gap-2.5">
           <button
             type="button"
             onClick={() => setConsent('accepted')}
-            className="bg-white px-4 sm:px-5 py-3 text-[10px] font-black uppercase tracking-widest text-black hover:bg-white/90 transition-colors"
+            className="bg-white px-4 sm:px-5 min-h-[44px] py-3 text-[10px] font-black uppercase tracking-widest text-black hover:bg-white/90 transition-colors"
           >
             Accept<span className="hidden sm:inline"> all cookies</span>
           </button>
           <button
             type="button"
             onClick={() => setConsent('rejected')}
-            className="border border-white/30 px-4 sm:px-5 py-3 text-[10px] font-black uppercase tracking-widest text-white hover:border-white transition-colors"
+            className="border border-white/30 px-4 sm:px-5 min-h-[44px] py-3 text-[10px] font-black uppercase tracking-widest text-white hover:border-white transition-colors"
           >
             Essential only
           </button>

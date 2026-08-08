@@ -12,7 +12,7 @@
     <!-- The home banner is the first thing on the page and the largest thing we
          serve, so it starts downloading with the HTML rather than waiting for
          the CSS that references it. -->
-    <link rel="preload" as="image" href="/images/new-banner3.png" fetchpriority="high" />
+    <link rel="preload" as="image" href="/images/new-banner3.jpg" fetchpriority="high" />
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="zarketplace" />
@@ -21,12 +21,13 @@
     <meta property="og:url" content="https://zarketplace.com/" />
     <meta property="og:image" content="https://zarketplace.com/images/wordmark-modified.png" />
 
-    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="zarketplace - secondhand fashion resale buy and sell" />
     <meta name="twitter:description" content="India's marketplace for buying and selling pre-owned fashion." />
     <meta name="twitter:image" content="https://zarketplace.com/images/wordmark-modified.png" />
 
-    <link rel="icon" type="image/png" href="/images/final-pfp.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/images/favicon-180.png">
 
     <!-- Fonts loaded directly in <head> (not via CSS @import) so the browser
          starts fetching them immediately, in parallel with everything else,
@@ -45,6 +46,94 @@
     </style>
   </head>
   <body>
+    <!-- Static hero. The app is client-rendered, so nothing painted until the
+         JS bundle had downloaded, parsed and executed: the largest element was
+         a React component and LCP sat at 9.1s while FCP was 3.8s. Blocking
+         every listing photo did not move it, which is what identified the
+         render chain rather than image bytes as the cause.
+
+         This is the same markup and the same Tailwind classes as HeroBanner in
+         src/pages/Marketplace.tsx, emitted in the first response. The
+         stylesheet loads in parallel with the bundle, so it paints without
+         waiting for React. HeroBanner removes this node in a layout effect the
+         moment it mounts - before the browser paints, so there is never two of
+         them and never a gap.
+
+         Keep the two in sync: if the hero changes, change it in both. The
+         heights must match or swapping one for the other is a layout shift.
+
+         Icon paths are lucide's shield-check / tag / package-check, inlined
+         because the React icons only exist once the bundle runs. -->
+    <div id="static-hero" class="pt-20 bg-black">
+      <section class="relative isolate overflow-hidden bg-black text-white">
+        <div aria-hidden="true" class="absolute inset-y-0 right-0 w-[68%] sm:hidden">
+          <div class="absolute inset-0 bg-cover bg-no-repeat" style="background-image:url(/images/new-banner3.jpg);background-position:14% center"></div>
+          <div class="absolute inset-0 bg-gradient-to-r from-black via-black/55 to-black/10"></div>
+        </div>
+        <div aria-hidden="true" class="hidden sm:block absolute inset-y-0 right-0 w-[64%]">
+          <div class="absolute inset-0 bg-cover bg-no-repeat bg-center" style="background-image:url(/images/new-banner3.jpg)"></div>
+          <div class="absolute inset-0 bg-gradient-to-r from-black via-black/45 via-35% to-transparent to-75%"></div>
+        </div>
+        <div class="relative mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-7 sm:py-14 lg:py-16 flex flex-col gap-6 sm:gap-7">
+          <h1 class="max-w-[8ch] sm:max-w-none text-[2.1rem] leading-[0.95] sm:text-4xl lg:text-5xl font-black tracking-tighter">
+            Buy &amp; sell<br class="hidden sm:block" /> pre-owned fashion.
+          </h1>
+          <ul class="grid grid-cols-3 divide-x divide-white/20 sm:flex sm:divide-x-0 sm:gap-10">
+            <li class="min-w-0 pr-2 first:pl-0 pl-3 sm:p-0">
+              <a href="/buyer-protection" class="group flex min-h-[44px] items-start gap-2.5 py-1 sm:items-center sm:gap-3 sm:py-0">
+                <svg class="mt-0.5 h-5 w-5 sm:mt-0 sm:h-6 sm:w-6 shrink-0 text-white/85" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
+                <span class="flex min-w-0 flex-col gap-0.5">
+                  <span class="text-[13px] sm:text-sm font-black tracking-tight">Buyer protection</span>
+                  <span class="hidden sm:block text-xs font-bold text-white/60">Pay with confidence.</span>
+                </span>
+              </a>
+            </li>
+            <li class="min-w-0 pr-2 first:pl-0 pl-3 sm:p-0">
+              <a href="/sell" class="group flex min-h-[44px] items-start gap-2.5 py-1 sm:items-center sm:gap-3 sm:py-0">
+                <svg class="mt-0.5 h-5 w-5 sm:mt-0 sm:h-6 sm:w-6 shrink-0 text-white/85" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg>
+                <span class="flex min-w-0 flex-col gap-0.5">
+                  <span class="text-[13px] sm:text-sm font-black tracking-tight">No selling fees</span>
+                  <span class="hidden sm:block text-xs font-bold text-white/60">Keep 100%.</span>
+                </span>
+              </a>
+            </li>
+            <li class="min-w-0 pr-2 first:pl-0 pl-3 sm:p-0">
+              <a href="/shipping-policy" class="group flex min-h-[44px] items-start gap-2.5 py-1 sm:items-center sm:gap-3 sm:py-0">
+                <svg class="mt-0.5 h-5 w-5 sm:mt-0 sm:h-6 sm:w-6 shrink-0 text-white/85" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m16 16 2 2 4-4"/><path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14"/><path d="m7.5 4.27 9 5.15"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" x2="12" y1="22" y2="12"/></svg>
+                <span class="flex min-w-0 flex-col gap-0.5">
+                  <span class="text-[13px] sm:text-sm font-black tracking-tight">Doorstep pickup</span>
+                  <span class="hidden sm:block text-xs font-bold text-white/60">We collect it.</span>
+                </span>
+              </a>
+            </li>
+          </ul>
+          <div class="grid grid-cols-2 gap-3 sm:flex sm:gap-4">
+            <a href="/browse" class="flex items-center justify-between gap-3 bg-white px-5 py-4 sm:min-w-[230px] sm:px-7 text-[11px] font-black uppercase tracking-widest text-black">
+              <span class="sm:hidden">Browse</span>
+              <span class="hidden sm:inline">Browse items</span>
+              <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </a>
+            <a href="/sell" class="flex items-center justify-between gap-3 border border-white/40 bg-black sm:bg-transparent px-5 py-4 sm:min-w-[230px] sm:px-7 text-[11px] font-black uppercase tracking-widest text-white">
+              Sell an item
+              <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </a>
+          </div>
+        </div>
+      </section>
+    </div>
+    <script>
+      // The shell is served for every route, including /item/* through the
+      // meta-injection function, so anything that is not the feed drops the
+      // hero before it can be painted. Inline and immediately after the node,
+      // so it runs in the same parse - there is no flash to remove.
+      (function () {
+        var p = location.pathname;
+        if (p !== '/' && p !== '/browse') {
+          var el = document.getElementById('static-hero');
+          if (el) el.remove();
+        }
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

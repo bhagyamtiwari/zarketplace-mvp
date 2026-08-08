@@ -15,6 +15,7 @@ import React from 'react';
 import { supabase } from '../lib/supabase';
 import { Listing, ListingStatus, Order, OrderStatus, SellerPayout } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
+import { variantUrl } from '../lib/images';
 import {
   Loader2, Search, ChevronRight, X, ExternalLink, Package, CreditCard,
   Truck, Wallet, Users as UsersIcon, LifeBuoy, Terminal, LayoutGrid, Boxes,
@@ -442,7 +443,7 @@ function ListingsView({ rows, orders, onOpen }: { rows: Listing[]; orders: Order
                 <td className="py-3 px-3">
                   <div className="flex items-center gap-3">
                     <div className="h-11 w-8 shrink-0 overflow-hidden bg-zinc-100 border border-black/5">
-                      <img src={l.image_url} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                      <img src={variantUrl(l.image_url, 'thumb')} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                     </div>
                     <div className="min-w-0"><p className="text-xs font-bold truncate max-w-[200px]">{l.title}</p>
                       <p className="text-[10px] text-black/40 uppercase tracking-widest">{l.brand}{l.free_shipping && <span className="ml-2 text-black/60">Free shipping</span>}</p></div>

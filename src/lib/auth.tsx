@@ -24,6 +24,10 @@ import { identifyUser, resetAnalytics } from './analytics';
 
 const alog = log('auth');
 
+// E.164: leading +, country code, up to 15 digits total. Mirrors the
+// profiles_phone_e164 CHECK constraint in the database.
+export const E164_RE = /^\+[1-9]\d{7,14}$/;
+
 export interface Profile {
   id: string;
   email: string;
@@ -32,6 +36,12 @@ export interface Profile {
   is_admin: boolean;
   default_address: Record<string, string> | null;
   default_upi_vpa: string | null;
+  // Payout details, collected at first sale rather than at listing time.
+  // payout_locked_at is set the moment they are submitted; from then on UPI
+  // and Instagram are frozen.
+  instagram: string | null;
+  pickup_address: Record<string, string> | null;
+  payout_locked_at: string | null;
 }
 
 interface AuthContextValue {
@@ -44,6 +54,7 @@ interface AuthContextValue {
   signUpWithPassword: (
     email: string,
     password: string,
+    phone: string,
   ) => Promise<{ error: string | null; needsConfirmation: boolean }>;
   resendVerification: () => Promise<{ error: string | null }>;
   sendPasswordReset: (email: string) => Promise<{ error: string | null }>;
@@ -151,16 +162,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: error?.message ?? null };
   }, []);
 
-  const signUpWithPassword = React.useCallback(async (email: string, password: string) => {
+  const signUpWithPassword = React.useCallback(async (email: string, password: string, phone: string) => {
     const trimmed = email.trim().toLowerCase();
     if (!trimmed) return { error: 'Please enter your email.', needsConfirmation: false };
     if (!password || password.length < 10)
       return { error: 'Password must be at least 10 characters.', needsConfirmation: false };
+    if (!E164_RE.test(phone))
+      return { error: 'Enter a valid phone number.', needsConfirmation: false };
     alog('signUpWithPassword called', { email: trimmed });
+    // The phone rides in user metadata rather than supabase.auth.signUp's own
+    // `phone` field: that one starts a phone-auth flow and wants to send an
+    // SMS, which we cannot do until DLT clears. The handle_new_user trigger
+    // copies it onto the profile. Deliberately not a second auth factor yet -
+    // this is data capture so a later updateUser({ phone }) linking step has
+    // something to link.
     const { data, error } = await supabase.auth.signUp({
       email: trimmed,
       password,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        data: { phone },
+      },
     });
     if (error) {
       alog.warn('signUpWithPassword error', error.message);
