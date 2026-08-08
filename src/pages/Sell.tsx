@@ -24,7 +24,7 @@ import { trackEvent } from '../lib/analytics';
 import { CONDITIONS } from '../lib/condition';
 import { log } from '../lib/log';
 import { scrollToTop } from '../lib/scrollToTop';
-import { encodeVariants } from '../lib/images';
+import { encodeVariants, encodeSocialCard, SOCIAL_CARD_SUFFIX } from '../lib/images';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
 import { cn, formatCurrency } from '../lib/utils';
 
@@ -308,6 +308,16 @@ function SellInner() {
           if (variant === 'full') {
             fullUrl = supabase.storage.from('listing-images').getPublicUrl(filePath).data.publicUrl;
           }
+        }
+        // Cover photo only: the 1200x630 JPEG that WhatsApp and Facebook
+        // actually render in a link preview. See encodeSocialCard.
+        if (i === 0) {
+          const card = await encodeSocialCard(imageFiles[i]);
+          const cardPath = `listings/${user.id}-${stamp}-${i}${SOCIAL_CARD_SUFFIX}`;
+          const { error: cardErr } = await supabase.storage
+            .from('listing-images')
+            .upload(cardPath, card, { contentType: 'image/jpeg', cacheControl: '31536000' });
+          if (cardErr) throw cardErr;
         }
         uploadedUrls.push(fullUrl);
       }

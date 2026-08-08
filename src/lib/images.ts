@@ -142,3 +142,52 @@ export async function encodeVariants(file: File): Promise<Record<ImageVariant, E
   if ('close' in bitmap && typeof bitmap.close === 'function') bitmap.close();
   return out;
 }
+
+// The social card is 1200x630 because that is what og:image:width/height
+// promise and what every scraper lays out for. Two reasons it is its own file
+// rather than a reuse of the full variant:
+//   * a garment photo is 3:4, so pointing at it while declaring 1.91:1 makes
+//     WhatsApp and Facebook crop the item's head and feet off;
+//   * it is JPEG, not WebP - WhatsApp's preview renderer is unreliable with
+//     WebP and silently shows no image at all, which is the exact failure this
+//     whole task exists to fix.
+// Letterboxed on white rather than cropped: the whole garment is the point.
+export const SOCIAL_CARD_SUFFIX = '-og.jpg';
+
+export async function encodeSocialCard(file: File): Promise<Blob> {
+  const bitmap = await loadBitmap(file);
+  const srcW = 'width' in bitmap ? bitmap.width : 0;
+  const srcH = 'height' in bitmap ? bitmap.height : 0;
+  if (!srcW || !srcH) throw new Error('Could not read that image.');
+
+  const W = 1200, H = 630;
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Could not process that image.');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, W, H);
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+
+  const scale = Math.min(W / srcW, H / srcH);
+  const drawW = Math.round(srcW * scale);
+  const drawH = Math.round(srcH * scale);
+  ctx.drawImage(bitmap as CanvasImageSource, (W - drawW) / 2, (H - drawH) / 2, drawW, drawH);
+
+  const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, 'image/jpeg', 0.85));
+  if ('close' in bitmap && typeof bitmap.close === 'function') bitmap.close();
+  if (!blob) throw new Error('Could not process that image.');
+  return blob;
+}
+
+/**
+ * Where the social card for a stored image lives. Returns null for images
+ * uploaded before this pipeline, which have no card - the caller falls back to
+ * the photo itself.
+ */
+export function socialCardUrl(url: string | null | undefined): string | null {
+  if (!url || !VARIANT_SUFFIX_RE.test(url)) return null;
+  return url.replace(VARIANT_SUFFIX_RE, SOCIAL_CARD_SUFFIX);
+}
