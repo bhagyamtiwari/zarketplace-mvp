@@ -628,7 +628,7 @@ function HeroBanner() {
         <ul className="grid grid-cols-3 divide-x divide-white/20 sm:flex sm:divide-x-0 sm:gap-10">
           {PROMISES.map(({ label, body, to, Icon }) => (
             <li key={label} className="min-w-0 pr-2 first:pl-0 pl-3 sm:p-0">
-              <Link to={to} className="group flex items-start gap-2.5 sm:items-center sm:gap-3">
+              <Link to={to} className="group flex min-h-[44px] items-start gap-2.5 py-1 sm:items-center sm:gap-3 sm:py-0">
                 <Icon className="mt-0.5 h-5 w-5 sm:mt-0 sm:h-6 sm:w-6 shrink-0 text-white/85" strokeWidth={1.5} />
                 <span className="flex min-w-0 flex-col gap-0.5">
                   <span className="text-[13px] sm:text-sm font-black tracking-tight group-hover:text-white/70">
@@ -703,7 +703,7 @@ function SortChip({ value, onChange }: { value: string; onChange: (v: string) =>
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-label="Sort listings"
-        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+        className="absolute inset-0 h-full min-h-[44px] w-full cursor-pointer opacity-0"
       >
         {SORT_OPTIONS.map((o) => (
           <option key={o.value} value={o.value}>{o.label}</option>

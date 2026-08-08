@@ -67,7 +67,7 @@ export function Navbar() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-20 items-center justify-between">
           <div className="flex items-center gap-12">
-            <Link to="/" className="flex items-center group">
+            <Link to="/" className="flex min-h-[44px] items-center group">
               {onFeed && (
                 <Wordmark on="dark" heightClassName="h-7" className="md:hidden group-hover:scale-105 transition-transform" />
               )}
@@ -300,7 +300,7 @@ export function Navbar() {
             className="md:hidden fixed inset-y-0 right-0 z-[70] w-full max-w-xs bg-white border-l border-black/5 flex flex-col"
           >
               <div className="flex items-center justify-between h-20 px-4 border-b border-black/5 shrink-0">
-                <Link to="/" className="flex items-center" onClick={() => setIsMenuOpen(false)}>
+                <Link to="/" className="flex min-h-[44px] items-center" onClick={() => setIsMenuOpen(false)}>
                   <Wordmark on="light" heightClassName="h-7" />
                 </Link>
                 <button className="flex h-11 w-11 items-center justify-center -mr-2" onClick={() => setIsMenuOpen(false)} aria-label="Close menu">

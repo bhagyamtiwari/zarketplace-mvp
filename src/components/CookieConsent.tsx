@@ -63,12 +63,12 @@ export function CookieConsent() {
               for the same sentence and pushes the buttons off the bar. */}
           <span className="sm:hidden text-[13px] font-bold leading-snug">
             We use cookies to improve your experience.{' '}
-            <Link to="/privacy" className="underline text-white">Privacy Policy</Link>.
+            <Link to="/privacy" className="inline-block py-3.5 -my-3.5 underline text-white">Privacy Policy</Link>.
           </span>
           <span className="hidden sm:inline body-copy">
             We store a few things in your browser to keep you signed in and your cart intact, and,
             only if you allow it, anonymous analytics. No advertising or cross-site tracking, ever.
-            See our <Link to="/privacy" className="underline text-white hover:text-white/80">Privacy Policy</Link>.
+            See our <Link to="/privacy" className="inline-block py-3.5 -my-3.5 underline text-white hover:text-white/80">Privacy Policy</Link>.
           </span>
         </p>
         <div className="flex shrink-0 items-center gap-2.5">
