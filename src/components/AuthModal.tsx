@@ -16,8 +16,8 @@ import * as React from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, X, Loader2, Lock } from 'lucide-react';
-import { useAuth } from '../lib/auth';
+import { Mail, X, Loader2, Lock, Phone } from 'lucide-react';
+import { useAuth, E164_RE } from '../lib/auth';
 import { log } from '../lib/log';
 
 const mlog = log('authmodal');
@@ -50,6 +50,12 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [confirmPassword, setConfirmPassword] = React.useState('');
+  // Phone is required to create an account. There is no OTP and no SMS yet -
+  // DLT approval is still pending - but linking a number to an account after
+  // the fact means chasing that user individually, so we capture it now and
+  // switch the login method later.
+  const [dialCode, setDialCode] = React.useState('+91');
+  const [phoneDigits, setPhoneDigits] = React.useState('');
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [notice, setNotice] = React.useState<string | null>(null);
@@ -59,6 +65,8 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
       setEmail('');
       setPassword('');
       setConfirmPassword('');
+      setDialCode('+91');
+      setPhoneDigits('');
       setError(null);
       setNotice(null);
       setLoading(false);
@@ -69,10 +77,13 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
   const emailValid = EMAIL_RE.test(email);
   const passwordValid = mode === 'forgot' ? true : PASSWORD_RE.test(password);
   const confirmValid = mode === 'signup' ? password === confirmPassword : true;
+  const e164 = `${dialCode}${phoneDigits}`;
+  const phoneValid = mode === 'signup' ? E164_RE.test(e164) : true;
   const canSubmit =
     mode === 'forgot'
       ? emailValid
-      : emailValid && passwordValid && confirmValid && (mode === 'signin' || confirmPassword.length > 0);
+      : emailValid && passwordValid && confirmValid && phoneValid
+        && (mode === 'signin' || confirmPassword.length > 0);
 
   const switchMode = (next: Mode) => {
     setMode(next);
@@ -87,6 +98,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
     if (!emailValid) { setError('Enter a valid email address.'); return; }
     if (mode !== 'forgot' && !passwordValid) { setError('Password must be 10+ characters and include a letter and a digit.'); return; }
     if (mode === 'signup' && !confirmValid) { setError('Passwords do not match.'); return; }
+    if (mode === 'signup' && !phoneValid) { setError('Enter a valid phone number with its country code.'); return; }
 
     setLoading(true);
     try {
@@ -104,7 +116,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
         else succeed();
       } else {
         const t = mlog.time('signUpWithPassword');
-        const { error: err, needsConfirmation } = await signUpWithPassword(email, password);
+        const { error: err, needsConfirmation } = await signUpWithPassword(email, password, e164);
         t.end({ error: err, needsConfirmation });
         if (err) { setError(err); return; }
         if (needsConfirmation) {
@@ -200,6 +212,45 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                   <p className="text-[9px] font-bold uppercase tracking-widest text-red-600">Enter a valid email.</p>
                 )}
               </div>
+
+              {mode === 'signup' && (
+                <div className="flex flex-col gap-3">
+                  <label className="text-[10px] font-black uppercase tracking-widest">Phone</label>
+                  <div className="flex items-center border-b border-black/10 focus-within:border-black transition-colors">
+                    <Phone className="h-4 w-4 text-black/30 mr-3" />
+                    {/* Country code is its own field so a non-Indian number is
+                        still possible, but +91 is the answer for this market
+                        and nobody should have to pick it. */}
+                    <input
+                      type="tel"
+                      required
+                      value={dialCode}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/[^\d+]/g, '');
+                        setDialCode(v.startsWith('+') ? v.slice(0, 4) : `+${v}`.slice(0, 4));
+                      }}
+                      aria-label="Country code"
+                      className="w-14 py-4 text-sm font-bold focus:outline-none tracking-wider"
+                    />
+                    <input
+                      type="tel"
+                      required
+                      inputMode="numeric"
+                      value={phoneDigits}
+                      onChange={(e) => setPhoneDigits(e.target.value.replace(/\D/g, '').slice(0, 14))}
+                      placeholder="98765 43210"
+                      autoComplete="tel-national"
+                      className="flex-1 py-4 text-sm font-bold focus:outline-none tracking-wider placeholder:text-xs placeholder:font-medium placeholder:tracking-widest placeholder:uppercase placeholder:text-black/25"
+                    />
+                  </div>
+                  {phoneDigits && !phoneValid && (
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-red-600">Enter a valid phone number.</p>
+                  )}
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-black/40">
+                    For delivery updates and order problems. We do not send marketing texts.
+                  </p>
+                </div>
+              )}
 
               {mode !== 'forgot' && (
                 <div className="flex flex-col gap-3">
