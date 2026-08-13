@@ -26,6 +26,7 @@ import { log } from '../lib/log';
 import { scrollToTop } from '../lib/scrollToTop';
 import { encodeVariants, encodeSocialCard, SOCIAL_CARD_SUFFIX } from '../lib/images';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
+import { INDIAN_STATES, normalizeState } from '../lib/states';
 import { cn, formatCurrency } from '../lib/utils';
 
 const slog = log('sell');
@@ -128,6 +129,13 @@ function SellInner() {
   // default - it's a choice, not the default cost to the seller.
   const [freeShipping, setFreeShipping] = React.useState(false);
 
+  // The state this item ships from. Asked here rather than inherited from the
+  // pickup address, because that address is only collected at the seller's
+  // first sale - a brand new seller has none, and a listing with no state
+  // cannot be shown to the right buyers at all. Sticky across listings: it is
+  // an account fact, not an item fact, so resetForm deliberately leaves it.
+  const [pickupState, setPickupState] = React.useState('');
+
   const [authenticity, setAuthenticity] = React.useState<'confirmed' | 'unsure' | null>(null);
   const [declarations, setDeclarations] = React.useState<Declarations>({
     oneItem: false, photosActual: false, disclosedFlaws: false, accurate: false, authenticIfMarked: false,
@@ -146,7 +154,7 @@ function SellInner() {
     if (!user || prefilledFromLast.current) return;
     supabase
       .from('listings')
-      .select('gender, category, shipping_category')
+      .select('gender, category, shipping_category, pickup_state')
       .eq('seller_id', user.id)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -157,8 +165,20 @@ function SellInner() {
         if (data.gender) setGender((prev) => prev || data.gender);
         if (data.category) setSelectedCategory((prev) => prev || data.category);
         if (data.shipping_category) setShippingCategory((prev) => prev || data.shipping_category);
+        // Normalized on the way in: rows written before the dropdown existed
+        // hold whatever the seller typed, and an unrecognisable value has to
+        // fall through to an empty select rather than a wrong pre-selection.
+        const lastState = normalizeState(data.pickup_state);
+        if (lastState) setPickupState((prev) => prev || lastState);
       });
   }, [user]);
+
+  // The saved pickup address wins over the last listing when both exist: it is
+  // the address a courier will actually collect from.
+  React.useEffect(() => {
+    const saved = normalizeState((profile?.pickup_address as { state?: string } | null)?.state);
+    if (saved) setPickupState((prev) => prev || saved);
+  }, [profile]);
 
   // Default the shipping category to the first option once loaded, unless
   // the previous-listing prefill above already set one.
@@ -244,6 +264,7 @@ function SellInner() {
       if (!priceVal || Number(priceVal) <= 0) return 'Enter a price.';
       if (salePriceInvalid) return 'Sale price must be lower than the regular price.';
       if (!shippingCategory) return 'Choose a shipping category.';
+      if (!pickupState) return 'Select the state you ship from.';
       // Only bites when the seller is absorbing the courier cost. With
       // buyer-paid shipping a low price is fine, the seller keeps all of it.
       // Mirrors the server rule listings_require_positive_payout, which is what
@@ -349,6 +370,11 @@ function SellInner() {
         seller_instagram: profile?.instagram ?? null,
         seller_upi_vpa: profile?.default_upi_vpa ?? null,
         pickup_address: profile?.pickup_address ?? null,
+        // Stored on the listing, not read through the profile at query time:
+        // a seller who later moves must not silently relocate every item they
+        // have already listed, and the buyer-facing view can only filter on a
+        // column it actually has.
+        pickup_state: pickupState,
         shipping_category: shippingCategory,
         free_shipping: freeShipping,
         has_flaws: !!hasFlaws,
@@ -526,6 +552,7 @@ function SellInner() {
                 shippingCategories={shippingCategories}
                 shippingCategory={shippingCategory} setShippingCategory={setShippingCategory}
                 freeShipping={freeShipping} setFreeShipping={setFreeShipping}
+                pickupState={pickupState} setPickupState={setPickupState}
               />
             )}
 
@@ -535,6 +562,7 @@ function SellInner() {
                 title={title} brand={brand} price={priceVal} salePrice={showSalePrice ? salePriceVal : ''}
                 condition={condition} hasFlaws={hasFlaws} flawsDescription={flawsDescription}
                 shippingCategory={shippingCategory} shippingCategories={shippingCategories}
+                pickupState={pickupState}
                 authenticity={authenticity} setAuthenticity={setAuthenticity}
                 declarations={declarations} setDeclarations={setDeclarations}
               />
@@ -884,7 +912,7 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
   );
 }
 
-function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, salePriceVal, setSalePriceVal, salePriceInvalid, shippingCategories, shippingCategory, setShippingCategory, freeShipping, setFreeShipping }: {
+function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, salePriceVal, setSalePriceVal, salePriceInvalid, shippingCategories, shippingCategory, setShippingCategory, freeShipping, setFreeShipping, pickupState, setPickupState }: {
   priceVal: string; setPriceVal: (v: string) => void;
   showSalePrice: boolean; setShowSalePrice: (v: boolean) => void;
   salePriceVal: string; setSalePriceVal: (v: string) => void;
@@ -892,6 +920,7 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
   shippingCategories: ShippingCategory[];
   shippingCategory: string; setShippingCategory: (v: string) => void;
   freeShipping: boolean; setFreeShipping: (v: boolean) => void;
+  pickupState: string; setPickupState: (v: string) => void;
 }) {
   const selectedRate = shippingCategories.find((c) => c.key === shippingCategory)?.rate ?? 0;
   // The number a buyer would actually pay: the sale price when one is set.
@@ -950,6 +979,28 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
           <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Shipping</h3>
           <TrustNote>Closest category to your item. Bigger and heavier costs more. We buy the label.</TrustNote>
         </div>
+
+        {/* A dropdown rather than a text box, and the same list everywhere a
+            state is captured. This value decides who is allowed to buy the
+            item, so "Delhi" and "New Delhi" cannot be two different answers. */}
+        <div className="flex flex-col gap-3">
+          <FieldLabel>Ships from (state) *</FieldLabel>
+          <select
+            value={pickupState}
+            onChange={(e) => setPickupState(e.target.value)}
+            className="border-b border-black/10 bg-transparent py-4 text-sm font-bold focus:border-black focus:outline-none transition-all"
+          >
+            <option value="">Select your state</option>
+            {INDIAN_STATES.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <TrustNote>
+            Where the courier collects this item. While we complete our GST setup, only
+            buyers in this state can check out on your listing. We remember it for your
+            next listing.
+          </TrustNote>
+        </div>
         {shippingCategories.length === 0 ? (
           <p className="text-xs font-bold uppercase tracking-widest text-black/30">Loading categories…</p>
         ) : (
@@ -1000,11 +1051,12 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
 
 function ReviewStep({
   imagePreviews, title, brand, price, salePrice, condition, hasFlaws, flawsDescription,
-  shippingCategory, shippingCategories, authenticity, setAuthenticity, declarations, setDeclarations,
+  shippingCategory, shippingCategories, pickupState, authenticity, setAuthenticity, declarations, setDeclarations,
 }: {
   imagePreviews: string[]; title: string; brand: string; price: string; salePrice: string;
   condition: string; hasFlaws: boolean | null; flawsDescription: string;
   shippingCategory: string; shippingCategories: ShippingCategory[];
+  pickupState: string;
   authenticity: 'confirmed' | 'unsure' | null; setAuthenticity: (v: 'confirmed' | 'unsure') => void;
   declarations: Declarations;
   setDeclarations: React.Dispatch<React.SetStateAction<Declarations>>;
@@ -1037,10 +1089,10 @@ function ReviewStep({
       <div className="flex gap-3 border border-amber-500/40 bg-amber-50 px-5 py-4">
         <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-700" />
         <p className="text-[11px] font-bold uppercase tracking-widest leading-[1.8] text-amber-900">
-          Buyers in your state only, for now. While we complete our GST setup,
-          only buyers in the same state as your pickup address can check out on
-          this listing. Selling to another state needs a GSTIN, which we are
-          working on. Your price and payout are unaffected.
+          {pickupState ? `Buyers in ${pickupState} only, for now.` : 'Buyers in your state only, for now.'}
+          {' '}While we complete our GST setup, only buyers in the state you ship
+          from can check out on this listing. Selling to another state needs a
+          GSTIN, which we are working on. Your price and payout are unaffected.
         </p>
       </div>
 

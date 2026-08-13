@@ -11,6 +11,7 @@ import { SpeedInsights } from '@vercel/speed-insights/react';
 import { ScrollToTop } from './components/ScrollToTop';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { CookieConsent } from './components/CookieConsent';
+import { PhoneCapturePrompt } from './components/PhoneCapturePrompt';
 import { useConsent } from './lib/cookieConsent';
 import { initAnalytics, trackPageview } from './lib/analytics';
 
@@ -135,6 +136,10 @@ export default function App() {
 
         <Footer />
         <CookieConsent />
+        {/* Only renders for a signed-in account with no phone on file, which
+            in practice means Google signups. Phone becomes the login identity
+            once OTP lands, so the gap has to close before then. */}
+        <PhoneCapturePrompt />
       </div>
       </CartProvider>
       </AuthProvider>

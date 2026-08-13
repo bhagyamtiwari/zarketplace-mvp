@@ -16,6 +16,7 @@
 
 import React from 'react';
 import { Loader2, AlertTriangle } from 'lucide-react';
+import { INDIAN_STATES, normalizeState } from '../lib/states';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { UpiVpaInput, VPA_REGEX } from './UpiVpaInput';
@@ -75,7 +76,7 @@ export function PayoutDetailsForm({ onSaved, onCancel }: { onSaved: () => void; 
     setAddress(addr.address ?? '');
     setLandmark(addr.landmark ?? '');
     setCity(addr.city ?? '');
-    setStateName(addr.state ?? '');
+    setStateName(normalizeState(addr.state) ?? '');
     setPincode(addr.pincode ?? '');
     setReady(true);
   }, [profile]);
@@ -243,8 +244,16 @@ export function PayoutDetailsForm({ onSaved, onCancel }: { onSaved: () => void; 
           </div>
           <div className="flex flex-col gap-3">
             <FieldLabel>State *</FieldLabel>
-            <input value={stateName} onChange={(e) => setStateName(e.target.value)} onBlur={savePartial}
-              type="text" placeholder="Maharashtra" className={inputCls} />
+            {/* Was a free-text box. Now the same list the listing form uses,
+                because this value is compared against a buyer's state and two
+                spellings of one state would silently hide a listing. */}
+            <select value={stateName} onChange={(e) => setStateName(e.target.value)} onBlur={savePartial}
+              className={inputCls}>
+              <option value="">Select your state</option>
+              {INDIAN_STATES.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
           </div>
           <div className="flex flex-col gap-3">
             <FieldLabel>Pincode *</FieldLabel>
