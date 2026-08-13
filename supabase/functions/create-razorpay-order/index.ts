@@ -18,7 +18,7 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { sameState } from "../_shared/states.ts";
+import { checkIntraState } from "../_shared/pincode.ts";
 import { corsHeadersFor } from "../_shared/cors.ts";
 
 interface RequestBody {
@@ -96,7 +96,7 @@ serve(async (req) => {
     if (listingIds.length > 0) {
       const { data: listings, error: listingsErr } = await supabase
         .from("listings")
-        .select("id, is_sold, status, pickup_state")
+        .select("id, is_sold, status, pickup_state, pickup_state_code")
         .in("id", listingIds);
       if (listingsErr) throw listingsErr;
       const unavailable = (listings ?? []).filter((l) => l.is_sold || l.status !== "approved");
@@ -107,47 +107,57 @@ serve(async (req) => {
         return json({ error: "One or more items in this order are no longer available" }, 409);
       }
 
-      // GST same-state rule. Interstate supply needs a GSTIN neither the
-      // seller nor the platform can currently issue, so an order whose
-      // delivery address is outside the seller's state must not be paid for.
+      // GST same-state rule, decided by the DELIVERY PINCODE.
       //
-      // Enforced here rather than only in the UI because this is the last
-      // point before money moves, and the browser's copy of the rule can be
-      // skipped by resuming a stale checkout or calling this function
-      // directly. The delivery address decides it - the place of supply is
-      // where the goods go, not what the buyer once picked in a dropdown.
+      // Place of supply for goods is where the movement terminates. The
+      // previous version compared the buyer's SELECTED state against the
+      // seller's, which a buyer defeats without trying: pick "Delhi", type a
+      // Gurgaon pincode, and Gurgaon is Haryana. One metro to a buyer, three
+      // states to GST. The dropdown is a claim; the pincode is the fact.
       //
-      // A listing with no pickup_state is refused rather than waved through.
-      // The earlier version skipped it, to avoid punishing rows that predated
-      // the column - but a NULL state cannot mismatch anything, so "skip" and
-      // "exempt from the rule entirely" were the same thing, and any listing
-      // created outside the listing form would have been freely sellable
-      // across state lines. That is precisely what this guard exists to stop.
-      // listings.pickup_state is now NOT NULL and restricted to the canonical
-      // 36 names (20260813000002), so reaching this branch means something is
-      // wrong, and refusing is the safe direction to be wrong in.
-      const stateById = new Map((listings ?? []).map((l) => [l.id, l.pickup_state]));
-      const missingState = orders.filter((o) => o.listing_id && !stateById.get(o.listing_id));
-      if (missingState.length > 0) {
-        return json({
-          error:
-            "We cannot confirm where this item ships from, so we cannot take payment for it yet. " +
-            "Nothing has been charged. Please contact us and we will sort it out.",
-        }, 409);
-      }
+      // Fails closed on every uncertainty - unreadable pincode, pincode
+      // outside the verified table, seller with no state on file. Declining a
+      // sale we could have made is recoverable; completing one we could not
+      // lawfully make is not.
+      const stateById = new Map((listings ?? []).map((l) => [l.id, l.pickup_state_code]));
+      const nameById = new Map((listings ?? []).map((l) => [l.id, l.pickup_state]));
 
-      const crossState = orders.filter((o) => {
-        const sellerState = stateById.get(o.listing_id);
-        const addr = o.shipping_address as { state?: string } | null;
-        return !sameState(addr?.state, sellerState);
-      });
-      if (crossState.length > 0) {
-        const sellerState = stateById.get(crossState[0].listing_id);
-        return json({
-          error:
-            `This item ships from ${sellerState} and can only be delivered within ${sellerState} right now. ` +
-            `Interstate orders need a GSTIN we are still setting up. Nothing has been charged.`,
-        }, 409);
+      for (const o of orders) {
+        const addr = o.shipping_address as { pincode?: string; state?: string } | null;
+        const sellerCode = stateById.get(o.listing_id) ?? null;
+        const sellerName = nameById.get(o.listing_id) ?? null;
+        const verdict = checkIntraState(addr?.pincode, sellerCode);
+        if (verdict.ok) continue;
+
+        // Logged before returning, so the cost of the restriction is
+        // measurable and the states worth recruiting in are the ones showing
+        // up here. Never allowed to fail the request.
+        try {
+          await supabase.from("blocked_checkouts").insert({
+            buyer_id: o.buyer_id,
+            listing_id: o.listing_id,
+            seller_id: o.seller_id,
+            attempted_pincode: addr?.pincode ?? null,
+            resolved_state_code: verdict.stateCode,
+            resolved_state_name: verdict.stateName,
+            seller_state_code: sellerCode,
+            seller_state_name: sellerName,
+            reason: verdict.reason,
+            item_value: o.total_amount,
+          });
+        } catch (logErr) {
+          console.error("create-razorpay-order: blocked_checkouts insert failed", logErr);
+        }
+
+        const message = verdict.reason === "different_state"
+          ? `This item ships from ${sellerName}, and your delivery pincode is in ${verdict.stateName}. ` +
+            `We can only deliver within ${sellerName} right now - interstate orders need a GSTIN we are still setting up. Nothing has been charged.`
+          : verdict.reason === "malformed"
+          ? "That delivery pincode does not look right. Check it and try again. Nothing has been charged."
+          : "We cannot confirm which state that pincode is in, so we cannot take payment for it yet. " +
+            "Nothing has been charged. Contact us and we will sort it out.";
+
+        return json({ error: message }, 409);
       }
     }
 

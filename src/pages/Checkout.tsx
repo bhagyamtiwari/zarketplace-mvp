@@ -16,8 +16,7 @@ import { CartItem, Listing } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { variantUrl } from '../lib/images';
 import { Loader2, ArrowLeft, ArrowRight, ShieldCheck, CheckCircle2, XCircle, Package, AlertTriangle, MapPin } from 'lucide-react';
-import { StateSelect } from '../components/StateSelect';
-import { sameState } from '../lib/states';
+import { resolvePincode, checkIntraState } from '../lib/pincode';
 import { useAuth } from '../lib/auth';
 import { useCart } from '../lib/cart';
 import { RequireAuth } from '../components/RequireAuth';
@@ -114,7 +113,7 @@ function CheckoutInner() {
   // Which state each item ships from, for the GST same-state rule. Fetched
   // rather than carried on the cart item, because a cart can sit for days and
   // the answer has to be the current one at the moment of paying.
-  const [sellerStates, setSellerStates] = React.useState<Record<string, string | null>>({});
+  const [sellerStates, setSellerStates] = React.useState<Record<string, { code: string | null; name: string | null }>>({});
   const itemIdKey = items.map((i) => i.listing_id).sort().join(',');
   React.useEffect(() => {
     const ids = itemIdKey ? itemIdKey.split(',') : [];
@@ -122,21 +121,14 @@ function CheckoutInner() {
     let cancelled = false;
     supabase
       .from('public_listings')
-      .select('id, pickup_state')
+      .select('id, pickup_state, pickup_state_code')
       .in('id', ids)
       .then(({ data }) => {
         if (cancelled || !data) return;
-        setSellerStates(Object.fromEntries(data.map((r) => [r.id, r.pickup_state])));
+        setSellerStates(Object.fromEntries(data.map((r) => [r.id, { code: r.pickup_state_code, name: r.pickup_state }])));
       });
     return () => { cancelled = true; };
   }, [itemIdKey]);
-
-  // Items this address cannot legally receive. A listing with no state on file
-  // is not blocked - see the matching rule in create-razorpay-order.
-  const blockedItems = items.filter((i) => {
-    const sellerState = sellerStates[i.listing_id];
-    return !!sellerState && !!shippingAddress.state && !sameState(shippingAddress.state, sellerState);
-  });
 
   const [step, setStep] = React.useState<Step>('address');
 
@@ -162,6 +154,19 @@ function CheckoutInner() {
   const [billingSameAsShipping, setBillingSameAsShipping] = React.useState(true);
   const [billingAddress, setBillingAddress] = React.useState({
     fullName: '', address: '', landmark: '', city: '', state: '', pincode: '',
+  });
+
+  // Which items this delivery address cannot legally receive, derived from the
+  // pincode and never from a dropdown - see src/lib/pincode.ts. The buyer is
+  // no longer asked for a state at all: one field cannot contradict itself,
+  // and that contradiction was the bug. Before the seller's state has loaded
+  // nothing is blocked here; the server refuses regardless, so the UI erring
+  // toward "not yet known" costs a late message, not an illegal sale.
+  const deliveryResolved = resolvePincode(shippingAddress.pincode);
+  const blockedItems = items.filter((i) => {
+    const seller = sellerStates[i.listing_id];
+    if (!seller?.code) return false;
+    return shippingAddress.pincode.length === 6 && !checkIntraState(shippingAddress.pincode, seller.code).ok;
   });
 
   React.useEffect(() => {
@@ -231,22 +236,23 @@ function CheckoutInner() {
     if (!user) return;
     if (items.length === 0) { setErrorMsg('Your cart is empty.'); return; }
     if (blockedItems.length > 0) {
-      const st = sellerStates[blockedItems[0].listing_id];
+      const seller = sellerStates[blockedItems[0].listing_id];
       setErrorMsg(
-        `"${blockedItems[0].title}" ships from ${st} and can only be delivered within ${st} right now. `
-        + 'Remove it, or use a delivery address in that state.',
+        deliveryResolved.stateName
+          ? `"${blockedItems[0].title}" ships from ${seller?.name}, and pincode ${shippingAddress.pincode} is in ${deliveryResolved.stateName}. Use a delivery address in ${seller?.name}, or remove the item.`
+          : `We cannot confirm which state pincode ${shippingAddress.pincode} is in, so we cannot take payment for it yet. Contact us and we will sort it out.`,
       );
       return;
     }
     const required: Array<[string, string]> = [
       ['fullName', shippingAddress.fullName], ['email', shippingAddress.email],
       ['phone', shippingAddress.phone], ['address', shippingAddress.address],
-      ['city', shippingAddress.city], ['state', shippingAddress.state], ['pincode', shippingAddress.pincode],
+      ['city', shippingAddress.city], ['pincode', shippingAddress.pincode],
     ];
     if (!billingSameAsShipping) {
       required.push(
         ['billing fullName', billingAddress.fullName], ['billing address', billingAddress.address],
-        ['billing city', billingAddress.city], ['billing state', billingAddress.state], ['billing pincode', billingAddress.pincode],
+        ['billing city', billingAddress.city], ['billing pincode', billingAddress.pincode],
       );
     }
     const missing = required.filter(([, v]) => !v?.trim()).map(([k]) => k);
@@ -287,8 +293,24 @@ function CheckoutInner() {
           // base listing; the client never carries seller PII.
           seller_email: null,
           seller_upi_vpa_snapshot: null,
-          shipping_address: shippingAddress as unknown as Record<string, string>,
-          billing_address: billingToSave as unknown as Record<string, string>,
+          // The state written here is the one DERIVED from the pincode, not
+          // one the buyer typed - so the address that reaches the courier,
+          // the invoice and the emails agrees with the place of supply the
+          // rule was decided on.
+          shipping_address: {
+            ...shippingAddress,
+            state: deliveryResolved.stateName ?? '',
+          } as unknown as Record<string, string>,
+          billing_address: {
+            ...billingToSave,
+            state: resolvePincode((billingToSave as { pincode?: string }).pincode).stateName
+              ?? deliveryResolved.stateName ?? '',
+          } as unknown as Record<string, string>,
+          // Snapshots, so a historical order stays readable after a seller
+          // moves or a pincode table is widened.
+          buyer_delivery_pincode: shippingAddress.pincode,
+          buyer_delivery_state_code: deliveryResolved.stateCode,
+          seller_state_code: sellerStates[i.listing_id]?.code ?? null,
           amount: itemPrice,
           shipping_cost: itemShip,
           total_amount: itemPrice + itemShip,
@@ -581,7 +603,9 @@ function CheckoutInner() {
               billingAddr={billingAddress} onBillingChange={setBillingAddress}
               onSubmit={submitAddress} submitting={submitting} errorMsg={errorMsg}
               blockedNote={blockedItems.length > 0
-                ? `${blockedItems.length === 1 ? `"${blockedItems[0].title}" ships` : `${blockedItems.length} items ship`} from ${sellerStates[blockedItems[0].listing_id]}, so this address cannot receive ${blockedItems.length === 1 ? 'it' : 'them'} yet. Interstate delivery needs a GSTIN we are still setting up.`
+                ? (deliveryResolved.stateName
+                    ? `Pincode ${shippingAddress.pincode} is in ${deliveryResolved.stateName}, and this ${blockedItems.length === 1 ? 'item ships' : 'order ships'} from ${sellerStates[blockedItems[0].listing_id]?.name}. We can only deliver within ${sellerStates[blockedItems[0].listing_id]?.name} while we complete GST compliance setup.`
+                    : `We cannot place pincode ${shippingAddress.pincode} yet, so we cannot take payment for this order. Contact us and we will sort it out.`)
                 : null}
             />
           </div>
@@ -699,18 +723,19 @@ function AddressStep({
           <Field label="Landmark (Optional)" value={addr.landmark} onChange={(v) => onChange({ ...addr, landmark: v })} placeholder="(near Gate No. 4)" />
         </div>
         <Field label="City" value={addr.city} onChange={(v) => onChange({ ...addr, city: v })} placeholder="Mumbai" />
-        {/* A dropdown, not free text: this value is compared against the
-            seller's state to decide whether the order is legal to accept, and
-            the old text box already put "Delhi " with a trailing space into a
-            real order. */}
+        {/* Derived from the pincode, never asked. A buyer picking "Delhi" and
+            typing a Gurgaon pincode is not a contradiction they can be
+            expected to notice - Gurgaon is Haryana, and one metro is three
+            states to GST. Removing the question removes the contradiction. */}
         <div className="flex flex-col gap-3">
           <label className="text-[10px] font-black uppercase tracking-widest text-black/40">State</label>
-          <StateSelect
-            value={addr.state}
-            onChange={(v) => onChange({ ...addr, state: v ?? '' })}
-            placeholder="Select your state"
-            className="border-b border-black/10 bg-transparent py-4 text-sm font-bold focus:border-black focus:outline-none"
-          />
+          <div className="border-b border-black/10 py-4 text-sm font-bold">
+            {addr.pincode.length === 6
+              ? (resolvePincode(addr.pincode).stateName ?? (
+                  <span className="text-red-600">We cannot place this pincode yet</span>
+                ))
+              : <span className="text-black/25">From your pincode</span>}
+          </div>
         </div>
       </div>
 
@@ -737,12 +762,11 @@ function AddressStep({
             <Field label="City" value={billingAddr.city} onChange={(v) => onBillingChange({ ...billingAddr, city: v })} placeholder="Mumbai" />
             <div className="flex flex-col gap-3">
               <label className="text-[10px] font-black uppercase tracking-widest text-black/40">State</label>
-              <StateSelect
-                value={billingAddr.state}
-                onChange={(v) => onBillingChange({ ...billingAddr, state: v ?? '' })}
-                placeholder="Select your state"
-                className="border-b border-black/10 bg-transparent py-4 text-sm font-bold focus:border-black focus:outline-none"
-              />
+              <div className="border-b border-black/10 py-4 text-sm font-bold">
+                {billingAddr.pincode.length === 6
+                  ? (resolvePincode(billingAddr.pincode).stateName ?? <span className="text-black/40">Unrecognised pincode</span>)
+                  : <span className="text-black/25">From your pincode</span>}
+              </div>
             </div>
             <div className="md:col-span-2">
               <Field label="Address" value={billingAddr.address} onChange={(v) => onBillingChange({ ...billingAddr, address: v })} placeholder="House No, Street, Area" />
