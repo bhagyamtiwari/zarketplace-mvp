@@ -117,13 +117,27 @@ serve(async (req) => {
       // directly. The delivery address decides it - the place of supply is
       // where the goods go, not what the buyer once picked in a dropdown.
       //
-      // A listing with no pickup_state recorded is left alone rather than
-      // blocked: those predate the field, and refusing to sell them would
-      // turn a data gap into lost orders. Every current listing has one.
+      // A listing with no pickup_state is refused rather than waved through.
+      // The earlier version skipped it, to avoid punishing rows that predated
+      // the column - but a NULL state cannot mismatch anything, so "skip" and
+      // "exempt from the rule entirely" were the same thing, and any listing
+      // created outside the listing form would have been freely sellable
+      // across state lines. That is precisely what this guard exists to stop.
+      // listings.pickup_state is now NOT NULL and restricted to the canonical
+      // 36 names (20260813000002), so reaching this branch means something is
+      // wrong, and refusing is the safe direction to be wrong in.
       const stateById = new Map((listings ?? []).map((l) => [l.id, l.pickup_state]));
+      const missingState = orders.filter((o) => o.listing_id && !stateById.get(o.listing_id));
+      if (missingState.length > 0) {
+        return json({
+          error:
+            "We cannot confirm where this item ships from, so we cannot take payment for it yet. " +
+            "Nothing has been charged. Please contact us and we will sort it out.",
+        }, 409);
+      }
+
       const crossState = orders.filter((o) => {
         const sellerState = stateById.get(o.listing_id);
-        if (!sellerState) return false;
         const addr = o.shipping_address as { state?: string } | null;
         return !sameState(addr?.state, sellerState);
       });
