@@ -27,6 +27,10 @@ export interface Listing {
   // Seller-funded free shipping: buyer pays no shipping line, and the real
   // courier cost is deducted from the seller's payout at delivery instead.
   free_shipping: boolean;
+  /** State the item ships from. Decides who may buy it while interstate
+      sale is blocked on GST compliance. Null on rows created before the
+      listing form asked for it. */
+  pickup_state?: string | null;
   pickup_address?: Record<string, string> | null;
   has_flaws: boolean;
   flaws_description: string | null;

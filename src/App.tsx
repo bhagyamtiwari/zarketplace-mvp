@@ -12,6 +12,7 @@ import { ScrollToTop } from './components/ScrollToTop';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { CookieConsent } from './components/CookieConsent';
 import { PhoneCapturePrompt } from './components/PhoneCapturePrompt';
+import { StatePrompt } from './components/StatePrompt';
 import { useConsent } from './lib/cookieConsent';
 import { initAnalytics, trackPageview } from './lib/analytics';
 
@@ -140,6 +141,9 @@ export default function App() {
             in practice means Google signups. Phone becomes the login identity
             once OTP lands, so the gap has to close before then. */}
         <PhoneCapturePrompt />
+        {/* Asked once per device, before sign-up: the GST state rule has to be
+            understandable to a first-time visitor who has no account. */}
+        <StatePrompt />
       </div>
       </CartProvider>
       </AuthProvider>

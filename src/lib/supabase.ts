@@ -42,3 +42,25 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true,
   },
 });
+
+// A second client that never has a session, for public catalogue reads.
+//
+// Every query on the client above first awaits getSession() to decide which
+// token to send. When that stalls - an expired refresh token, a slow auth
+// endpoint, an extension interfering - the query never fires and the feed
+// spins forever, which is exactly the "listings are loading, I have to
+// refresh" symptom. The AuthProvider's 4s timeout only unblocks the UI flag;
+// it cannot unblock a query already waiting inside supabase-js.
+//
+// With persistSession off and no session ever established, there is nothing to
+// read or refresh, so this client sends the anon key immediately. Safe because
+// public_listings is a definer view carrying only buyer-safe columns: a user
+// token would grant it nothing extra.
+export const supabasePublic = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    lock: async (_name, _acquireTimeout, fn) => fn(),
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false,
+  },
+});

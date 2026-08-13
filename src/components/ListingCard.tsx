@@ -1,10 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, Truck } from 'lucide-react';
+import { Heart, Truck, MapPin } from 'lucide-react';
 import { Listing } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import { variantUrl, variantSrcSet } from '../lib/images';
 import { toggleFavorite, useFavorites } from '../lib/favorites';
+import { useBuyerState } from '../lib/buyerState';
+import { sameState } from '../lib/states';
 
 interface ListingCardProps {
   listing: Listing;
@@ -21,6 +23,14 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing, priority = fa
   const favorites = useFavorites();
   const favorited = favorites.has(listing.id);
   const sold = !!listing.is_sold;
+
+  // Interstate sale is blocked until GST compliance is done, so a card has to
+  // say whether this item is actually buyable from where the visitor is. Only
+  // ever a note, never a hidden card: a buyer who cannot check out today still
+  // deserves to see that the marketplace has what they want.
+  const [buyerState] = useBuyerState();
+  const shipsFrom = listing.pickup_state ?? null;
+  const outOfState = !!buyerState && !!shipsFrom && !sameState(buyerState, shipsFrom);
 
   const onHeart = (e: React.MouseEvent) => {
     // The whole card is a link; hearting must not navigate.
@@ -88,6 +98,11 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing, priority = fa
           {listing.free_shipping && !sold && (
             <span className="flex items-center gap-1 bg-white/90 px-2.5 py-1 text-[9px] font-black text-black uppercase tracking-[0.15em]">
               <Truck className="h-3 w-3" /> Free ship
+            </span>
+          )}
+          {outOfState && !sold && (
+            <span className="flex items-center gap-1 bg-amber-100 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.15em] text-amber-900">
+              <MapPin className="h-3 w-3" /> Ships from {shipsFrom}
             </span>
           )}
         </div>

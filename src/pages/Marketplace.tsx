@@ -6,12 +6,15 @@
 import React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Search, SlidersHorizontal, X, Plus, Loader2, Heart, ChevronDown, ShieldCheck, PackageCheck, Tag, ArrowRight } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabasePublic } from '../lib/supabase';
 import { Listing } from '../types';
 import { ListingCard } from '../components/ListingCard';
 import { EmptyState } from '../components/EmptyState';
 import { CampaignBand } from '../components/CampaignBand';
 import { PromiseBanner } from '../components/PromiseBanner';
+import { DeliverToPicker } from '../components/DeliverToPicker';
+import { useBuyerState } from '../lib/buyerState';
+import { sameState } from '../lib/states';
 import { cn } from '../lib/utils';
 import { log } from '../lib/log';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
@@ -109,6 +112,12 @@ export function Marketplace() {
   const quick = searchParams.get('q');
   const searchQuery = searchParams.get('search') ?? '';
   const sortBy = searchParams.get('sort') || 'newest';
+  // Opt-in, never the default. Defaulting this on would show an empty feed to
+  // everyone outside Delhi, where all current stock is, and an empty grid
+  // cannot distinguish "nothing near you" from "nothing here".
+  const inStateOnly = searchParams.get('instate') === '1';
+
+  const [buyerState] = useBuyerState();
 
   const [listings, setListings] = React.useState<Listing[]>([]);
   const [total, setTotal] = React.useState<number | null>(null);
@@ -128,7 +137,7 @@ export function Marketplace() {
   const favoritesRef = React.useRef(favorites);
   favoritesRef.current = favorites;
 
-  const filterKey = [category, gender, sizeType, condition, quick, searchQuery, sortBy].join('|');
+  const filterKey = [category, gender, sizeType, condition, quick, searchQuery, sortBy, inStateOnly ? buyerState ?? '' : ''].join('|');
 
   // Any filter change starts a fresh feed rather than appending to the old one.
   React.useEffect(() => { setPage(0); }, [filterKey]);
@@ -140,7 +149,7 @@ export function Marketplace() {
 
     async function fetchPage() {
       try {
-        let query = supabase
+        let query = supabasePublic
           .from('public_listings')
           .select('*', page === 0 ? { count: 'exact' } : {})
           .eq('status', 'approved')
@@ -160,6 +169,7 @@ export function Marketplace() {
         if (gender) query = query.eq('gender', gender);
         if (sizeType) query = query.eq('size_type', sizeType);
         if (condition) query = query.eq('condition', condition);
+        if (inStateOnly && buyerState) query = query.eq('pickup_state', buyerState);
 
         if (quick === 'new_today') {
           const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -191,7 +201,15 @@ export function Marketplace() {
         }
 
         const from = page * PAGE_SIZE;
-        const { data, error, count } = await query.range(from, from + PAGE_SIZE - 1);
+        // Hard ceiling on the request. A feed that spins forever is worse than
+        // one that says it failed and offers Retry: the spinner gives the
+        // visitor nothing to do, so they leave or reload blind.
+        const { data, error, count } = await Promise.race([
+          query.range(from, from + PAGE_SIZE - 1),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('Listings request timed out')), 12000),
+          ),
+        ]);
         if (cancelled) return;
         t.end({ count: data?.length, error });
         if (error) throw error;
@@ -322,6 +340,16 @@ export function Marketplace() {
                 changes what the grid shows lives on one line. */}
             <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 py-2 -my-2 lg:mx-0 lg:px-0 lg:justify-end">
               <SortChip value={sortBy} onChange={(v) => setParam('sort', v === 'newest' ? null : v)} />
+              {/* Only offered once we know where the buyer is - "in my state"
+                  is meaningless until they have told us which state that is. */}
+              {buyerState && (
+                <Chip
+                  active={inStateOnly}
+                  onClick={() => setParam('instate', inStateOnly ? null : '1')}
+                >
+                  Buy now in {buyerState}
+                </Chip>
+              )}
               {QUICK_CHIPS.map((c) => (
                 <Chip key={c.value} active={quick === c.value} onClick={() => toggleParam('q', c.value)} tag={c.tag}>
                   {c.label}
@@ -355,6 +383,9 @@ export function Marketplace() {
           {/* The rail still pins, now under the navbar rather than under a
               control deck that no longer stays. */}
           <div className="sticky top-24 flex flex-col gap-2 pb-10">
+            {/* First control in the rail, above category: where you are
+                decides what you can buy, so it outranks what it looks like. */}
+            <DeliverToPicker />
             {/* Category and condition are how people actually narrow a resale
                 feed. Size is the long list, so it stays folded until asked for
                 rather than filling the rail with eighteen dead options. */}
@@ -497,6 +528,8 @@ export function Marketplace() {
                 <X className="h-5 w-5" />
               </button>
             </div>
+
+            <DeliverToPicker compact />
 
             <SheetGroup title="Category">
               <SheetChip active={!category} onClick={() => selectCategory(null)}>All</SheetChip>
