@@ -992,9 +992,9 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
             className="border-b border-black/10 bg-transparent py-4 text-sm font-bold focus:border-black focus:outline-none transition-all"
           />
           <TrustNote>
-            Where the courier collects this item. While we complete our GST setup, only
-            buyers in this state can check out on your listing. We remember it for your
-            next listing.
+            Where the courier collects this item. While we complete GST compliance
+            setup, only buyers in this state can check out on your listing. We remember
+            it for your next listing.
           </TrustNote>
         </div>
         {shippingCategories.length === 0 ? (

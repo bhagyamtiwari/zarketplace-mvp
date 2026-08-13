@@ -222,9 +222,9 @@ export function PayoutDetailsForm({ onSaved, onCancel }: { onSaved: () => void; 
           <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-700" />
           <p className="text-[11px] font-bold uppercase tracking-widest leading-[1.8] text-amber-900">
             The state you enter decides who can buy from you. While we complete
-            our GST setup, only buyers in this same state can check out on your
-            listings. Selling to another state needs a GSTIN, which we are
-            working on.
+            GST compliance setup, only buyers in this same state can check out
+            on your listings. Selling to another state needs a GSTIN, which we
+            are working on with specific sellers.
           </p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-8">
