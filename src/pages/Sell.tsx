@@ -1027,6 +1027,23 @@ function ReviewStep({
 
   return (
     <div className="flex flex-col gap-10">
+      {/* Interstate sale under GST needs a GSTIN, which most individual sellers
+          do not have. Until that is sorted, a sale is only valid when the
+          buyer and the seller are in the same state. The seller has to know
+          that before publishing, not after an order fails to arrive, so it
+          sits on Review rather than in a policy page. The pickup address that
+          sets the state is collected at first sale in PayoutDetailsForm, which
+          carries the matching notice. */}
+      <div className="flex gap-3 border border-amber-500/40 bg-amber-50 px-5 py-4">
+        <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-700" />
+        <p className="text-[11px] font-bold uppercase tracking-widest leading-[1.8] text-amber-900">
+          Buyers in your state only, for now. While we complete our GST setup,
+          only buyers in the same state as your pickup address can check out on
+          this listing. Selling to another state needs a GSTIN, which we are
+          working on. Your price and payout are unaffected.
+        </p>
+      </div>
+
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
           <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Review</h3>
