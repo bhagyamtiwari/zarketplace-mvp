@@ -27,6 +27,7 @@ import { scrollToTop } from '../lib/scrollToTop';
 import { encodeVariants, encodeSocialCard, SOCIAL_CARD_SUFFIX } from '../lib/images';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
 import { normalizeState } from '../lib/states';
+import { resolvePincode } from '../lib/pincode';
 import { StateSelect } from '../components/StateSelect';
 import { cn, formatCurrency } from '../lib/utils';
 
@@ -103,6 +104,18 @@ const SHIPPING_CHOICES: Array<{
   },
 ];
 
+// The shipping category is derivable from the item category the seller has
+// already chosen, so asking again is asking the same question twice in
+// different words. Applied as a default the seller can still override, since
+// a heavy knit top genuinely does post like outerwear.
+const CATEGORY_TO_SHIPPING: Record<string, string> = {
+  Tops: 'tops',
+  Bottoms: 'bottoms',
+  Outerwear: 'outerwear',
+  Accessories: 'accessories',
+  Shoes: 'footwear',
+};
+
 const MAX_IMAGES = 8;
 
 const STEP_LABELS = ['Photos', 'Details', 'Condition', 'Price', 'Review'];
@@ -168,6 +181,15 @@ function SellInner() {
   // 'platform' = our courier (free_shipping above decides who pays for it),
   // 'self_ship' = the seller's own courier.
   const [shippingMode, setShippingMode] = React.useState<ShippingMode>('platform');
+  // Set once the seller picks a shipping category themselves, so a later
+  // category change stops overwriting their deliberate choice.
+  const shippingCategoryTouched = React.useRef(false);
+  // PriceStep is a separate component, so the override flag is set here and
+  // handed down as the setter rather than reaching into a ref from outside.
+  const pickShippingCategory = React.useCallback((key: string) => {
+    shippingCategoryTouched.current = true;
+    setShippingCategory(key);
+  }, []);
 
   // The state this item ships from. Asked here rather than inherited from the
   // pickup address, because that address is only collected at the seller's
@@ -175,6 +197,10 @@ function SellInner() {
   // cannot be shown to the right buyers at all. Sticky across listings: it is
   // an account fact, not an item fact, so resetForm deliberately leaves it.
   const [pickupState, setPickupState] = React.useState('');
+  // The pincode is the supply origin that actually counts. The state below is
+  // kept for display and for the seller to sanity-check what they typed - if
+  // the two disagree, the pincode is what any rule reads.
+  const [pickupPincode, setPickupPincode] = React.useState('');
 
   const [authenticity, setAuthenticity] = React.useState<'confirmed' | 'unsure' | null>(null);
   const [declarations, setDeclarations] = React.useState<Declarations>({
@@ -194,7 +220,7 @@ function SellInner() {
     if (!user || prefilledFromLast.current) return;
     supabase
       .from('listings')
-      .select('gender, category, shipping_category, pickup_state')
+      .select('gender, category, shipping_category, pickup_state, pickup_pincode')
       .eq('seller_id', user.id)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -210,23 +236,27 @@ function SellInner() {
         // fall through to an empty select rather than a wrong pre-selection.
         const lastState = normalizeState(data.pickup_state);
         if (lastState) setPickupState((prev) => prev || lastState);
+        if (data.pickup_pincode) setPickupPincode((prev) => prev || data.pickup_pincode);
       });
   }, [user]);
 
   // The saved pickup address wins over the last listing when both exist: it is
   // the address a courier will actually collect from.
   React.useEffect(() => {
-    const saved = normalizeState((profile?.pickup_address as { state?: string } | null)?.state);
+    const addr = profile?.pickup_address as { state?: string; pincode?: string } | null;
+    const saved = normalizeState(addr?.state);
     if (saved) setPickupState((prev) => prev || saved);
+    if (addr?.pincode) setPickupPincode((prev) => prev || addr.pincode!);
   }, [profile]);
 
-  // Default the shipping category to the first option once loaded, unless
-  // the previous-listing prefill above already set one.
+  // Follow the item category. Falls back to the first option only when the
+  // item category maps to nothing, which no current category does.
   React.useEffect(() => {
-    if (shippingCategories.length > 0) {
-      setShippingCategory((prev) => prev || shippingCategories[0].key);
-    }
-  }, [shippingCategories]);
+    if (shippingCategories.length === 0) return;
+    if (shippingCategoryTouched.current) return;
+    const derived = CATEGORY_TO_SHIPPING[selectedCategory];
+    setShippingCategory((prev) => derived ?? prev ?? shippingCategories[0].key);
+  }, [shippingCategories, selectedCategory]);
 
   // priceVal is now what the buyer actually pays, and salePriceVal is the
   // optional higher "was" price shown struck through. The old arrangement had
@@ -310,6 +340,16 @@ function SellInner() {
       if (salePriceInvalid) return 'The "was" price has to be higher than your price, or buyers see a discount that is not one.';
       if (shippingMode === 'platform' && !shippingCategory) return 'Choose a shipping category.';
       if (!pickupState) return 'Select the state you ship from.';
+      if (!/^[1-9][0-9]{5}$/.test(pickupPincode)) return 'Enter the 6-digit pincode you post from.';
+      {
+        const resolved = resolvePincode(pickupPincode);
+        if (!resolved.stateCode) {
+          return 'We cannot place that pincode yet. Check it, or contact us and we will add it.';
+        }
+        if (resolved.stateName !== pickupState) {
+          return `Pincode ${pickupPincode} is in ${resolved.stateName}, not ${pickupState}. Fix whichever is wrong.`;
+        }
+      }
       // Only bites when the seller is absorbing the courier cost. With
       // buyer-paid shipping a low price is fine, the seller keeps all of it.
       // Mirrors the server rule listings_require_positive_payout, which is what
@@ -424,6 +464,8 @@ function SellInner() {
         // have already listed, and the buyer-facing view can only filter on a
         // column it actually has.
         pickup_state: pickupState,
+        pickup_pincode: pickupPincode,
+        pickup_state_code: resolvePincode(pickupPincode).stateCode,
         shipping_category: shippingCategory,
         free_shipping: freeShipping,
         has_flaws: !!hasFlaws,
@@ -524,27 +566,39 @@ function SellInner() {
         {/* Progress. Every step is reachable directly and only Publish is gated,
             so the names carry a tick once their step validates: seeing what is
             already done is what makes the flow feel shorter. */}
+        {/* One grid, so each label sits under its own segment instead of the
+            two rows drifting apart. The percentage is gone: "Step 4 of 5"
+            alongside "75%" was two counts of the same thing that disagreed,
+            because the bar measured gaps between steps while the text counted
+            steps. The step name carries the answer on a phone, where five
+            labels cannot fit across 375px, and the labels appear from sm up. */}
         <div className="mb-10 flex flex-col gap-3">
-          <div className="flex items-center justify-between text-[11px] font-black uppercase tracking-[0.2em] text-black/40">
-            <span>Step {step + 1} of {STEP_LABELS.length}</span>
-            <span>{Math.round((step / (STEP_LABELS.length - 1)) * 100)}%</span>
+          <div className="flex items-baseline justify-between text-[11px] font-black uppercase tracking-[0.2em]">
+            <span className="text-black/40">Step {step + 1} of {STEP_LABELS.length}</span>
+            <span className="text-black sm:hidden">{STEP_LABELS[step]}</span>
           </div>
-          <div className="flex gap-1.5">
-            {STEP_LABELS.map((label, i) => (
-              <div key={label} className={cn('h-1.5 flex-1 rounded-full transition-colors',
-                i === step ? 'bg-black' : stepComplete(i) ? 'bg-black/40' : 'bg-black/10')} />
-            ))}
-          </div>
-          <div className="flex flex-wrap gap-x-4 gap-y-1">
+
+          <div className="grid grid-cols-5 gap-1.5">
             {STEP_LABELS.map((label, i) => {
               const complete = stepComplete(i);
               return (
-                <button key={label} type="button" onClick={() => goToStep(i)}
-                  className={cn('flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] transition-colors',
-                    i === step ? 'text-black' : complete ? 'text-black/50 hover:text-black' : 'text-black/25 hover:text-black/50')}
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => goToStep(i)}
+                  aria-current={i === step ? 'step' : undefined}
+                  aria-label={`Step ${i + 1}, ${label}${complete ? ', done' : ''}`}
+                  className="group flex flex-col gap-2 text-left"
                 >
-                  {label}
-                  {complete && <Check className="h-3 w-3" strokeWidth={3} />}
+                  <span className={cn('h-1.5 w-full rounded-full transition-colors',
+                    i === step ? 'bg-black' : complete ? 'bg-black/40' : 'bg-black/10')} />
+                  <span className={cn(
+                    'hidden sm:flex items-center gap-1 text-[10px] font-black uppercase tracking-[0.12em] transition-colors',
+                    i === step ? 'text-black' : complete ? 'text-black/50 group-hover:text-black' : 'text-black/25 group-hover:text-black/50',
+                  )}>
+                    <span className="truncate">{label}</span>
+                    {complete && <Check className="h-3 w-3 shrink-0" strokeWidth={3} />}
+                  </span>
                 </button>
               );
             })}
@@ -599,9 +653,10 @@ function SellInner() {
                 salePriceVal={salePriceVal} setSalePriceVal={setSalePriceVal}
                 salePriceInvalid={salePriceInvalid}
                 shippingCategories={shippingCategories}
-                shippingCategory={shippingCategory} setShippingCategory={setShippingCategory}
+                shippingCategory={shippingCategory} setShippingCategory={pickShippingCategory}
                 freeShipping={freeShipping} setFreeShipping={setFreeShipping}
                 pickupState={pickupState} setPickupState={setPickupState}
+                pickupPincode={pickupPincode} setPickupPincode={setPickupPincode}
                 shippingMode={shippingMode} setShippingMode={setShippingMode}
               />
             )}
@@ -968,7 +1023,7 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
   );
 }
 
-function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, salePriceVal, setSalePriceVal, salePriceInvalid, shippingCategories, shippingCategory, setShippingCategory, freeShipping, setFreeShipping, pickupState, setPickupState, shippingMode, setShippingMode }: {
+function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, salePriceVal, setSalePriceVal, salePriceInvalid, shippingCategories, shippingCategory, setShippingCategory, freeShipping, setFreeShipping, pickupState, setPickupState, pickupPincode, setPickupPincode, shippingMode, setShippingMode }: {
   priceVal: string; setPriceVal: (v: string) => void;
   showSalePrice: boolean; setShowSalePrice: (v: boolean) => void;
   salePriceVal: string; setSalePriceVal: (v: string) => void;
@@ -977,9 +1032,21 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
   shippingCategory: string; setShippingCategory: (v: string) => void;
   freeShipping: boolean; setFreeShipping: (v: boolean) => void;
   pickupState: string; setPickupState: (v: string) => void;
+  pickupPincode: string; setPickupPincode: (v: string) => void;
   shippingMode: ShippingMode; setShippingMode: (v: ShippingMode) => void;
 }) {
   const selectedRate = shippingCategories.find((c) => c.key === shippingCategory)?.rate ?? 0;
+  // Surfaced while the number is still under the cursor rather than at
+  // Continue, since a mistyped pincode is easiest to fix the second it is made.
+  const pincodeConflict = (() => {
+    if (pickupPincode.length !== 6) return null;
+    const r = resolvePincode(pickupPincode);
+    if (!r.stateCode) return 'We cannot place that pincode yet. Check it, or contact us and we will add it.';
+    if (pickupState && r.stateName !== pickupState) {
+      return `That pincode is in ${r.stateName}, not ${pickupState}.`;
+    }
+    return null;
+  })();
   // The number a buyer would actually pay: the sale price when one is set.
   const effectivePrice = Number(priceVal);
   const belowFloor = freeShipping && selectedRate > 0 && effectivePrice > 0 && effectivePrice <= selectedRate;
@@ -1066,6 +1133,31 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
             setup, only buyers in this state can check out on your listing. We remember
             it for your next listing.
           </TrustNote>
+
+          {/* The pincode, not the state, is what the rule reads at checkout.
+              A buyer's state dropdown can say Delhi while their pincode is in
+              Gurgaon, which is Haryana - so both ends are pinned to a pincode
+              and the two are cross-checked here rather than at the till. */}
+          <div className="flex flex-col gap-3 pt-2">
+            <FieldLabel>Pickup pincode *</FieldLabel>
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={6}
+              value={pickupPincode}
+              onChange={(e) => setPickupPincode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="110085"
+              className={cn(
+                'border-b py-4 text-sm font-bold focus:outline-none transition-all placeholder:text-black/20',
+                pincodeConflict ? 'border-red-500 focus:border-red-600' : 'border-black/10 focus:border-black',
+              )}
+            />
+            {pincodeConflict && (
+              <p className="text-[11px] font-bold uppercase tracking-widest text-red-600 leading-relaxed">
+                {pincodeConflict}
+              </p>
+            )}
+          </div>
         </div>
         {shippingCategories.length === 0 ? (
           <p className="text-xs font-bold uppercase tracking-widest text-black/30">Loading categories…</p>
