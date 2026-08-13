@@ -67,6 +67,42 @@ function findBannedPhrase(text: string): string | null {
   return BANNED_PHRASES.find((p) => lower.includes(p)) ?? null;
 }
 
+// The three ways an item can reach a buyer. Two of them are our courier and
+// differ only in who absorbs the fee, so they stay one shipping_mode with
+// free_shipping deciding the payer; the third is the seller's own courier.
+type ShippingMode = 'platform' | 'self_ship';
+
+const SHIPPING_CHOICES: Array<{
+  key: string;
+  mode: ShippingMode;
+  free?: boolean;
+  label: string;
+  recommended?: boolean;
+  body: (rate: number) => string;
+}> = [
+  {
+    key: 'platform_free',
+    mode: 'platform',
+    free: true,
+    label: 'We ship it, you cover delivery',
+    recommended: true,
+    body: (rate) => `Items sell better when checkout says free. The ${formatCurrency(rate)} comes out of your payout instead.`,
+  },
+  {
+    key: 'platform_buyer',
+    mode: 'platform',
+    free: false,
+    label: 'We ship it, buyer pays delivery',
+    body: (rate) => `We book the courier and collect from your door. The buyer pays ${formatCurrency(rate)} at checkout and you keep your full price.`,
+  },
+  {
+    key: 'self_ship',
+    mode: 'self_ship',
+    label: 'You ship it yourself',
+    body: () => 'Use your own courier, exactly as you do now. You pay for it, you add the tracking link, and your payout takes longer.',
+  },
+];
+
 const MAX_IMAGES = 8;
 
 const STEP_LABELS = ['Photos', 'Details', 'Condition', 'Price', 'Review'];
@@ -129,6 +165,9 @@ function SellInner() {
   // total (see migration shipping_reprice_and_seller_free_shipping). Off by
   // default - it's a choice, not the default cost to the seller.
   const [freeShipping, setFreeShipping] = React.useState(false);
+  // 'platform' = our courier (free_shipping above decides who pays for it),
+  // 'self_ship' = the seller's own courier.
+  const [shippingMode, setShippingMode] = React.useState<ShippingMode>('platform');
 
   // The state this item ships from. Asked here rather than inherited from the
   // pickup address, because that address is only collected at the seller's
@@ -264,7 +303,7 @@ function SellInner() {
     if (s === 3) {
       if (!priceVal || Number(priceVal) <= 0) return 'Enter a price.';
       if (salePriceInvalid) return 'Sale price must be lower than the regular price.';
-      if (!shippingCategory) return 'Choose a shipping category.';
+      if (shippingMode === 'platform' && !shippingCategory) return 'Choose a shipping category.';
       if (!pickupState) return 'Select the state you ship from.';
       // Only bites when the seller is absorbing the courier cost. With
       // buyer-paid shipping a low price is fine, the seller keeps all of it.
@@ -554,6 +593,7 @@ function SellInner() {
                 shippingCategory={shippingCategory} setShippingCategory={setShippingCategory}
                 freeShipping={freeShipping} setFreeShipping={setFreeShipping}
                 pickupState={pickupState} setPickupState={setPickupState}
+                shippingMode={shippingMode} setShippingMode={setShippingMode}
               />
             )}
 
@@ -563,6 +603,7 @@ function SellInner() {
                 title={title} brand={brand} price={priceVal} salePrice={showSalePrice ? salePriceVal : ''}
                 condition={condition} hasFlaws={hasFlaws} flawsDescription={flawsDescription}
                 shippingCategory={shippingCategory} shippingCategories={shippingCategories}
+                shippingMode={shippingMode} freeShipping={freeShipping}
                 authenticity={authenticity} setAuthenticity={setAuthenticity}
                 declarations={declarations} setDeclarations={setDeclarations}
               />
@@ -912,7 +953,7 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
   );
 }
 
-function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, salePriceVal, setSalePriceVal, salePriceInvalid, shippingCategories, shippingCategory, setShippingCategory, freeShipping, setFreeShipping, pickupState, setPickupState }: {
+function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, salePriceVal, setSalePriceVal, salePriceInvalid, shippingCategories, shippingCategory, setShippingCategory, freeShipping, setFreeShipping, pickupState, setPickupState, shippingMode, setShippingMode }: {
   priceVal: string; setPriceVal: (v: string) => void;
   showSalePrice: boolean; setShowSalePrice: (v: boolean) => void;
   salePriceVal: string; setSalePriceVal: (v: string) => void;
@@ -921,6 +962,7 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
   shippingCategory: string; setShippingCategory: (v: string) => void;
   freeShipping: boolean; setFreeShipping: (v: boolean) => void;
   pickupState: string; setPickupState: (v: string) => void;
+  shippingMode: ShippingMode; setShippingMode: (v: ShippingMode) => void;
 }) {
   const selectedRate = shippingCategories.find((c) => c.key === shippingCategory)?.rate ?? 0;
   // The number a buyer would actually pay: the sale price when one is set.
@@ -1007,25 +1049,58 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
               Couriers weigh every parcel. If it's much heavier than the category, we may recover
               the difference from your payout, and we'll tell you first.
             </TrustNote>
-            <button type="button" onClick={() => setFreeShipping(!freeShipping)}
-              className={cn('border p-5 text-left transition-all flex items-start justify-between gap-4',
-                freeShipping ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
-              <div>
-                <span className="block text-xs font-black uppercase tracking-widest">
-                  Offer free shipping <span className={cn(freeShipping ? 'text-white/60' : 'text-black/40')}>(Recommended)</span>
-                </span>
-                <span className={cn('block text-[11px] font-bold uppercase tracking-widest leading-[1.8] mt-2 max-w-md', freeShipping ? 'text-white/80' : 'text-black/60')}>
-                  Items sell better when checkout says free. The {formatCurrency(selectedRate)} comes out of your payout instead.
-                </span>
-              </div>
-              <div className="relative inline-flex items-center shrink-0 mt-1">
-                <div className={cn('w-8 h-4 rounded-full relative transition-colors', freeShipping ? 'bg-white' : 'bg-zinc-200')}>
-                  <div className={cn('absolute top-[2px] h-3 w-3 rounded-full transition-all',
-                    freeShipping ? 'translate-x-[18px] bg-black' : 'translate-x-[2px] bg-white border border-gray-300')} />
-                </div>
-              </div>
-            </button>
+            {/* Three ways an item can reach a buyer, as three cards rather
+                than a toggle plus a hidden third path. Sellers who already
+                have a courier were previously unable to list at all. */}
+            <div className="flex flex-col gap-3">
+              {SHIPPING_CHOICES.map((choice) => {
+                const active = choice.mode === shippingMode
+                  && (choice.mode === 'self_ship' || choice.free === freeShipping);
+                return (
+                  <button
+                    key={choice.key}
+                    type="button"
+                    onClick={() => {
+                      setShippingMode(choice.mode);
+                      if (choice.mode === 'platform') setFreeShipping(!!choice.free);
+                      else setFreeShipping(false);
+                    }}
+                    className={cn('border p-5 text-left transition-all flex items-start justify-between gap-4',
+                      active ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}
+                  >
+                    <div>
+                      <span className="block text-xs font-black uppercase tracking-widest">
+                        {choice.label}
+                        {choice.recommended && (
+                          <span className={cn(active ? 'text-white/60' : 'text-black/40')}> (Recommended)</span>
+                        )}
+                      </span>
+                      <span className={cn('block text-[11px] font-bold uppercase tracking-widest leading-[1.8] mt-2 max-w-md',
+                        active ? 'text-white/80' : 'text-black/60')}>
+                        {choice.body(selectedRate)}
+                      </span>
+                    </div>
+                    <span className={cn('mt-1 h-4 w-4 shrink-0 rounded-full border-2',
+                      active ? 'border-white bg-white' : 'border-black/20')} />
+                  </button>
+                );
+              })}
+            </div>
 
+            {shippingMode === 'self_ship' && (
+              <div className="flex gap-3 border border-amber-500/40 bg-amber-50 px-5 py-4">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-700" />
+                <p className="text-[11px] font-bold uppercase tracking-widest leading-[1.8] text-amber-900">
+                  Shipping it yourself means you book the courier and pay for it, and you
+                  have to add the tracking link in your seller portal once it is sent. Your
+                  payout also takes longer than it would on our courier, because we only
+                  release it after delivery is confirmed and we are relying on your
+                  tracking to tell us.
+                </p>
+              </div>
+            )}
+
+            {shippingMode === 'platform' && (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {shippingCategories.map((c) => (
                 <button key={c.key} type="button" onClick={() => setShippingCategory(c.key)}
@@ -1038,6 +1113,7 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
                 </button>
               ))}
             </div>
+            )}
           </>
         )}
       </div>
@@ -1047,11 +1123,12 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
 
 function ReviewStep({
   imagePreviews, title, brand, price, salePrice, condition, hasFlaws, flawsDescription,
-  shippingCategory, shippingCategories, authenticity, setAuthenticity, declarations, setDeclarations,
+  shippingCategory, shippingCategories, shippingMode, freeShipping, authenticity, setAuthenticity, declarations, setDeclarations,
 }: {
   imagePreviews: string[]; title: string; brand: string; price: string; salePrice: string;
   condition: string; hasFlaws: boolean | null; flawsDescription: string;
   shippingCategory: string; shippingCategories: ShippingCategory[];
+  shippingMode: ShippingMode; freeShipping: boolean;
   authenticity: 'confirmed' | 'unsure' | null; setAuthenticity: (v: 'confirmed' | 'unsure') => void;
   declarations: Declarations;
   setDeclarations: React.Dispatch<React.SetStateAction<Declarations>>;
@@ -1117,9 +1194,15 @@ function ReviewStep({
             ) : (
               <span className="text-[11px] font-bold uppercase tracking-widest text-emerald-700">No flaws disclosed</span>
             )}
-            {shipRate && (
-              <span className="text-[11px] font-bold uppercase tracking-widest text-black/40">Shipping: {shipRate.label} ({formatCurrency(shipRate.rate)}, buyer pays)</span>
-            )}
+            {/* This line said "buyer pays" whatever the seller had chosen,
+                which was already wrong for seller-paid delivery. */}
+            <span className="text-[11px] font-bold uppercase tracking-widest text-black/40">
+              {shippingMode === 'self_ship'
+                ? 'Shipping: you send it with your own courier'
+                : shipRate
+                  ? `Shipping: ${shipRate.label} (${formatCurrency(shipRate.rate)}, ${freeShipping ? 'you cover it' : 'buyer pays'})`
+                  : 'Shipping: not set'}
+            </span>
           </div>
         </div>
       </div>

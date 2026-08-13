@@ -31,6 +31,8 @@ export interface Listing {
       sale is blocked on GST compliance. Null on rows created before the
       listing form asked for it. */
   pickup_state?: string | null;
+  /** 'platform' = we book the courier, 'self_ship' = the seller ships it. */
+  shipping_mode?: string | null;
   pickup_address?: Record<string, string> | null;
   has_flaws: boolean;
   flaws_description: string | null;
@@ -63,6 +65,8 @@ export interface CartItem {
   seller_display_name?: string | null;
   shipping_category?: string;
   free_shipping?: boolean;
+  /** 'platform' = our courier, 'self_ship' = the seller's own. */
+  shipping_mode?: string | null;
 }
 
 export type OrderStatus =

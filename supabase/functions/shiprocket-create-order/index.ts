@@ -121,6 +121,17 @@ serve(async (req) => {
     if (order.shiprocket_order_id) {
       return json({ error: "This order already has a Shiprocket booking", shiprocket_order_id: order.shiprocket_order_id }, 409);
     }
+    // Self-ship orders are never ours to book. The seller uses their own
+    // courier and the buyer was charged nothing for ours, so booking one here
+    // would send a pickup to a seller who has already posted the parcel and
+    // bill us for it. Refused here rather than at each caller because there
+    // are two - the payment webhook books automatically, and an admin can
+    // click Book Pickup - and only one of them would ever be remembered.
+    if (order.shipping_mode === "self_ship") {
+      return json({
+        error: "This is a self-ship order: the seller posts it with their own courier and adds the tracking themselves.",
+      }, 409);
+    }
 
     const pickup: Addr = (order.pickup_address as Addr) ?? {};
     const delivery: Addr = (order.shipping_address as Addr) ?? {};

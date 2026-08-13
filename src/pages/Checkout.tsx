@@ -202,7 +202,16 @@ function CheckoutInner() {
   React.useEffect(() => { getPricingConfig().then(setPricing); getShippingCategories().then(setShippingCategories); }, []);
 
   const subtotal = items.reduce((s, i) => s + (i.sale_price ?? i.price ?? 0), 0);
-  const shipping = items.reduce((s, i) => s + (i.free_shipping ? 0 : shippingRateFor(i.shipping_category, shippingCategories)), 0);
+  // Mirrors orders_snapshot_from_listing: self-ship and seller-paid delivery
+  // both cost the buyer nothing. Display only - the buyer is charged the
+  // server-computed total_amount - but a summary that disagrees with the
+  // charge is its own kind of broken.
+  const shippingFor = (i: CartItem) =>
+    i.shipping_mode === 'self_ship' || i.free_shipping
+      ? 0
+      : shippingRateFor(i.shipping_category, shippingCategories);
+  const shipping = items.reduce((s, i) => s + shippingFor(i), 0);
+  const anySelfShip = items.some((i) => i.shipping_mode === 'self_ship');
   const buyerProtection = items.reduce((s, i) => s + buyerProtectionFee(i.sale_price ?? i.price ?? 0, pricing), 0);
   const total = subtotal + shipping + buyerProtection;
 
@@ -262,7 +271,7 @@ function CheckoutInner() {
         // amount/shipping_cost/buyer_protection_fee/total_amount from the
         // live listing + pricing config on insert - these client values are
         // only a display-matching best guess, never trusted for the charge.
-        const itemShip = i.free_shipping ? 0 : shippingRateFor(i.shipping_category, shippingCategories);
+        const itemShip = shippingFor(i);
         return {
           listing_id: i.listing_id,
           listing_sku: i.sku ?? null,
@@ -577,7 +586,7 @@ function CheckoutInner() {
             />
           </div>
           <div className="lg:col-span-5">
-            <Summary items={items} subtotal={subtotal} shipping={shipping} shippingLoading={shippingCategories.length === 0} buyerProtection={buyerProtection} total={total} />
+            <Summary items={items} subtotal={subtotal} shipping={shipping} shippingLoading={shippingCategories.length === 0} buyerProtection={buyerProtection} total={total} selfShip={anySelfShip} />
           </div>
         </div>
       )}
@@ -588,7 +597,7 @@ function CheckoutInner() {
             items={items}
             subtotal={subtotal} shipping={shipping} shippingLoading={shippingCategories.length === 0} buyerProtection={buyerProtection} amount={total}
             reservationExpiresAt={reservationExpiresAt}
-            onPay={startPayment} submitting={submitting} errorMsg={errorMsg}
+            onPay={startPayment} submitting={submitting} errorMsg={errorMsg} selfShip={anySelfShip}
             onExpire={() => {
               clearResume();
               setOrderNumbers([]);
@@ -797,11 +806,11 @@ function formatCountdown(seconds: number) {
 }
 
 function RazorpayPayStep({
-  items, subtotal, shipping, shippingLoading, buyerProtection, amount, reservationExpiresAt, onPay, onExpire, submitting, errorMsg,
+  items, subtotal, shipping, shippingLoading, buyerProtection, amount, reservationExpiresAt, onPay, onExpire, submitting, errorMsg, selfShip,
 }: {
   items: CartItem[]; subtotal: number; shipping: number; shippingLoading: boolean; buyerProtection: number; amount: number;
   reservationExpiresAt: string | null; onPay: () => void;
-  onExpire?: () => void; submitting: boolean; errorMsg: string | null;
+  onExpire?: () => void; submitting: boolean; errorMsg: string | null; selfShip: boolean;
 }) {
   const secondsLeft = useCountdown(reservationExpiresAt, onExpire);
 
@@ -838,7 +847,16 @@ function RazorpayPayStep({
 
       <div className="flex flex-col gap-3 border-y border-black/10 py-6">
         <Row label="Item price" value={formatCurrency(subtotal)} />
-        <Row label="Shipping" value={shippingLoading ? 'Calculating...' : shipping === 0 ? 'Free' : formatCurrency(shipping)} />
+        <Row
+          label="Shipping"
+          value={shippingLoading
+            ? 'Calculating...'
+            // "Free" would be true but misleading here: the buyer pays nothing
+            // extra, and the seller is posting it themselves rather than us.
+            : selfShip ? 'Seller ships it'
+            : shipping === 0 ? 'Free'
+            : formatCurrency(shipping)}
+        />
         {buyerProtection > 0 && <Row label="Buyer Protection" value={formatCurrency(buyerProtection)} />}
       </div>
 
@@ -884,9 +902,9 @@ function RazorpayPayStep({
   );
 }
 
-function Summary({ items, subtotal, shipping, shippingLoading, buyerProtection, total, reservationExpiresAt }: {
+function Summary({ items, subtotal, shipping, shippingLoading, buyerProtection, total, reservationExpiresAt, selfShip }: {
   items: CartItem[]; subtotal: number; shipping: number; shippingLoading: boolean; buyerProtection: number; total: number;
-  reservationExpiresAt?: string | null;
+  reservationExpiresAt?: string | null; selfShip: boolean;
 }) {
   const secondsLeft = useCountdown(reservationExpiresAt ?? null);
   return (
@@ -920,7 +938,16 @@ function Summary({ items, subtotal, shipping, shippingLoading, buyerProtection, 
 
       <div className="flex flex-col gap-3 border-y border-black/5 py-6">
         <Row label="Item price" value={formatCurrency(subtotal)} />
-        <Row label="Shipping" value={shippingLoading ? 'Calculating...' : shipping === 0 ? 'Free' : formatCurrency(shipping)} />
+        <Row
+          label="Shipping"
+          value={shippingLoading
+            ? 'Calculating...'
+            // "Free" would be true but misleading here: the buyer pays nothing
+            // extra, and the seller is posting it themselves rather than us.
+            : selfShip ? 'Seller ships it'
+            : shipping === 0 ? 'Free'
+            : formatCurrency(shipping)}
+        />
         {buyerProtection > 0 && <Row label="Buyer Protection" value={formatCurrency(buyerProtection)} />}
       </div>
 

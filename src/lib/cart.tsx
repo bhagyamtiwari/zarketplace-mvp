@@ -29,6 +29,7 @@ type ListingLike = Pick<
   | 'seller_id'
   | 'shipping_category'
   | 'free_shipping'
+  | 'shipping_mode'
 >;
 
 interface CartContextValue {
@@ -60,6 +61,9 @@ function snapshot(l: ListingLike): CartItem {
     seller_id: l.seller_id,
     shipping_category: l.shipping_category,
     free_shipping: l.free_shipping,
+    // Carried so the checkout summary can zero the delivery line for a
+    // seller-shipped item without another round trip.
+    shipping_mode: l.shipping_mode ?? 'platform',
   };
 }
 
@@ -86,7 +90,7 @@ async function fetchListingsByIds(ids: string[]): Promise<Record<string, Listing
   if (ids.length === 0) return {};
   const { data, error } = await supabase
     .from('public_listings')
-    .select('id, sku, title, brand, price, sale_price, image_url, size, seller_id, shipping_category, free_shipping')
+    .select('id, sku, title, brand, price, sale_price, image_url, size, seller_id, shipping_category, free_shipping, shipping_mode')
     .in('id', ids);
   if (error) {
     clog.warn('fetchListingsByIds error', error);
