@@ -17,7 +17,12 @@
 // 307-redirects to www, so a hardcoded apex made every og:url and canonical
 // point at a redirect. Scrapers follow it, but it splits the signals for a
 // link that is meant to be the growth loop.
-const FALLBACK_IMAGE = 'https://www.zarketplace.com/images/wordmark-modified.png';
+// The hero photograph, letterboxed to 1200x630. Used when a listing somehow
+// has no usable photo, and matched to the sitewide card in index.html so a
+// shared link never previews as a bare logo. Already 1200x630, so the
+// dimension tags below apply to it as well as to a listing's own card.
+const FALLBACK_IMAGE = 'https://www.zarketplace.com/images/og-hero.jpg';
+const FALLBACK_IS_1200x630 = true;
 
 const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || '';
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || '';
@@ -131,7 +136,7 @@ function buildTags(l: PublicListing, total: number, canonical: string): string {
     `<meta property="og:description" content="${escapeHtml(description)}" />`,
     `<meta property="og:url" content="${escapeHtml(canonical)}" />`,
     `<meta property="og:image" content="${escapeHtml(image)}" />`,
-    ...(card
+    ...(card || (image === FALLBACK_IMAGE && FALLBACK_IS_1200x630)
       ? [`<meta property="og:image:width" content="1200" />`,
          `<meta property="og:image:height" content="630" />`]
       : []),
