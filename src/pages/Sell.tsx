@@ -26,7 +26,8 @@ import { log } from '../lib/log';
 import { scrollToTop } from '../lib/scrollToTop';
 import { encodeVariants, encodeSocialCard, SOCIAL_CARD_SUFFIX } from '../lib/images';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
-import { INDIAN_STATES, normalizeState } from '../lib/states';
+import { normalizeState } from '../lib/states';
+import { StateSelect } from '../components/StateSelect';
 import { cn, formatCurrency } from '../lib/utils';
 
 const slog = log('sell');
@@ -984,16 +985,12 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
             item, so "Delhi" and "New Delhi" cannot be two different answers. */}
         <div className="flex flex-col gap-3">
           <FieldLabel>Ships from (state) *</FieldLabel>
-          <select
+          <StateSelect
             value={pickupState}
-            onChange={(e) => setPickupState(e.target.value)}
+            onChange={(v) => setPickupState(v ?? '')}
+            placeholder="Select your state"
             className="border-b border-black/10 bg-transparent py-4 text-sm font-bold focus:border-black focus:outline-none transition-all"
-          >
-            <option value="">Select your state</option>
-            {INDIAN_STATES.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
+          />
           <TrustNote>
             Where the courier collects this item. While we complete our GST setup, only
             buyers in this state can check out on your listing. We remember it for your

@@ -7,7 +7,7 @@
 
 import * as React from 'react';
 import { MapPin } from 'lucide-react';
-import { INDIAN_STATES, type IndianState } from '../lib/states';
+import { StateSelect } from './StateSelect';
 import { useBuyerState } from '../lib/buyerState';
 
 export function DeliverToPicker({ compact = false }: { compact?: boolean }) {
@@ -18,17 +18,13 @@ export function DeliverToPicker({ compact = false }: { compact?: boolean }) {
       <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-black/40">
         <MapPin className="h-3.5 w-3.5" /> Deliver to
       </span>
-      <select
+      <StateSelect
         value={buyerState ?? ''}
-        onChange={(e) => setBuyerState((e.target.value || null) as IndianState | null)}
+        onChange={setBuyerState}
+        placeholder="All of India"
         aria-label="Your state"
         className="w-full border border-black/15 bg-white px-3 py-2.5 text-[11px] font-black uppercase tracking-widest focus:border-black focus:outline-none"
-      >
-        <option value="">All of India</option>
-        {INDIAN_STATES.map((s) => (
-          <option key={s} value={s}>{s}</option>
-        ))}
-      </select>
+      />
       {buyerState && (
         <span className="text-[9px] font-bold uppercase tracking-widest leading-relaxed text-black/35">
           Items shipping from {buyerState} can be bought now. Others are marked.

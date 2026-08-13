@@ -51,6 +51,32 @@ export const INDIAN_STATES = [
 
 export type IndianState = (typeof INDIAN_STATES)[number];
 
+// Where zarketplace's buyers and sellers actually are, floated above the full
+// alphabetical list.
+//
+// The list has always held all 28 states and all 8 union territories, but
+// strict A-Z put Delhi at position 32 of 36 - below every state, because the
+// UTs sorted last - so the single most common answer looked absent and people
+// concluded the picker was broken. Ordering is not cosmetics here: a picker
+// where the likeliest answer is invisible gets abandoned.
+//
+// The city in each label is the recognition cue. People know where they live
+// by city far faster than by state, and "Telangana" alone loses the person who
+// would have picked "Hyderabad" instantly.
+export const COMMON_STATES: Array<{ state: IndianState; hint: string }> = [
+  { state: 'Delhi', hint: 'Delhi NCR' },
+  { state: 'Maharashtra', hint: 'Mumbai, Pune' },
+  { state: 'West Bengal', hint: 'Kolkata' },
+  { state: 'Telangana', hint: 'Hyderabad' },
+  { state: 'Nagaland', hint: 'Dimapur, Kohima' },
+  { state: 'Rajasthan', hint: 'Jaipur' },
+];
+
+const COMMON_SET = new Set<string>(COMMON_STATES.map((c) => c.state));
+
+/** Everything not floated to the top, still alphabetical, states then UTs. */
+export const OTHER_STATES: IndianState[] = INDIAN_STATES.filter((s) => !COMMON_SET.has(s));
+
 // Free-text values already on file, plus the spellings people actually type.
 // Keys are compared lowercased with non-letters stripped, so "new delhi",
 // "New-Delhi" and "NEW DELHI" all land on the same entry.

@@ -13,7 +13,8 @@
 
 import * as React from 'react';
 import { MapPin, X } from 'lucide-react';
-import { INDIAN_STATES, type IndianState } from '../lib/states';
+import { type IndianState } from '../lib/states';
+import { StateSelect } from './StateSelect';
 import { useBuyerState, hasBeenAsked, markAsked } from '../lib/buyerState';
 
 export function StatePrompt() {
@@ -66,17 +67,13 @@ export function StatePrompt() {
           </p>
         </div>
 
-        <select
+        <StateSelect
           value={choice}
-          onChange={(e) => setChoice(e.target.value)}
+          onChange={(v) => setChoice(v ?? '')}
+          placeholder="Select your state"
           aria-label="Your state"
           className="border-b border-black/15 bg-transparent py-4 text-sm font-bold focus:border-black focus:outline-none"
-        >
-          <option value="">Select your state</option>
-          {INDIAN_STATES.map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
+        />
 
         <div className="flex flex-col-reverse sm:flex-row gap-3">
           <button
