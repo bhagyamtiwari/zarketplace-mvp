@@ -172,8 +172,16 @@ export default async function handler(req: any, res: any) {
 
   let listing: PublicListing | undefined;
   if (sku) {
+    // SKUs are stored uppercase (ZV-12345) but every link the app builds is
+    // lowercased - ListingCard writes /item/${sku.toLowerCase()}. A
+    // case-sensitive eq therefore matched nothing for any link the site
+    // generated itself, so every shared item previewed as the sitewide
+    // wordmark and this whole endpoint was dead on arrival. Uppercasing here
+    // rather than using ilike keeps the lookup an exact match: ilike would
+    // treat % and _ in a crafted URL as wildcards and could return an
+    // unrelated listing.
     const rows = await pg<PublicListing>(
-      `public_listings?sku=eq.${encodeURIComponent(sku)}&select=id,sku,title,brand,size_type,size,condition,price,sale_price,image_url,shipping_category,free_shipping&limit=1`,
+      `public_listings?sku=eq.${encodeURIComponent(sku.toUpperCase())}&select=id,sku,title,brand,size_type,size,condition,price,sale_price,image_url,shipping_category,free_shipping&limit=1`,
     );
     listing = rows[0];
   }
