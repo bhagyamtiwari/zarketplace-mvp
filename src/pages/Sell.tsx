@@ -562,7 +562,6 @@ function SellInner() {
                 title={title} brand={brand} price={priceVal} salePrice={showSalePrice ? salePriceVal : ''}
                 condition={condition} hasFlaws={hasFlaws} flawsDescription={flawsDescription}
                 shippingCategory={shippingCategory} shippingCategories={shippingCategories}
-                pickupState={pickupState}
                 authenticity={authenticity} setAuthenticity={setAuthenticity}
                 declarations={declarations} setDeclarations={setDeclarations}
               />
@@ -1051,12 +1050,11 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
 
 function ReviewStep({
   imagePreviews, title, brand, price, salePrice, condition, hasFlaws, flawsDescription,
-  shippingCategory, shippingCategories, pickupState, authenticity, setAuthenticity, declarations, setDeclarations,
+  shippingCategory, shippingCategories, authenticity, setAuthenticity, declarations, setDeclarations,
 }: {
   imagePreviews: string[]; title: string; brand: string; price: string; salePrice: string;
   condition: string; hasFlaws: boolean | null; flawsDescription: string;
   shippingCategory: string; shippingCategories: ShippingCategory[];
-  pickupState: string;
   authenticity: 'confirmed' | 'unsure' | null; setAuthenticity: (v: 'confirmed' | 'unsure') => void;
   declarations: Declarations;
   setDeclarations: React.Dispatch<React.SetStateAction<Declarations>>;
@@ -1089,10 +1087,10 @@ function ReviewStep({
       <div className="flex gap-3 border border-amber-500/40 bg-amber-50 px-5 py-4">
         <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-700" />
         <p className="text-[11px] font-bold uppercase tracking-widest leading-[1.8] text-amber-900">
-          {pickupState ? `Buyers in ${pickupState} only, for now.` : 'Buyers in your state only, for now.'}
-          {' '}While we complete our GST setup, only buyers in the state you ship
-          from can check out on this listing. Selling to another state needs a
-          GSTIN, which we are working on. Your price and payout are unaffected.
+          While we complete GST compliance setup, only buyers in the same state
+          as your pickup address can check out on this listing. Selling to
+          another state needs a GSTIN, which we are working on with specific
+          sellers. Your price and payout are unaffected.
         </p>
       </div>
 
