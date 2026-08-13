@@ -470,9 +470,16 @@ export function Marketplace() {
                   </button>
                 </div>
               ) : (
-                <p className="py-8 text-center text-[10px] font-black uppercase tracking-[0.3em] text-black/20">
-                  You have seen everything listed
-                </p>
+                // End of feed. This used to be a faint "you have seen
+                // everything listed", which read as a bug once new seller
+                // listings stopped appearing: the shopper assumed the feed had
+                // broken. It now says plainly why the catalogue stops here, at
+                // a weight someone actually reads.
+                <div className="py-10 flex justify-center px-4">
+                  <p className="max-w-md border border-black/15 bg-zinc-50 px-6 py-5 text-center text-[11px] font-black uppercase tracking-[0.2em] leading-[1.9] text-black/60">
+                    New seller listings archived until further notice
+                  </p>
+                </div>
               )}
             </>
           )}

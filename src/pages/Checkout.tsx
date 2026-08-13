@@ -15,7 +15,7 @@ import { supabase } from '../lib/supabase';
 import { CartItem, Listing } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { variantUrl } from '../lib/images';
-import { Loader2, ArrowLeft, ArrowRight, ShieldCheck, CheckCircle2, XCircle, Package } from 'lucide-react';
+import { Loader2, ArrowLeft, ArrowRight, ShieldCheck, CheckCircle2, XCircle, Package, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { useCart } from '../lib/cart';
 import { RequireAuth } from '../components/RequireAuth';
@@ -782,6 +782,20 @@ function RazorpayPayStep({
           <Link to="/buyer-protection" className="underline text-black/60">Learn more</Link>
         </p>
       )}
+
+      {/* GST hold notice. It sits directly above the pay button rather than in
+          a policy page, because the only moment it matters is the moment
+          before someone hands over money. Amber, not red: this is a condition
+          of the order, not an error with what they just did. */}
+      <div className="border border-amber-500/40 bg-amber-50 px-5 py-4 flex gap-3">
+        <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-700" />
+        <p className="text-[10px] font-bold uppercase tracking-widest leading-[1.9] text-amber-900">
+          Please read before paying. We are working through a GST issue on our
+          side. Your order may be refunded in full if we cannot fulfil it. If
+          that happens, the money goes back to the account you paid from and you
+          are charged nothing.
+        </p>
+      </div>
 
       {errorMsg && <p className="text-[10px] font-bold uppercase tracking-widest text-red-600 text-center">{errorMsg}</p>}
 

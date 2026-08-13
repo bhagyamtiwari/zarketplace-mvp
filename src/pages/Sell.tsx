@@ -405,8 +405,17 @@ function SellInner() {
           <CheckCircle2 className="h-12 w-12" />
         </div>
         <h1 className="text-5xl font-black tracking-tighter uppercase mb-4">Listing Submitted</h1>
+        {/* Every listing inserts as 'pending' and waits on admin approval, and
+            new seller listings are being held rather than published right now.
+            Saying so here is the difference between a seller who is waiting and
+            a seller who thinks the form silently failed. */}
         <p className="text-black font-medium uppercase tracking-widest text-xs mb-3 max-w-md">
-          We review every listing before it goes live.
+          Your listing is saved. We review every listing before it goes live.
+        </p>
+        <p className="text-black/70 font-medium uppercase tracking-widest text-[11px] leading-[1.9] mb-3 max-w-md">
+          New seller listings are archived until further notice, so it will not
+          appear in the feed yet. It stays on your account and we will be in
+          touch when listings reopen.
         </p>
         <p className="text-black/50 font-medium uppercase tracking-widest text-xs mb-10 max-w-md">
           Meanwhile, generate a branded Instagram image and share it.
