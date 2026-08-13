@@ -9,6 +9,7 @@ import * as React from 'react';
 import { MapPin } from 'lucide-react';
 import { StateSelect } from './StateSelect';
 import { useBuyerState } from '../lib/buyerState';
+import { CoverageNote } from './CoverageNote';
 
 export function DeliverToPicker({ compact = false }: { compact?: boolean }) {
   const [buyerState, setBuyerState] = useBuyerState();
@@ -25,11 +26,7 @@ export function DeliverToPicker({ compact = false }: { compact?: boolean }) {
         aria-label="Your state"
         className="w-full border border-black/15 bg-white px-3 py-2.5 text-[11px] font-black uppercase tracking-widest focus:border-black focus:outline-none"
       />
-      {buyerState && (
-        <span className="text-[9px] font-bold uppercase tracking-widest leading-relaxed text-black/35">
-          Items shipping from {buyerState} can be bought now. Others are marked.
-        </span>
-      )}
+      <CoverageNote state={buyerState} />
     </div>
   );
 }

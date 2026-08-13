@@ -63,28 +63,27 @@ export type IndianState = (typeof INDIAN_STATES)[number];
 // The city in each label is the recognition cue. People know where they live
 // by city far faster than by state, and "Telangana" alone loses the person who
 // would have picked "Hyderabad" instantly.
-export const COMMON_STATES: Array<{ state: IndianState; hint: string }> = [
-  // NCR is deliberately split into its three real jurisdictions.
+export const COMMON_STATES: Array<{ state: IndianState; label: string }> = [
+  // Labelled by CITY, because that is how people locate themselves. Nobody
+  // thinks "I am in Uttar Pradesh"; they think "I am in Noida". The state is
+  // still what gets stored and compared - it is just no longer the thing a
+  // buyer has to translate their own address into.
   //
-  // There is no NCR exemption under GST: Delhi, Haryana and Uttar Pradesh are
-  // three states, place of supply is where delivery terminates, and an
-  // unregistered seller may not cross any of those lines. The metro being
-  // continuous is a fact about traffic, not about tax.
-  //
-  // This hint used to read "Delhi NCR", which was the same mistake the pincode
-  // fix exists to prevent, reintroduced one screen earlier: a Gurgaon buyer
-  // would pick Delhi, feel entirely correct, and be refused at checkout with
-  // no idea why. Naming the cities makes the boundary visible before it costs
-  // anyone a basket.
-  { state: 'Delhi', hint: 'Delhi only, not Gurgaon or Noida' },
-  { state: 'Haryana', hint: 'Gurgaon, Faridabad' },
-  { state: 'Uttar Pradesh', hint: 'Noida, Ghaziabad' },
-  { state: 'Maharashtra', hint: 'Mumbai, Pune' },
-  { state: 'Karnataka', hint: 'Bengaluru' },
-  { state: 'West Bengal', hint: 'Kolkata' },
-  { state: 'Telangana', hint: 'Hyderabad' },
-  { state: 'Rajasthan', hint: 'Jaipur' },
-  { state: 'Nagaland', hint: 'Dimapur, Kohima' },
+  // NCR is split into its three real jurisdictions. There is no NCR concession
+  // under GST: Delhi, Haryana and UP are three states, place of supply is
+  // where delivery terminates, and an unregistered seller may not cross those
+  // lines. Showing "Delhi NCR" as one option was the pincode bug reintroduced
+  // one screen earlier - a Gurgaon buyer picks it, feels correct, and is
+  // refused at checkout with no idea why.
+  { state: 'Delhi', label: 'Delhi' },
+  { state: 'Haryana', label: 'Gurgaon, Faridabad (Haryana)' },
+  { state: 'Uttar Pradesh', label: 'Noida, Ghaziabad (Uttar Pradesh)' },
+  { state: 'Maharashtra', label: 'Mumbai, Pune (Maharashtra)' },
+  { state: 'Karnataka', label: 'Bengaluru (Karnataka)' },
+  { state: 'Telangana', label: 'Hyderabad (Telangana)' },
+  { state: 'West Bengal', label: 'Kolkata (West Bengal)' },
+  { state: 'Rajasthan', label: 'Jaipur (Rajasthan)' },
+  { state: 'Nagaland', label: 'Dimapur, Kohima (Nagaland)' },
 ];
 
 const COMMON_SET = new Set<string>(COMMON_STATES.map((c) => c.state));

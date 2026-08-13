@@ -16,6 +16,7 @@ import { MapPin, X } from 'lucide-react';
 import { type IndianState } from '../lib/states';
 import { StateSelect } from './StateSelect';
 import { useBuyerState, hasBeenAsked, markAsked } from '../lib/buyerState';
+import { CoverageNote } from './CoverageNote';
 
 export function StatePrompt() {
   const [buyerState, setBuyerState] = useBuyerState();
@@ -61,17 +62,16 @@ export function StatePrompt() {
             </h2>
           </div>
           <p className="text-[11px] font-bold uppercase tracking-widest leading-[1.9] text-black/60">
-            Sellers can only ship within their own state while we complete GST
-            compliance setup. Telling us where you are means we can show you what
-            you can actually buy, and mark what you cannot yet.
+            Sellers ship within their own state for now, while our GST
+            registration comes through. Tell us where you are and we will show
+            you what you can actually buy today.
           </p>
           {/* Said here rather than discovered at checkout. NCR is one city to
               everyone who lives in it and three states to GST, and a Gurgaon
               buyer picking Delhi is the single likeliest way to end up
               refused without understanding why. */}
           <p className="text-[10px] font-bold uppercase tracking-widest leading-[1.9] text-black/40">
-            Delhi, Gurgaon and Noida count as three different states here, even
-            though they are one city to live in.
+            Pick the city you live in. Delhi, Gurgaon and Noida count separately.
           </p>
         </div>
 
@@ -82,6 +82,8 @@ export function StatePrompt() {
           aria-label="Your state"
           className="border-b border-black/15 bg-transparent py-4 text-sm font-bold focus:border-black focus:outline-none"
         />
+
+        <CoverageNote state={choice || null} />
 
         <div className="flex flex-col-reverse sm:flex-row gap-3">
           <button
@@ -102,7 +104,8 @@ export function StatePrompt() {
         </div>
 
         <p className="text-[9px] font-bold uppercase tracking-widest text-black/35 leading-relaxed">
-          Stored on this device only. Change it any time from the filters.
+          Stored on this device only. Change it any time. We are adding states
+          every week and going pan-India as soon as we can.
         </p>
       </div>
     </div>

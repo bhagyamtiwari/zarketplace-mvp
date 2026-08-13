@@ -355,7 +355,7 @@ export function Marketplace() {
                   active={inStateOnly}
                   onClick={() => setParam('instate', inStateOnly ? null : '1')}
                 >
-                  Buy now in {buyerState}
+                  Ships to {buyerState}
                 </Chip>
               )}
               {QUICK_CHIPS.map((c) => (
@@ -471,9 +471,14 @@ export function Marketplace() {
             >
               {quick === 'saved'
                 ? 'Nothing saved yet'
-                : activeFilterCount > 0 || searchQuery
-                  ? 'No items match these filters'
-                  : 'Nothing listed yet'}
+                : inStateOnly && buyerState
+                  // Not "no results". A buyer who filtered to their own state
+                  // and got nothing has learned something specific, and the
+                  // honest version of it keeps them on the site.
+                  ? `No sellers in ${buyerState} yet. We are signing them up - browse everything meanwhile.`
+                  : activeFilterCount > 0 || searchQuery
+                    ? 'No items match these filters'
+                    : 'Nothing listed yet'}
             </EmptyState>
           ) : (
             <>

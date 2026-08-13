@@ -587,6 +587,15 @@ function SellInner() {
           className="mt-6 text-[11px] font-black uppercase tracking-[0.25em] text-black/40 hover:text-black">
           Back to zarketplace
         </button>
+
+        <a
+          href="https://wa.me/918505927538"
+          target="_blank"
+          rel="noreferrer"
+          className="mt-8 text-[10px] font-bold uppercase tracking-widest text-black/40 hover:text-black underline"
+        >
+          Something off, or an idea to make this better? WhatsApp us
+        </a>
       </div>
     );
   }
@@ -596,7 +605,11 @@ function SellInner() {
       <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 lg:px-8 pt-28 sm:pt-32">
         <div className="mb-10 flex flex-col gap-4">
           <h1 className="text-5xl sm:text-6xl font-black tracking-tighter uppercase leading-none">Create Listing</h1>
-          <p className="text-xs font-black uppercase tracking-[0.3em] text-black/40">List in under two minutes.</p>
+          <p className="text-xs font-black uppercase tracking-[0.3em] text-black/40">
+            List in under two minutes.{' '}
+            <a href="https://wa.me/918505927538" target="_blank" rel="noreferrer"
+              className="underline text-black/60 hover:text-black">Stuck? WhatsApp us</a>
+          </p>
         </div>
 
         {/* Progress. Every step is reachable directly and only Publish is gated,

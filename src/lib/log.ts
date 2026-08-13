@@ -17,6 +17,7 @@ type Tag =
   | 'authmodal'
   | 'authcb'
   | 'phone-capture'
+  | 'coverage'
   | 'resetpw'
   | 'navbar'
   | 'marketplace'

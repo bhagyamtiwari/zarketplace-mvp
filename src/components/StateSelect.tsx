@@ -34,11 +34,9 @@ export function StateSelect({
     >
       <option value="">{placeholder}</option>
 
-      <optgroup label="Most common">
-        {COMMON_STATES.map(({ state, hint }) => (
-          <option key={state} value={state}>
-            {state} ({hint})
-          </option>
+      <optgroup label="Where our buyers are">
+        {COMMON_STATES.map(({ state, label }) => (
+          <option key={state} value={state}>{label}</option>
         ))}
       </optgroup>
 
