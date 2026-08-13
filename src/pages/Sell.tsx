@@ -201,6 +201,9 @@ function SellInner() {
   // kept for display and for the seller to sanity-check what they typed - if
   // the two disagree, the pincode is what any rule reads.
   const [pickupPincode, setPickupPincode] = React.useState('');
+  const [pickupAddress, setPickupAddress] = React.useState('');
+  const [pickupCity, setPickupCity] = React.useState('');
+  const [pickupLandmark, setPickupLandmark] = React.useState('');
 
   const [authenticity, setAuthenticity] = React.useState<'confirmed' | 'unsure' | null>(null);
   const [declarations, setDeclarations] = React.useState<Declarations>({
@@ -243,10 +246,14 @@ function SellInner() {
   // The saved pickup address wins over the last listing when both exist: it is
   // the address a courier will actually collect from.
   React.useEffect(() => {
-    const addr = profile?.pickup_address as { state?: string; pincode?: string } | null;
+    const addr = profile?.pickup_address as
+      { state?: string; pincode?: string; address?: string; city?: string; landmark?: string } | null;
     const saved = normalizeState(addr?.state);
     if (saved) setPickupState((prev) => prev || saved);
     if (addr?.pincode) setPickupPincode((prev) => prev || addr.pincode!);
+    if (addr?.address) setPickupAddress((prev) => prev || addr.address!);
+    if (addr?.city) setPickupCity((prev) => prev || addr.city!);
+    if (addr?.landmark) setPickupLandmark((prev) => prev || addr.landmark!);
   }, [profile]);
 
   // Follow the item category. Falls back to the first option only when the
@@ -340,6 +347,8 @@ function SellInner() {
       if (salePriceInvalid) return 'The "was" price has to be higher than your price, or buyers see a discount that is not one.';
       if (shippingMode === 'platform' && !shippingCategory) return 'Choose a shipping category.';
       if (!pickupState) return 'Select the state you ship from.';
+      if (!pickupAddress.trim()) return 'Enter the address a courier would collect from.';
+      if (!pickupCity.trim()) return 'Enter your city.';
       if (!/^[1-9][0-9]{5}$/.test(pickupPincode)) return 'Enter the 6-digit pincode you post from.';
       {
         const resolved = resolvePincode(pickupPincode);
@@ -458,7 +467,18 @@ function SellInner() {
         seller_display_name: profile?.full_name || null,
         seller_instagram: profile?.instagram ?? null,
         seller_upi_vpa: profile?.default_upi_vpa ?? null,
-        pickup_address: profile?.pickup_address ?? null,
+        // Collected here now, not at first sale. Approval requires a complete
+        // pickup address, so a new seller's listing used to be unapprovable
+        // until they had already sold something - which they could not do.
+        pickup_address: {
+          fullName: profile?.full_name ?? '',
+          phone: profile?.phone ?? '',
+          address: pickupAddress.trim(),
+          landmark: pickupLandmark.trim(),
+          city: pickupCity.trim(),
+          state: pickupState,
+          pincode: pickupPincode,
+        },
         // Stored on the listing, not read through the profile at query time:
         // a seller who later moves must not silently relocate every item they
         // have already listed, and the buyer-facing view can only filter on a
@@ -479,6 +499,22 @@ function SellInner() {
         status: 'pending',
       });
       if (error) throw error;
+
+      // Remembered on the account so the seller types it once. Fire and
+      // forget: a failure here costs a prefill, never the listing.
+      void supabase.from('profiles').update({
+        pickup_address: {
+          ...(profile?.pickup_address ?? {}),
+          fullName: profile?.full_name ?? '',
+          phone: profile?.phone ?? '',
+          address: pickupAddress.trim(),
+          landmark: pickupLandmark.trim(),
+          city: pickupCity.trim(),
+          state: pickupState,
+          pincode: pickupPincode,
+        },
+      }).eq('id', user.id);
+
       tFull.end({ outcome: 'success' });
       // Seller-side conversion. Compared against sell_started, this is the
       // completion rate of the listing form.
@@ -657,6 +693,9 @@ function SellInner() {
                 freeShipping={freeShipping} setFreeShipping={setFreeShipping}
                 pickupState={pickupState} setPickupState={setPickupState}
                 pickupPincode={pickupPincode} setPickupPincode={setPickupPincode}
+                pickupAddress={pickupAddress} setPickupAddress={setPickupAddress}
+                pickupCity={pickupCity} setPickupCity={setPickupCity}
+                pickupLandmark={pickupLandmark} setPickupLandmark={setPickupLandmark}
                 shippingMode={shippingMode} setShippingMode={setShippingMode}
               />
             )}
@@ -1023,7 +1062,7 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
   );
 }
 
-function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, salePriceVal, setSalePriceVal, salePriceInvalid, shippingCategories, shippingCategory, setShippingCategory, freeShipping, setFreeShipping, pickupState, setPickupState, pickupPincode, setPickupPincode, shippingMode, setShippingMode }: {
+function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, salePriceVal, setSalePriceVal, salePriceInvalid, shippingCategories, shippingCategory, setShippingCategory, freeShipping, setFreeShipping, pickupState, setPickupState, pickupPincode, setPickupPincode, pickupAddress, setPickupAddress, pickupCity, setPickupCity, pickupLandmark, setPickupLandmark, shippingMode, setShippingMode }: {
   priceVal: string; setPriceVal: (v: string) => void;
   showSalePrice: boolean; setShowSalePrice: (v: boolean) => void;
   salePriceVal: string; setSalePriceVal: (v: string) => void;
@@ -1033,6 +1072,9 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
   freeShipping: boolean; setFreeShipping: (v: boolean) => void;
   pickupState: string; setPickupState: (v: string) => void;
   pickupPincode: string; setPickupPincode: (v: string) => void;
+  pickupAddress: string; setPickupAddress: (v: string) => void;
+  pickupCity: string; setPickupCity: (v: string) => void;
+  pickupLandmark: string; setPickupLandmark: (v: string) => void;
   shippingMode: ShippingMode; setShippingMode: (v: ShippingMode) => void;
 }) {
   const selectedRate = shippingCategories.find((c) => c.key === shippingCategory)?.rate ?? 0;
@@ -1139,6 +1181,40 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
               Gurgaon, which is Haryana - so both ends are pinned to a pincode
               and the two are cross-checked here rather than at the till. */}
           <div className="flex flex-col gap-3 pt-2">
+            <FieldLabel>Pickup address *</FieldLabel>
+            <input
+              type="text"
+              value={pickupAddress}
+              onChange={(e) => setPickupAddress(e.target.value)}
+              placeholder="Flat / House no., Street, Area"
+              className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
+            <div className="flex flex-col gap-3">
+              <FieldLabel>Landmark</FieldLabel>
+              <input
+                type="text"
+                value={pickupLandmark}
+                onChange={(e) => setPickupLandmark(e.target.value)}
+                placeholder="Optional"
+                className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20"
+              />
+            </div>
+            <div className="flex flex-col gap-3">
+              <FieldLabel>City *</FieldLabel>
+              <input
+                type="text"
+                value={pickupCity}
+                onChange={(e) => setPickupCity(e.target.value)}
+                placeholder="New Delhi"
+                className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3">
             <FieldLabel>Pickup pincode *</FieldLabel>
             <input
               type="text"
