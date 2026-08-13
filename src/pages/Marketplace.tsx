@@ -69,6 +69,7 @@ const QUICK_CHIPS: Array<{ value: string; label: string; tag?: string }> = [
 ];
 
 const SORT_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: 'relevance', label: 'Relevance' },
   { value: 'newest', label: 'Newest' },
   { value: 'price_low', label: 'Price: Low to High' },
   { value: 'price_high', label: 'Price: High to Low' },
@@ -111,7 +112,10 @@ export function Marketplace() {
   const condition = searchParams.get('condition');
   const quick = searchParams.get('q');
   const searchQuery = searchParams.get('search') ?? '';
-  const sortBy = searchParams.get('sort') || 'newest';
+  // Relevance, not recency. Newest-first made the homepage a function of
+  // upload order, so the last thing listed led - which put a Rs 50 jersey
+  // ahead of a Rs 14,500 jacket on the only screen most visitors ever see.
+  const sortBy = searchParams.get('sort') || 'relevance';
   // Opt-in, never the default. Defaulting this on would show an empty feed to
   // everyone outside Delhi, where all current stock is, and an empty grid
   // cannot distinguish "nothing near you" from "nothing here".
@@ -160,7 +164,11 @@ export function Marketplace() {
 
         if (sortBy === 'price_low') query = query.order('price', { ascending: true });
         else if (sortBy === 'price_high') query = query.order('price', { ascending: false });
-        else query = query.order('created_at', { ascending: false });
+        else if (sortBy === 'newest') query = query.order('created_at', { ascending: false });
+        // relevance_score is price times a jitter fixed once per listing, so
+        // the order is stable across pages and across visits. See the
+        // migration: a feed reshuffled per request breaks .range() paging.
+        else query = query.order('relevance_score', { ascending: false, nullsFirst: false });
         // Stable tiebreaker: without it, rows sharing a price can shift between
         // pages and the feed shows duplicates or silently skips items.
         query = query.order('id', { ascending: false });
@@ -339,7 +347,7 @@ export function Marketplace() {
             {/* Sort leads this row and Filters closes it, so everything that
                 changes what the grid shows lives on one line. */}
             <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 py-2 -my-2 lg:mx-0 lg:px-0 lg:justify-end">
-              <SortChip value={sortBy} onChange={(v) => setParam('sort', v === 'newest' ? null : v)} />
+              <SortChip value={sortBy} onChange={(v) => setParam('sort', v === 'relevance' ? null : v)} />
               {/* Only offered once we know where the buyer is - "in my state"
                   is meaningless until they have told us which state that is. */}
               {buyerState && (
