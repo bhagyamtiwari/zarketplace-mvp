@@ -64,12 +64,27 @@ export type IndianState = (typeof INDIAN_STATES)[number];
 // by city far faster than by state, and "Telangana" alone loses the person who
 // would have picked "Hyderabad" instantly.
 export const COMMON_STATES: Array<{ state: IndianState; hint: string }> = [
-  { state: 'Delhi', hint: 'Delhi NCR' },
+  // NCR is deliberately split into its three real jurisdictions.
+  //
+  // There is no NCR exemption under GST: Delhi, Haryana and Uttar Pradesh are
+  // three states, place of supply is where delivery terminates, and an
+  // unregistered seller may not cross any of those lines. The metro being
+  // continuous is a fact about traffic, not about tax.
+  //
+  // This hint used to read "Delhi NCR", which was the same mistake the pincode
+  // fix exists to prevent, reintroduced one screen earlier: a Gurgaon buyer
+  // would pick Delhi, feel entirely correct, and be refused at checkout with
+  // no idea why. Naming the cities makes the boundary visible before it costs
+  // anyone a basket.
+  { state: 'Delhi', hint: 'Delhi only, not Gurgaon or Noida' },
+  { state: 'Haryana', hint: 'Gurgaon, Faridabad' },
+  { state: 'Uttar Pradesh', hint: 'Noida, Ghaziabad' },
   { state: 'Maharashtra', hint: 'Mumbai, Pune' },
+  { state: 'Karnataka', hint: 'Bengaluru' },
   { state: 'West Bengal', hint: 'Kolkata' },
   { state: 'Telangana', hint: 'Hyderabad' },
-  { state: 'Nagaland', hint: 'Dimapur, Kohima' },
   { state: 'Rajasthan', hint: 'Jaipur' },
+  { state: 'Nagaland', hint: 'Dimapur, Kohima' },
 ];
 
 const COMMON_SET = new Set<string>(COMMON_STATES.map((c) => c.state));

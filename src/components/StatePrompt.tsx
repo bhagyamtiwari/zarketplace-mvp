@@ -65,6 +65,14 @@ export function StatePrompt() {
             compliance setup. Telling us where you are means we can show you what
             you can actually buy, and mark what you cannot yet.
           </p>
+          {/* Said here rather than discovered at checkout. NCR is one city to
+              everyone who lives in it and three states to GST, and a Gurgaon
+              buyer picking Delhi is the single likeliest way to end up
+              refused without understanding why. */}
+          <p className="text-[10px] font-bold uppercase tracking-widest leading-[1.9] text-black/40">
+            Delhi, Gurgaon and Noida count as three different states here, even
+            though they are one city to live in.
+          </p>
         </div>
 
         <StateSelect
