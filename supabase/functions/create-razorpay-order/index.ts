@@ -18,6 +18,7 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sameState } from "../_shared/states.ts";
 import { corsHeadersFor } from "../_shared/cors.ts";
 
 interface RequestBody {
@@ -65,7 +66,7 @@ serve(async (req) => {
 
     const { data: orders, error: ordersErr } = await supabase
       .from("orders")
-      .select("id, order_number, buyer_id, seller_id, status, total_amount, razorpay_order_id, checkout_group_id, listing_id")
+      .select("id, order_number, buyer_id, seller_id, status, total_amount, razorpay_order_id, checkout_group_id, listing_id, shipping_address")
       .in("order_number", body.order_numbers);
     if (ordersErr) throw ordersErr;
     if (!orders || orders.length !== body.order_numbers.length) {
@@ -95,7 +96,7 @@ serve(async (req) => {
     if (listingIds.length > 0) {
       const { data: listings, error: listingsErr } = await supabase
         .from("listings")
-        .select("id, is_sold, status")
+        .select("id, is_sold, status, pickup_state")
         .in("id", listingIds);
       if (listingsErr) throw listingsErr;
       const unavailable = (listings ?? []).filter((l) => l.is_sold || l.status !== "approved");
@@ -104,6 +105,35 @@ serve(async (req) => {
         const affectedOrderIds = orders.filter((o) => unavailableIds.has(o.listing_id)).map((o) => o.id);
         await supabase.from("orders").update({ status: "cancelled" }).in("id", affectedOrderIds);
         return json({ error: "One or more items in this order are no longer available" }, 409);
+      }
+
+      // GST same-state rule. Interstate supply needs a GSTIN neither the
+      // seller nor the platform can currently issue, so an order whose
+      // delivery address is outside the seller's state must not be paid for.
+      //
+      // Enforced here rather than only in the UI because this is the last
+      // point before money moves, and the browser's copy of the rule can be
+      // skipped by resuming a stale checkout or calling this function
+      // directly. The delivery address decides it - the place of supply is
+      // where the goods go, not what the buyer once picked in a dropdown.
+      //
+      // A listing with no pickup_state recorded is left alone rather than
+      // blocked: those predate the field, and refusing to sell them would
+      // turn a data gap into lost orders. Every current listing has one.
+      const stateById = new Map((listings ?? []).map((l) => [l.id, l.pickup_state]));
+      const crossState = orders.filter((o) => {
+        const sellerState = stateById.get(o.listing_id);
+        if (!sellerState) return false;
+        const addr = o.shipping_address as { state?: string } | null;
+        return !sameState(addr?.state, sellerState);
+      });
+      if (crossState.length > 0) {
+        const sellerState = stateById.get(crossState[0].listing_id);
+        return json({
+          error:
+            `This item ships from ${sellerState} and can only be delivered within ${sellerState} right now. ` +
+            `Interstate orders need a GSTIN we are still setting up. Nothing has been charged.`,
+        }, 409);
       }
     }
 

@@ -15,7 +15,9 @@ import { supabase } from '../lib/supabase';
 import { CartItem, Listing } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { variantUrl } from '../lib/images';
-import { Loader2, ArrowLeft, ArrowRight, ShieldCheck, CheckCircle2, XCircle, Package, AlertTriangle } from 'lucide-react';
+import { Loader2, ArrowLeft, ArrowRight, ShieldCheck, CheckCircle2, XCircle, Package, AlertTriangle, MapPin } from 'lucide-react';
+import { StateSelect } from '../components/StateSelect';
+import { sameState } from '../lib/states';
 import { useAuth } from '../lib/auth';
 import { useCart } from '../lib/cart';
 import { RequireAuth } from '../components/RequireAuth';
@@ -109,6 +111,33 @@ function CheckoutInner() {
 
   const items: CartItem[] = id ? (buyNowItems ?? []) : cart.items;
 
+  // Which state each item ships from, for the GST same-state rule. Fetched
+  // rather than carried on the cart item, because a cart can sit for days and
+  // the answer has to be the current one at the moment of paying.
+  const [sellerStates, setSellerStates] = React.useState<Record<string, string | null>>({});
+  const itemIdKey = items.map((i) => i.listing_id).sort().join(',');
+  React.useEffect(() => {
+    const ids = itemIdKey ? itemIdKey.split(',') : [];
+    if (ids.length === 0) { setSellerStates({}); return; }
+    let cancelled = false;
+    supabase
+      .from('public_listings')
+      .select('id, pickup_state')
+      .in('id', ids)
+      .then(({ data }) => {
+        if (cancelled || !data) return;
+        setSellerStates(Object.fromEntries(data.map((r) => [r.id, r.pickup_state])));
+      });
+    return () => { cancelled = true; };
+  }, [itemIdKey]);
+
+  // Items this address cannot legally receive. A listing with no state on file
+  // is not blocked - see the matching rule in create-razorpay-order.
+  const blockedItems = items.filter((i) => {
+    const sellerState = sellerStates[i.listing_id];
+    return !!sellerState && !!shippingAddress.state && !sameState(shippingAddress.state, sellerState);
+  });
+
   const [step, setStep] = React.useState<Step>('address');
 
   React.useEffect(() => {
@@ -192,6 +221,14 @@ function CheckoutInner() {
     setErrorMsg(null);
     if (!user) return;
     if (items.length === 0) { setErrorMsg('Your cart is empty.'); return; }
+    if (blockedItems.length > 0) {
+      const st = sellerStates[blockedItems[0].listing_id];
+      setErrorMsg(
+        `"${blockedItems[0].title}" ships from ${st} and can only be delivered within ${st} right now. `
+        + 'Remove it, or use a delivery address in that state.',
+      );
+      return;
+    }
     const required: Array<[string, string]> = [
       ['fullName', shippingAddress.fullName], ['email', shippingAddress.email],
       ['phone', shippingAddress.phone], ['address', shippingAddress.address],
@@ -534,6 +571,9 @@ function CheckoutInner() {
               billingSame={billingSameAsShipping} onBillingSameChange={setBillingSameAsShipping}
               billingAddr={billingAddress} onBillingChange={setBillingAddress}
               onSubmit={submitAddress} submitting={submitting} errorMsg={errorMsg}
+              blockedNote={blockedItems.length > 0
+                ? `${blockedItems.length === 1 ? `"${blockedItems[0].title}" ships` : `${blockedItems.length} items ship`} from ${sellerStates[blockedItems[0].listing_id]}, so this address cannot receive ${blockedItems.length === 1 ? 'it' : 'them'} yet. Interstate delivery needs a GSTIN we are still setting up.`
+                : null}
             />
           </div>
           <div className="lg:col-span-5">
@@ -612,7 +652,7 @@ type ShippingAddr = { fullName: string; email: string; phone: string; address: s
 type BillingAddr = { fullName: string; address: string; landmark: string; city: string; state: string; pincode: string };
 
 function AddressStep({
-  addr, onChange, billingSame, onBillingSameChange, billingAddr, onBillingChange, onSubmit, submitting, errorMsg,
+  addr, onChange, billingSame, onBillingSameChange, billingAddr, onBillingChange, onSubmit, submitting, errorMsg, blockedNote,
 }: {
   addr: ShippingAddr;
   onChange: (a: ShippingAddr) => void;
@@ -623,10 +663,21 @@ function AddressStep({
   onSubmit: () => void;
   submitting: boolean;
   errorMsg: string | null;
+  blockedNote: string | null;
 }) {
   return (
     <section className="flex flex-col gap-8">
       <h2 className="text-xs font-black uppercase tracking-widest border-b border-black pb-4">Shipping Information</h2>
+
+      {/* Shown the moment the state is chosen, not held back until Continue.
+          Finding out at the payment step that the order was never possible is
+          the worst version of this. */}
+      {blockedNote && (
+        <div className="flex gap-3 border border-amber-500/40 bg-amber-50 px-5 py-4">
+          <MapPin className="h-4 w-4 shrink-0 mt-0.5 text-amber-700" />
+          <p className="text-[10px] font-bold uppercase tracking-widest leading-[1.9] text-amber-900">{blockedNote}</p>
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Field label="Full Name" value={addr.fullName} onChange={(v) => onChange({ ...addr, fullName: v })} placeholder="Jashok Dumar" />
         <Field label="Email Address" type="email" value={addr.email} onChange={(v) => onChange({ ...addr, email: v })} placeholder="hello@example.com" />
@@ -639,7 +690,19 @@ function AddressStep({
           <Field label="Landmark (Optional)" value={addr.landmark} onChange={(v) => onChange({ ...addr, landmark: v })} placeholder="(near Gate No. 4)" />
         </div>
         <Field label="City" value={addr.city} onChange={(v) => onChange({ ...addr, city: v })} placeholder="Mumbai" />
-        <Field label="State" value={addr.state} onChange={(v) => onChange({ ...addr, state: v })} placeholder="Maharashtra" />
+        {/* A dropdown, not free text: this value is compared against the
+            seller's state to decide whether the order is legal to accept, and
+            the old text box already put "Delhi " with a trailing space into a
+            real order. */}
+        <div className="flex flex-col gap-3">
+          <label className="text-[10px] font-black uppercase tracking-widest text-black/40">State</label>
+          <StateSelect
+            value={addr.state}
+            onChange={(v) => onChange({ ...addr, state: v ?? '' })}
+            placeholder="Select your state"
+            className="border-b border-black/10 bg-transparent py-4 text-sm font-bold focus:border-black focus:outline-none"
+          />
+        </div>
       </div>
 
       <div className="flex flex-col gap-6 pt-6 border-t border-black/5">
@@ -663,7 +726,15 @@ function AddressStep({
             </div>
             <Field label="Pincode" inputMode="numeric" maxLength={6} value={billingAddr.pincode} onChange={(v) => onBillingChange({ ...billingAddr, pincode: v.replace(/\D/g, '') })} placeholder="400001" />
             <Field label="City" value={billingAddr.city} onChange={(v) => onBillingChange({ ...billingAddr, city: v })} placeholder="Mumbai" />
-            <Field label="State" value={billingAddr.state} onChange={(v) => onBillingChange({ ...billingAddr, state: v })} placeholder="Maharashtra" />
+            <div className="flex flex-col gap-3">
+              <label className="text-[10px] font-black uppercase tracking-widest text-black/40">State</label>
+              <StateSelect
+                value={billingAddr.state}
+                onChange={(v) => onBillingChange({ ...billingAddr, state: v ?? '' })}
+                placeholder="Select your state"
+                className="border-b border-black/10 bg-transparent py-4 text-sm font-bold focus:border-black focus:outline-none"
+              />
+            </div>
             <div className="md:col-span-2">
               <Field label="Address" value={billingAddr.address} onChange={(v) => onBillingChange({ ...billingAddr, address: v })} placeholder="House No, Street, Area" />
             </div>
