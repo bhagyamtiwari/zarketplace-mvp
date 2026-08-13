@@ -570,6 +570,15 @@ function SellInner() {
           appear in the feed yet. It stays on your account and we will be in
           touch when listings reopen.
         </p>
+        {/* The seller has just finished a form and is at their most willing to
+            read one more thing. Said here, in three lines, so the PAN request
+            that arrives later is expected rather than alarming. */}
+        <p className="text-black/50 font-medium uppercase tracking-widest text-[10px] leading-[1.9] mb-10 max-w-md">
+          You do not need a GSTIN. We will ask for your PAN and walk you through
+          a one-time GST enrolment number when your first sale is close. Until
+          then you sell within your own state.{' '}
+          <Link to="/seller-policy" className="underline text-black/70 hover:text-black">How this works</Link>
+        </p>
         <p className="text-black/50 font-medium uppercase tracking-widest text-xs mb-10 max-w-md">
           Meanwhile, generate a branded Instagram image and share it.
         </p>
@@ -1370,7 +1379,9 @@ function ReviewStep({
           While we complete GST compliance setup, only buyers in the same state
           as your pickup address can check out on this listing. Selling to
           another state needs a GSTIN, which we are working on with specific
-          sellers. Your price and payout are unaffected.
+          sellers. Your price and payout are unaffected. You do not need a
+          GSTIN yourself - just a PAN and a one-time enrolment number we will
+          help you get.
         </p>
       </div>
 
