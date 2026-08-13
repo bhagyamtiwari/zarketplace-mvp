@@ -834,10 +834,7 @@ function PhotosStep({ imagePreviews, onAdd, onRemove }: {
           <br />
           Messy background? Strip it free with{' '}
           <a href="https://www.photoroom.com/tools/background-remover" target="_blank" rel="noreferrer"
-            className="underline text-black hover:text-black/60">PhotoRoom</a>
-          {' '}or{' '}
-          <a href="https://www.remove.bg/" target="_blank" rel="noreferrer"
-            className="underline text-black hover:text-black/60">remove.bg</a>.
+            className="underline text-black hover:text-black/60">PhotoRoom</a>.
         </TrustNote>
       </div>
 
