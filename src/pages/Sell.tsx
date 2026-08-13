@@ -228,8 +228,13 @@ function SellInner() {
     }
   }, [shippingCategories]);
 
+  // priceVal is now what the buyer actually pays, and salePriceVal is the
+  // optional higher "was" price shown struck through. The old arrangement had
+  // the required field mean "original price" and the optional one mean "what
+  // you get paid", so a seller typing their real price into the first box was
+  // quietly setting a strike-through instead.
   const salePriceInvalid =
-    showSalePrice && !!salePriceVal && !!priceVal && Number(salePriceVal) >= Number(priceVal);
+    showSalePrice && !!salePriceVal && !!priceVal && Number(salePriceVal) <= Number(priceVal);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const fileList = e.target.files;
@@ -302,7 +307,7 @@ function SellInner() {
     }
     if (s === 3) {
       if (!priceVal || Number(priceVal) <= 0) return 'Enter a price.';
-      if (salePriceInvalid) return 'Sale price must be lower than the regular price.';
+      if (salePriceInvalid) return 'The "was" price has to be higher than your price, or buyers see a discount that is not one.';
       if (shippingMode === 'platform' && !shippingCategory) return 'Choose a shipping category.';
       if (!pickupState) return 'Select the state you ship from.';
       // Only bites when the seller is absorbing the courier cost. With
@@ -310,7 +315,7 @@ function SellInner() {
       // Mirrors the server rule listings_require_positive_payout, which is what
       // actually rejects the insert.
       const floor = shippingCategories.find((c) => c.key === shippingCategory)?.rate ?? 0;
-      const lowest = Number(showSalePrice && salePriceVal ? salePriceVal : priceVal);
+      const lowest = Number(priceVal);
       if (freeShipping && floor > 0 && lowest <= floor) {
         return `With free delivery the ${formatCurrency(floor)} courier cost comes out of your payout, so ${formatCurrency(lowest)} would pay you nothing. Price it above ${formatCurrency(floor)}, or turn free delivery off.`;
       }
@@ -384,8 +389,12 @@ function SellInner() {
       }
       setUploadProgress(null);
 
-      const price = Number(priceVal);
-      const sale_price = showSalePrice && salePriceVal ? Number(salePriceVal) : null;
+      // The database contract is unchanged - price is the struck-through
+      // number and sale_price is what is charged - so the form's friendlier
+      // wording is mapped back onto it here rather than migrating data.
+      const hasWas = showSalePrice && !!salePriceVal;
+      const price = hasWas ? Number(salePriceVal) : Number(priceVal);
+      const sale_price = hasWas ? Number(priceVal) : null;
 
       const { error } = await supabase.from('listings').insert({
         title: title.trim(),
@@ -600,7 +609,9 @@ function SellInner() {
             {step === 4 && (
               <ReviewStep
                 imagePreviews={imagePreviews}
-                title={title} brand={brand} price={priceVal} salePrice={showSalePrice ? salePriceVal : ''}
+                title={title} brand={brand}
+                price={showSalePrice && salePriceVal ? salePriceVal : priceVal}
+                salePrice={showSalePrice && salePriceVal ? priceVal : ''}
                 condition={condition} hasFlaws={hasFlaws} flawsDescription={flawsDescription}
                 shippingCategory={shippingCategory} shippingCategories={shippingCategories}
                 shippingMode={shippingMode} freeShipping={freeShipping}
@@ -922,16 +933,20 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
 
       <div className="flex flex-col gap-6">
         <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Any flaws? *</h3>
+        {/* Yes before No: the question is "any flaws?", and a Yes/No question
+            reads Yes-then-No everywhere else. Leading with No also nudged
+            sellers toward the answer that hides flaws, which is the one
+            answer that costs us a dispute. */}
         <div className="grid grid-cols-2 gap-3 max-w-xs">
-          <button type="button" onClick={() => setHasFlaws(false)}
-            className={cn('border py-4 text-xs font-black uppercase tracking-widest transition-all',
-              hasFlaws === false ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
-            No
-          </button>
           <button type="button" onClick={() => setHasFlaws(true)}
             className={cn('border py-4 text-xs font-black uppercase tracking-widest transition-all',
               hasFlaws === true ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
             Yes
+          </button>
+          <button type="button" onClick={() => setHasFlaws(false)}
+            className={cn('border py-4 text-xs font-black uppercase tracking-widest transition-all',
+              hasFlaws === false ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
+            No
           </button>
         </div>
 
@@ -966,15 +981,21 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
 }) {
   const selectedRate = shippingCategories.find((c) => c.key === shippingCategory)?.rate ?? 0;
   // The number a buyer would actually pay: the sale price when one is set.
-  const effectivePrice = Number(showSalePrice && salePriceVal ? salePriceVal : priceVal);
+  const effectivePrice = Number(priceVal);
   const belowFloor = freeShipping && selectedRate > 0 && effectivePrice > 0 && effectivePrice <= selectedRate;
   return (
     <div className="flex flex-col gap-10">
       <div className="flex flex-col gap-6">
         <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Pricing</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-8">
+        {/* One decision at a time, stacked rather than side by side. Two money
+            fields sitting as equals is what made this confusing: both looked
+            like "the price", and the seller had to work out which one they
+            were being paid. Now the required field states the payout in its
+            own label, and the optional one is plainly a marketing device. */}
+        <div className="flex flex-col gap-8 max-w-md">
           <div className="flex flex-col gap-3">
-            <FieldLabel>Price (INR) *</FieldLabel>
+            <FieldLabel>Your price (INR) *</FieldLabel>
+            <TrustNote>What the buyer pays, and what you get paid.</TrustNote>
             <input type="number" min={freeShipping && selectedRate ? selectedRate + 1 : 1} value={priceVal} onChange={(e) => setPriceVal(e.target.value)}
               placeholder={selectedRate ? String(selectedRate) : '3500'}
               className={cn('border-b py-4 text-sm font-bold focus:outline-none transition-all placeholder:text-black/20',
@@ -993,9 +1014,9 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
                 : 'You keep this in full. No selling fees.'}
             </TrustNote>
           </div>
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 border-t border-black/5 pt-8">
             <div className="flex items-center justify-between">
-              <FieldLabel>Sale price (optional)</FieldLabel>
+              <FieldLabel>Show it as a discount (optional)</FieldLabel>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" className="sr-only peer" checked={showSalePrice} onChange={() => setShowSalePrice(!showSalePrice)} />
                 <div className="w-8 h-4 bg-zinc-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-black"></div>
@@ -1003,13 +1024,20 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
             </div>
             {showSalePrice && (
               <>
+                <FieldLabel>Was (INR)</FieldLabel>
                 <motion.input initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-                  type="number" min="1" value={salePriceVal} onChange={(e) => setSalePriceVal(e.target.value)} placeholder="2900"
+                  type="number" min="1" value={salePriceVal} onChange={(e) => setSalePriceVal(e.target.value)}
+                  placeholder={priceVal ? String(Math.round(Number(priceVal) * 1.3)) : '4900'}
                   className={cn('border-b py-4 text-sm font-bold focus:outline-none transition-all placeholder:text-black/20',
                     salePriceInvalid ? 'border-red-500 focus:border-red-600' : 'border-black/10 focus:border-black')} />
                 {salePriceInvalid && (
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-red-600">Sale price must be lower than the regular price.</p>
+                  <p className="text-[11px] font-bold uppercase tracking-widest text-red-600 leading-relaxed">
+                    This has to be higher than your price. Buyers see it struck through next to what they pay.
+                  </p>
                 )}
+                <TrustNote>
+                  Shown struck through beside your price. It does not change what you are paid.
+                </TrustNote>
               </>
             )}
           </div>
