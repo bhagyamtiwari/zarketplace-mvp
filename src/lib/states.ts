@@ -51,39 +51,31 @@ export const INDIAN_STATES = [
 
 export type IndianState = (typeof INDIAN_STATES)[number];
 
-// Where zarketplace's buyers and sellers actually are, floated above the full
-// alphabetical list.
+// The states our people are actually in, floated above the full alphabetical
+// list. Everything else still appears below, so nothing is hidden.
 //
-// The list has always held all 28 states and all 8 union territories, but
-// strict A-Z put Delhi at position 32 of 36 - below every state, because the
-// UTs sorted last - so the single most common answer looked absent and people
-// concluded the picker was broken. Ordering is not cosmetics here: a picker
-// where the likeliest answer is invisible gets abandoned.
+// Strict A-Z put Delhi at position 32 of 36 - below every state, because the
+// UTs sort last - so the single most likely answer looked absent and people
+// concluded the picker was broken. Ordering is not cosmetics when the likeliest
+// answer is the one nobody can find.
 //
-// The city in each label is the recognition cue. People know where they live
-// by city far faster than by state, and "Telangana" alone loses the person who
-// would have picked "Hyderabad" instantly.
+// State first, cities in brackets. The state is the value being chosen, so it
+// leads; the cities are the recognition cue that stops someone in Noida
+// hunting for "Noida" in an alphabetical list of states.
+//
+// NCR stays split into its three jurisdictions. There is no NCR concession
+// under GST: Delhi, Haryana and UP are three states, place of supply is where
+// delivery terminates, and an unregistered seller may not cross those lines.
 export const COMMON_STATES: Array<{ state: IndianState; label: string }> = [
-  // Labelled by CITY, because that is how people locate themselves. Nobody
-  // thinks "I am in Uttar Pradesh"; they think "I am in Noida". The state is
-  // still what gets stored and compared - it is just no longer the thing a
-  // buyer has to translate their own address into.
-  //
-  // NCR is split into its three real jurisdictions. There is no NCR concession
-  // under GST: Delhi, Haryana and UP are three states, place of supply is
-  // where delivery terminates, and an unregistered seller may not cross those
-  // lines. Showing "Delhi NCR" as one option was the pincode bug reintroduced
-  // one screen earlier - a Gurgaon buyer picks it, feels correct, and is
-  // refused at checkout with no idea why.
   { state: 'Delhi', label: 'Delhi' },
-  { state: 'Haryana', label: 'Gurgaon, Faridabad (Haryana)' },
-  { state: 'Uttar Pradesh', label: 'Noida, Ghaziabad (Uttar Pradesh)' },
-  { state: 'Maharashtra', label: 'Mumbai, Pune (Maharashtra)' },
-  { state: 'Karnataka', label: 'Bengaluru (Karnataka)' },
-  { state: 'Telangana', label: 'Hyderabad (Telangana)' },
-  { state: 'West Bengal', label: 'Kolkata (West Bengal)' },
-  { state: 'Rajasthan', label: 'Jaipur (Rajasthan)' },
-  { state: 'Nagaland', label: 'Dimapur, Kohima (Nagaland)' },
+  { state: 'Haryana', label: 'Haryana (Gurugram, Faridabad)' },
+  { state: 'Uttar Pradesh', label: 'Uttar Pradesh (Noida, Ghaziabad)' },
+  { state: 'Maharashtra', label: 'Maharashtra (Mumbai, Pune)' },
+  { state: 'Karnataka', label: 'Karnataka (Bengaluru)' },
+  { state: 'Telangana', label: 'Telangana (Hyderabad)' },
+  { state: 'West Bengal', label: 'West Bengal (Kolkata)' },
+  { state: 'Rajasthan', label: 'Rajasthan (Jaipur)' },
+  { state: 'Nagaland', label: 'Nagaland (Dimapur, Kohima)' },
 ];
 
 // Where zarketplace actually operates today. One list, used by every picker,

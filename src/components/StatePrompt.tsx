@@ -72,7 +72,7 @@ export function StatePrompt() {
               buyer picking Delhi is the single likeliest way to end up
               refused without understanding why. */}
           <p className="text-[10px] font-bold uppercase tracking-widest leading-[1.9] text-black/40">
-            Gurgaon and Noida are separate states for GST, so they are not live
+            Gurugram and Noida are separate states for GST, so they are not live
             yet either. You can still browse everything.
           </p>
         </div>
