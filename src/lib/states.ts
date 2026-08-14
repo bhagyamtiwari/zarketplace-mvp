@@ -86,6 +86,24 @@ export const COMMON_STATES: Array<{ state: IndianState; label: string }> = [
   { state: 'Nagaland', label: 'Dimapur, Kohima (Nagaland)' },
 ];
 
+// Where zarketplace actually operates today. One list, used by every picker,
+// so buyers and sellers can never be offered different answers.
+//
+// Intra-state means a seller outside this list could only sell to buyers in
+// their own state - and there are none there yet, so listing from there
+// produces stock nobody can buy. Offering the option would be offering a dead
+// end. The rest of the country stays visible but disabled, because "coming
+// soon" is information and a missing option is just confusing.
+//
+// Adding a state is one line here. Nothing else needs to change.
+export const SERVICEABLE_STATES: readonly IndianState[] = ['Delhi'];
+
+const SERVICEABLE_SET = new Set<string>(SERVICEABLE_STATES);
+
+export function isServiceable(state: string | null | undefined): boolean {
+  return !!state && SERVICEABLE_SET.has(state);
+}
+
 const COMMON_SET = new Set<string>(COMMON_STATES.map((c) => c.state));
 
 /** Everything not floated to the top, still alphabetical, states then UTs. */

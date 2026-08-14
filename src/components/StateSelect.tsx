@@ -7,7 +7,7 @@
 // complete; the top group only changes what you see first.
 
 import * as React from 'react';
-import { COMMON_STATES, OTHER_STATES, type IndianState } from '../lib/states';
+import { COMMON_STATES, OTHER_STATES, SERVICEABLE_STATES, isServiceable, INDIAN_STATES, type IndianState } from '../lib/states';
 
 interface Props {
   value: string;
@@ -34,16 +34,26 @@ export function StateSelect({
     >
       <option value="">{placeholder}</option>
 
-      <optgroup label="Where our buyers are">
-        {COMMON_STATES.map(({ state, label }) => (
-          <option key={state} value={state}>{label}</option>
+      {/* Live states first and selectable. Everywhere else is shown but
+          disabled: a greyed "coming soon" says we are not there yet, whereas
+          a missing option just looks like a broken list. */}
+      <optgroup label="Available now">
+        {SERVICEABLE_STATES.map((state) => (
+          <option key={state} value={state}>
+            {COMMON_STATES.find((c) => c.state === state)?.label ?? state}
+          </option>
         ))}
       </optgroup>
 
-      <optgroup label="All states &amp; union territories">
-        {OTHER_STATES.map((s) => (
-          <option key={s} value={s}>{s}</option>
+      <optgroup label="Coming soon">
+        {COMMON_STATES.filter(({ state }) => !isServiceable(state)).map(({ state, label }) => (
+          <option key={state} value={state} disabled>{label}</option>
         ))}
+        {INDIAN_STATES
+          .filter((s) => !isServiceable(s) && !COMMON_STATES.some((c) => c.state === s))
+          .map((s) => (
+            <option key={s} value={s} disabled>{s}</option>
+          ))}
       </optgroup>
     </select>
   );

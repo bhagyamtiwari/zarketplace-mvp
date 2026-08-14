@@ -58,20 +58,21 @@ export function StatePrompt() {
           <div className="flex items-center gap-2.5">
             <MapPin className="h-5 w-5 shrink-0" strokeWidth={2} />
             <h2 id="state-prompt-title" className="text-lg sm:text-xl font-black uppercase tracking-tighter">
-              Which state are you in?
+              We are live in Delhi first
             </h2>
           </div>
           <p className="text-[11px] font-bold uppercase tracking-widest leading-[1.9] text-black/60">
-            Sellers ship within their own state for now, while our GST
-            registration comes through. Tell us where you are and we will show
-            you what you can actually buy today.
+            Sellers ship within their own state while our GST registration comes
+            through, and every seller on zarketplace is in Delhi right now. More
+            states open as we sign sellers up there.
           </p>
           {/* Said here rather than discovered at checkout. NCR is one city to
               everyone who lives in it and three states to GST, and a Gurgaon
               buyer picking Delhi is the single likeliest way to end up
               refused without understanding why. */}
           <p className="text-[10px] font-bold uppercase tracking-widest leading-[1.9] text-black/40">
-            Pick the city you live in. Delhi, Gurgaon and Noida count separately.
+            Gurgaon and Noida are separate states for GST, so they are not live
+            yet either. You can still browse everything.
           </p>
         </div>
 
@@ -99,13 +100,13 @@ export function StatePrompt() {
             disabled={!choice}
             className="flex-1 bg-black py-4 text-[10px] font-black uppercase tracking-[0.25em] text-white disabled:opacity-30"
           >
-            Show me what ships here
+            I am in Delhi
           </button>
         </div>
 
         <p className="text-[9px] font-bold uppercase tracking-widest text-black/35 leading-relaxed">
-          Stored on this device only. Change it any time. We are adding states
-          every week and going pan-India as soon as we can.
+          Stored on this device only. Change it any time. We are going pan-India
+          as soon as our registration allows it.
         </p>
       </div>
     </div>
