@@ -24,6 +24,7 @@ export function DeliverToPicker({ compact = false }: { compact?: boolean }) {
         onChange={setBuyerState}
         placeholder="All of India"
         aria-label="Your state"
+        serviceableOnly
         className="w-full border border-black/15 bg-white px-3 py-2.5 text-[11px] font-black uppercase tracking-widest focus:border-black focus:outline-none"
       />
       <CoverageNote state={buyerState} />

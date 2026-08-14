@@ -62,9 +62,10 @@ export function StatePrompt() {
             </h2>
           </div>
           <p className="text-[11px] font-bold uppercase tracking-widest leading-[1.9] text-black/60">
-            Sellers ship within their own state while our GST registration comes
-            through, and every seller on zarketplace is in Delhi right now. More
-            states open as we sign sellers up there.
+            Sellers ship within their own state while we work through the GST
+            system to make selling on an enrolment number simple for them. Every
+            listing on zarketplace is in Delhi right now, and more states open as
+            we allow listings from them.
           </p>
           {/* Said here rather than discovered at checkout. NCR is one city to
               everyone who lives in it and three states to GST, and a Gurgaon
@@ -81,6 +82,7 @@ export function StatePrompt() {
           onChange={(v) => setChoice(v ?? '')}
           placeholder="Select your state"
           aria-label="Your state"
+          serviceableOnly
           className="border-b border-black/15 bg-transparent py-4 text-sm font-bold focus:border-black focus:outline-none"
         />
 

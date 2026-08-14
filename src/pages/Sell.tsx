@@ -1194,6 +1194,16 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
             setup, only buyers in this state can check out on your listing. We remember
             it for your next listing.
           </TrustNote>
+          {/* A seller outside Delhi can list, and should - their stock is how
+              a city becomes worth opening. But they should hear it from us
+              now rather than infer it from silence later. */}
+          {pickupState && pickupState !== 'Delhi' && (
+            <p className="text-[11px] font-bold uppercase tracking-widest leading-[1.8] text-black/50">
+              List away, we want stock in {pickupState}. Be aware most of our buyers
+              are in Delhi today, so it may sit a while. We open a state properly
+              once there are enough sellers in it to be worth shopping.
+            </p>
+          )}
 
           {/* The pincode, not the state, is what the rule reads at checkout.
               A buyer's state dropdown can say Delhi while their pincode is in

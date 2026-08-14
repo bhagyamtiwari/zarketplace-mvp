@@ -18,11 +18,50 @@ interface Props {
   className?: string;
   'aria-label'?: string;
   autoFocus?: boolean;
+  /**
+   * Restrict to states zarketplace currently serves, greying out the rest.
+   *
+   * True for BUYERS: picking a state we have no sellers in leads to an empty
+   * grid and a checkout that refuses, so the dead end is better shown than
+   * walked into.
+   *
+   * False for SELLERS, which is the default. A seller anywhere should be able
+   * to list - their stock is how a state becomes servable in the first place,
+   * and refusing them is refusing the supply that unlocks their city. Their
+   * listing simply waits for buyers there.
+   */
+  serviceableOnly?: boolean;
 }
 
 export function StateSelect({
-  value, onChange, onBlur, placeholder, className, autoFocus, ...rest
+  value, onChange, onBlur, placeholder, className, autoFocus, serviceableOnly = false, ...rest
 }: Props) {
+  // Sellers get the plain list: every state selectable, cities first.
+  if (!serviceableOnly) {
+    return (
+      <select
+        value={value}
+        onChange={(e) => onChange((e.target.value || null) as IndianState | null)}
+        onBlur={onBlur}
+        autoFocus={autoFocus}
+        aria-label={rest['aria-label']}
+        className={className}
+      >
+        <option value="">{placeholder}</option>
+        <optgroup label="Where our sellers are">
+          {COMMON_STATES.map(({ state, label }) => (
+            <option key={state} value={state}>{label}</option>
+          ))}
+        </optgroup>
+        <optgroup label="All states &amp; union territories">
+          {OTHER_STATES.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </optgroup>
+      </select>
+    );
+  }
+
   return (
     <select
       value={value}
