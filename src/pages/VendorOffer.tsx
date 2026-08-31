@@ -141,6 +141,7 @@ function VendorOfferInner() {
       <Shell>
         <Verdict
           status={offer.offer_status}
+          reasons={offer.review_reasons}
           note={offer.review_note}
           listingId={listingId}
           canSendBack={canResubmit(offer)}
@@ -390,9 +391,9 @@ function Waiting({ title, round }: { title: string; round: number }) {
         </h1>
       </div>
       <p className="body-copy text-black/70 max-w-prose">
-        Someone is looking at {title} now. You will hear one of three things: an offer,
-        a note asking for better photos or details, or that we cannot take this one.
-        Nothing is listed until you have seen a number and agreed to it.
+        Someone is looking at {title} now. You will hear either an offer, or what would
+        need to change before we can make one. Nothing is listed until you have seen a
+        number and agreed to it.
       </p>
     </div>
   );
@@ -403,25 +404,20 @@ function Waiting({ title, round }: { title: string; round: number }) {
  * vendor turned a number down, or an offer went stale. All four say what
  * happened and, where there is one, offer the way forward.
  */
-function Verdict({ status, note, listingId, canSendBack, submitting, onResubmit }: {
-  status: string; note: string | null; listingId: string;
+function Verdict({ status, reasons, note, listingId, canSendBack, submitting, onResubmit }: {
+  status: string; reasons: string[] | null; note: string | null; listingId: string;
   canSendBack: boolean; submitting: boolean; onResubmit: () => void;
 }) {
   const copy = {
-    changes_requested: {
-      kicker: 'One thing first',
-      heading: 'We need a bit more before we can make an offer',
-      body: 'Update your item with what we have asked for below, then send it back to us. We will look again within 24 hours.',
+    declined: {
+      kicker: 'Not this time',
+      heading: 'We cannot make an offer on this yet',
+      body: 'This is not final. Sort out what is listed here, send the item back to us, and we will look again within 24 hours.',
     },
     offer_rejected: {
       kicker: 'Offer turned down',
       heading: 'No problem',
       body: 'That number did not work for you. If you want us to look again, improve the photos or the description and send it back.',
-    },
-    declined: {
-      kicker: 'Not taken',
-      heading: 'We cannot take this one',
-      body: 'This item is not something we can resell right now. Nothing else happens and the item stays yours.',
     },
     expired: {
       kicker: 'Expired',
@@ -443,12 +439,22 @@ function Verdict({ status, note, listingId, canSendBack, submitting, onResubmit 
         </h1>
       </div>
 
-      {note && (
-        <div className="border-l-2 border-black pl-6 py-1 flex flex-col gap-2">
+      {(reasons?.length || note) && (
+        <div className="border-l-2 border-black pl-6 py-1 flex flex-col gap-4">
           <span className="text-[9px] font-black uppercase tracking-[0.4em] text-black/40">
-            What we said
+            What needs fixing
           </span>
-          <p className="body-copy text-black">{note}</p>
+          {reasons && reasons.length > 0 && (
+            <ul className="flex flex-col gap-2.5">
+              {reasons.map((r) => (
+                <li key={r} className="body-copy text-black flex gap-3">
+                  <span aria-hidden className="text-black/25">&mdash;</span>
+                  <span>{r}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {note && <p className="body-copy text-black">{note}</p>}
         </div>
       )}
 

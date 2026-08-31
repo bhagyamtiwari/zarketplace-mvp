@@ -589,9 +589,9 @@ function SellInner() {
           Someone is looking at your item now.
         </p>
         <p className="text-black/70 font-medium uppercase tracking-widest text-[11px] leading-[1.9] mb-10 max-w-md">
-          You will hear one of three things: an offer, a note asking for better
-          photos or details, or that we cannot take this one. Nothing is listed
-          until you have seen a number and agreed to it.
+          You will hear either an offer, or what would need to change before we
+          can make one. Nothing is listed until you have seen a number and
+          agreed to it.
         </p>
         {/* The vendor has just finished a form and is at their most willing to
             read one more thing. Said here, in three lines, so the PAN request

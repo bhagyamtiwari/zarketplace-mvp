@@ -13,6 +13,8 @@ import { orderCancelledSeller } from "./order-cancelled-seller.ts";
 import { orderRefundedBuyer } from "./order-refunded-buyer.ts";
 import { orderDeliveredBuyer } from "./order-delivered-buyer.ts";
 import { listingApprovedSeller } from "./listing-approved-seller.ts";
+import { acquisitionOfferVendor } from "./acquisition-offer-vendor.ts";
+import { acquisitionRejectedVendor } from "./acquisition-rejected-vendor.ts";
 import { custom } from "./custom.ts";
 
 type TemplateFn = (ctx: EmailContext) => EmailContent;
@@ -30,6 +32,8 @@ const TEMPLATES: Record<string, TemplateFn> = {
   order_refunded_buyer: orderRefundedBuyer,
   order_delivered_buyer: orderDeliveredBuyer,
   listing_approved_seller: listingApprovedSeller,
+  acquisition_offer_vendor: acquisitionOfferVendor,
+  acquisition_rejected_vendor: acquisitionRejectedVendor,
   custom: custom,
 };
 

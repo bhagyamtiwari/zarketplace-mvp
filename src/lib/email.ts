@@ -17,6 +17,8 @@ export type EmailTemplate =
   | 'order_refunded_buyer'
   | 'order_delivered_buyer'
   | 'listing_approved_seller'
+  | 'acquisition_offer_vendor'
+  | 'acquisition_rejected_vendor'
   | 'custom';
 
 interface SendEmailArgs {

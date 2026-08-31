@@ -953,7 +953,7 @@ function ListingDrawer({ listing, orders, payouts, audit, onClose, onDone, onOpe
         {listing.has_flaws && listing.flaws_description && <p className="text-black/60 mt-1">"{listing.flaws_description}"</p>}
       </Sec>
 
-      <AcquisitionPanel listingId={listing.id} askingPriceFallback={listing.sale_price ?? listing.price} onDone={onDone} />
+      <AcquisitionPanel listingId={listing.id} listingTitle={listing.title} vendorEmail={listing.seller_email ?? null} askingPriceFallback={listing.sale_price ?? listing.price} onDone={onDone} />
 
       <Sec title="Vendor">
         <Row k="Email" v={listing.seller_email} /><Row k="UPI" v={listing.seller_upi_vpa} />
@@ -1013,17 +1013,36 @@ function ListingDrawer({ listing, orders, payouts, audit, onClose, onDone, onOpe
   );
 }
 
+// The rejections that actually recur. Ticking one is faster than typing it,
+// reads identically to every vendor who gets it, and keeps free text as the
+// exception - a note written in a hurry is where a resale figure or a
+// negotiating phrase would end up, and neither belongs in front of a vendor.
+const REJECTION_REASONS: string[] = [
+  'The photos are too dark. Please reshoot in daylight, near a window.',
+  'We need a photo of the brand label and the size tag.',
+  'We need more angles: front, back, and any detail that matters.',
+  'The description does not match what the photos show.',
+  'The condition is not clear enough from these photos.',
+  'The item needs a clean or a press before we can take it.',
+  'This is not something we are able to resell right now.',
+];
+
 /**
- * Operator triage. A submitted item gets one of three answers: an offer, a
- * request for something better, or a decline.
+ * Operator triage. A submitted item gets one of two answers: an offer, or a
+ * rejection. A rejection is never final - the vendor can fix what we named and
+ * send the item straight back - so there is no third "ask for changes" verb.
+ * The reasons live on the rejection, which is where they were always useful.
  *
  * The offer amount is typed by hand, because condition is a judgement made by
- * looking at photographs and no formula sees those. The spread model still
- * runs against an expected resale and shows what it would have paid, as a
- * reference sitting next to the box - it does not fill the box in.
+ * looking at photographs and no formula sees those. The spread model runs
+ * against an expected resale and shows what it would have paid, next to the
+ * box - it does not fill the box in. Both numbers are stored, so where we
+ * override the model and by how much is answerable later.
  */
-function AcquisitionPanel({ listingId, askingPriceFallback, onDone }: {
+function AcquisitionPanel({ listingId, listingTitle, vendorEmail, askingPriceFallback, onDone }: {
   listingId: string;
+  listingTitle: string;
+  vendorEmail: string | null;
   askingPriceFallback: number | null;
   onDone: () => Promise<void> | void;
 }) {
@@ -1031,6 +1050,7 @@ function AcquisitionPanel({ listingId, askingPriceFallback, onDone }: {
   const [loading, setLoading] = React.useState(true);
   const [resale, setResale] = React.useState('');
   const [offer, setOffer] = React.useState('');
+  const [reasons, setReasons] = React.useState<string[]>([]);
   const [note, setNote] = React.useState('');
   const [suggestion, setSuggestion] = React.useState<number | null>(null);
   const [busy, setBusy] = React.useState(false);
@@ -1045,7 +1065,7 @@ function AcquisitionPanel({ listingId, askingPriceFallback, onDone }: {
 
   React.useEffect(() => { void load(); }, [load]);
 
-  // What the model would pay, refreshed as the operator types a resale figure.
+  // What the model would pay, refreshed as a resale figure is typed.
   React.useEffect(() => {
     const amount = Number(resale);
     if (!(amount > 0)) { setSuggestion(null); return; }
@@ -1057,44 +1077,56 @@ function AcquisitionPanel({ listingId, askingPriceFallback, onDone }: {
     return () => { alive = false; clearTimeout(t); };
   }, [resale]);
 
-  const run = async (fn: () => PromiseLike<{ error: unknown }>, confirmText: string) => {
-    if (!confirm(confirmText)) return;
-    setBusy(true); setErr(null);
-    try {
-      const { error } = await fn();
-      if (error) throw error;
-      await load();
-      await onDone();
-    } catch (e: any) {
-      setErr(e?.message ?? 'That did not work.');
-    } finally { setBusy(false); }
-  };
+  const toggleReason = (r: string) =>
+    setReasons((prev) => prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]);
 
-  const sendOffer = () => {
+  const sendOffer = async () => {
     const amount = Number(offer);
     if (!(amount > 0)) { setErr('Type the amount we will pay the vendor.'); return; }
-    return run(
-      () => supabase.rpc('make_acquisition_offer', {
+    if (!confirm(`Offer the vendor ${formatCurrency(amount)}? Once they accept, this amount is locked and cannot be changed.`)) return;
+    setBusy(true); setErr(null);
+    try {
+      const { error } = await supabase.rpc('make_acquisition_offer', {
         p_listing_id: listingId,
         p_offer: amount,
         p_expected_resale: Number(resale) > 0 ? Number(resale) : null,
-      }),
-      `Offer the vendor ${formatCurrency(amount)}? Once they accept, this amount is locked and cannot be changed.`,
-    );
+      });
+      if (error) throw error;
+      if (vendorEmail) {
+        void sendEmail({
+          template: 'acquisition_offer_vendor',
+          extra: { vendor_email: vendorEmail, listing_title: listingTitle, listing_id: listingId, offer_amount: amount },
+        });
+      }
+      await load(); await onDone();
+    } catch (e: any) { setErr(e?.message ?? 'That did not work.'); }
+    finally { setBusy(false); }
   };
 
-  const askForChanges = () => {
-    if (!note.trim()) { setErr('Say what needs improving. The vendor reads this.'); return; }
-    return run(
-      () => supabase.rpc('request_listing_changes', { p_listing_id: listingId, p_note: note.trim() }),
-      'Send this back to the vendor asking for changes?',
-    );
+  const reject = async () => {
+    if (reasons.length === 0 && !note.trim()) {
+      setErr('Pick at least one reason, or write one. The vendor is told why.');
+      return;
+    }
+    if (!confirm('Reject this item? The vendor can fix what you have named and send it back.')) return;
+    setBusy(true); setErr(null);
+    try {
+      const { error } = await supabase.rpc('reject_listing', {
+        p_listing_id: listingId,
+        p_reasons: reasons.length ? reasons : null,
+        p_note: note.trim() || null,
+      });
+      if (error) throw error;
+      if (vendorEmail) {
+        void sendEmail({
+          template: 'acquisition_rejected_vendor',
+          extra: { vendor_email: vendorEmail, listing_title: listingTitle, listing_id: listingId, reasons, note: note.trim() },
+        });
+      }
+      await load(); await onDone();
+    } catch (e: any) { setErr(e?.message ?? 'That did not work.'); }
+    finally { setBusy(false); }
   };
-
-  const decline = () => run(
-    () => supabase.rpc('decline_listing', { p_listing_id: listingId, p_note: note.trim() || null }),
-    'Decline this item? The vendor cannot resubmit after a decline.',
-  );
 
   if (loading) return <Sec title="Acquisition"><p className="text-black/40">Loading.</p></Sec>;
 
@@ -1110,6 +1142,9 @@ function AcquisitionPanel({ listingId, askingPriceFallback, onDone }: {
 
   const b = acq.offer_breakdown ?? {};
   const openForReview = acq.offer_status === 'pending_pricing';
+  const waitingHours = openForReview
+    ? Math.round((Date.now() - new Date(acq.updated_at ?? acq.created_at).getTime()) / 36e5)
+    : null;
 
   return (
     <Sec title="Acquisition">
@@ -1117,10 +1152,19 @@ function AcquisitionPanel({ listingId, askingPriceFallback, onDone }: {
       <Row k="Status" v={acq.offer_status} />
       {acq.offer_round > 1 && <Row k="Round" v={String(acq.offer_round)} />}
       {acq.intake_status && <Row k="Intake" v={acq.intake_status} />}
+      {waitingHours != null && (
+        <Row
+          k="Waiting"
+          v={<span className={waitingHours >= 24 ? 'font-black text-red-700' : ''}>
+            {waitingHours}h{waitingHours >= 24 ? ' - past 24h' : ''}
+          </span>}
+        />
+      )}
+      {acq.review_reasons?.length > 0 && <Row k="Reasons sent" v={acq.review_reasons.join(' / ')} />}
       {acq.review_note && <Row k="Note sent" v={acq.review_note} />}
 
       {openForReview ? (
-        <div className="flex flex-col gap-4 pt-3">
+        <div className="flex flex-col gap-5 pt-3">
           <div className="flex flex-col gap-1.5">
             <label className="text-[9px] font-black uppercase tracking-widest text-black/40">
               Expected resale (optional, for the model)
@@ -1151,27 +1195,42 @@ function AcquisitionPanel({ listingId, askingPriceFallback, onDone }: {
               className="border border-black px-3 py-2 text-sm font-black focus:outline-none"
             />
             <p className="text-[9px] text-black/40 leading-relaxed">
-              This is the only number the vendor sees. They never see the resale figure
-              or any part of the spread.
+              The only number the vendor sees. They never see the resale figure or the spread.
             </p>
           </div>
           <ActBtn label="Send this offer" onClick={sendOffer} busy={busy} />
 
-          <div className="flex flex-col gap-1.5 border-t border-black/5 pt-3">
-            <label className="text-[9px] font-black uppercase tracking-widest text-black/40">
-              Note to the vendor
-            </label>
+          <div className="flex flex-col gap-2 border-t border-black/5 pt-4">
+            <span className="text-[9px] font-black uppercase tracking-widest text-black/40">
+              Or reject - pick what needs fixing
+            </span>
+            <div className="flex flex-col gap-1">
+              {REJECTION_REASONS.map((r) => {
+                const on = reasons.includes(r);
+                return (
+                  <button
+                    key={r} type="button" onClick={() => toggleReason(r)}
+                    className={cn(
+                      'flex items-start gap-2 border px-2.5 py-2 text-left text-[10px] leading-relaxed transition-colors',
+                      on ? 'border-black bg-black text-white' : 'border-black/10 hover:border-black/40',
+                    )}
+                  >
+                    <span className={cn('mt-px h-3 w-3 shrink-0 border', on ? 'border-white bg-white' : 'border-black/30')} />
+                    <span>{r}</span>
+                  </button>
+                );
+              })}
+            </div>
             <textarea
-              value={note} onChange={(e) => setNote(e.target.value)} rows={3}
-              placeholder="e.g. Please add a photo of the brand label and one in daylight."
-              className="border border-black/15 px-3 py-2 text-xs font-medium leading-relaxed focus:border-black focus:outline-none"
+              value={note} onChange={(e) => setNote(e.target.value)} rows={2}
+              placeholder="Anything else (optional)"
+              className="mt-1 border border-black/15 px-3 py-2 text-xs font-medium leading-relaxed focus:border-black focus:outline-none"
             />
             <p className="text-[9px] text-black/40 leading-relaxed">
               The vendor reads this word for word. Never mention what we expect to sell it for.
             </p>
           </div>
-          <ActBtn label="Ask for better photos or details" onClick={askForChanges} busy={busy} />
-          <ActBtn label="Decline this item" danger onClick={decline} busy={busy} />
+          <ActBtn label="Reject and tell the vendor" danger onClick={reject} busy={busy} />
         </div>
       ) : (
         <>
