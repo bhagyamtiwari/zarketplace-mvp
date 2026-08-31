@@ -12,7 +12,14 @@ import { log } from './log';
 
 const alog = log('acquisition');
 
-export type OfferStatus = 'pending_pricing' | 'offered' | 'accepted' | 'declined' | 'expired';
+export type OfferStatus =
+  | 'pending_pricing'    // with us, waiting on a decision
+  | 'offered'            // we made an offer, waiting on the vendor
+  | 'accepted'           // agreed; the item can go live
+  | 'changes_requested'  // we asked for better photos or details
+  | 'offer_rejected'     // the vendor turned our number down
+  | 'declined'           // we are not taking the item at all
+  | 'expired';
 
 export type IntakeStatus =
   | 'awaiting_pickup' | 'in_transit' | 'received'
@@ -25,6 +32,11 @@ export interface VendorOffer {
   offer_amount: number | null;
   offer_status: OfferStatus;
   intake_status: IntakeStatus | null;
+  /** What we asked the vendor to improve, or why we passed. Written for them. */
+  review_note: string | null;
+  reviewed_at: string | null;
+  /** How many times this item has been round. 1 on first submission. */
+  offer_round: number;
   not_accepted_reason: string | null;
   not_accepted_at: string | null;
   offered_at: string | null;
@@ -35,6 +47,7 @@ export interface VendorOffer {
 
 const OFFER_COLUMNS =
   'listing_id, asking_price, offer_amount, offer_status, intake_status, ' +
+  'review_note, reviewed_at, offer_round, ' +
   'not_accepted_reason, not_accepted_at, offered_at, offer_expires_at, accepted_at, paid_at';
 
 export async function getVendorOffers(): Promise<VendorOffer[]> {
@@ -92,9 +105,26 @@ export async function acceptOffer(listingId: string): Promise<{ offer_amount: nu
   return data as { offer_amount: number };
 }
 
-export async function declineOffer(listingId: string): Promise<void> {
+/** The vendor turns our number down. The item stays theirs and can be reworked. */
+export async function rejectOffer(listingId: string): Promise<void> {
   const { error } = await supabase.rpc('decline_acquisition_offer', { p_listing_id: listingId });
   if (error) throw error;
+}
+
+/**
+ * Send an item back for another look, after improving it or after turning a
+ * number down. An item we declined outright cannot come back this way.
+ */
+export async function resubmitListing(listingId: string): Promise<void> {
+  const { error } = await supabase.rpc('resubmit_listing', { p_listing_id: listingId });
+  if (error) throw error;
+}
+
+/** True when the vendor can rework this item and send it back. */
+export function canResubmit(offer: VendorOffer | null | undefined): boolean {
+  return offer?.offer_status === 'changes_requested'
+    || offer?.offer_status === 'offer_rejected'
+    || offer?.offer_status === 'expired';
 }
 
 // ---------------------------------------------------------------------------
@@ -105,7 +135,8 @@ export async function declineOffer(listingId: string): Promise<void> {
 // price, so there is no buyer-side state that could leak through by accident.
 // ---------------------------------------------------------------------------
 export type VendorStatus =
-  | 'awaiting_offer' | 'offer_ready' | 'offer_declined' | 'offer_expired'
+  | 'awaiting_offer' | 'offer_ready' | 'changes_requested' | 'offer_rejected'
+  | 'declined' | 'offer_expired'
   | 'live' | 'sold' | 'awaiting_pickup' | 'in_transit'
   | 'received' | 'paid' | 'not_accepted';
 
@@ -118,10 +149,12 @@ export interface VendorStatusView {
 }
 
 const STATUS_COPY: Record<VendorStatus, { label: string; detail: string; needsAction: boolean }> = {
-  awaiting_offer:  { label: 'Awaiting offer', detail: 'We are working out what we can pay for this.', needsAction: false },
-  offer_ready:     { label: 'Offer ready',    detail: 'Review what we will pay and accept it to go live.', needsAction: true },
-  offer_declined:  { label: 'Not proceeding', detail: 'This item was not taken forward.', needsAction: false },
-  offer_expired:   { label: 'Offer expired',  detail: 'Get in touch and we will look at it again.', needsAction: true },
+  awaiting_offer:    { label: 'With us',        detail: 'We will come back to you within 24 hours.', needsAction: false },
+  offer_ready:       { label: 'Offer ready',    detail: 'Review what we will pay and accept it to go live.', needsAction: true },
+  changes_requested: { label: 'Needs a change', detail: 'We have asked for something before we can make an offer.', needsAction: true },
+  offer_rejected:    { label: 'Offer turned down', detail: 'You can improve this item and send it back to us.', needsAction: true },
+  declined:          { label: 'Not taken',      detail: 'We are not able to take this item.', needsAction: false },
+  offer_expired:     { label: 'Offer expired',  detail: 'Send it back to us and we will look again.', needsAction: true },
   live:            { label: 'Live',           detail: 'Listed and available to buy.', needsAction: false },
   sold:            { label: 'Sold',           detail: 'Bought. We will send you a prepaid label to post it to us.', needsAction: false },
   awaiting_pickup: { label: 'Awaiting pickup', detail: 'Pack it and hand it to the courier within 72 hours.', needsAction: true },
@@ -157,10 +190,12 @@ export function vendorStatus(
   // Then the offer, which is what gates going live at all.
   switch (offer?.offer_status) {
     case undefined:
-    case 'pending_pricing': return { key: 'awaiting_offer', ...STATUS_COPY.awaiting_offer };
-    case 'offered':         return { key: 'offer_ready', ...STATUS_COPY.offer_ready };
-    case 'declined':        return { key: 'offer_declined', ...STATUS_COPY.offer_declined };
-    case 'expired':         return { key: 'offer_expired', ...STATUS_COPY.offer_expired };
+    case 'pending_pricing':   return { key: 'awaiting_offer', ...STATUS_COPY.awaiting_offer };
+    case 'offered':           return { key: 'offer_ready', ...STATUS_COPY.offer_ready };
+    case 'changes_requested': return { key: 'changes_requested', ...STATUS_COPY.changes_requested };
+    case 'offer_rejected':    return { key: 'offer_rejected', ...STATUS_COPY.offer_rejected };
+    case 'declined':          return { key: 'declined', ...STATUS_COPY.declined };
+    case 'expired':           return { key: 'offer_expired', ...STATUS_COPY.offer_expired };
   }
 
   // Accepted, so it is on the shelf: sold, or waiting to be.

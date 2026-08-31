@@ -1014,12 +1014,13 @@ function ListingDrawer({ listing, orders, payouts, audit, onClose, onDone, onOpe
 }
 
 /**
- * Operator pricing. An expected resale goes in, the server applies the spread
- * model, and the acquisition amount comes back locked.
+ * Operator triage. A submitted item gets one of three answers: an offer, a
+ * request for something better, or a decline.
  *
- * The offer is computed in SQL, never here: a number produced on this page
- * could drift from the one the vendor is shown and agrees to. This panel sends
- * the resale figure and displays whatever the database decided.
+ * The offer amount is typed by hand, because condition is a judgement made by
+ * looking at photographs and no formula sees those. The spread model still
+ * runs against an expected resale and shows what it would have paid, as a
+ * reference sitting next to the box - it does not fill the box in.
  */
 function AcquisitionPanel({ listingId, askingPriceFallback, onDone }: {
   listingId: string;
@@ -1029,6 +1030,9 @@ function AcquisitionPanel({ listingId, askingPriceFallback, onDone }: {
   const [acq, setAcq] = React.useState<any>(null);
   const [loading, setLoading] = React.useState(true);
   const [resale, setResale] = React.useState('');
+  const [offer, setOffer] = React.useState('');
+  const [note, setNote] = React.useState('');
+  const [suggestion, setSuggestion] = React.useState<number | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
 
@@ -1041,22 +1045,56 @@ function AcquisitionPanel({ listingId, askingPriceFallback, onDone }: {
 
   React.useEffect(() => { void load(); }, [load]);
 
-  const price = async () => {
+  // What the model would pay, refreshed as the operator types a resale figure.
+  React.useEffect(() => {
     const amount = Number(resale);
-    if (!(amount > 0)) { setErr('Enter the amount we expect to resell this for.'); return; }
-    if (!confirm(`Price this at an expected resale of ${formatCurrency(amount)}? The acquisition amount this produces is locked and cannot be changed afterwards.`)) return;
+    if (!(amount > 0)) { setSuggestion(null); return; }
+    let alive = true;
+    const t = setTimeout(async () => {
+      const { data } = await supabase.rpc('compute_acquisition_offer', { resale: amount });
+      if (alive && data) setSuggestion(Number((data as any).offer_amount));
+    }, 300);
+    return () => { alive = false; clearTimeout(t); };
+  }, [resale]);
+
+  const run = async (fn: () => PromiseLike<{ error: unknown }>, confirmText: string) => {
+    if (!confirm(confirmText)) return;
     setBusy(true); setErr(null);
     try {
-      const { error } = await supabase.rpc('set_expected_resale', {
-        p_listing_id: listingId, p_resale: amount,
-      });
+      const { error } = await fn();
       if (error) throw error;
       await load();
       await onDone();
     } catch (e: any) {
-      setErr(e?.message ?? 'Could not price this listing.');
+      setErr(e?.message ?? 'That did not work.');
     } finally { setBusy(false); }
   };
+
+  const sendOffer = () => {
+    const amount = Number(offer);
+    if (!(amount > 0)) { setErr('Type the amount we will pay the vendor.'); return; }
+    return run(
+      () => supabase.rpc('make_acquisition_offer', {
+        p_listing_id: listingId,
+        p_offer: amount,
+        p_expected_resale: Number(resale) > 0 ? Number(resale) : null,
+      }),
+      `Offer the vendor ${formatCurrency(amount)}? Once they accept, this amount is locked and cannot be changed.`,
+    );
+  };
+
+  const askForChanges = () => {
+    if (!note.trim()) { setErr('Say what needs improving. The vendor reads this.'); return; }
+    return run(
+      () => supabase.rpc('request_listing_changes', { p_listing_id: listingId, p_note: note.trim() }),
+      'Send this back to the vendor asking for changes?',
+    );
+  };
+
+  const decline = () => run(
+    () => supabase.rpc('decline_listing', { p_listing_id: listingId, p_note: note.trim() || null }),
+    'Decline this item? The vendor cannot resubmit after a decline.',
+  );
 
   if (loading) return <Sec title="Acquisition"><p className="text-black/40">Loading.</p></Sec>;
 
@@ -1071,43 +1109,95 @@ function AcquisitionPanel({ listingId, askingPriceFallback, onDone }: {
   }
 
   const b = acq.offer_breakdown ?? {};
+  const openForReview = acq.offer_status === 'pending_pricing';
 
   return (
     <Sec title="Acquisition">
       <Row k="Vendor asked" v={formatCurrency(Number(acq.asking_price ?? askingPriceFallback ?? 0))} />
-      <Row k="Offer status" v={acq.offer_status} />
+      <Row k="Status" v={acq.offer_status} />
+      {acq.offer_round > 1 && <Row k="Round" v={String(acq.offer_round)} />}
       {acq.intake_status && <Row k="Intake" v={acq.intake_status} />}
+      {acq.review_note && <Row k="Note sent" v={acq.review_note} />}
 
-      {acq.offer_status === 'pending_pricing' ? (
-        <div className="flex flex-col gap-2 pt-2">
-          <label className="text-[9px] font-black uppercase tracking-widest text-black/40">
-            Expected resale (INR)
-          </label>
-          <input
-            type="number" inputMode="numeric" value={resale}
-            onChange={(e) => setResale(e.target.value)}
-            placeholder={String(askingPriceFallback ?? '')}
-            className="border border-black/15 px-3 py-2 text-sm font-bold focus:border-black focus:outline-none"
-          />
-          <p className="text-[9px] text-black/40 leading-relaxed">
-            The vendor never sees this figure, or any part of the spread. They are
-            shown one rupee amount and nothing else.
-          </p>
-          <ActBtn label="Compute and lock the offer" onClick={price} busy={busy} />
+      {openForReview ? (
+        <div className="flex flex-col gap-4 pt-3">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[9px] font-black uppercase tracking-widest text-black/40">
+              Expected resale (optional, for the model)
+            </label>
+            <input
+              type="number" inputMode="numeric" value={resale}
+              onChange={(e) => setResale(e.target.value)}
+              placeholder={String(askingPriceFallback ?? '')}
+              className="border border-black/15 px-3 py-2 text-sm font-bold focus:border-black focus:outline-none"
+            />
+            {suggestion != null && (
+              <button
+                type="button" onClick={() => setOffer(String(suggestion))}
+                className="self-start text-[9px] font-black uppercase tracking-widest text-black/50 underline hover:text-black"
+              >
+                Model says {formatCurrency(suggestion)} - use it
+              </button>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[9px] font-black uppercase tracking-widest text-black">
+              Offer to the vendor (INR)
+            </label>
+            <input
+              type="number" inputMode="numeric" value={offer}
+              onChange={(e) => setOffer(e.target.value)}
+              className="border border-black px-3 py-2 text-sm font-black focus:outline-none"
+            />
+            <p className="text-[9px] text-black/40 leading-relaxed">
+              This is the only number the vendor sees. They never see the resale figure
+              or any part of the spread.
+            </p>
+          </div>
+          <ActBtn label="Send this offer" onClick={sendOffer} busy={busy} />
+
+          <div className="flex flex-col gap-1.5 border-t border-black/5 pt-3">
+            <label className="text-[9px] font-black uppercase tracking-widest text-black/40">
+              Note to the vendor
+            </label>
+            <textarea
+              value={note} onChange={(e) => setNote(e.target.value)} rows={3}
+              placeholder="e.g. Please add a photo of the brand label and one in daylight."
+              className="border border-black/15 px-3 py-2 text-xs font-medium leading-relaxed focus:border-black focus:outline-none"
+            />
+            <p className="text-[9px] text-black/40 leading-relaxed">
+              The vendor reads this word for word. Never mention what we expect to sell it for.
+            </p>
+          </div>
+          <ActBtn label="Ask for better photos or details" onClick={askForChanges} busy={busy} />
+          <ActBtn label="Decline this item" danger onClick={decline} busy={busy} />
         </div>
       ) : (
         <>
-          <Row k="Expected resale" v={formatCurrency(Number(acq.expected_resale ?? 0))} />
-          <Row k="Offer to vendor" v={formatCurrency(Number(acq.offer_amount ?? 0))} />
-          <div className="mt-2 border-t border-black/5 pt-2 flex flex-col gap-1">
-            <span className="text-[9px] font-black uppercase tracking-widest text-black/30">Spread</span>
-            <Row k="Inbound shipping" v={formatCurrency(Number(b.inbound_shipping ?? 0))} />
-            <Row k="Outbound shipping" v={formatCurrency(Number(b.outbound_shipping ?? 0))} />
-            <Row k="Payment processing" v={formatCurrency(Number(b.payment_processing ?? 0))} />
-            <Row k="RTO / damage reserve" v={formatCurrency(Number(b.rto_damage_reserve ?? 0))} />
-            <Row k="Target margin" v={formatCurrency(Number(b.target_margin ?? 0))} />
-            <Row k="Tier" v={b.margin_tier ?? '-'} />
-          </div>
+          {acq.expected_resale != null && (
+            <Row k="Expected resale" v={formatCurrency(Number(acq.expected_resale))} />
+          )}
+          {acq.offer_amount != null && (
+            <Row k="Offered to vendor" v={formatCurrency(Number(acq.offer_amount))} />
+          )}
+          {acq.model_offer_amount != null && (
+            <Row
+              k="Model would have paid"
+              v={`${formatCurrency(Number(acq.model_offer_amount))}${acq.offer_manually_set ? ' (overridden)' : ''}`}
+            />
+          )}
+          {b.margin_tier && (
+            <div className="mt-2 border-t border-black/5 pt-2 flex flex-col gap-1">
+              <span className="text-[9px] font-black uppercase tracking-widest text-black/30">Model spread</span>
+              <Row k="Inbound shipping" v={formatCurrency(Number(b.inbound_shipping ?? 0))} />
+              <Row k="Outbound shipping" v={formatCurrency(Number(b.outbound_shipping ?? 0))} />
+              <Row k="Payment processing" v={formatCurrency(Number(b.payment_processing ?? 0))} />
+              <Row k="RTO / damage reserve" v={formatCurrency(Number(b.rto_damage_reserve ?? 0))} />
+              <Row k="Target margin" v={formatCurrency(Number(b.target_margin ?? 0))} />
+              <Row k="Tier" v={b.margin_tier} />
+            </div>
+          )}
         </>
       )}
 

@@ -115,14 +115,14 @@ function SellerInner() {
 
   const activeListings = listings.filter((l) => !l.is_sold);
   const soldListings = listings.filter((l) => l.is_sold);
-  const openOffers = listings.filter((l) => offers.get(l.id)?.offer_status === 'offered');
+  const needsVendor = listings.filter((l) => statusOf(l).needsAction);
   const unpaid = listings.filter((l) => {
     const o = offers.get(l.id);
     return o?.offer_status === 'accepted' && o.intake_status !== 'paid';
   });
 
   const NAV: Array<{ key: Tab; label: string; count: number; needsAction: boolean }> = [
-    { key: 'listings', label: 'My Items', count: listings.length, needsAction: openOffers.length > 0 },
+    { key: 'listings', label: 'My Items', count: listings.length, needsAction: needsVendor.length > 0 },
     { key: 'tools', label: 'Share Tools', count: listings.length, needsAction: false },
     { key: 'payouts', label: 'Payouts', count: listings.length, needsAction: unpaid.length > 0 },
   ];
@@ -196,7 +196,7 @@ function SellerInner() {
             <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-black/20" /></div>
           ) : tab === 'listings' ? (
             <div className="flex flex-col gap-14">
-              {openOffers.length > 0 && <OfferCallout rows={openOffers} offers={offers} />}
+              {needsVendor.length > 0 && <ActionCallout rows={needsVendor} offers={offers} statusOf={statusOf} />}
               <ListingsTable title="Active" rows={activeListings} offers={offers} statusOf={statusOf} onDelete={deleteListing} deletingId={deletingId} />
               <ListingsTable title="Sold" rows={soldListings} offers={offers} statusOf={statusOf} onDelete={deleteListing} deletingId={deletingId} />
             </div>
@@ -351,34 +351,48 @@ function payoutLabel(offer: VendorOffer | undefined): string {
   return formatCurrency(Number(offer.offer_amount));
 }
 
-/** Sits above the table when something is waiting on the vendor. */
-function OfferCallout({ rows, offers }: { rows: Listing[]; offers: Map<string, VendorOffer> }) {
+/**
+ * Sits above the table when anything is waiting on the vendor: an open offer,
+ * a request for better photos, or a number they turned down and could rework.
+ */
+function ActionCallout({ rows, offers, statusOf }: {
+  rows: Listing[];
+  offers: Map<string, VendorOffer>;
+  statusOf: (l: Listing) => VendorStatusView;
+}) {
   return (
     <div className="border border-black">
       <div className="border-b border-black px-6 py-4 sm:px-8">
         <span className="text-[9px] font-black uppercase tracking-[0.4em]">
-          {rows.length === 1 ? 'An offer is waiting for you' : `${rows.length} offers are waiting for you`}
+          {rows.length === 1 ? 'One item needs you' : `${rows.length} items need you`}
         </span>
       </div>
       <ul className="flex flex-col">
-        {rows.map((l) => (
-          <li key={l.id} className="border-b border-black/10 last:border-b-0">
-            <Link
-              to={`/offer/${l.id}`}
-              className="group flex items-center justify-between gap-5 px-6 py-5 sm:px-8 hover:bg-zinc-50 transition-colors"
-            >
-              <span className="flex flex-col gap-1.5 min-w-0">
-                <span className="text-xs font-black uppercase tracking-tight truncate">{l.title}</span>
-                <span className="text-[10px] font-black uppercase tracking-[0.25em] text-black/40">
-                  We will pay you {formatCurrency(Number(offers.get(l.id)?.offer_amount ?? 0))}
+        {rows.map((l) => {
+          const offer = offers.get(l.id);
+          const status = statusOf(l);
+          const amount = offer?.offer_amount;
+          return (
+            <li key={l.id} className="border-b border-black/10 last:border-b-0">
+              <Link
+                to={`/offer/${l.id}`}
+                className="group flex items-center justify-between gap-5 px-6 py-5 sm:px-8 hover:bg-zinc-50 transition-colors"
+              >
+                <span className="flex flex-col gap-1.5 min-w-0">
+                  <span className="text-xs font-black uppercase tracking-tight truncate">{l.title}</span>
+                  <span className="text-[10px] font-black uppercase tracking-[0.25em] text-black/40">
+                    {status.key === 'offer_ready' && amount != null
+                      ? `We will pay you ${formatCurrency(Number(amount))}`
+                      : status.detail}
+                  </span>
                 </span>
-              </span>
-              <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.25em] border-b-2 border-black pb-1 group-hover:text-black/60">
-                Review
-              </span>
-            </Link>
-          </li>
-        ))}
+                <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.25em] border-b-2 border-black pb-1 group-hover:text-black/60">
+                  {status.key === 'offer_ready' ? 'Review' : 'Open'}
+                </span>
+              </Link>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

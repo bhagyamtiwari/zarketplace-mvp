@@ -579,18 +579,19 @@ function SellInner() {
           <CheckCircle2 className="h-12 w-12" />
         </div>
         <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase mb-4 leading-[0.95]">
-          We are working out your offer
+          We will come back within 24 hours
         </h1>
         {/* The vendor has not listed anything yet and should not think they
             have. Nothing goes live until they have seen a number and agreed to
             it, and saying so here is the difference between someone waiting and
             someone who thinks the form silently failed. */}
         <p className="text-black font-medium uppercase tracking-widest text-xs mb-3 max-w-md">
-          Your item is saved. We will come back with what we will pay for it.
+          Someone is looking at your item now.
         </p>
         <p className="text-black/70 font-medium uppercase tracking-widest text-[11px] leading-[1.9] mb-10 max-w-md">
-          Nothing is listed yet. When your offer is ready it appears under your
-          items, and the item only goes live once you have accepted it.
+          You will hear one of three things: an offer, a note asking for better
+          photos or details, or that we cannot take this one. Nothing is listed
+          until you have seen a number and agreed to it.
         </p>
         {/* The vendor has just finished a form and is at their most willing to
             read one more thing. Said here, in three lines, so the PAN request
