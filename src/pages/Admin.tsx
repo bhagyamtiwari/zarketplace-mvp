@@ -810,7 +810,7 @@ function OrderDrawer({ order, payouts, emails, audit, onClose, onDone }: {
         {order.buyer_note && <p className="mt-1 border-l-2 border-black/20 pl-2 text-black/70">{order.buyer_note}</p>}
       </Sec>
 
-      <Sec title="Seller">
+      <Sec title="Vendor">
         <Row k="Email" v={order.seller_email} /><Row k="UPI" v={order.seller_upi_vpa_snapshot} />
       </Sec>
 
@@ -953,7 +953,9 @@ function ListingDrawer({ listing, orders, payouts, audit, onClose, onDone, onOpe
         {listing.has_flaws && listing.flaws_description && <p className="text-black/60 mt-1">"{listing.flaws_description}"</p>}
       </Sec>
 
-      <Sec title="Seller">
+      <AcquisitionPanel listingId={listing.id} askingPriceFallback={listing.sale_price ?? listing.price} onDone={onDone} />
+
+      <Sec title="Vendor">
         <Row k="Email" v={listing.seller_email} /><Row k="UPI" v={listing.seller_upi_vpa} />
         {listing.seller_instagram && <a href={listing.seller_instagram} target="_blank" rel="noreferrer" className="text-[10px] underline">Instagram</a>}
       </Sec>
@@ -1008,5 +1010,108 @@ function ListingDrawer({ listing, orders, payouts, audit, onClose, onDone, onOpe
         </div>
       </Sec>
     </DrawerShell>
+  );
+}
+
+/**
+ * Operator pricing. An expected resale goes in, the server applies the spread
+ * model, and the acquisition amount comes back locked.
+ *
+ * The offer is computed in SQL, never here: a number produced on this page
+ * could drift from the one the vendor is shown and agrees to. This panel sends
+ * the resale figure and displays whatever the database decided.
+ */
+function AcquisitionPanel({ listingId, askingPriceFallback, onDone }: {
+  listingId: string;
+  askingPriceFallback: number | null;
+  onDone: () => Promise<void> | void;
+}) {
+  const [acq, setAcq] = React.useState<any>(null);
+  const [loading, setLoading] = React.useState(true);
+  const [resale, setResale] = React.useState('');
+  const [busy, setBusy] = React.useState(false);
+  const [err, setErr] = React.useState<string | null>(null);
+
+  const load = React.useCallback(async () => {
+    const { data } = await supabase
+      .from('listing_acquisitions').select('*').eq('listing_id', listingId).maybeSingle();
+    setAcq(data ?? null);
+    setLoading(false);
+  }, [listingId]);
+
+  React.useEffect(() => { void load(); }, [load]);
+
+  const price = async () => {
+    const amount = Number(resale);
+    if (!(amount > 0)) { setErr('Enter the amount we expect to resell this for.'); return; }
+    if (!confirm(`Price this at an expected resale of ${formatCurrency(amount)}? The acquisition amount this produces is locked and cannot be changed afterwards.`)) return;
+    setBusy(true); setErr(null);
+    try {
+      const { error } = await supabase.rpc('set_expected_resale', {
+        p_listing_id: listingId, p_resale: amount,
+      });
+      if (error) throw error;
+      await load();
+      await onDone();
+    } catch (e: any) {
+      setErr(e?.message ?? 'Could not price this listing.');
+    } finally { setBusy(false); }
+  };
+
+  if (loading) return <Sec title="Acquisition"><p className="text-black/40">Loading.</p></Sec>;
+
+  if (!acq) {
+    return (
+      <Sec title="Acquisition">
+        <p className="text-black/40">
+          No acquisition record. This listing predates the vendor flow and cannot be priced.
+        </p>
+      </Sec>
+    );
+  }
+
+  const b = acq.offer_breakdown ?? {};
+
+  return (
+    <Sec title="Acquisition">
+      <Row k="Vendor asked" v={formatCurrency(Number(acq.asking_price ?? askingPriceFallback ?? 0))} />
+      <Row k="Offer status" v={acq.offer_status} />
+      {acq.intake_status && <Row k="Intake" v={acq.intake_status} />}
+
+      {acq.offer_status === 'pending_pricing' ? (
+        <div className="flex flex-col gap-2 pt-2">
+          <label className="text-[9px] font-black uppercase tracking-widest text-black/40">
+            Expected resale (INR)
+          </label>
+          <input
+            type="number" inputMode="numeric" value={resale}
+            onChange={(e) => setResale(e.target.value)}
+            placeholder={String(askingPriceFallback ?? '')}
+            className="border border-black/15 px-3 py-2 text-sm font-bold focus:border-black focus:outline-none"
+          />
+          <p className="text-[9px] text-black/40 leading-relaxed">
+            The vendor never sees this figure, or any part of the spread. They are
+            shown one rupee amount and nothing else.
+          </p>
+          <ActBtn label="Compute and lock the offer" onClick={price} busy={busy} />
+        </div>
+      ) : (
+        <>
+          <Row k="Expected resale" v={formatCurrency(Number(acq.expected_resale ?? 0))} />
+          <Row k="Offer to vendor" v={formatCurrency(Number(acq.offer_amount ?? 0))} />
+          <div className="mt-2 border-t border-black/5 pt-2 flex flex-col gap-1">
+            <span className="text-[9px] font-black uppercase tracking-widest text-black/30">Spread</span>
+            <Row k="Inbound shipping" v={formatCurrency(Number(b.inbound_shipping ?? 0))} />
+            <Row k="Outbound shipping" v={formatCurrency(Number(b.outbound_shipping ?? 0))} />
+            <Row k="Payment processing" v={formatCurrency(Number(b.payment_processing ?? 0))} />
+            <Row k="RTO / damage reserve" v={formatCurrency(Number(b.rto_damage_reserve ?? 0))} />
+            <Row k="Target margin" v={formatCurrency(Number(b.target_margin ?? 0))} />
+            <Row k="Tier" v={b.margin_tier ?? '-'} />
+          </div>
+        </>
+      )}
+
+      {err && <p className="text-[10px] font-bold text-red-700 pt-2">{err}</p>}
+    </Sec>
   );
 }

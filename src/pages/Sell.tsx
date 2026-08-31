@@ -48,6 +48,14 @@ const WEAR_OPTIONS: Array<{ key: string; label: string }> = [
   { key: 'frequently', label: 'Frequently' },
 ];
 
+// Shown above the photo grid, before anything is uploaded. Advice only: none
+// of this is checked, and no listing is ever refused over a photo.
+const PHOTO_TIPS: Array<{ title: string; body: string }> = [
+  { title: 'Lay it flat', body: 'On a bed, a floor, a table. Flat and uncreased beats held up every time.' },
+  { title: 'Natural light', body: 'Near a window in the daytime. No flash, no overhead bulb, no filter.' },
+  { title: 'No mirror shots', body: 'A mirror puts you, your room and your phone in frame. The item should be the only thing in it.' },
+];
+
 // Recommended photo order - purely a labeling/placeholder aid over the same
 // image array (index 0 is still the cover). Not a hard per-slot requirement.
 // These are the instruction: they say what to shoot, so no paragraph above the
@@ -444,7 +452,7 @@ function SellInner() {
       const price = hasWas ? Number(salePriceVal) : Number(priceVal);
       const sale_price = hasWas ? Number(priceVal) : null;
 
-      const { error } = await supabase.from('listings').insert({
+      const { data: created, error } = await supabase.from('listings').insert({
         title: title.trim(),
         brand: brand.trim(),
         price,
@@ -496,8 +504,22 @@ function SellInner() {
         authenticity_confirmed: authenticity === 'confirmed',
         seller_declared_at: new Date().toISOString(),
         status: 'pending',
-      });
+      }).select('id').single();
       if (error) throw error;
+
+      // The acquisition record. Carries the vendor's asking price and nothing
+      // else: the offer, the expected resale and every part of the spread are
+      // server-set, and the insert policy refuses a row that names any of them.
+      //
+      // Not fire-and-forget. Without this row the item can never be priced and
+      // can never go live, so a failure here has to surface as one.
+      const listingId = (created as { id: string }).id;
+      const { error: acqError } = await supabase.from('listing_acquisitions').insert({
+        listing_id: listingId,
+        vendor_id: user.id,
+        asking_price: Number(priceVal),
+      });
+      if (acqError) throw acqError;
 
       // Remembered on the account so the seller types it once. Fire and
       // forget: a failure here costs a prefill, never the listing.
@@ -556,18 +578,19 @@ function SellInner() {
         <div className="flex h-24 w-24 items-center justify-center rounded-full bg-black text-white mb-8">
           <CheckCircle2 className="h-12 w-12" />
         </div>
-        <h1 className="text-5xl font-black tracking-tighter uppercase mb-4">Listing Submitted</h1>
-        {/* Every listing inserts as 'pending' and waits on admin approval, and
-            new seller listings are being held rather than published right now.
-            Saying so here is the difference between a seller who is waiting and
-            a seller who thinks the form silently failed. */}
+        <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase mb-4 leading-[0.95]">
+          We are working out your offer
+        </h1>
+        {/* The vendor has not listed anything yet and should not think they
+            have. Nothing goes live until they have seen a number and agreed to
+            it, and saying so here is the difference between someone waiting and
+            someone who thinks the form silently failed. */}
         <p className="text-black font-medium uppercase tracking-widest text-xs mb-3 max-w-md">
-          Your listing is saved. We review every listing before it goes live.
+          Your item is saved. We will come back with what we will pay for it.
         </p>
-        <p className="text-black/70 font-medium uppercase tracking-widest text-[11px] leading-[1.9] mb-3 max-w-md">
-          New seller listings are archived until further notice, so it will not
-          appear in the feed yet. It stays on your account and we will be in
-          touch when listings reopen.
+        <p className="text-black/70 font-medium uppercase tracking-widest text-[11px] leading-[1.9] mb-10 max-w-md">
+          Nothing is listed yet. When your offer is ready it appears under your
+          items, and the item only goes live once you have accepted it.
         </p>
         {/* The vendor has just finished a form and is at their most willing to
             read one more thing. Said here, in three lines, so the PAN request
@@ -578,17 +601,14 @@ function SellInner() {
           payments of this kind.{' '}
           <Link to="/vendor-policy" className="underline text-black/70 hover:text-black">How this works</Link>
         </p>
-        <p className="text-black/50 font-medium uppercase tracking-widest text-xs mb-10 max-w-md">
-          Meanwhile, generate a branded Instagram image and share it.
-        </p>
         <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
-          <button onClick={() => navigate('/vendor-portal?tab=tools')}
+          <button onClick={() => navigate('/vendor-portal')}
             className="bg-black px-10 py-5 text-xs font-black uppercase tracking-widest text-white hover:bg-zinc-800">
-            Generate Instagram image
+            Your items
           </button>
           <button onClick={resetForm}
             className="border border-black px-10 py-5 text-xs font-black uppercase tracking-widest text-black hover:bg-black hover:text-white">
-            List Another
+            Sell another
           </button>
         </div>
         <button onClick={() => navigate('/')}
@@ -865,11 +885,40 @@ function PhotosStep({ imagePreviews, onAdd, onRemove }: {
         </p>
       </div>
 
+      {/* Guidance before the camera, not after. These are suggestions and
+          nothing here is ever enforced: a photo is never rejected and a listing
+          is never blocked on how it was shot. Better photos sell faster, which
+          is the only argument this panel makes. */}
+      <div className="flex flex-col gap-6 bg-zinc-50 border border-black/5 p-6 sm:p-8">
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[9px] font-black uppercase tracking-[0.4em] text-black/40">
+            Before you shoot
+          </span>
+          <h3 className="text-lg sm:text-xl font-black uppercase tracking-tighter leading-none">
+            Three things that sell an item
+          </h3>
+        </div>
+        <ul className="flex flex-col gap-4">
+          {PHOTO_TIPS.map((tip, i) => (
+            <li key={tip.title} className="flex gap-4">
+              <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.3em] text-black/25 pt-0.5">
+                0{i + 1}
+              </span>
+              <span className="flex flex-col gap-1 min-w-0">
+                <span className="text-xs font-black uppercase tracking-widest text-black">{tip.title}</span>
+                <span className="text-xs font-medium leading-relaxed text-black/50">{tip.body}</span>
+              </span>
+            </li>
+          ))}
+        </ul>
+        <p className="text-[10px] font-bold uppercase tracking-widest leading-[1.9] text-black/30 border-t border-black/5 pt-5">
+          Suggestions, not requirements. We never reject an item over its photos.
+        </p>
+      </div>
+
       <div className="flex flex-col gap-2">
         <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Item Photos</h3>
         <TrustNote>
-          Natural light, plain background, whole item in frame. No screenshots or stock photos.
-          <br />
           Messy background? Strip it free with{' '}
           <a href="https://www.photoroom.com/tools/background-remover" target="_blank" rel="noreferrer"
             className="underline text-black hover:text-black/60">PhotoRoom</a>.

@@ -12,26 +12,26 @@ import * as React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { scrollToTop } from '../lib/scrollToTop';
 import { supabase } from '../lib/supabase';
-import { Listing, Order, OrderStatus, SellerPayout } from '../types';
+import { Listing } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { variantUrl } from '../lib/images';
 import {
-  Loader2, Edit3, Upload, ExternalLink, Trash2, Share2, AlertTriangle,
+  Loader2, Trash2, Share2,
 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
-import { StatusBadge } from '../components/StatusBadge';
-import { listingStatusLabel } from '../lib/orderStatus';
-import { OrderTimeline } from '../components/OrderTimeline';
 import { ShareInstagramModal } from '../components/ShareInstagramModal';
-import { PayoutDetailsForm } from '../components/PayoutDetailsForm';
 import { log } from '../lib/log';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
-import { sendEmail } from '../lib/email';
+
+import { getVendorOffers, vendorStatus, type VendorOffer, type VendorStatusView } from '../lib/acquisition';
 
 const splog = log('seller');
 
-type Tab = 'listings' | 'tools' | 'orders' | 'payouts';
+// No orders tab. What a buyer paid, who they are and when their order moved
+// is the buyer side of a separate transaction, and none of it belongs to the
+// vendor. They see their own items and their own payouts.
+type Tab = 'listings' | 'tools' | 'payouts';
 const COURIERS = ['Delhivery', 'BlueDart', 'India Post', 'DTDC', 'Ekart', 'Other'];
 
 export function SellerPortal() {
@@ -50,7 +50,7 @@ function SellerInner() {
   // is where the post-publish screen sends a vendor to share their new listing.
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
-  const initialTab: Tab = (['listings', 'tools', 'orders', 'payouts'] as const)
+  const initialTab: Tab = (['listings', 'tools', 'payouts'] as const)
     .includes(tabParam as Tab) ? (tabParam as Tab) : 'listings';
   const [tab, setTabState] = React.useState<Tab>(initialTab);
   const setTab = React.useCallback((next: Tab) => {
@@ -63,8 +63,7 @@ function SellerInner() {
   }, [searchParams, setSearchParams]);
   const [loading, setLoading] = React.useState(false);
   const [listings, setListings] = React.useState<Listing[]>([]);
-  const [orders, setOrders] = React.useState<Order[]>([]);
-  const [payouts, setPayouts] = React.useState<SellerPayout[]>([]);
+  const [offers, setOffers] = React.useState<Map<string, VendorOffer>>(new Map());
   const [error, setError] = React.useState<string | null>(null);
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
 
@@ -91,15 +90,16 @@ function SellerInner() {
     if (!user) return;
     setLoading(true); setError(null);
     try {
-      const [{ data: l, error: le }, { data: o, error: oe }, { data: p, error: pe }] = await Promise.all([
+      // Listings and the vendor's own offers. Orders are deliberately not
+      // fetched here: this page has no buyer-side data to show, so it does not
+      // ask for any.
+      const [{ data: l, error: le }, offerRows] = await Promise.all([
         supabase.from('listings').select('*').eq('seller_id', user.id).order('created_at', { ascending: false }),
-        supabase.from('orders').select('*').eq('seller_id', user.id).order('created_at', { ascending: false }),
-        supabase.from('seller_payouts').select('*').eq('seller_id', user.id).order('created_at', { ascending: false }),
+        getVendorOffers(),
       ]);
-      if (le) throw le; if (oe) throw oe; if (pe) throw pe;
+      if (le) throw le;
       setListings((l as Listing[]) ?? []);
-      setOrders((o as Order[]) ?? []);
-      setPayouts((p as SellerPayout[]) ?? []);
+      setOffers(new Map(offerRows.map((o) => [o.listing_id, o])));
     } catch (err: any) {
       splog.error('fetchAll', err);
       setError(err?.message ?? 'Failed to load your data');
@@ -108,25 +108,29 @@ function SellerInner() {
 
   React.useEffect(() => { fetchAll(); }, [fetchAll]);
 
+  const statusOf = React.useCallback(
+    (l: Listing) => vendorStatus(l.status, !!l.is_sold, offers.get(l.id)),
+    [offers],
+  );
+
   const activeListings = listings.filter((l) => !l.is_sold);
   const soldListings = listings.filter((l) => l.is_sold);
-  const incomingOrders = orders.filter((o) =>
-    o.status === 'awaiting_verification' || o.status === 'paid' || o.status === 'shipped' || o.status === 'delivered',
-  );
-  const awaitingPayouts = payouts.filter((p) => p.status === 'awaiting_payout');
+  const openOffers = listings.filter((l) => offers.get(l.id)?.offer_status === 'offered');
+  const unpaid = listings.filter((l) => {
+    const o = offers.get(l.id);
+    return o?.offer_status === 'accepted' && o.intake_status !== 'paid';
+  });
 
   const NAV: Array<{ key: Tab; label: string; count: number; needsAction: boolean }> = [
-    { key: 'listings', label: 'My Listings', count: listings.length, needsAction: false },
+    { key: 'listings', label: 'My Items', count: listings.length, needsAction: openOffers.length > 0 },
     { key: 'tools', label: 'Share Tools', count: listings.length, needsAction: false },
-    { key: 'orders', label: 'Sales', count: orders.length, needsAction: incomingOrders.length > 0 },
-    { key: 'payouts', label: 'Payouts', count: payouts.length, needsAction: awaitingPayouts.length > 0 },
+    { key: 'payouts', label: 'Payouts', count: listings.length, needsAction: unpaid.length > 0 },
   ];
 
   const TAB_META: Record<Tab, { title: string; description: string }> = {
-    listings: { title: 'My Listings', description: 'Items you have put up for sale. Active items appear on browse; sold items move below once a buyer purchases them.' },
-    tools: { title: 'Share Tools', description: 'Generate a branded Instagram post or story image for any of your listings in one click.' },
-    orders: { title: 'Sales', description: 'Orders for items you sold. Add tracking once a buyer pays. Your payout is released after delivery is confirmed and the 48-hour buyer review window closes.' },
-    payouts: { title: 'Payouts', description: 'What you’re owed and what you’ve already been paid. Payouts are held until 48 hours after delivery.' },
+    listings: { title: 'My Items', description: 'Everything you have sent us. An item goes live only once you have seen what we will pay and accepted it.' },
+    tools: { title: 'Share Tools', description: 'Generate a branded Instagram post or story image for any of your items in one click.' },
+    payouts: { title: 'Payouts', description: 'What we have agreed to pay you, and what we have already sent. Each amount was fixed when you accepted it and does not change.' },
   };
 
   return (
@@ -156,7 +160,7 @@ function SellerInner() {
           </nav>
 
           <div className="flex flex-col gap-2.5">
-            <span className="text-[9px] font-black uppercase tracking-[0.25em] text-black/30">Listings</span>
+            <span className="text-[9px] font-black uppercase tracking-[0.25em] text-black/30">Items</span>
             <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-widest">
               <span className="text-black/60">Active</span>
               <span>{activeListings.length}</span>
@@ -171,7 +175,7 @@ function SellerInner() {
             to="/sell"
             className="border border-black py-3 text-center text-[10px] font-black uppercase tracking-[0.3em] hover:bg-black hover:text-white transition-colors"
           >
-            List an item
+            Sell an item
           </Link>
         </aside>
 
@@ -191,16 +195,15 @@ function SellerInner() {
           {loading ? (
             <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-black/20" /></div>
           ) : tab === 'listings' ? (
-            <div className="flex flex-col gap-10">
-              <ListingsTable title="Active" rows={activeListings} onDelete={deleteListing} deletingId={deletingId} />
-              <ListingsTable title="Sold" rows={soldListings} onDelete={deleteListing} deletingId={deletingId} />
+            <div className="flex flex-col gap-14">
+              {openOffers.length > 0 && <OfferCallout rows={openOffers} offers={offers} />}
+              <ListingsTable title="Active" rows={activeListings} offers={offers} statusOf={statusOf} onDelete={deleteListing} deletingId={deletingId} />
+              <ListingsTable title="Sold" rows={soldListings} offers={offers} statusOf={statusOf} onDelete={deleteListing} deletingId={deletingId} />
             </div>
           ) : tab === 'tools' ? (
             <SellerToolsPanel listings={listings} />
-          ) : tab === 'orders' ? (
-            <OrdersList rows={incomingOrders} payouts={payouts} onUpdated={fetchAll} />
           ) : (
-            <PayoutsView payouts={payouts} orders={orders} />
+            <VendorPayouts listings={listings} offers={offers} statusOf={statusOf} />
           )}
         </div>
       </div>
@@ -230,7 +233,7 @@ function SellerToolsPanel({ listings }: { listings: Listing[] }) {
               </div>
               <div className="flex-1 min-w-0 flex flex-col gap-1">
                 <span className="text-xs font-black uppercase tracking-tight truncate">{l.title}</span>
-                <span className="text-[9px] font-bold uppercase tracking-widest text-black/40">{listingStatusLabel(l.status, l.is_sold)} · {formatCurrency(Number(l.sale_price ?? l.price))}</span>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-black/40">{l.sku ?? '-'}</span>
               </div>
             </div>
             <button
@@ -251,8 +254,13 @@ function SellerToolsPanel({ listings }: { listings: Listing[] }) {
   );
 }
 
-function ListingsTable({ title, rows, onDelete, deletingId }: {
+// The money column is the vendor's own payout, never the price the item is
+// listed at. A vendor agreed to one number and that is the only one they see;
+// showing what we resell it for would hand them the other side of the deal.
+function ListingsTable({ title, rows, offers, statusOf, onDelete, deletingId }: {
   title: string; rows: Listing[];
+  offers: Map<string, VendorOffer>;
+  statusOf: (l: Listing) => VendorStatusView;
   onDelete: (l: Listing) => void; deletingId: string | null;
 }) {
   return (
@@ -273,8 +281,8 @@ function ListingsTable({ title, rows, onDelete, deletingId }: {
                   <Link to={`/product/${l.id}`} className="text-xs font-black uppercase tracking-tight truncate hover:underline">{l.title}</Link>
                   <span className="text-[9px] font-bold uppercase tracking-widest text-black/40">SKU {l.sku ?? '-'} · {new Date(l.created_at).toLocaleDateString()}</span>
                   <div className="flex items-center justify-between mt-1">
-                    <span className="text-sm font-black">{formatCurrency(Number(l.sale_price ?? l.price))}</span>
-                    <span className="text-[9px] font-black uppercase tracking-widest text-black/50">{listingStatusLabel(l.status, l.is_sold)}</span>
+                    <span className="text-sm font-black">{payoutLabel(offers.get(l.id))}</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-black/50">{statusOf(l).label}</span>
                   </div>
                 </div>
                 <button
@@ -296,8 +304,8 @@ function ListingsTable({ title, rows, onDelete, deletingId }: {
                 <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Item</th>
                 <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">SKU</th>
                 <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Status</th>
-                <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Price</th>
-                <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40 text-right">Listed</th>
+                <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Your payout</th>
+                <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40 text-right">Added</th>
                 <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40 text-right"></th>
               </tr></thead>
               <tbody>
@@ -308,8 +316,8 @@ function ListingsTable({ title, rows, onDelete, deletingId }: {
                       <span className="text-xs font-black uppercase tracking-tight">{l.title}</span>
                     </Link></td>
                     <td className="py-3 px-3 text-[10px] font-bold uppercase tracking-widest text-black/60">{l.sku ?? '-'}</td>
-                    <td className="py-3 px-3 text-[10px] font-black uppercase tracking-widest">{listingStatusLabel(l.status, l.is_sold)}</td>
-                    <td className="py-3 px-3 text-xs font-black">{formatCurrency(Number(l.sale_price ?? l.price))}</td>
+                    <td className="py-3 px-3 text-[10px] font-black uppercase tracking-widest">{statusOf(l).label}</td>
+                    <td className="py-3 px-3 text-xs font-black">{payoutLabel(offers.get(l.id))}</td>
                     <td className="py-3 px-3 text-[10px] font-bold uppercase tracking-widest text-black/40 text-right">
                       {new Date(l.created_at).toLocaleDateString()}
                     </td>
@@ -334,282 +342,123 @@ function ListingsTable({ title, rows, onDelete, deletingId }: {
   );
 }
 
-function OrdersList({ rows, payouts, onUpdated }: { rows: Order[]; payouts: SellerPayout[]; onUpdated: () => void }) {
-  const payoutByOrder = React.useMemo(() => new Map(payouts.map((p) => [p.order_id, p])), [payouts]);
-  if (rows.length === 0) {
-    return <p className="text-[11px] font-bold uppercase tracking-widest text-black/30">No sales yet.</p>;
+/** The vendor's own number, or an honest placeholder while there isn't one. */
+function payoutLabel(offer: VendorOffer | undefined): string {
+  if (!offer) return '-';
+  if (offer.offer_amount == null) {
+    return offer.offer_status === 'pending_pricing' ? 'Pending' : '-';
   }
+  return formatCurrency(Number(offer.offer_amount));
+}
+
+/** Sits above the table when something is waiting on the vendor. */
+function OfferCallout({ rows, offers }: { rows: Listing[]; offers: Map<string, VendorOffer> }) {
   return (
-    <div className="flex flex-col gap-4">
-      {rows.map((o) => <React.Fragment key={o.id}><OrderRow order={o} payout={payoutByOrder.get(o.id) ?? null} onUpdated={onUpdated} /></React.Fragment>)}
+    <div className="border border-black">
+      <div className="border-b border-black px-6 py-4 sm:px-8">
+        <span className="text-[9px] font-black uppercase tracking-[0.4em]">
+          {rows.length === 1 ? 'An offer is waiting for you' : `${rows.length} offers are waiting for you`}
+        </span>
+      </div>
+      <ul className="flex flex-col">
+        {rows.map((l) => (
+          <li key={l.id} className="border-b border-black/10 last:border-b-0">
+            <Link
+              to={`/offer/${l.id}`}
+              className="group flex items-center justify-between gap-5 px-6 py-5 sm:px-8 hover:bg-zinc-50 transition-colors"
+            >
+              <span className="flex flex-col gap-1.5 min-w-0">
+                <span className="text-xs font-black uppercase tracking-tight truncate">{l.title}</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.25em] text-black/40">
+                  We will pay you {formatCurrency(Number(offers.get(l.id)?.offer_amount ?? 0))}
+                </span>
+              </span>
+              <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.25em] border-b-2 border-black pb-1 group-hover:text-black/60">
+                Review
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
 
-function OrderRow({ order, payout, onUpdated }: { order: Order; payout: SellerPayout | null; onUpdated: () => void }) {
-  const [editing, setEditing] = React.useState(false);
-  const { profile } = useAuth();
-
-  // The first-sale gate. Payout details are no longer asked for at listing
-  // time, so this is where they get collected: a vendor cannot act on an order
-  // until we know where the money goes and where the courier collects from.
-  // Once submitted, payout_locked_at is set and every later sale skips this.
-  const needsPayoutDetails = !profile?.payout_locked_at;
-  const orderIsActionable =
-    order.status === 'awaiting_verification' || order.status === 'paid' || order.status === 'shipped';
-
-  return (
-    <div className="bg-zinc-50 border border-black/5 p-6 flex flex-col gap-4">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-4">
-          {order.listing_image_url && (
-            <div className="h-16 w-12 bg-zinc-100 overflow-hidden border border-black/5">
-              <img src={variantUrl(order.listing_image_url, 'thumb')} alt="" className="h-full w-full object-cover" />
-            </div>
-          )}
-          <div className="flex flex-col gap-1">
-            <span className="text-xs font-black uppercase tracking-tight">{order.listing_title}</span>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-black/40">#{order.order_number} · {order.buyer_name}</span>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-black/40">SKU {order.listing_sku}</span>
-          </div>
-        </div>
-        <div className="flex flex-col items-end gap-2">
-          <span className="text-sm font-black">{formatCurrency(Number(order.total_amount))}</span>
-          <StatusBadge status={order.status} audience="seller" />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-black/5 text-[10px] font-bold uppercase tracking-widest text-black/60">
-        <div>
-          <span className="block text-black/40 mb-1">Ship to</span>
-          {order.shipping_address?.fullName ?? ''}, {order.shipping_address?.address ?? ''}, {order.shipping_address?.city ?? ''} {order.shipping_address?.pincode ?? ''}
-        </div>
-        <div>
-          <span className="block text-black/40 mb-1">Buyer contact</span>
-          {order.buyer_email} · {order.buyer_phone}
-        </div>
-      </div>
-
-      <OrderTimeline order={order} payout={payout} audience="seller" />
-
-      <div className="pt-4 border-t border-black/5">
-        {needsPayoutDetails && orderIsActionable ? (
-          <div className="flex flex-col gap-6">
-            <div className="flex items-start gap-3 border border-amber-400 bg-amber-50 p-4">
-              <AlertTriangle className="h-4 w-4 shrink-0 text-amber-700 mt-0.5" />
-              <p className="text-[11px] font-bold uppercase tracking-widest text-amber-900 leading-[1.7]">
-                You have {formatCurrency(Number(order.amount))} waiting. Tell us where to send it and where the courier collects from, then you can ship.
-              </p>
-            </div>
-            <PayoutDetailsForm onSaved={onUpdated} />
-          </div>
-        ) : order.status === 'paid' && order.shiprocket_order_id ? (
-          <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 leading-relaxed">
-            Pickup booked with Shiprocket - waiting on courier assignment. We'll notify you once it's on its way; pack the item in the meantime.
-          </p>
-        ) : order.status === 'awaiting_verification' || order.status === 'paid' || (order.status === 'shipped' && editing) ? (
-          <TrackingForm order={order} onSaved={() => { setEditing(false); onUpdated(); }} />
-        ) : (order.status === 'shipped' || order.status === 'delivered') && order.tracking_url ? (
-          <div className="flex flex-col gap-2 text-[10px] font-bold uppercase tracking-widest text-black/60">
-            <div className="flex items-center justify-between gap-3">
-              <a href={order.tracking_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-black underline">
-                <ExternalLink className="h-3 w-3" /> {order.courier ?? 'Tracking link'}
-              </a>
-              <button onClick={() => setEditing(true)} className="inline-flex items-center gap-1 text-black/60 hover:text-black">
-                <Edit3 className="h-3 w-3" /> Edit
-              </button>
-            </div>
-            {order.tracking_number && <span className="font-mono">{order.tracking_number}</span>}
-            {order.package_image_url && <PackagePhoto path={order.package_image_url} />}
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function PackagePhoto({ path }: { path: string }) {
-  const [url, setUrl] = React.useState<string | null>(null);
-  React.useEffect(() => {
-    let cancelled = false;
-    supabase.storage.from('order-attachments').createSignedUrl(path, 3600).then(({ data }) => {
-      if (!cancelled) setUrl(data?.signedUrl ?? null);
-    });
-    return () => { cancelled = true; };
-  }, [path]);
-  if (!url) return null;
-  return <img src={url} alt="package" className="h-24 w-24 object-cover border border-black/10" />;
-}
-
-function TrackingForm({ order, onSaved }: { order: Order; onSaved: () => void }) {
-  const [trackingUrl, setTrackingUrl] = React.useState(order.tracking_url ?? '');
-  const [trackingNumber, setTrackingNumber] = React.useState(order.tracking_number ?? '');
-  const [courier, setCourier] = React.useState(order.courier ?? '');
-  const [photo, setPhoto] = React.useState<File | null>(null);
-  const [saving, setSaving] = React.useState(false);
-  const [err, setErr] = React.useState<string | null>(null);
-
-  const save = async () => {
-    setErr(null);
-    const url = trackingUrl.trim();
-    if (!url) { setErr('Tracking URL is required.'); return; }
-    // Must be a valid http(s) URL with a real host (not localhost / bare strings).
-    try {
-      const parsed = new URL(url);
-      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-        setErr('Tracking URL must start with http:// or https://'); return;
-      }
-      if (!parsed.hostname.includes('.') || parsed.hostname === 'localhost') {
-        setErr('Tracking URL must point to the courier’s website.'); return;
-      }
-    } catch {
-      setErr('That doesn’t look like a valid URL. Paste the full courier tracking link.'); return;
-    }
-    setSaving(true);
-    try {
-      let pkgPath: string | null = order.package_image_url;
-      if (photo) {
-        const ext = (photo.name.split('.').pop() || 'jpg').toLowerCase();
-        const path = `shipments/${order.order_number}/${crypto.randomUUID()}.${ext}`;
-        const { error: upErr } = await supabase.storage.from('order-attachments')
-          .upload(path, photo, { contentType: photo.type });
-        if (upErr) throw upErr;
-        pkgPath = path;
-      }
-      const update: Record<string, unknown> = {
-        tracking_url: trackingUrl.trim(),
-        tracking_number: trackingNumber.trim() || null,
-        courier: courier.trim() || null,
-        package_image_url: pkgPath,
-      };
-      if (order.status !== 'shipped') {
-        update.status = 'shipped';
-        update.shipped_at = new Date().toISOString();
-      }
-      const { error } = await supabase.from('orders').update(update).eq('id', order.id);
-      if (error) throw error;
-
-      // Notify buyer that their item has shipped (best effort). The payout
-      // row is no longer created here - it's created automatically by a DB
-      // trigger once an admin (or, later, the Shiprocket webhook) marks the
-      // order delivered, starting the 48-hour review window first.
-      if (update.status === 'shipped') {
-        void sendEmail({ template: 'tracking_update_buyer', order_id: order.id });
-      }
-
-      onSaved();
-    } catch (e: any) {
-      setErr(e?.message ?? 'Failed to save');
-    } finally { setSaving(false); }
-  };
-
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <label className="text-[10px] font-black uppercase tracking-widest">Tracking URL *</label>
-        <input value={trackingUrl} onChange={(e) => setTrackingUrl(e.target.value)}
-          placeholder="https://www.delhivery.com/track/AWB123"
-          className="border-b border-black/10 py-2 text-sm font-bold focus:border-black outline-none" />
-        <p className="text-[9px] font-bold uppercase tracking-widest text-black/40">
-          Paste the courier's tracking link (Delhivery, BlueDart, India Post, etc.).
-        </p>
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="flex flex-col gap-2">
-          <label className="text-[10px] font-black uppercase tracking-widest">Courier</label>
-          <select value={courier} onChange={(e) => setCourier(e.target.value)}
-            className="border-b border-black/10 py-2 text-sm font-bold bg-white">
-            <option value="">Select courier</option>
-            {COURIERS.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className="text-[10px] font-black uppercase tracking-widest">Tracking Number</label>
-          <input value={trackingNumber} onChange={(e) => setTrackingNumber(e.target.value)}
-            placeholder="AWB123" className="border-b border-black/10 py-2 text-sm font-bold focus:border-black outline-none" />
-        </div>
-      </div>
-      <div className="flex flex-col gap-2">
-        <label className="text-[10px] font-black uppercase tracking-widest">Package Photo (recommended)</label>
-        <p className="text-[9px] font-bold uppercase tracking-widest text-black/40 leading-relaxed">
-          Upload a photo of the packed item before handing it to the courier - protects you and the buyer.
-        </p>
-        {photo ? (
-          <div className="text-[10px] font-bold flex items-center gap-3">
-            {photo.name} <button onClick={() => setPhoto(null)} className="underline text-red-600">Remove</button>
-          </div>
-        ) : (
-          <label className="border border-dashed border-black/20 p-4 inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest cursor-pointer hover:border-black self-start">
-            <Upload className="h-3 w-3" /> Choose photo
-            <input type="file" accept="image/*" className="hidden"
-              onChange={(e) => setPhoto(e.target.files?.[0] ?? null)} />
-          </label>
-        )}
-      </div>
-      {err && <p className="text-[10px] font-bold uppercase tracking-widest text-red-600">{err}</p>}
-      <button onClick={save} disabled={saving}
-        className="self-start border border-black px-6 py-3 text-[10px] font-black uppercase tracking-[0.3em] hover:bg-black hover:text-white disabled:opacity-50">
-        {saving ? 'Saving…' : 'Save & mark shipped'}
-      </button>
-    </div>
-  );
-}
-
-function PayoutsView({ payouts, orders }: { payouts: SellerPayout[]; orders: Order[] }) {
-  const orderById = React.useMemo(() => new Map(orders.map((o) => [o.id, o])), [orders]);
-  const awaiting = payouts.filter((p) => p.status === 'awaiting_payout');
-  const paidOut = payouts.filter((p) => p.status === 'paid_out');
-
-  return (
-    <div className="flex flex-col gap-10">
-      <PayoutTable title="Awaiting Payout" rows={awaiting} orderById={orderById} />
-      <PayoutTable title="Paid Out" rows={paidOut} orderById={orderById} />
-    </div>
-  );
-}
-
-function PayoutTable({ title, rows, orderById }: {
-  title: string; rows: SellerPayout[]; orderById: Map<string, Order>;
+/**
+ * Payouts, built entirely from the vendor's own offers. Nothing here reads an
+ * order: whether the buyer has paid, and what they paid, is not the vendor's
+ * side of this. Their payout follows us accepting the item, nothing else.
+ */
+function VendorPayouts({ listings, offers, statusOf }: {
+  listings: Listing[];
+  offers: Map<string, VendorOffer>;
+  statusOf: (l: Listing) => VendorStatusView;
 }) {
+  const rows = listings
+    .map((l) => ({ listing: l, offer: offers.get(l.id) }))
+    .filter((r) => r.offer?.offer_status === 'accepted');
+
+  if (rows.length === 0) {
+    return (
+      <p className="text-[11px] font-bold uppercase tracking-widest text-black/30">
+        Nothing yet. A payout is agreed the moment you accept an offer.
+      </p>
+    );
+  }
+
+  const paid = rows.filter((r) => r.offer?.intake_status === 'paid');
+  const agreed = rows.filter((r) => r.offer?.intake_status !== 'paid');
+  const total = (list: typeof rows) =>
+    list.reduce((sum, r) => sum + Number(r.offer?.offer_amount ?? 0), 0);
+
+  return (
+    <div className="flex flex-col gap-14">
+      <div className="grid grid-cols-1 sm:grid-cols-2 border border-black divide-y sm:divide-y-0 sm:divide-x divide-black">
+        <Figure label="Agreed, not yet paid" value={total(agreed)} />
+        <Figure label="Paid to you" value={total(paid)} />
+      </div>
+      <PayoutRows title="Agreed" rows={agreed} statusOf={statusOf} />
+      <PayoutRows title="Paid" rows={paid} statusOf={statusOf} />
+    </div>
+  );
+}
+
+function Figure({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="px-8 py-7 flex flex-col gap-3">
+      <span className="text-[9px] font-black uppercase tracking-[0.4em] text-black/50">{label}</span>
+      <span className="text-3xl sm:text-4xl font-black tracking-tighter leading-none">{formatCurrency(value)}</span>
+    </div>
+  );
+}
+
+function PayoutRows({ title, rows, statusOf }: {
+  title: string;
+  rows: Array<{ listing: Listing; offer: VendorOffer | undefined }>;
+  statusOf: (l: Listing) => VendorStatusView;
+}) {
+  if (rows.length === 0) return null;
   return (
     <div>
       <SectionLabel>{title}</SectionLabel>
-      {rows.length === 0 ? (
-        <p className="text-[11px] font-bold uppercase tracking-widest text-black/30 pb-4">No payouts.</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
-            <thead><tr className="border-b border-black/10">
-              <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Order</th>
-              <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Amount</th>
-              <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40">Delivered</th>
-              <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40 text-right">Status</th>
-            </tr></thead>
-            <tbody>
-              {rows.map((p) => {
-                const order = orderById.get(p.order_id);
-                const held = p.status === 'awaiting_payout' && p.releasable_at && new Date(p.releasable_at) > new Date();
-                return (
-                  <tr key={p.id} className="border-b border-black/5">
-                    <td className="py-3 px-3 text-xs font-black uppercase tracking-tight">{order?.listing_title ?? order?.order_number ?? p.order_id.slice(0, 8)}</td>
-                    <td className="py-3 px-3 text-xs font-black">{formatCurrency(p.amount)}</td>
-                    <td className="py-3 px-3 text-[10px] font-bold uppercase tracking-widest text-black/60">
-                      {new Date(p.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="py-3 px-3 text-[10px] font-bold uppercase tracking-widest text-black/60 text-right">
-                      {p.status === 'paid_out'
-                        ? (p.paid_at ? `Paid ${new Date(p.paid_at).toLocaleDateString()}` : 'Paid')
-                        : held
-                          ? `Held until ${new Date(p.releasable_at as string).toLocaleDateString()}`
-                          : 'Ready for payout'}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <ul className="flex flex-col">
+        {rows.map(({ listing, offer }) => {
+          const status = statusOf(listing);
+          return (
+            <li key={listing.id} className="flex items-start justify-between gap-5 border-b border-black/5 py-5">
+              <span className="flex flex-col gap-1.5 min-w-0">
+                <span className="text-xs font-black uppercase tracking-tight truncate">{listing.title}</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-black/40">
+                  {status.label} · {status.detail}
+                </span>
+              </span>
+              <span className="shrink-0 text-sm font-black">
+                {formatCurrency(Number(offer?.offer_amount ?? 0))}
+              </span>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
