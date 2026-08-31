@@ -25,6 +25,7 @@ import { CONDITIONS } from '../lib/condition';
 import { log } from '../lib/log';
 import { scrollToTop } from '../lib/scrollToTop';
 import { encodeVariants, encodeSocialCard, SOCIAL_CARD_SUFFIX } from '../lib/images';
+import { removeBackground } from '../lib/backgroundRemoval';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
 import { normalizeState } from '../lib/states';
 import { resolvePincode } from '../lib/pincode';
@@ -158,6 +159,10 @@ function SellInner() {
 
   const [imageFiles, setImageFiles] = React.useState<File[]>([]);
   const [imagePreviews, setImagePreviews] = React.useState<string[]>([]);
+  // What the vendor actually uploaded, kept per index so "use original" can
+  // put it back. Only populated where background removal produced something.
+  const [originals, setOriginals] = React.useState<Record<number, { file: File; preview: string }>>({});
+  const [cleaning, setCleaning] = React.useState<Record<number, boolean>>({});
 
   const [title, setTitle] = React.useState('');
   const [brand, setBrand] = React.useState('');
@@ -313,8 +318,32 @@ function SellInner() {
         reader.readAsDataURL(file);
       })),
     ).then((urls) => {
+      const startIndex = imageFiles.length;
       setImageFiles((prev) => [...prev, ...accepted]);
       setImagePreviews((prev) => [...prev, ...urls]);
+
+      // Strip the background in the background, so to speak. The photo is
+      // already usable and already on screen; this swaps it if and when it
+      // succeeds. It can never block, never rejects a photo, and every
+      // failure quietly leaves the vendor's original in place.
+      accepted.forEach((file, offset) => {
+        const index = startIndex + offset;
+        setCleaning((prev) => ({ ...prev, [index]: true }));
+        void removeBackground(file).then(({ processed }) => {
+          if (processed) {
+            setOriginals((prev) => ({ ...prev, [index]: { file, preview: urls[offset] } }));
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const preview = reader.result as string;
+              setImageFiles((prev) => prev.map((f, i) => (i === index ? processed : f)));
+              setImagePreviews((prev) => prev.map((u, i) => (i === index ? preview : u)));
+            };
+            reader.readAsDataURL(processed);
+          }
+        }).finally(() => {
+          setCleaning((prev) => { const next = { ...prev }; delete next[index]; return next; });
+        });
+      });
     }).catch((err) => {
       slog.error('FileReader failed', err);
       alert('Failed to read one of the images.');
@@ -324,6 +353,17 @@ function SellInner() {
   const removeImage = (index: number) => {
     setImageFiles((prev) => prev.filter((_, i) => i !== index));
     setImagePreviews((prev) => prev.filter((_, i) => i !== index));
+    setOriginals((prev) => { const next = { ...prev }; delete next[index]; return next; });
+  };
+
+  // Put back exactly what the vendor uploaded. Their photo is always one tap
+  // away: we suggest a cleaner version, we never impose one.
+  const useOriginal = (index: number) => {
+    const original = originals[index];
+    if (!original) return;
+    setImageFiles((prev) => prev.map((f, i) => (i === index ? original.file : f)));
+    setImagePreviews((prev) => prev.map((u, i) => (i === index ? original.preview : u)));
+    setOriginals((prev) => { const next = { ...prev }; delete next[index]; return next; });
   };
 
   // What must be true for each step. Navigation between steps is free - this
@@ -711,6 +751,7 @@ function SellInner() {
           >
             {step === 0 && (
               <PhotosStep
+                originals={originals} cleaning={cleaning} onUseOriginal={useOriginal}
                 imagePreviews={imagePreviews}
                 onAdd={handleImageChange}
                 onRemove={removeImage}
@@ -866,10 +907,13 @@ function TrustNote({ children }: { children: React.ReactNode }) {
   return <p className="text-xs font-bold uppercase tracking-widest text-black/50 leading-relaxed">{children}</p>;
 }
 
-function PhotosStep({ imagePreviews, onAdd, onRemove }: {
+function PhotosStep({ imagePreviews, onAdd, onRemove, originals, cleaning, onUseOriginal }: {
   imagePreviews: string[];
   onAdd: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRemove: (i: number) => void;
+  originals: Record<number, { file: File; preview: string }>;
+  cleaning: Record<number, boolean>;
+  onUseOriginal: (i: number) => void;
 }) {
   const slotCount = Math.max(PHOTO_SLOT_LABELS.length, imagePreviews.length + 1);
   const slots = Array.from({ length: Math.min(slotCount, MAX_IMAGES) }, (_, i) => i);
@@ -941,6 +985,19 @@ function PhotosStep({ imagePreviews, onAdd, onRemove }: {
                 className="absolute top-2 right-2 bg-black/70 p-2 text-white hover:bg-black transition-all">
                 <X className="h-3 w-3" />
               </button>
+              {cleaning[i] && (
+                <span className="absolute bottom-2 left-2 bg-black/70 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-white">
+                  Tidying…
+                </span>
+              )}
+              {originals[i] && (
+                <button
+                  type="button" onClick={() => onUseOriginal(i)}
+                  className="absolute bottom-2 left-2 bg-white/90 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-black hover:bg-white"
+                >
+                  Use original
+                </button>
+              )}
             </div>
           ) : (
             <label key={i} className="flex aspect-[3/4] w-full cursor-pointer flex-col items-center justify-center gap-2 bg-zinc-50 border border-dashed border-black/15 hover:border-black/40 transition-all group p-3 text-center">
