@@ -1,0 +1,35 @@
+-- Applied live. Recorded here so the repo matches the database.
+--
+-- 1. listings_enforce_status gained the same internal escape as
+--    protect_vendor_standing. It RAISES rather than silently reverting, so
+--    vendor_cancel_item (runs as the vendor) and sweep_no_ship (under pg_cron,
+--    runs as nobody) both hit "Only admins can change listing status". Earlier
+--    tests passed only because the MCP connection is service_role, which the
+--    trigger already exempted.
+--
+-- 2. Rejected items can now be acted on: request_item_return (vendor claims it
+--    back and pays the return shipping) and close_out_rejected_item (operator
+--    marks it returned, donated or disposed). Donating or disposing before the
+--    60-day window closes is refused by the database, not just discouraged in
+--    the UI - it is the clause the vendor agreed to at listing time.
+--
+-- 3. pending_refunds gives the refund queue something that consumes it. A
+--    refund_status of 'pending' that no process picks up is a buyer who paid
+--    and got nothing.
+--
+-- 4. Hub operator actions: hub_receive_item, hub_accept_item, hub_reject_item,
+--    hub_advance, and the hub_queue view they read. Each moves the lifecycle,
+--    the acquisition and the shipment together, so an item cannot end up
+--    half-received or accepted without the payout it causes.
+--
+-- 5. hub_queue is security_invoker = true. As a plain view it ran as owner and
+--    ignored row-level security, which handed any signed-in user every item in
+--    flight and the amount agreed for each.
+--
+-- 6. sweep_no_ship scheduled via pg_cron, daily at 03:00 UTC.
+--
+-- The full SQL is in the applied migrations:
+--   let_internal_writes_through_status_guard
+--   abandonment_refunds_and_sweep_schedule
+--   hub_operator_actions
+--   hub_queue_respects_rls

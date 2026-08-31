@@ -37,6 +37,7 @@ const Faq = lazy(() => import('./pages/Faq').then((m) => ({ default: m.Faq })));
 const ShippingPolicy = lazy(() => import('./pages/ShippingPolicy').then((m) => ({ default: m.ShippingPolicy })));
 const SellerPolicy = lazy(() => import('./pages/SellerPolicy').then((m) => ({ default: m.SellerPolicy })));
 const VendorOfferPage = lazy(() => import('./pages/VendorOffer').then((m) => ({ default: m.VendorOfferPage })));
+const Hub = lazy(() => import('./pages/Hub').then((m) => ({ default: m.Hub })));
 const RefundPolicy = lazy(() => import('./pages/RefundPolicy').then((m) => ({ default: m.RefundPolicy })));
 const BuyerProtection = lazy(() => import('./pages/BuyerProtection').then((m) => ({ default: m.BuyerProtection })));
 const Terms = lazy(() => import('./pages/Terms').then((m) => ({ default: m.Terms })));
@@ -123,6 +124,7 @@ export default function App() {
             <Route path="/track-order" element={<TrackOrder />} />
             <Route path="/vendor-portal" element={<SellerPortal />} />
             <Route path="/offer/:listingId" element={<VendorOfferPage />} />
+            <Route path="/hub" element={<Hub />} />
             {/* Old public URLs. Kept as redirects so links already shared, and
                 anything search engines have indexed, still land somewhere. */}
             <Route path="/seller-portal" element={<Navigate to="/vendor-portal" replace />} />

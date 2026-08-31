@@ -23,6 +23,13 @@ import { buildEmail } from "../send-email/templates/index.ts";
 interface RequestBody {
   order_id: string;
   reason?: string;
+  /**
+   * Put the item back on sale afterwards. Defaults to true, which is right for
+   * an ordinary cancel-and-relist. The hub passes false when the refund
+   * follows a fulfillment failure: that item is not coming, and relisting it
+   * would offer buyers something we cannot supply.
+   */
+  relist?: boolean;
 }
 
 serve(async (req) => {
@@ -87,7 +94,12 @@ serve(async (req) => {
     // successful refund - the money is already back, so a follow-up write
     // failing must not make the caller think the refund itself failed.
     await supabase.from("orders").update({ status: "refunded" }).eq("id", order.id);
-    if (order.listing_id) {
+    // Put the item back on sale only when the refund was a change of mind
+    // about the ORDER. A refund that follows a fulfillment failure must not
+    // relist: the item was refused at the hub, never dispatched, or is lost,
+    // and record_fulfillment_failure has already archived it. Relisting it
+    // here would put an item we cannot supply back in front of buyers.
+    if (order.listing_id && body.relist !== false) {
       await supabase.from("listings").update({ is_sold: false }).eq("id", order.listing_id);
     }
     // Deliberately does NOT touch payouts. Refunding a buyer is a movement on

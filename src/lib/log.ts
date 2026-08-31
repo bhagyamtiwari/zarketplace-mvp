@@ -13,6 +13,7 @@ const ENABLED = import.meta.env.DEV;
 
 type Tag =
   | 'acquisition'
+  | 'hub'
   | 'supabase'
   | 'auth'
   | 'authmodal'
