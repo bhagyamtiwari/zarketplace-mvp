@@ -9,35 +9,34 @@ section first: **the happy path cannot complete today.**
 
 ## Blocking
 
-**1. There is no inbound leg. The shipping code still ships vendor → buyer.**
+**1. The hub address is not set.** `hub_location` exists with one empty row.
+Until it has a real address, the outbound leg cannot be booked and the inbound
+leg has nowhere to be delivered. Set it before the run:
 
-`shiprocket-create-order` registers a Shiprocket pickup location at the
-**vendor's address** and books delivery to the **buyer's address**. One leg,
-direct, no hub. It is the old P2P shipping and it was never rewritten — that
-work is Prompt 5, which has not been run.
+```sql
+UPDATE public.hub_location SET
+  contact_name = 'zarketplace', phone = '<10 digits>',
+  address = '<hub street>', address_2 = '<area>',
+  city = '<city>', state = '<state>', pincode = '<pincode>'
+WHERE id = 1;
+```
 
-Consequences if used as-is:
+The first outbound booking registers it with Shiprocket automatically and
+stamps `registered_at`.
 
-- the item never reaches the hub, so the match check never happens
-- the vendor's address is the dispatch origin on the label and on tracking,
-  which exposes vendor identity to the buyer
-- nothing writes a `shipments` row, so `picked_up_at` is never set, so NO_SHIP
-  cannot fire and the ship-by reminder cannot fire
-- `hub_queue` never populates, so the hub console has nothing to work on
+**2. Razorpay live-vs-test is unverified.** Unchanged. Check the mode in the
+Razorpay modal at checkout before spending money.
 
-Steps 5, 6 and 8 of the walkthrough are blocked. Steps 1–4 and 7 work.
-
-**2. Razorpay live-vs-test is unverified.** `RAZORPAY_KEY_ID` is set; its value
-is not readable and its digest reveals nothing. Check before spending money:
-open checkout, and the Razorpay modal shows the mode. A `rzp_test_` key means
-step 4 moves no real money.
+**3. Shiprocket credentials are unproven.** They are set but have never
+authenticated successfully in this codebase. The first booking either works or
+returns a 502 naming the failure. Book the inbound leg on a cheap item first.
 
 ## Not blocking, but not ready
 
-**3. `REMOVE_BG_API_KEY` is not set.** Background removal is inert. It fails
+**4. `REMOVE_BG_API_KEY` is not set.** Background removal is inert. It fails
 open — photos upload unchanged and nothing is blocked. Confirmed still off.
 
-**4. The dispatch secret has not been rotated.** The digest on the deployed
+**5. The dispatch secret has not been rotated.** The digest on the deployed
 function still matches the value generated during the build session, so it is
 in that transcript and in `internal_config`. Rotate before the run:
 
@@ -47,13 +46,13 @@ supabase secrets set DISPATCH_SECRET="$NEW" --project-ref wfaxtxprngyrxsmahxxa
 # then update internal_config.dispatch_secret to the same value
 ```
 
-**5. Your own account is an admin.** `bhagyamtiwari@proton.me` has
+**6. Your own account is an admin.** `bhagyamtiwari@proton.me` has
 `is_admin = true` and is already a vendor. Running the vendor half as yourself
 tests nothing about isolation: an admin sees the resale price, the spread and
 the hub queue. **Use a second, non-admin account as the vendor** — the gmail
 account is non-admin and works.
 
-**6. Vendor emails do not write to `email_log`.** They are recorded in
+**7. Vendor emails do not write to `email_log`.** They are recorded in
 `vendor_notifications` with status and error, which is better, but the two
 observability surfaces are now separate. Check both.
 
@@ -158,32 +157,37 @@ never mention a vendor.
 
 ## Step 5 · Inbound label  ⏱ ____ → ____
 
-> **BLOCKED.** Nothing generates a vendor → hub label. Do not press the
-> existing "Book Pickup (Shiprocket)" button in admin: it books a shipment from
-> the vendor's address to the buyer's address, which skips the hub and puts the
-> vendor's address on the buyer's parcel.
+The inbound leg books itself the moment the payment webhook fires. Nothing to
+press unless it failed.
 
-To carry on and test the rest, simulate:
+- [ ] In `/hub` → **Coming in**, the item shows an AWB and a courier
+- [ ] If it does not, press **Book inbound leg** on the card
+
+**State:** `LABEL_ISSUED`, a `shipments` row with `leg = INBOUND`
+**Email:** *Your label is ready* — courier and tracking number, and the ship-by
+date again
+**Check the label itself.** The consignor is the vendor's address and the
+consignee is the hub. That is correct for this leg and only this leg.
+
+## Step 6 · Post it  ⏱ ____ → ____
+
+Real post. Hand the parcel to the courier, or drop it at the pickup point.
+
+- [ ] Courier collects, or you drop off
+- [ ] Within a few hours the scan lands and the item moves to **PICKED_UP**
+
+**Check:** `picked_up_at` is set on the inbound shipment. This is the field
+NO_SHIP and the 48-hour reminder both key off, and it was never being written
+before this build.
+
+If the courier is slow to scan and you want to carry on:
 
 ```sql
-INSERT INTO public.shipments (listing_id, leg, status, awb, courier)
-VALUES ('<listing-id>', 'INBOUND', 'label_issued', 'TEST-AWB-1', 'Manual');
+SELECT public.record_pickup_scan('<inbound-awb>');
 ```
 
-**Email:** *Your label is ready* fires on that insert. Confirm it arrives.
-
-## Step 6 · Post it, or simulate the pickup scan  ⏱ ____ → ____
-
-Real post to the hub if you can. Otherwise:
-
-```sql
-UPDATE public.shipments SET status='picked_up', picked_up_at=now()
- WHERE listing_id='<listing-id>' AND leg='INBOUND';
-```
-
-**Check:** with `picked_up_at` set, the NO_SHIP sweep must ignore this item.
-Optionally verify by setting `ship_by_deadline` into the past and running
-`SELECT public.sweep_no_ship();` — it should return 0.
+That is the same function the courier webhook calls, so it exercises the real
+path rather than faking the state.
 
 ## Step 7 · Receive, accept, pay  ⏱ ____ → ____
 
@@ -205,19 +209,24 @@ buyer's payment anywhere on the record.
 
 ## Step 8 · Repack and ship out  ⏱ ____ → ____
 
-> **PARTIALLY BLOCKED.** The lifecycle steps work; the outbound label does not
-> come from the hub address.
-
 - [ ] Press **Repacked**
+- [ ] Press **Book outbound leg**. It is refused until the item has been
+      accepted — worth trying it earlier once, to see the refusal
 - [ ] Press **Shipped to buyer**
 
-Post it yourself for the dry run. The existing Shiprocket call would use the
-vendor's registered pickup location, not the hub.
+**State:** `REPACKED` → `SHIPPED_OUTBOUND`, a `shipments` row with
+`leg = OUTBOUND`
+**Check the outbound label. This is the single most important check in the
+run.** The consignor must be the hub address. The vendor's name, street, city
+and pincode must appear nowhere on it, and nowhere in the buyer's tracking.
+A unit test asserts this on the payload; the label is the thing that proves it.
 
 ## Step 9 · Delivery  ⏱ ____ → ____
 
 - [ ] Press **Delivered** in the hub
-- [ ] Buyer tracking shows delivery and never mentions the inbound leg
+- [ ] Buyer tracking shows: Received at zarketplace → Checked & repacked →
+      Shipped to you → delivered
+- [ ] The inbound leg appears nowhere, and neither does an origin
 
 **State:** `DELIVERED` — terminal.
 
@@ -288,3 +297,28 @@ Where to look:
 - `lifecycle_events` — every state change with who and when
 - `pending_refunds` — anything owed to a buyer
 - `cron.job_run_details` — whether the sweeps ran
+
+---
+
+# What still needs simulating
+
+Only two things, and neither is a gap in the product.
+
+**1. A slow courier scan.** If the pickup scan has not landed when you want to
+carry on, call `record_pickup_scan('<awb>')`. That is the same function the
+courier webhook calls, so the path is real — you are standing in for the
+courier's timing, not for our code.
+
+**2. The abandonment reminders.** The 30-day and 7-day emails fire off a date
+60 days out. Move `abandonment_deadline` and run
+`sweep_abandonment_reminders()`. Time is the only thing being faked.
+
+Everything else in the run is now real: both labels are genuine Shiprocket
+bookings, the pickup scan comes from the courier webhook, the payment is a real
+capture and the refund a real reversal.
+
+**Deliberately not simulated: NO_SHIP.** Testing it for real means letting a
+ship-by deadline lapse with a parcel you have not posted, five days of waiting
+and a real refund to yourself. The behaviour is asserted in SQL — it fires for
+an item with no pickup scan and does not fire for one with a scan, verified on
+the live database. Watch for it in production instead.

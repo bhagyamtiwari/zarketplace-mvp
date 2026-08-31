@@ -11,8 +11,8 @@ on:
   pull_request:
 
 jobs:
-  vendor-email-assertions:
-    name: Vendor emails leak nothing
+  leak-assertions:
+    name: Nothing leaks a vendor to a buyer
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,6 +21,8 @@ jobs:
           deno-version: v2.x
       - name: Render every vendor email with a poisoned payload
         run: deno test supabase/functions/dispatch-vendor-emails/templates.test.ts
+      - name: No outbound shipping payload carries a vendor address
+        run: deno test supabase/functions/shiprocket-book-leg/payload.test.ts
 
   typecheck-and-build:
     name: Typecheck and build

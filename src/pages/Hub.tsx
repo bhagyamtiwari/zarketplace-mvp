@@ -218,6 +218,22 @@ function ItemCard({ row, onDone }: { key?: string; row: HubRow; onDone: () => vo
 
           {/* Actions, gated by where the item actually is. */}
           <div className="flex flex-wrap gap-2 pt-2">
+            {TAB_STATES.inbound.includes(s) && !row.awb && (
+              <Action icon={Truck} label="Book inbound leg" busy={busy}
+                onClick={() => run(
+                  () => supabase.functions.invoke('shiprocket-book-leg',
+                    { body: { listing_id: row.listing_id, leg: 'INBOUND' } }) as any,
+                  'Book the prepaid label from the vendor to our hub?',
+                )} />
+            )}
+            {s === 'PAYOUT_SENT' && (
+              <Action icon={Truck} label="Book outbound leg" busy={busy}
+                onClick={() => run(
+                  () => supabase.functions.invoke('shiprocket-book-leg',
+                    { body: { listing_id: row.listing_id, leg: 'OUTBOUND' } }) as any,
+                  'Book the label from our hub to the buyer?',
+                )} />
+            )}
             {TAB_STATES.inbound.includes(s) && (
               <Action icon={PackageCheck} label="Received" busy={busy}
                 onClick={() => run(() => supabase.rpc('hub_receive_item', { p_listing_id: row.listing_id, p_notes: notes || null }))} />

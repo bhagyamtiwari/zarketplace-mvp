@@ -822,16 +822,22 @@ function OrderDrawer({ order, payouts, emails, audit, onClose, onDone }: {
     } catch (err: any) { alert(err?.message ?? 'Refund failed.'); } finally { setBusy(false); }
   };
 
-  const bookPickup = async () => {
+  // Booking now happens per leg, from the hub console, against the item
+  // rather than the order. The inbound leg books itself when the buyer pays;
+  // the outbound leg is refused until the item has been accepted at the hub.
+  const bookInbound = async () => {
+    if (!order.listing_id) { alert('This order has no item.'); return; }
     setBusy(true);
     try {
-      const { data, error } = await supabase.functions.invoke('shiprocket-create-order', { body: { order_id: order.id } });
+      const { data, error } = await supabase.functions.invoke('shiprocket-book-leg', {
+        body: { listing_id: order.listing_id, leg: 'INBOUND' },
+      });
       if (error) throw error;
       const r = data as { warnings?: string[] } | null;
-      await writeAudit({ entity: 'order', entity_id: order.id, action: 'order.book_pickup', new_state: { shiprocket: 'booked' } });
+      await writeAudit({ entity: 'order', entity_id: order.id, action: 'shipment.book_inbound', new_state: { leg: 'INBOUND' } });
       if (r?.warnings?.length) alert(`Booked, but: ${r.warnings.join(' ')}`);
       await onDone(); onClose();
-    } catch (err: any) { alert(err?.message ?? 'Failed to book pickup.'); } finally { setBusy(false); }
+    } catch (err: any) { alert(err?.message ?? 'Failed to book the inbound leg.'); } finally { setBusy(false); }
   };
 
   const toggleClaim = async () => {
@@ -917,7 +923,7 @@ function OrderDrawer({ order, payouts, emails, audit, onClose, onDone }: {
       <Sec title="Admin actions">
         <div className="flex flex-col gap-2 pt-1">
           {order.status === 'awaiting_verification' && <ActBtn label="Mark Paid" onClick={() => setStatus('paid')} busy={busy} />}
-          {order.status === 'paid' && !order.shiprocket_order_id && <ActBtn label="Book Pickup (Shiprocket)" onClick={bookPickup} busy={busy} />}
+          {order.status === 'paid' && <ActBtn label="Book inbound leg (vendor to hub)" onClick={bookInbound} busy={busy} />}
           {order.status === 'paid' && <ActBtn label="Mark Shipped" onClick={() => setStatus('shipped')} busy={busy} />}
           {order.status === 'shipped' && <ActBtn label="Mark Delivered" onClick={() => setStatus('delivered')} busy={busy} />}
           <ActBtn label={order.claim_open ? 'Close Claim' : 'Open Claim'} onClick={toggleClaim} busy={busy} />

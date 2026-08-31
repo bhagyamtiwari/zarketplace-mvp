@@ -104,14 +104,35 @@ serve(async (req) => {
     const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
 
+    // Both legs first, keyed by AWB against the shipments table. This has to
+    // happen before the order lookup below, because that lookup only ever
+    // matches the OUTBOUND leg - orders.tracking_number carries the buyer's
+    // tracking number and never the inbound one. Without this, an inbound
+    // pickup scan would be silently ignored, picked_up_at would stay null, and
+    // NO_SHIP would fire against a vendor who had actually posted the item.
+    if (awb) {
+      const scanned = normalizeShipmentStatus(status);
+      if (scanned === "picked_up" || scanned === "in_transit" || scanned === "delivered") {
+        await supabase.rpc("record_pickup_scan", { p_awb: awb });
+      }
+      await supabase.from("shipments").update({
+        status: scanned === "delivered" ? "delivered" : (scanned ?? "in_transit"),
+        delivered_at: scanned === "delivered" ? new Date().toISOString() : undefined,
+        last_status_at: new Date().toISOString(),
+      }).eq("awb", awb);
+    }
+
     let query = supabase.from("orders").select("*").limit(1);
     query = awb ? query.eq("tracking_number", awb) : query.eq("shiprocket_order_id", shiprocketOrderId);
     const { data: orders, error: findErr } = await query;
     if (findErr) throw findErr;
     const order = orders?.[0];
     if (!order) {
-      console.warn("shiprocket-webhook: no matching order", { awb, shiprocketOrderId, status });
-      return new Response("ok (no match)", { status: 200, headers: corsHeaders });
+      // Expected for every inbound-leg event: the buyer has no order row
+      // matching that AWB, and should not. The shipment was already updated
+      // above, so this is a normal path rather than a miss.
+      console.info("delivery-status-hook: no buyer order for this AWB (inbound leg?)", { awb, status });
+      return new Response("ok (no buyer order)", { status: 200, headers: corsHeaders });
     }
 
     // Always record the fine-grained courier sub-state for buyer/admin

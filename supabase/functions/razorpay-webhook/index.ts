@@ -120,7 +120,7 @@ async function handleCaptured(supabase: ReturnType<typeof createClient>, payment
       // isolated: any failure (Shiprocket down, KYC pending, bad address) is
       // logged and the order simply stays 'paid' for an admin to book/retry
       // manually - it must never fail or roll back the payment webhook.
-      await autoBookPickup(supabase, order.id);
+      await autoBookInboundLeg(supabase, order.id);
     } else {
       // Money was genuinely captured twice for one one-of-one item — should
       // essentially never happen given the reservation lock, but if it does,
@@ -160,23 +160,37 @@ async function handleFailed(supabase: ReturnType<typeof createClient>, payment: 
   }
 }
 
-// Best-effort call into shiprocket-create-order using the service-role key
-// (that function accepts service-role calls as an internal, admin-equivalent
-// caller). Never throws - a booking failure here is a warning, not a webhook
-// failure, and the order remains bookable from the admin console.
-async function autoBookPickup(supabase: ReturnType<typeof createClient>, orderId: string) {
+// Books the INBOUND leg the moment the buyer pays: vendor -> hub, on our own
+// prepaid label. This used to book a single vendor -> buyer shipment, which
+// skipped the hub and put the vendor's address on the buyer's parcel.
+//
+// The outbound leg is deliberately NOT booked here. It cannot be: an item is
+// only shippable to a buyer once we have accepted it at the hub, and
+// can_book_leg refuses it until then.
+//
+// Never throws - a booking failure is a warning, not a webhook failure, and
+// the leg remains bookable from the hub console.
+async function autoBookInboundLeg(supabase: ReturnType<typeof createClient>, orderId: string) {
   try {
-    const { data, error } = await supabase.functions.invoke("shiprocket-create-order", {
-      body: { order_id: orderId },
+    const { data: order } = await supabase
+      .from("orders").select("listing_id").eq("id", orderId).maybeSingle();
+    const listingId = (order as { listing_id?: string } | null)?.listing_id;
+    if (!listingId) {
+      console.error("razorpay-webhook: no listing on order, cannot book inbound", { orderId });
+      return;
+    }
+
+    const { data, error } = await supabase.functions.invoke("shiprocket-book-leg", {
+      body: { listing_id: listingId, leg: "INBOUND" },
     });
     if (error) {
-      console.error("razorpay-webhook: auto-book pickup failed (admin can book manually)", { orderId, error: error.message });
+      console.error("razorpay-webhook: inbound booking failed (bookable from the hub)", { orderId, error: error.message });
       return;
     }
     const r = data as { warnings?: string[] } | null;
-    if (r?.warnings?.length) console.warn("razorpay-webhook: auto-book pickup warnings", { orderId, warnings: r.warnings });
+    if (r?.warnings?.length) console.warn("razorpay-webhook: inbound booking warnings", { orderId, warnings: r.warnings });
   } catch (err) {
-    console.error("razorpay-webhook: auto-book pickup threw (admin can book manually)", { orderId, err });
+    console.error("razorpay-webhook: inbound booking threw (bookable from the hub)", { orderId, err });
   }
 }
 
