@@ -13,7 +13,7 @@
 
 import React from 'react';
 import { supabase } from '../lib/supabase';
-import { Listing, ListingStatus, Order, OrderStatus, SellerPayout } from '../types';
+import { Listing, ListingStatus, Order, OrderStatus, VendorPayout } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { variantUrl } from '../lib/images';
 import {
@@ -64,7 +64,7 @@ interface Leaf {
   kind: LeafKind;
   order?: (o: Order) => boolean;
   listing?: (l: Listing) => boolean;
-  payout?: (p: SellerPayout) => boolean;
+  payout?: (p: VendorPayout) => boolean;
   user?: (u: AdminUser, ctx: UserCtx) => boolean;
 }
 
@@ -110,9 +110,9 @@ const NAV: Section[] = [
     { key: 'o_claims', label: 'Claims', kind: 'orders', order: (o) => o.claim_open },
   ] },
   { key: 'payouts', label: 'Payouts', icon: Wallet, leaves: [
-    { key: 'p_pending', label: 'Pending', kind: 'payouts', payout: (p) => p.status === 'awaiting_payout' && (!p.releasable_at || new Date(p.releasable_at) > new Date()) },
-    { key: 'p_processing', label: 'Processing', kind: 'payouts', payout: (p) => p.status === 'awaiting_payout' && !!p.releasable_at && new Date(p.releasable_at) <= new Date() },
-    { key: 'p_paid', label: 'Paid', kind: 'payouts', payout: (p) => p.status === 'paid_out' },
+    { key: 'p_due', label: 'Due', kind: 'payouts', payout: (p) => p.status === 'due' },
+    { key: 'p_failed', label: 'Failed', kind: 'payouts', payout: (p) => p.status === 'failed' },
+    { key: 'p_paid', label: 'Sent', kind: 'payouts', payout: (p) => p.status === 'sent' },
   ] },
   { key: 'users', label: 'Users', icon: UsersIcon, leaves: [
     { key: 'u_buyers', label: 'Buyers', kind: 'users', user: (u, c) => c.buyerIds.has(u.id) },
@@ -163,7 +163,8 @@ function Console() {
   const [activeKey, setActiveKey] = React.useState('overview');
   const [orders, setOrders] = React.useState<Order[]>([]);
   const [listings, setListings] = React.useState<Listing[]>([]);
-  const [payouts, setPayouts] = React.useState<SellerPayout[]>([]);
+  const [payouts, setPayouts] = React.useState<VendorPayout[]>([]);
+  const [vendorUpi, setVendorUpi] = React.useState<Map<string, string | null>>(new Map());
   const [users, setUsers] = React.useState<AdminUser[]>([]);
   const [emails, setEmails] = React.useState<EmailLogRow[]>([]);
   const [audit, setAudit] = React.useState<AuditEntry[]>([]);
@@ -178,14 +179,16 @@ function Console() {
       const [o, l, p, u, e, a] = await Promise.all([
         supabase.from('orders').select('*').order('created_at', { ascending: false }),
         supabase.from('listings').select('*').order('created_at', { ascending: false }),
-        supabase.from('seller_payouts').select('*').order('created_at', { ascending: false }),
+        supabase.from('payouts').select('*').order('created_at', { ascending: false }),
         supabase.from('profiles').select('id, email, full_name, phone, is_admin, is_flagged, is_banned, created_at').order('created_at', { ascending: false }),
         supabase.from('email_log').select('*').order('created_at', { ascending: false }).limit(500),
         supabase.from('admin_audit_log').select('*').order('created_at', { ascending: false }).limit(500),
       ]);
+      const { data: v } = await supabase.from('vendors').select('id, upi_vpa');
+      setVendorUpi(new Map(((v as Array<{ id: string; upi_vpa: string | null }>) ?? []).map((x) => [x.id, x.upi_vpa])));
       setOrders((o.data as Order[]) ?? []);
       setListings((l.data as Listing[]) ?? []);
-      setPayouts((p.data as SellerPayout[]) ?? []);
+      setPayouts((p.data as VendorPayout[]) ?? []);
       setUsers((u.data as AdminUser[]) ?? []);
       setEmails((e.data as EmailLogRow[]) ?? []);
       setAudit((a.data as AuditEntry[]) ?? []);
@@ -265,6 +268,7 @@ function Console() {
           ) : (
             <LeafView
               leaf={leaf} orders={orders} listings={listings} payouts={payouts} users={users}
+              vendorUpi={vendorUpi}
               emails={emails} audit={audit} userCtx={userCtx}
               onOpenOrder={(id) => setDrawer({ type: 'order', id })}
               onOpenListing={(id) => setDrawer({ type: 'listing', id })}
@@ -342,15 +346,16 @@ function GlobalSearch({ orders, listings, users, onOpenOrder, onOpenListing }: {
 // Views
 // ---------------------------------------------------------------------------
 
-function LeafView({ leaf, orders, listings, payouts, users, emails, audit, userCtx, onOpenOrder, onOpenListing }: {
-  leaf: Leaf; orders: Order[]; listings: Listing[]; payouts: SellerPayout[]; users: AdminUser[];
+function LeafView({ leaf, orders, listings, payouts, users, vendorUpi, emails, audit, userCtx, onOpenOrder, onOpenListing }: {
+  leaf: Leaf; orders: Order[]; listings: Listing[]; payouts: VendorPayout[]; users: AdminUser[];
+  vendorUpi: Map<string, string | null>;
   emails: EmailLogRow[]; audit: AuditEntry[]; userCtx: UserCtx;
   onOpenOrder: (id: string) => void; onOpenListing: (id: string) => void;
 }) {
   if (leaf.kind === 'overview') return <OverviewView orders={orders} listings={listings} payouts={payouts} />;
   if (leaf.kind === 'orders') return <OrdersView rows={orders.filter(leaf.order ?? (() => true))} onOpen={onOpenOrder} />;
   if (leaf.kind === 'listings') return <ListingsView rows={listings.filter(leaf.listing ?? (() => true))} orders={orders} onOpen={onOpenListing} />;
-  if (leaf.kind === 'payouts') return <PayoutsView rows={payouts.filter(leaf.payout ?? (() => true))} orders={orders} />;
+  if (leaf.kind === 'payouts') return <PayoutsView rows={payouts.filter(leaf.payout ?? (() => true))} listings={listings} vendorUpi={vendorUpi} />;
   if (leaf.kind === 'users') return <UsersView rows={users.filter((u) => (leaf.user ?? (() => true))(u, userCtx))} />;
   if (leaf.kind === 'emails') return <EmailsView rows={emails} />;
   if (leaf.kind === 'audit') return <AuditView rows={audit} />;
@@ -366,7 +371,7 @@ function Th({ children, right }: { children: React.ReactNode; right?: boolean })
   return <th className={cn('py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40', right && 'text-right')}>{children}</th>;
 }
 
-function OverviewView({ orders, listings, payouts }: { orders: Order[]; listings: Listing[]; payouts: SellerPayout[] }) {
+function OverviewView({ orders, listings, payouts }: { orders: Order[]; listings: Listing[]; payouts: VendorPayout[] }) {
   const stat = (label: string, value: number | string) => (
     <div className="border border-black/10 px-4 py-3">
       <p className="text-[10px] font-black uppercase tracking-widest text-black/40">{label}</p>
@@ -377,7 +382,7 @@ function OverviewView({ orders, listings, payouts }: { orders: Order[]; listings
   const toVerify = orders.filter((o) => o.status === 'awaiting_verification').length;
   const toBook = orders.filter((o) => o.status === 'paid' && !o.shiprocket_order_id).length;
   const openClaims = orders.filter((o) => o.claim_open).length;
-  const payoutsDue = payouts.filter((p) => p.status === 'awaiting_payout' && (!p.releasable_at || new Date(p.releasable_at) <= new Date())).length;
+  const payoutsDue = payouts.filter((p) => p.status === 'due').length;
   const shipFailed = orders.filter((o) => !!o.shiprocket_order_id && !o.tracking_number).length;
   const noPickupAddr = listings.filter((l) => l.status === 'approved' && !l.is_sold && !l.pickup_address?.pincode).length;
   return (
@@ -468,49 +473,59 @@ function ListingsView({ rows, orders, onOpen }: { rows: Listing[]; orders: Order
   );
 }
 
-function PayoutsView({ rows, orders }: { rows: SellerPayout[]; orders: Order[] }) {
-  const byId = new Map(orders.map((o) => [o.id, o]));
+// Payouts, listed against the acquisition that caused them.
+//
+// There is deliberately no order column here, and no join to one. A payout is
+// owed because we accepted an item into inventory; whether the buyer has paid,
+// or been delivered to, has nothing to do with it. An operator looking at this
+// screen is looking at the inbound purchase, on its own.
+function PayoutsView({ rows, listings, vendorUpi }: {
+  rows: VendorPayout[]; listings: Listing[]; vendorUpi: Map<string, string | null>;
+}) {
+  const titleById = new Map(listings.map((l) => [l.id, l.title]));
   const [busy, setBusy] = React.useState<string | null>(null);
   if (rows.length === 0) return <Empty label="No payouts." />;
-  const markPaid = async (p: SellerPayout) => {
-    if (p.releasable_at && new Date(p.releasable_at) > new Date()) { alert(`Held until ${new Date(p.releasable_at).toLocaleString()}.`); return; }
-    if (!confirm(`Mark payout of ${formatCurrency(Number(p.amount))} as paid? Confirm you have sent the UPI transfer.`)) return;
+
+  const markPaid = async (p: VendorPayout) => {
+    if (!confirm(`Mark payout of ${formatCurrency(Number(p.amount))} as sent? Confirm you have made the transfer.`)) return;
     setBusy(p.id);
     try {
-      const { error } = await supabase.from('seller_payouts').update({ status: 'paid_out', paid_at: new Date().toISOString() }).eq('id', p.id);
+      const { error } = await supabase.from('payouts')
+        .update({ status: 'sent', sent_at: new Date().toISOString() }).eq('id', p.id);
       if (error) throw error;
-      await writeAudit({ entity: 'payout', entity_id: p.id, action: 'payout.mark_paid', old_state: { status: p.status }, new_state: { status: 'paid_out' } });
-      if (p.order_id) void sendEmail({ template: 'payout_released_seller', order_id: p.order_id });
+      await writeAudit({ entity: 'payout', entity_id: p.id, action: 'payout.mark_sent', old_state: { status: p.status }, new_state: { status: 'sent' } });
       location.reload();
     } catch (err: any) { alert(err?.message ?? 'Failed.'); } finally { setBusy(null); }
   };
+
   return (
     <div className="overflow-x-auto border border-black/10">
       <table className="w-full text-left">
         <thead><tr className="border-b border-black/10 bg-black/[0.02]">
-          <Th>Order</Th><Th>Seller UPI</Th><Th right>Amount</Th><Th>Releasable</Th><Th>Status</Th><Th right>Action</Th>
+          <Th>Item</Th><Th>Vendor UPI</Th><Th right>Amount</Th><Th>Due</Th><Th>Status</Th><Th right>Action</Th>
         </tr></thead>
         <tbody>
-          {rows.map((p) => {
-            const o = byId.get(p.order_id);
-            return (
-              <tr key={p.id} className="border-b border-black/5 last:border-0">
-                <td className="py-3 px-3 text-[11px] font-black uppercase">{o?.order_number ?? p.order_id.slice(0, 8)}</td>
-                <td className="py-3 px-3 text-[11px] font-mono">{o?.seller_upi_vpa_snapshot ?? '—'}</td>
-                <td className="py-3 px-3 text-xs font-black text-right tabular-nums">{formatCurrency(Number(p.amount))}</td>
-                <td className="py-3 px-3 text-[10px] text-black/50">{p.releasable_at ? new Date(p.releasable_at).toLocaleDateString() : '—'}</td>
-                <td className="py-3 px-3 text-[10px] font-black uppercase tracking-widest">{p.status === 'paid_out' ? 'Paid' : 'Pending'}</td>
-                <td className="py-3 px-3 text-right">
-                  {p.status !== 'paid_out' && (
-                    <button onClick={() => markPaid(p)} disabled={busy === p.id}
-                      className="border border-black px-3 py-1 text-[10px] font-black uppercase tracking-widest hover:bg-black hover:text-white disabled:opacity-50">
-                      {busy === p.id ? '…' : 'Mark Paid'}
-                    </button>
-                  )}
-                </td>
-              </tr>
-            );
-          })}
+          {rows.map((p) => (
+            <tr key={p.id} className="border-b border-black/5 last:border-0">
+              <td className="py-3 px-3 text-[11px] font-black uppercase">
+                {titleById.get(p.acquisition_id) ?? p.acquisition_id.slice(0, 8)}
+              </td>
+              <td className="py-3 px-3 text-[11px] font-mono">{vendorUpi.get(p.vendor_id) ?? '—'}</td>
+              <td className="py-3 px-3 text-xs font-black text-right tabular-nums">{formatCurrency(Number(p.amount))}</td>
+              <td className="py-3 px-3 text-[10px] text-black/50">{new Date(p.due_at).toLocaleDateString()}</td>
+              <td className="py-3 px-3 text-[10px] font-black uppercase tracking-widest">
+                {p.status === 'sent' ? 'Sent' : p.status === 'failed' ? 'Failed' : 'Due'}
+              </td>
+              <td className="py-3 px-3 text-right">
+                {p.status !== 'sent' && (
+                  <button onClick={() => markPaid(p)} disabled={busy === p.id}
+                    className="border border-black px-3 py-1 text-[10px] font-black uppercase tracking-widest hover:bg-black hover:text-white disabled:opacity-50">
+                    {busy === p.id ? '…' : 'Mark Sent'}
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>
@@ -693,12 +708,11 @@ function Row({ k, v }: { k: string; v: React.ReactNode }) {
 // ---------------------------------------------------------------------------
 
 function OrderDrawer({ order, payouts, emails, audit, onClose, onDone }: {
-  order: Order; orders: Order[]; payouts: SellerPayout[]; emails: EmailLogRow[]; audit: AuditEntry[];
+  order: Order; orders: Order[]; payouts: VendorPayout[]; emails: EmailLogRow[]; audit: AuditEntry[];
   onClose: () => void; onDone: () => Promise<void> | void;
 }) {
   const [busy, setBusy] = React.useState(false);
   const [note, setNote] = React.useState('');
-  const payout = payouts.find((p) => p.order_id === order.id);
   const orderEmails = emails.filter((e) => e.related_order_id === order.id);
   const orderAudit = audit.filter((a) => a.entity === 'order' && a.entity_id === order.id);
 
@@ -728,7 +742,6 @@ function OrderDrawer({ order, payouts, emails, audit, onClose, onDone }: {
     if (!confirm('Cancel this order, relist the item, void any unpaid payout, and email both parties?\n\nRefund the payment in Razorpay manually.')) return;
     setBusy(true);
     try {
-      if (payout && payout.status !== 'paid_out') await supabase.from('seller_payouts').delete().eq('id', payout.id);
       const { error } = await supabase.from('orders').update({ status: 'cancelled' }).eq('id', order.id);
       if (error) throw error;
       if (order.listing_id) await supabase.from('listings').update({ is_sold: false }).eq('id', order.listing_id);
@@ -831,15 +844,6 @@ function OrderDrawer({ order, payouts, emails, audit, onClose, onDone }: {
         {order.tracking_url && <a href={order.tracking_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[10px] underline">Track <ExternalLink className="h-3 w-3" /></a>}
       </Sec>
 
-      <Sec title="Payout">
-        {payout ? (<>
-          <Row k="Amount" v={formatCurrency(Number(payout.amount))} />
-          {order.free_shipping && <Row k="Shipping deducted" v={formatCurrency(Number(order.shipping_cost))} />}
-          <Row k="Status" v={payout.status === 'paid_out' ? 'Paid' : 'Pending'} />
-          <Row k="Releasable" v={payout.releasable_at ? new Date(payout.releasable_at).toLocaleDateString() : '—'} />
-        </>) : <p className="text-black/40">No payout row.</p>}
-      </Sec>
-
       <Sec title={`Emails sent (${orderEmails.length})`}>
         {orderEmails.length === 0 ? <p className="text-black/40">None.</p> : orderEmails.map((e) => (
           <p key={e.id} className="flex justify-between gap-3"><span className="truncate">{e.template}</span><span className={cn('text-[10px]', e.status === 'sent' ? 'text-emerald-700' : 'text-red-600')}>{e.status}</span></p>
@@ -892,12 +896,14 @@ function ActBtn({ label, onClick, busy, danger }: { label: string; onClick: () =
 // ---------------------------------------------------------------------------
 
 function ListingDrawer({ listing, orders, payouts, audit, onClose, onDone, onOpenOrder }: {
-  listing: Listing; orders: Order[]; payouts: SellerPayout[]; audit: AuditEntry[];
+  listing: Listing; orders: Order[]; payouts: VendorPayout[]; audit: AuditEntry[];
   onClose: () => void; onDone: () => Promise<void> | void; onOpenOrder: (id: string) => void;
 }) {
   const [busy, setBusy] = React.useState(false);
   const order = orders.find((o) => o.listing_id === listing.id && o.status !== 'cancelled' && o.status !== 'refunded');
-  const payout = order ? payouts.find((p) => p.order_id === order.id) : undefined;
+  // Via the acquisition, never via the order: the payout exists because we
+  // bought this item, not because someone bought it from us.
+  const payout = payouts.find((p) => p.acquisition_id === listing.id);
   const modHistory = audit.filter((a) => a.entity === 'listing' && a.entity_id === listing.id);
 
   const setStatus = async (status: ListingStatus, label: string) => {
@@ -965,7 +971,6 @@ function ListingDrawer({ listing, orders, payouts, audit, onClose, onDone, onOpe
           <Row k="Order" v={order ? <button className="underline" onClick={() => onOpenOrder(order.id)}>{order.order_number}</button> : '—'} />
           <Row k="Buyer" v={order?.buyer_email} />
           <Row k="Shipment" v={order ? (order.tracking_number ? `${order.courier ?? ''} ${order.tracking_number}` : order.status) : '—'} />
-          <Row k="Payout" v={payout ? (payout.status === 'paid_out' ? 'Paid' : 'Pending') : '—'} />
         </Sec>
       )}
 
@@ -996,7 +1001,6 @@ function ListingDrawer({ listing, orders, payouts, audit, onClose, onDone, onOpe
               } else {
                 // No captured payment: just cancel + relist.
                 if (!confirm('Cancel the order and put this listing back on sale?')) { setBusy(false); return; }
-                if (payout && payout.status !== 'paid_out') await supabase.from('seller_payouts').delete().eq('id', payout.id);
                 await supabase.from('orders').update({ status: 'cancelled' }).eq('id', order.id);
                 await supabase.from('listings').update({ is_sold: false }).eq('id', listing.id);
                 await writeAudit({ entity: 'order', entity_id: order.id, action: 'order.cancel', old_state: { status: order.status }, new_state: { status: 'cancelled' }, reason });

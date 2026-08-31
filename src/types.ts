@@ -145,3 +145,25 @@ export interface SellerPayout {
   created_at: string;
   paid_at: string | null;
 }
+
+/**
+ * What we owe a vendor for an item we bought from them.
+ *
+ * Note what this interface does not have: an order, a sale, a payment
+ * reference or a buyer. A payout is caused by an accepted acquisition and
+ * nothing else, and the table it mirrors has no column that could hold one.
+ */
+export interface VendorPayout {
+  id: string;
+  /** The acquisition this pays for. Keyed by listing id. */
+  acquisition_id: string;
+  vendor_id: string;
+  amount: number;
+  status: 'due' | 'sent' | 'failed';
+  method: 'upi' | 'bank_transfer' | null;
+  reference: string | null;
+  failure_reason: string | null;
+  due_at: string;
+  sent_at: string | null;
+  created_at: string;
+}

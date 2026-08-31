@@ -90,7 +90,11 @@ serve(async (req) => {
     if (order.listing_id) {
       await supabase.from("listings").update({ is_sold: false }).eq("id", order.listing_id);
     }
-    await supabase.from("seller_payouts").delete().eq("order_id", order.id).neq("status", "paid_out");
+    // Deliberately does NOT touch payouts. Refunding a buyer is a movement on
+    // the outbound sale; what we owe the vendor for the item we bought is a
+    // separate transaction with a separate trigger, and cancelling one has
+    // never been a reason to cancel the other. If the item itself failed, that
+    // goes through record_fulfillment_failure instead.
 
     await supabase.from("admin_audit_log").insert({
       admin_id: callerData.user.id,

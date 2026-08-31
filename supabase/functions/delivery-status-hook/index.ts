@@ -12,7 +12,7 @@
 // this function (running as the service role, same trust boundary as
 // razorpay-webhook) sets orders.status = 'delivered', which fires the
 // existing handle_order_delivered trigger (starts the 48h review window,
-// creates the seller_payouts row - see migration
+// records the delivery - see migration
 // 20260710000001_delivery_escrow_and_payout_timing.sql). No new logic is
 // duplicated here; this function only ever writes the same `status`
 // transition an admin could already make by hand.
