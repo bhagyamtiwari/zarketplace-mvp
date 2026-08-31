@@ -365,6 +365,10 @@ function RefundQueue({ rows, onDone }: { rows: RefundRow[]; onDone: () => void }
     return <p className="text-[11px] font-bold uppercase tracking-widest text-black/30">No refunds outstanding.</p>;
   }
 
+  // A buyer who paid and got nothing is the worst state this system has. Past
+  // 24 hours that needs to be a statement, not a shade of red on a row.
+  const overdue = rows.filter((r) => r.hours_pending >= 24);
+
   const refund = async (r: RefundRow) => {
     if (!confirm(`Refund ${formatCurrency(Number(r.total_amount))} on ${r.order_number}?`)) return;
     setBusy(r.failure_id); setErr(null);
@@ -387,6 +391,15 @@ function RefundQueue({ rows, onDone }: { rows: RefundRow[]; onDone: () => void }
   return (
     <div className="flex flex-col gap-4">
       {err && <p className="text-xs font-bold uppercase tracking-widest text-red-700">{err}</p>}
+      {overdue.length > 0 && (
+        <div className="flex gap-3 border-2 border-red-600 bg-red-50 px-6 py-5">
+          <AlertTriangle className="h-5 w-5 shrink-0 text-red-700" />
+          <p className="text-sm font-black uppercase tracking-tight text-red-800">
+            {overdue.length} {overdue.length === 1 ? 'buyer has' : 'buyers have'} been waiting
+            over 24 hours for money back. Refund {overdue.length === 1 ? 'it' : 'them'} now.
+          </p>
+        </div>
+      )}
       {rows.map((r) => (
         <div key={r.failure_id} className={cn(
           'flex flex-wrap items-center justify-between gap-4 border p-5',

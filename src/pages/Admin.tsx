@@ -165,6 +165,7 @@ function Console() {
   const [listings, setListings] = React.useState<Listing[]>([]);
   const [payouts, setPayouts] = React.useState<VendorPayout[]>([]);
   const [vendorUpi, setVendorUpi] = React.useState<Map<string, string | null>>(new Map());
+  const [refundsOverdue, setRefundsOverdue] = React.useState(0);
   const [users, setUsers] = React.useState<AdminUser[]>([]);
   const [emails, setEmails] = React.useState<EmailLogRow[]>([]);
   const [audit, setAudit] = React.useState<AuditEntry[]>([]);
@@ -184,6 +185,8 @@ function Console() {
         supabase.from('email_log').select('*').order('created_at', { ascending: false }).limit(500),
         supabase.from('admin_audit_log').select('*').order('created_at', { ascending: false }).limit(500),
       ]);
+      const { data: pr } = await supabase.from('pending_refunds').select('hours_pending');
+      setRefundsOverdue(((pr as Array<{ hours_pending: number }>) ?? []).filter((x) => x.hours_pending >= 24).length);
       const { data: v } = await supabase.from('vendors').select('id, upi_vpa');
       setVendorUpi(new Map(((v as Array<{ id: string; upi_vpa: string | null }>) ?? []).map((x) => [x.id, x.upi_vpa])));
       setOrders((o.data as Order[]) ?? []);
@@ -268,7 +271,7 @@ function Console() {
           ) : (
             <LeafView
               leaf={leaf} orders={orders} listings={listings} payouts={payouts} users={users}
-              vendorUpi={vendorUpi}
+              vendorUpi={vendorUpi} refundsOverdue={refundsOverdue}
               emails={emails} audit={audit} userCtx={userCtx}
               onOpenOrder={(id) => setDrawer({ type: 'order', id })}
               onOpenListing={(id) => setDrawer({ type: 'listing', id })}
@@ -346,13 +349,13 @@ function GlobalSearch({ orders, listings, users, onOpenOrder, onOpenListing }: {
 // Views
 // ---------------------------------------------------------------------------
 
-function LeafView({ leaf, orders, listings, payouts, users, vendorUpi, emails, audit, userCtx, onOpenOrder, onOpenListing }: {
+function LeafView({ leaf, orders, listings, payouts, users, vendorUpi, refundsOverdue, emails, audit, userCtx, onOpenOrder, onOpenListing }: {
   leaf: Leaf; orders: Order[]; listings: Listing[]; payouts: VendorPayout[]; users: AdminUser[];
-  vendorUpi: Map<string, string | null>;
+  vendorUpi: Map<string, string | null>; refundsOverdue: number;
   emails: EmailLogRow[]; audit: AuditEntry[]; userCtx: UserCtx;
   onOpenOrder: (id: string) => void; onOpenListing: (id: string) => void;
 }) {
-  if (leaf.kind === 'overview') return <OverviewView orders={orders} listings={listings} payouts={payouts} />;
+  if (leaf.kind === 'overview') return <OverviewView orders={orders} listings={listings} payouts={payouts} refundsOverdue={refundsOverdue} />;
   if (leaf.kind === 'orders') return <OrdersView rows={orders.filter(leaf.order ?? (() => true))} onOpen={onOpenOrder} />;
   if (leaf.kind === 'listings') return <ListingsView rows={listings.filter(leaf.listing ?? (() => true))} orders={orders} onOpen={onOpenListing} />;
   if (leaf.kind === 'payouts') return <PayoutsView rows={payouts.filter(leaf.payout ?? (() => true))} listings={listings} vendorUpi={vendorUpi} />;
@@ -371,7 +374,9 @@ function Th({ children, right }: { children: React.ReactNode; right?: boolean })
   return <th className={cn('py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40', right && 'text-right')}>{children}</th>;
 }
 
-function OverviewView({ orders, listings, payouts }: { orders: Order[]; listings: Listing[]; payouts: VendorPayout[] }) {
+function OverviewView({ orders, listings, payouts, refundsOverdue }: {
+  orders: Order[]; listings: Listing[]; payouts: VendorPayout[]; refundsOverdue: number;
+}) {
   const stat = (label: string, value: number | string) => (
     <div className="border border-black/10 px-4 py-3">
       <p className="text-[10px] font-black uppercase tracking-widest text-black/40">{label}</p>
@@ -383,14 +388,41 @@ function OverviewView({ orders, listings, payouts }: { orders: Order[]; listings
   const toBook = orders.filter((o) => o.status === 'paid' && !o.shiprocket_order_id).length;
   const openClaims = orders.filter((o) => o.claim_open).length;
   const payoutsDue = payouts.filter((p) => p.status === 'due').length;
+  // Past the 24 hours the submit screen promises.
+  const triageOverdue = listings.filter(
+    (l) => l.status === 'pending' && Date.now() - new Date(l.created_at).getTime() >= 864e5,
+  ).length;
   const shipFailed = orders.filter((o) => !!o.shiprocket_order_id && !o.tracking_number).length;
   const noPickupAddr = listings.filter((l) => l.status === 'approved' && !l.is_sold && !l.pickup_address?.pincode).length;
   return (
     <div className="flex flex-col gap-6 max-w-3xl">
+      {/* A standing alert, not a colour on a number. Both of these are
+          promises to somebody: 24 hours to answer a vendor, and a buyer who
+          has paid for an item that is not coming. */}
+      {(triageOverdue > 0 || refundsOverdue > 0) && (
+        <div className="flex flex-col gap-2 border-2 border-red-600 bg-red-50 px-6 py-5">
+          <span className="text-[9px] font-black uppercase tracking-[0.4em] text-red-700">
+            Past due
+          </span>
+          {triageOverdue > 0 && (
+            <p className="text-sm font-black uppercase tracking-tight text-red-800">
+              {triageOverdue} {triageOverdue === 1 ? 'item has' : 'items have'} been waiting
+              over 24 hours for an answer.
+            </p>
+          )}
+          {refundsOverdue > 0 && (
+            <p className="text-sm font-black uppercase tracking-tight text-red-800">
+              {refundsOverdue} {refundsOverdue === 1 ? 'buyer has' : 'buyers have'} been
+              waiting over 24 hours for a refund.
+            </p>
+          )}
+        </div>
+      )}
       <div>
         <p className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-2">Needs attention</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {stat('Pending listings', pendingListings)}
+          {stat('Overdue triage', triageOverdue)}
           {stat('To verify', toVerify)}
           {stat('To book pickup', toBook)}
           {stat('Open claims', openClaims)}
@@ -430,6 +462,27 @@ function OrdersView({ rows, onOpen }: { rows: Order[]; onOpen: (id: string) => v
   );
 }
 
+/**
+ * How long an item has been waiting on us for an answer. The submit screen
+ * promises 24 hours, and nothing tracked it - so the promise was only ever
+ * kept by accident. Only meaningful while it is our turn.
+ */
+function WaitingCell({ listing }: { listing: Listing }) {
+  if (listing.status !== 'pending') {
+    return <span className="text-[10px] text-black/25">—</span>;
+  }
+  const hours = Math.floor((Date.now() - new Date(listing.created_at).getTime()) / 36e5);
+  const overdue = hours >= 24;
+  return (
+    <span className={cn(
+      'text-[10px] font-black uppercase tracking-widest tabular-nums',
+      overdue ? 'text-red-600' : 'text-black/50',
+    )}>
+      {hours < 1 ? '<1h' : `${hours}h`}{overdue && ' · overdue'}
+    </span>
+  );
+}
+
 function ListingsView({ rows, orders, onOpen }: { rows: Listing[]; orders: Order[]; onOpen: (id: string) => void }) {
   if (rows.length === 0) return <Empty label="No listings." />;
   const orderByListing = new Map<string, Order>();
@@ -438,7 +491,7 @@ function ListingsView({ rows, orders, onOpen }: { rows: Listing[]; orders: Order
     <div className="overflow-x-auto border border-black/10">
       <table className="w-full text-left">
         <thead><tr className="border-b border-black/10 bg-black/[0.02]">
-          <Th>Item</Th><Th>Seller</Th><Th right>Price</Th><Th>State</Th><Th>Order</Th><Th right>Open</Th>
+          <Th>Item</Th><Th>Vendor</Th><Th right>Price</Th><Th>State</Th><Th>Waiting</Th><Th>Order</Th><Th right>Open</Th>
         </tr></thead>
         <tbody>
           {rows.map((l) => {
@@ -462,6 +515,7 @@ function ListingsView({ rows, orders, onOpen }: { rows: Listing[]; orders: Order
                     {l.is_sold ? 'Sold' : l.status === 'approved' ? 'Live' : l.status}
                   </span>
                 </td>
+                <td className="py-3 px-3"><WaitingCell listing={l} /></td>
                 <td className="py-3 px-3 text-[10px] font-bold uppercase tracking-widest text-black/50">{ord ? ord.order_number : '—'}</td>
                 <td className="py-3 px-3 text-right"><ChevronRight className="h-4 w-4 text-black/30 inline" /></td>
               </tr>
@@ -1096,12 +1150,10 @@ function AcquisitionPanel({ listingId, listingTitle, vendorEmail, askingPriceFal
         p_expected_resale: Number(resale) > 0 ? Number(resale) : null,
       });
       if (error) throw error;
-      if (vendorEmail) {
-        void sendEmail({
-          template: 'acquisition_offer_vendor',
-          extra: { vendor_email: vendorEmail, listing_title: listingTitle, listing_id: listingId, offer_amount: amount },
-        });
-      }
+      // The vendor email is enqueued by make_acquisition_offer itself, into
+      // vendor_notifications. It is not sent from here: this call used to hit
+      // the "Unknown template" branch of send-email and silently deliver
+      // nothing, which is exactly the failure the outbox exists to prevent.
       await load(); await onDone();
     } catch (e: any) { setErr(e?.message ?? 'That did not work.'); }
     finally { setBusy(false); }
@@ -1121,12 +1173,7 @@ function AcquisitionPanel({ listingId, listingTitle, vendorEmail, askingPriceFal
         p_note: note.trim() || null,
       });
       if (error) throw error;
-      if (vendorEmail) {
-        void sendEmail({
-          template: 'acquisition_rejected_vendor',
-          extra: { vendor_email: vendorEmail, listing_title: listingTitle, listing_id: listingId, reasons, note: note.trim() },
-        });
-      }
+      // Enqueued by reject_listing. See the note above.
       await load(); await onDone();
     } catch (e: any) { setErr(e?.message ?? 'That did not work.'); }
     finally { setBusy(false); }

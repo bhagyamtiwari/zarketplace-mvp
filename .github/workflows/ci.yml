@@ -1,0 +1,36 @@
+# The vendor-email assertion is the reason this file exists.
+#
+# A vendor never seeing the resale price, the spread, or any sign that a buyer
+# exists is the legal basis of the model. That cannot rest on someone noticing
+# a bad string in a diff, so it runs on every push and blocks the merge.
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  vendor-email-assertions:
+    name: Vendor emails leak nothing
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v1
+        with:
+          deno-version: v2.x
+      - name: Render every vendor email with a poisoned payload
+        run: deno test supabase/functions/dispatch-vendor-emails/templates.test.ts
+
+  typecheck-and-build:
+    name: Typecheck and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm run build
