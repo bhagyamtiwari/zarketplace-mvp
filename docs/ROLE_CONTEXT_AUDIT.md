@@ -85,3 +85,46 @@ Verified by executing each from the role that calls it in production.
    happened while writing these tests.
 5. Never swallow a delivery failure. The vendor outbox records failures as rows
    with an error and a retry count for exactly this reason.
+
+---
+
+# Appendix: the `orders` → `sales` rename, scoped
+
+Not done. Assessed and deliberately deferred.
+
+**What it touches**
+
+| | Count |
+| --- | --- |
+| Triggers on `orders` | 7 |
+| RLS policies | 5 |
+| Inbound foreign keys | several (incl. `fulfillment_failures`) |
+| Edge-function references | 15, across 6 functions |
+| Frontend references | 8 |
+| Migration references | 19 |
+| Live rows with captured payments | 14 |
+
+**The safe path exists.** Rename the table, then create a view named `orders`
+`WITH (security_invoker = true)` over it. Simple views are auto-updatable, the
+table's triggers still fire, and RLS applies as the caller. This is the same
+trick that carried `listing_acquisitions` → `acquisitions` without downtime.
+
+**Why not this session.** There is no atomic deploy across Vercel and Supabase
+Functions, so between the migration and the last function redeploy the site
+runs against a renamed table. The compatibility view is what covers that
+window, and its interaction with 7 triggers and 5 policies deserves its own
+test pass rather than being taken on trust at the end of a long change. This is
+the live payments table.
+
+**When it is done, in order**
+
+1. Migration: rename, create the `orders` compatibility view, verify all 7
+   triggers still fire and all 5 policies still apply *through the view* by
+   executing a full checkout in a rolled-back transaction from a real buyer
+   session.
+2. Update the 6 edge functions to `sales`; deploy.
+3. Update the 8 frontend references; deploy.
+4. Update `public.sales` from a view over `orders` to the table itself.
+5. Drop the compatibility view once nothing references `orders`.
+
+Steps 1–3 are reversible. Step 5 is the commitment.
