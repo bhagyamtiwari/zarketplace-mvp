@@ -18,9 +18,8 @@ npm run dev
 
 - **[`docs/SETUP.md`](docs/SETUP.md)** - full step-by-step setup, migrations, edge function deploys, smoke test
 - **[`docs/AUTH.md`](docs/AUTH.md)** - email + password auth (with forgot-password reset), roles, RLS, admin promotion
-- **[`docs/PAYMENTS.md`](docs/PAYMENTS.md)** - Razorpay payment + escrow payout flow, refunds, going-to-prod
-- **[`docs/SHIPPING.md`](docs/SHIPPING.md)** - current shipping flow, Shiprocket upgrade plan
-- **[`docs/CHANGES.md`](docs/CHANGES.md)** - file-by-file changelog of MVP changes
+- **[`COPY_RULES.md`](COPY_RULES.md)** - the business model, the terminology, and the words we do not use
+- **[`BrandKit.md`](BrandKit.md)** - design only: typography, spacing, colour, layout, tone of voice
 
 ## Architecture in 30 seconds
 

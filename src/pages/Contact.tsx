@@ -61,7 +61,7 @@ export function Contact() {
               <label className="text-[9px] font-black uppercase tracking-widest">Inquiry Type</label>
               <select defaultValue="feedback" className="border-b border-black/10 py-3 text-sm font-bold focus:border-black focus:outline-none bg-transparent" required>
                 <option value="feedback">Customer Feedback</option>
-                <option value="seller">Seller Support</option>
+                <option value="seller">Vendor Support</option>
                 <option value="buyer">Buyer Support</option>
                 <option value="investors">Investors</option>
                 <option value="legal">Legal</option>

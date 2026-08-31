@@ -27,12 +27,12 @@ export function Returns() {
 
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Cancelling Before Shipment</h2>
-            <p>If you need to cancel an order, use the "Request Cancellation" option on your order page, or email us with your order number. This is only possible before the seller marks the item as shipped. Once an item has shipped, cancellation is no longer possible and the order proceeds as a normal delivery.</p>
+            <p>If you need to cancel an order, use the "Request Cancellation" option on your order page, or email us with your order number. This is only possible before we dispatch the item to you. Once an item has shipped, cancellation is no longer possible and the order proceeds as a normal delivery.</p>
           </section>
 
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">If You Need to Send an Item Back</h2>
-            <p>Review all photos, descriptions, and measurements carefully before buying. If you have a question about an item before ordering, email us and we will put it to the seller: zarketplace does not publish seller contact details, and no sale is ever arranged in a DM.</p>
+            <p>Review all photos, descriptions, and measurements carefully before buying. If you have a question about an item before ordering, email us and we will answer it. Every item is sold and shipped by zarketplace, so there is nobody else to ask and no sale is ever arranged in a DM.</p>
             <p>If your item arrives as the wrong item, or materially different from how it was listed, email us at <a href="mailto:contact@zarketplace.com" className="font-bold text-black underline">contact@zarketplace.com</a> within 48 hours of delivery with your order number and photos. Our support team will tell you whether to ship the item back, and where, before any refund is processed. Do not return an item before we've confirmed the return is approved.</p>
             <p>For what happens to your money once a return is approved, see our <Link to="/refund-policy" className="font-bold text-black underline">Refund Policy</Link>.</p>
           </section>
@@ -43,8 +43,8 @@ export function Returns() {
           </section>
 
           <section className="flex flex-col gap-4">
-            <h2 className="text-xl font-black uppercase tracking-tight text-black">Reporting a Seller</h2>
-            <p>If you wish to report a seller for fraudulent activity or poor behavior, reach out to us immediately at <a href="mailto:contact@zarketplace.com" className="font-bold text-black underline">contact@zarketplace.com</a>. We take the integrity of our community seriously.</p>
+            <h2 className="text-xl font-black uppercase tracking-tight text-black">Reporting a problem</h2>
+            <p>If you need to report a problem with an order or a listing, reach out to us immediately at <a href="mailto:contact@zarketplace.com" className="font-bold text-black underline">contact@zarketplace.com</a>. We take the integrity of our community seriously.</p>
           </section>
         </div>
 

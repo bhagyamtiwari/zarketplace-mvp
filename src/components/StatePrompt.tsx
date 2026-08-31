@@ -1,9 +1,9 @@
 // First-visit "which state are you in?" prompt.
 //
 // It explains before it asks. A bare state dropdown on arrival reads as a
-// tracking question and gets dismissed; the reason - that a seller can only
-// ship within their own state until GST compliance is finished - is the whole
-// point, and it is short enough to say up front.
+// tracking question and gets dismissed; the reason - that our delivery
+// coverage does not reach every state yet - is the whole point, and it is
+// short enough to say up front.
 //
 // Not a wall. The buyer can skip and browse the whole catalogue, and every
 // listing still says which state it ships from. A hard gate would show an
@@ -62,17 +62,16 @@ export function StatePrompt() {
             </h2>
           </div>
           <p className="text-[11px] font-bold uppercase tracking-widest leading-[1.9] text-black/60">
-            Sellers ship within their own state while we work through the GST
-            system to make selling on an enrolment number simple for them. Every
-            listing on zarketplace is in Delhi right now, and more states open as
-            we allow listings from them.
+            We collect, check and ship every item ourselves, so we open one
+            city at a time. Everything on zarketplace is in Delhi right now, and
+            more states open as our coverage widens.
           </p>
           {/* Said here rather than discovered at checkout. NCR is one city to
               everyone who lives in it and three states to GST, and a Gurgaon
               buyer picking Delhi is the single likeliest way to end up
               refused without understanding why. */}
           <p className="text-[10px] font-bold uppercase tracking-widest leading-[1.9] text-black/40">
-            Gurugram and Noida are separate states for GST, so they are not live
+            Gurugram and Noida are separate states for delivery, so they are not live
             yet either. You can still browse everything.
           </p>
         </div>

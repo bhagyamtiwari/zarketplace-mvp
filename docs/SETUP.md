@@ -7,7 +7,7 @@ Read this in order. It walks through everything needed to take the codebase from
 - Supabase CLI (`brew install supabase/tap/supabase`)
 - Razorpay account (test keys from Dashboard → Settings → API Keys)
 - Resend account (free tier) for transactional + campaign emails
-- Shiprocket account (optional - only needed to book pickups automatically; the manual tracking flow works without it, see `docs/SHIPPING.md`)
+- Shiprocket account (optional - only needed to book pickups automatically; the manual tracking flow works without it)
 
 ## 1. Install
 ```bash
@@ -56,7 +56,7 @@ supabase secrets set \
   PUBLIC_SITE_URL="http://localhost:3000" \
   RESEND_API_KEY="<your_resend_key_or_skip_for_dev>" \
   EMAIL_FROM="zarketplace <onboarding@resend.dev>" \
-  SHIPROCKET_EMAIL="<your Shiprocket account email - optional, see docs/SHIPPING.md>" \
+  SHIPROCKET_EMAIL="<your Shiprocket account email - optional>" \
   SHIPROCKET_PASSWORD="<your Shiprocket account password>" \
   SHIPROCKET_WEBHOOK_TOKEN="$(openssl rand -hex 24)"
 ```
@@ -65,7 +65,7 @@ supabase secrets set \
 
 If you skip `RESEND_API_KEY`, the `send-email` function logs each send to the `email_log` table with status `queued` and short-circuits without sending. Useful for local development.
 
-If you skip the `SHIPROCKET_*` secrets, `shiprocket-create-order` returns a clear "not configured" error and the manual tracking flow in Seller Portal is what actually ships orders - see `docs/SHIPPING.md`.
+If you skip the `SHIPROCKET_*` secrets, `shiprocket-create-order` returns a clear "not configured" error and the manual tracking flow in vendor portal is what actually ships orders.
 
 ## 5. Deploy Edge Functions
 
@@ -87,7 +87,7 @@ supabase functions deploy shiprocket-webhook --no-verify-jwt
 - Set a **secret**, and store the same value as the `RAZORPAY_WEBHOOK_SECRET` edge function secret (Step 4).
 
 **Shiprocket** (optional, only if you set the `SHIPROCKET_*` secrets) Dashboard → **Settings → API → Webhooks**:
-- URL: `https://wfaxtxprngyrxsmahxxa.supabase.co/functions/v1/shiprocket-webhook?token=<SHIPROCKET_WEBHOOK_TOKEN>` (the exact value you set in Step 4 - Shiprocket doesn't support HMAC signing, so this query-param token is the shared-secret check; see `docs/SHIPPING.md`).
+- URL: `https://wfaxtxprngyrxsmahxxa.supabase.co/functions/v1/shiprocket-webhook?token=<SHIPROCKET_WEBHOOK_TOKEN>` (the exact value you set in Step 4 - Shiprocket doesn't support HMAC signing, so this query-param token is the shared-secret check).
 
 ## 7. Run the app
 
@@ -107,8 +107,8 @@ Open http://localhost:3000.
    - `listings.is_sold = true`
 6. Check `/track-order` (or **My Orders** while signed in) - should show the escrow timeline.
 7. Either:
-   - **Manual:** in **Seller Portal → Sales**, add tracking and mark it shipped; the order flips to `shipped`. Or,
-   - **Shiprocket** (only if you set the `SHIPROCKET_*` secrets): in `/admin → Orders`, click **Book Pickup (Shiprocket)** on the paid order - it registers the pickup location, creates the Shiprocket order, assigns a courier/AWB, and flips the order to `shipped` automatically. See `docs/SHIPPING.md`.
+   - **Manual:** in **vendor portal → Sales**, add tracking and mark it shipped; the order flips to `shipped`. Or,
+   - **Shiprocket** (only if you set the `SHIPROCKET_*` secrets): in `/admin → Orders`, click **Book Pickup (Shiprocket)** on the paid order - it registers the pickup location, creates the Shiprocket order, assigns a courier/AWB, and flips the order to `shipped` automatically.
 8. In `/admin`, mark the order `delivered` (or let `shiprocket-webhook` do it automatically once Shiprocket reports delivery). A `seller_payouts` row is created automatically (`status = 'awaiting_payout'`, held for the 48-hour review window). After the window closes, release the payout; it flips to `paid_out`.
 
 If all 8 steps pass, the system is wired correctly.
@@ -123,9 +123,7 @@ If all 8 steps pass, the system is wired correctly.
 
 ## 10. Documentation index
 
-- [`docs/PAYMENTS.md`](./PAYMENTS.md) - Razorpay payment + escrow payout flow, refunds, going-to-prod
-- [`docs/SHIPPING.md`](./SHIPPING.md) - Shiprocket pickup booking (test mode) + manual fallback
 - [`docs/ADMIN_OPERATIONS.md`](./ADMIN_OPERATIONS.md) - admin day-to-day: verifying payment, booking pickup, marking delivered, releasing payouts, handling claims
 - [`docs/SETUP.md`](./SETUP.md) - this file
-- [`docs/CHANGES.md`](./CHANGES.md) - every file added/modified, in plain English
+- [`COPY_RULES.md`](../COPY_RULES.md) - the business model, the terminology, and the words we do not use
 - [`docs/env.example.txt`](./env.example.txt) - environment variable template

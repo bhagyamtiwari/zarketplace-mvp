@@ -30,6 +30,5 @@ Set the same `VITE_*` environment variables in the Vercel project settings.
 
 - [`docs/SETUP.md`](docs/SETUP.md) - full setup & operations
 - [`docs/AUTH.md`](docs/AUTH.md) - email + password auth, roles, RLS
-- [`docs/SHIPPING.md`](docs/SHIPPING.md) - shipping model + Shiprocket plan
-- [`docs/REALIGNMENT_PLAN.md`](docs/REALIGNMENT_PLAN.md) - locked business model
+- [`COPY_RULES.md`](COPY_RULES.md) - the locked business model and the terminology that follows from it
 - [`BrandKit.md`](BrandKit.md) - visual/voice source of truth

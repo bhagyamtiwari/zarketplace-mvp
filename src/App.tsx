@@ -120,11 +120,15 @@ export default function App() {
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/track-order" element={<TrackOrder />} />
-            <Route path="/seller-portal" element={<SellerPortal />} />
+            <Route path="/vendor-portal" element={<SellerPortal />} />
+            {/* Old public URLs. Kept as redirects so links already shared, and
+                anything search engines have indexed, still land somewhere. */}
+            <Route path="/seller-portal" element={<Navigate to="/vendor-portal" replace />} />
             <Route path="/account" element={<Account />} />
             <Route path="/faq" element={<Faq />} />
             <Route path="/shipping-policy" element={<ShippingPolicy />} />
-            <Route path="/seller-policy" element={<SellerPolicy />} />
+            <Route path="/vendor-policy" element={<SellerPolicy />} />
+            <Route path="/seller-policy" element={<Navigate to="/vendor-policy" replace />} />
             <Route path="/refund-policy" element={<RefundPolicy />} />
             <Route path="/buyer-protection" element={<BuyerProtection />} />
             <Route path="/terms" element={<Terms />} />

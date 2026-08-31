@@ -5,11 +5,11 @@
 // person most likely to bounce. localStorage also means a returning visitor is
 // never asked twice.
 //
-// Why this exists at all: interstate supply under GST needs a GSTIN that
-// individual sellers do not have, so a sale is currently only valid when the
-// buyer and the seller are in the same state. That is a rule about the
-// transaction, and the buyer has to understand it before they fall in love
-// with something they cannot buy.
+// Why this exists at all: we collect, check and ship every item ourselves, and
+// that operation does not reach every state yet, so an order currently only
+// works when the buyer is in the same state as the item's pickup address. The
+// buyer has to understand that before they fall in love with something they
+// cannot buy today.
 
 import * as React from 'react';
 import { normalizeState, type IndianState } from './states';

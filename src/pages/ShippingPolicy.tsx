@@ -15,28 +15,32 @@ export function ShippingPolicy() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col gap-12"
+        className="flex flex-col gap-14"
       >
         <div className="flex flex-col gap-4">
-          <h1 className="text-5xl font-black tracking-tighter uppercase">Shipping Policy</h1>
-          <p className="text-sm font-black uppercase tracking-widest text-black">How shipping works on zarketplace</p>
+          <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Shipping Policy</h1>
+          <p className="text-sm font-black uppercase tracking-widest text-black">How your order reaches you</p>
         </div>
 
-        <div className="flex flex-col gap-10 text-black body-copy">
+        <div className="flex flex-col gap-14 text-black body-copy">
           <section className="flex flex-col gap-4">
-            <h2 className="text-xl font-black uppercase tracking-tight text-black">Buyer-Paid, Platform-Arranged Shipping</h2>
-            <p>Shipping is calculated from the item's shipping category. By default the buyer pays it at checkout. If the seller chose to offer free shipping on a listing, the buyer pays nothing for shipping and that cost is deducted from the seller's payout instead.</p>
-            <p>Either way, zarketplace books and pays the courier. Sellers never arrange a pickup or buy a label themselves. They only pack the item and hand it off at pickup.</p>
+            <h2 className="text-xl font-black uppercase tracking-tight text-black">Shipped by zarketplace</h2>
+            <p>Every order ships from our hub, in our packaging, under our name. We book and pay the courier. Your delivery cost is calculated from the item's shipping category and shown to you at checkout.</p>
           </section>
 
           <section className="flex flex-col gap-4">
-            <h2 className="text-xl font-black uppercase tracking-tight text-black">72-Hour Handoff Window</h2>
-            <p>Once an item sells, the seller has 72 hours to pack it and hand it off for pickup. This keeps the marketplace fast and predictable for buyers.</p>
+            <h2 className="text-xl font-black uppercase tracking-tight text-black">Two journeys, not one</h2>
+            <p>An item travels twice: from the person who sold it to us, in to our hub, and from our hub out to you. You only ever see the second journey. By the time an item is on its way to you, we have already received it and checked it.</p>
           </section>
 
           <section className="flex flex-col gap-4">
-            <h2 className="text-xl font-black uppercase tracking-tight text-black">Every Order Is Tracked</h2>
-            <p>Every order carries tracking (courier and tracking number or link). Once an item is on its way, buyers receive an email and can follow live shipping status and the tracking link directly on their My Orders page.</p>
+            <h2 className="text-xl font-black uppercase tracking-tight text-black">Same-day dispatch</h2>
+            <p>Once we have accepted an item into our inventory, it goes out to you the same day.</p>
+          </section>
+
+          <section className="flex flex-col gap-4">
+            <h2 className="text-xl font-black uppercase tracking-tight text-black">Every order is tracked</h2>
+            <p>Every order carries tracking (courier and tracking number or link). Once your order is on its way, you receive an email and can follow live shipping status and the tracking link directly on your My Orders page.</p>
           </section>
 
           <section className="flex flex-col gap-4">

@@ -60,7 +60,7 @@ function CartInner() {
         <div className="flex items-start gap-3 border border-amber-300 bg-amber-50 p-4 mb-6">
           <AlertTriangle className="h-4 w-4 text-amber-700 mt-0.5 shrink-0" />
           <p className="text-[11px] font-bold uppercase tracking-widest text-amber-800 leading-relaxed">
-            As of now, purchases from different sellers cannot be combined into a single order. Please complete each purchase separately.
+            As of now, these items cannot be combined into a single order. Please complete each purchase separately.
           </p>
         </div>
       )}

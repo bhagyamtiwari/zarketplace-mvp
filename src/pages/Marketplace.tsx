@@ -5,7 +5,7 @@
 // it the page is search, filters and real inventory, and nothing else.
 import React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, SlidersHorizontal, X, Plus, Loader2, Heart, ChevronDown, ShieldCheck, PackageCheck, Tag, ArrowRight } from 'lucide-react';
+import { Search, SlidersHorizontal, X, Plus, Loader2, Heart, ChevronDown, PackageCheck, IndianRupee, Truck, ArrowRight } from 'lucide-react';
 import { supabasePublic } from '../lib/supabase';
 import { Listing } from '../types';
 import { ListingCard } from '../components/ListingCard';
@@ -301,15 +301,14 @@ export function Marketplace() {
 
   return (
     <div className="flex flex-col pt-20">
-      {/* First-visit explainer, dismissible. It sits above the controls so a
-          newcomer gets the pitch, and closes permanently so a returning buyer
-          gets the marketplace. */}
+      {/* The pitch, above the controls, so a newcomer reads what zarketplace is
+          before reaching the grid. */}
       <HeroBanner />
 
-      {/* The zero-fee promise. It used to run over the Create Listing form,
-          where brand noise on top of a form is pure friction. Here it reaches
-          the same sellers - people browsing are the ones who go on to list -
-          without standing between anyone and a field they have to fill. */}
+      {/* The promise band. It used to run over the Create Listing form, where
+          brand noise on top of a form is pure friction. Here it reaches the same
+          people - those browsing are the ones who go on to list an item with us
+          - without standing between anyone and a field they have to fill. */}
       <PromiseBanner variant="ticker" />
 
       {/* Control deck: search + chips. It stays where it sits, between the
@@ -600,27 +599,27 @@ export function Marketplace() {
           image="/images/red2-web.jpg"
           heading="F*ck fast fashion!"
           script="sell ur thrifted finds here."
-          body="List free, keep 100% of your asking price, and we handle the pickup."
-          cta={{ label: 'Start selling now', to: '/sell' }}
+          body="Tell us what you want for it. We'll make you an offer, collect it, and pay you."
+          cta={{ label: 'Get an offer', to: '/sell' }}
           align="right"
         />
         <CampaignBand
           image="/images/resale-web.jpg"
           heading="Good clothes deserve"
           script="another life."
-          body="Resellers, Instagram thrift stores and everyday sellers, all in one place."
+          body="Every piece bought, checked and repacked by us before it ships."
           cta={{ label: "See what's listed", to: '/browse' }}
         />
       </div>
 
-      {/* Sell is one tap from anywhere in the feed, without ever occupying
-          space the inventory could have used. */}
+      {/* Getting an offer is one tap from anywhere in the feed, without ever
+          occupying space the inventory could have used. */}
       <Link
         to="/sell"
-        aria-label="Sell an item"
+        aria-label="Get an offer for your item"
         className="lg:hidden fixed bottom-6 right-5 z-40 flex h-14 items-center gap-2 rounded-full bg-black pl-4 pr-5 text-[11px] font-black uppercase tracking-[0.2em] text-white shadow-[0_8px_30px_rgba(0,0,0,0.35)] active:scale-95 transition-transform"
       >
-        <Plus className="h-5 w-5" /> Sell
+        <Plus className="h-5 w-5" /> Offer
       </Link>
     </div>
   );
@@ -636,11 +635,12 @@ function FeedGrid({ children }: { children: React.ReactNode }) {
 
 // Trust claims, each one linking to the policy that backs it. They live on the
 // banner rather than under the filters: a promise belongs next to the pitch, not
-// wedged between a buyer and the grid.
-const PROMISES: Array<{ label: string; body: string; to: string; Icon: typeof ShieldCheck }> = [
-  { label: 'Buyer protection', body: 'Pay with confidence.', to: '/buyer-protection', Icon: ShieldCheck },
-  { label: 'No selling fees', body: 'Keep 100%.', to: '/sell', Icon: Tag },
-  { label: 'Doorstep pickup', body: 'We collect it.', to: '/shipping-policy', Icon: PackageCheck },
+// wedged between a buyer and the grid. All three describe what zarketplace
+// itself does, because zarketplace is the counterparty on every order.
+const PROMISES: Array<{ label: string; body: string; to: string; Icon: typeof PackageCheck }> = [
+  { label: 'Checked by us', body: 'Before it ships.', to: '/buyer-protection', Icon: PackageCheck },
+  { label: 'We buy your item', body: 'A fixed price, upfront.', to: '/sell', Icon: IndianRupee },
+  { label: 'Doorstep pickup', body: 'We collect it.', to: '/shipping-policy', Icon: Truck },
 ];
 
 const HERO_IMAGE = 'url(/images/new-banner3.jpg)';
@@ -679,22 +679,24 @@ function HeroBanner() {
 
       <div className="relative mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-7 sm:py-14 lg:py-16 flex flex-col gap-6 sm:gap-7">
         <h1 className="max-w-[8ch] sm:max-w-none text-[2.1rem] leading-[0.95] sm:text-4xl lg:text-5xl font-black tracking-tighter">
-          Buy &amp; sell<br className="hidden sm:block" /> pre-owned fashion.
+          Pre-owned fashion,<br className="hidden sm:block" /> sold by us.
         </h1>
 
-        {/* One promise row at every width. The phone drops the second line -
-            three labels and three sentences do not fit side by side - and keeps
-            the dividers so the claims read as a set. */}
-        <ul className="grid grid-cols-3 divide-x divide-white/20 sm:flex sm:divide-x-0 sm:gap-10">
+        {/* The phone stacks the three claims into full-width rows rather than
+            squeezing them into thirds: at a third of a phone's width the second
+            line had to be dropped, which left the hero least informative exactly
+            where most of the traffic is. Stacked, both lines fit and each claim
+            gets its own line of the page. */}
+        <ul className="flex flex-col divide-y divide-white/15 sm:flex-row sm:divide-y-0 sm:gap-10">
           {PROMISES.map(({ label, body, to, Icon }) => (
-            <li key={label} className="min-w-0 pr-2 first:pl-0 pl-3 sm:p-0">
+            <li key={label} className="min-w-0 py-2.5 first:pt-0 last:pb-0 sm:p-0">
               <Link to={to} className="group flex min-h-[44px] items-start gap-2.5 py-1 sm:items-center sm:gap-3 sm:py-0">
                 <Icon className="mt-0.5 h-5 w-5 sm:mt-0 sm:h-6 sm:w-6 shrink-0 text-white/85" strokeWidth={1.5} />
                 <span className="flex min-w-0 flex-col gap-0.5">
                   <span className="text-[13px] sm:text-sm font-black tracking-tight group-hover:text-white/70">
                     {label}
                   </span>
-                  <span className="hidden sm:block text-xs font-bold text-white/60">{body}</span>
+                  <span className="text-[11px] sm:text-xs font-bold text-white/60">{body}</span>
                 </span>
               </Link>
             </li>
@@ -714,7 +716,7 @@ function HeroBanner() {
             to="/sell"
             className="flex items-center justify-between gap-3 border border-white/40 bg-black sm:bg-transparent px-5 py-4 sm:min-w-[230px] sm:px-7 text-[11px] font-black uppercase tracking-widest text-white transition-colors hover:border-white hover:bg-white/10"
           >
-            Sell an item
+            Get an offer
             <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
@@ -741,10 +743,10 @@ function SellTile() {
         Got something<br />to sell?
       </span>
       <span className="relative text-[10px] font-black uppercase tracking-[0.2em] text-white/70">
-        No selling fees. Pickup handled.
+        We'll make you an offer.
       </span>
       <span className="relative mt-1 border-b-2 border-white pb-1 text-[10px] font-black uppercase tracking-[0.2em]">
-        List an item
+        Get an offer
       </span>
     </Link>
   );

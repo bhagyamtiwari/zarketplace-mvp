@@ -1,5 +1,5 @@
 // Single shared "nothing here yet" treatment, used anywhere a list/table can
-// be empty (browse results, seller listings/orders/payouts, admin queues).
+// be empty (browse results, vendor listings/orders/payouts, admin queues).
 import * as React from 'react';
 import { cn } from '../lib/utils';
 

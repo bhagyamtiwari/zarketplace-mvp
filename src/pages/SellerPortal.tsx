@@ -1,10 +1,10 @@
-// SellerPortal - seller-facing dashboard.
-// Listings (active/sold) + sold orders. For each sold order, the seller can:
+// The vendor portal - vendor-facing dashboard.
+// Listings (active/sold) + sold orders. For each sold order, the vendor can:
 //   - Add tracking (URL required, courier/number/photo optional) to ship.
 //   - Edit tracking after submission.
 // MVP: buyer pays admin UPI; admin verifies, and once the order is marked
 // delivered, a payout row is created automatically (48-hour review window,
-// see docs/REALIGNMENT_PLAN.md). Sellers no longer create their own payout
+// see COPY_RULES.md). Vendors no longer create their own payout
 // row by marking shipped - that used to release money before the buyer had
 // even confirmed the item arrived.
 
@@ -35,10 +35,10 @@ type Tab = 'listings' | 'tools' | 'orders' | 'payouts';
 const COURIERS = ['Delhivery', 'BlueDart', 'India Post', 'DTDC', 'Ekart', 'Other'];
 
 export function SellerPortal() {
-  useDocumentTitle('Seller Portal');
+  useDocumentTitle('Vendor Portal');
 
   return (
-    <RequireAuth message="Sign in to access the seller portal.">
+    <RequireAuth message="Sign in to access the vendor portal.">
       <SellerInner />
     </RequireAuth>
   );
@@ -46,8 +46,8 @@ export function SellerPortal() {
 
 function SellerInner() {
   const { user } = useAuth();
-  // Deep-linkable: /seller-portal?tab=tools lands straight on Seller Tools, which
-  // is where the post-publish screen sends a seller to share their new listing.
+  // Deep-linkable: /vendor-portal?tab=tools lands straight on the tools tab, which
+  // is where the post-publish screen sends a vendor to share their new listing.
   const [searchParams, setSearchParams] = useSearchParams();
   const tabParam = searchParams.get('tab');
   const initialTab: Tab = (['listings', 'tools', 'orders', 'payouts'] as const)
@@ -102,7 +102,7 @@ function SellerInner() {
       setPayouts((p as SellerPayout[]) ?? []);
     } catch (err: any) {
       splog.error('fetchAll', err);
-      setError(err?.message ?? 'Failed to load seller data');
+      setError(err?.message ?? 'Failed to load your data');
     } finally { setLoading(false); }
   }, [user]);
 
@@ -117,14 +117,14 @@ function SellerInner() {
 
   const NAV: Array<{ key: Tab; label: string; count: number; needsAction: boolean }> = [
     { key: 'listings', label: 'My Listings', count: listings.length, needsAction: false },
-    { key: 'tools', label: 'Seller Tools', count: listings.length, needsAction: false },
+    { key: 'tools', label: 'Share Tools', count: listings.length, needsAction: false },
     { key: 'orders', label: 'Sales', count: orders.length, needsAction: incomingOrders.length > 0 },
     { key: 'payouts', label: 'Payouts', count: payouts.length, needsAction: awaitingPayouts.length > 0 },
   ];
 
   const TAB_META: Record<Tab, { title: string; description: string }> = {
     listings: { title: 'My Listings', description: 'Items you have put up for sale. Active items appear on browse; sold items move below once a buyer purchases them.' },
-    tools: { title: 'Seller Tools', description: 'Generate a branded Instagram post or story image for any of your listings in one click.' },
+    tools: { title: 'Share Tools', description: 'Generate a branded Instagram post or story image for any of your listings in one click.' },
     orders: { title: 'Sales', description: 'Orders for items you sold. Add tracking once a buyer pays. Your payout is released after delivery is confirmed and the 48-hour buyer review window closes.' },
     payouts: { title: 'Payouts', description: 'What you’re owed and what you’ve already been paid. Payouts are held until 48 hours after delivery.' },
   };
@@ -351,7 +351,7 @@ function OrderRow({ order, payout, onUpdated }: { order: Order; payout: SellerPa
   const { profile } = useAuth();
 
   // The first-sale gate. Payout details are no longer asked for at listing
-  // time, so this is where they get collected: a seller cannot act on an order
+  // time, so this is where they get collected: a vendor cannot act on an order
   // until we know where the money goes and where the courier collects from.
   // Once submitted, payout_locked_at is set and every later sale skips this.
   const needsPayoutDetails = !profile?.payout_locked_at;

@@ -68,9 +68,14 @@ function findBannedPhrase(text: string): string | null {
   return BANNED_PHRASES.find((p) => lower.includes(p)) ?? null;
 }
 
-// The three ways an item can reach a buyer. Two of them are our courier and
-// differ only in who absorbs the fee, so they stay one shipping_mode with
-// free_shipping deciding the payer; the third is the seller's own courier.
+// How an item reaches our hub. Both choices are our courier on our prepaid
+// label - they differ only in who absorbs the delivery cost, so they stay one
+// shipping_mode with free_shipping deciding the payer.
+//
+// A vendor shipping with their own courier is no longer possible: every item
+// has to come in to us, be checked, and be repacked before it goes out. The
+// self_ship mode is kept in the type only because existing rows still carry it;
+// it is not offered.
 type ShippingMode = 'platform' | 'self_ship';
 
 const SHIPPING_CHOICES: Array<{
@@ -85,28 +90,22 @@ const SHIPPING_CHOICES: Array<{
     key: 'platform_free',
     mode: 'platform',
     free: true,
-    label: 'We ship it, you cover delivery',
+    label: 'We collect it, you cover delivery',
     recommended: true,
-    body: (rate) => `Items sell better when checkout says free. The ${formatCurrency(rate)} comes out of your payout instead.`,
+    body: (rate) => `Items sell faster when checkout says free. The ${formatCurrency(rate)} comes out of your payout instead.`,
   },
   {
     key: 'platform_buyer',
     mode: 'platform',
     free: false,
-    label: 'We ship it, buyer pays delivery',
-    body: (rate) => `We book the courier and collect from your door. The buyer pays ${formatCurrency(rate)} at checkout and you keep your full price.`,
-  },
-  {
-    key: 'self_ship',
-    mode: 'self_ship',
-    label: 'You ship it yourself',
-    body: () => 'Use your own courier, exactly as you do now. You pay for it, you add the tracking link, and your payout takes longer.',
+    label: 'We collect it, delivery paid at checkout',
+    body: (rate) => `We book the courier and collect from your door on a prepaid label. The ${formatCurrency(rate)} is paid at checkout, not out of your payout.`,
   },
 ];
 
-// The shipping category is derivable from the item category the seller has
+// The shipping category is derivable from the item category the vendor has
 // already chosen, so asking again is asking the same question twice in
-// different words. Applied as a default the seller can still override, since
+// different words. Applied as a default the vendor can still override, since
 // a heavy knit top genuinely does post like outerwear.
 const CATEGORY_TO_SHIPPING: Record<string, string> = {
   Tops: 'tops',
@@ -176,12 +175,12 @@ function SellInner() {
   // Seller-funded free shipping: buyer pays no shipping line, and the real
   // courier cost is deducted from the seller's payout instead of the buyer's
   // total (see migration shipping_reprice_and_seller_free_shipping). Off by
-  // default - it's a choice, not the default cost to the seller.
+  // default - it's a choice, not the default cost to the vendor.
   const [freeShipping, setFreeShipping] = React.useState(false);
-  // 'platform' = our courier (free_shipping above decides who pays for it),
-  // 'self_ship' = the seller's own courier.
+  // Always 'platform': our courier on our prepaid label, with free_shipping
+  // deciding who absorbs the cost. 'self_ship' is no longer offered.
   const [shippingMode, setShippingMode] = React.useState<ShippingMode>('platform');
-  // Set once the seller picks a shipping category themselves, so a later
+  // Set once the vendor picks a shipping category themselves, so a later
   // category change stops overwriting their deliberate choice.
   const shippingCategoryTouched = React.useRef(false);
   // PriceStep is a separate component, so the override flag is set here and
@@ -570,20 +569,20 @@ function SellInner() {
           appear in the feed yet. It stays on your account and we will be in
           touch when listings reopen.
         </p>
-        {/* The seller has just finished a form and is at their most willing to
+        {/* The vendor has just finished a form and is at their most willing to
             read one more thing. Said here, in three lines, so the PAN request
             that arrives later is expected rather than alarming. */}
         <p className="text-black/50 font-medium uppercase tracking-widest text-[10px] leading-[1.9] mb-10 max-w-md">
-          You do not need a GSTIN. We will ask for your PAN and walk you through
-          a one-time GST enrolment number when your first sale is close. Until
-          then you sell within your own state.{' '}
-          <Link to="/seller-policy" className="underline text-black/70 hover:text-black">How this works</Link>
+          You do not need a GSTIN. We buy your item and resell it under ours.
+          We may ask for your PAN before we pay you, which is standard on
+          payments of this kind.{' '}
+          <Link to="/vendor-policy" className="underline text-black/70 hover:text-black">How this works</Link>
         </p>
         <p className="text-black/50 font-medium uppercase tracking-widest text-xs mb-10 max-w-md">
           Meanwhile, generate a branded Instagram image and share it.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
-          <button onClick={() => navigate('/seller-portal?tab=tools')}
+          <button onClick={() => navigate('/vendor-portal?tab=tools')}
             className="bg-black px-10 py-5 text-xs font-black uppercase tracking-widest text-white hover:bg-zinc-800">
             Generate Instagram image
           </button>
@@ -612,10 +611,27 @@ function SellInner() {
   return (
     <div className="flex flex-col">
       <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 lg:px-8 pt-28 sm:pt-32">
-        <div className="mb-10 flex flex-col gap-4">
-          <h1 className="text-5xl sm:text-6xl font-black tracking-tighter uppercase leading-none">Create Listing</h1>
+        {/* The page opens as an offer, not as a form. The proposition is the
+            first thing read and the fields start well below it, so the work
+            reads as the consequence of the offer rather than the price of
+            finding out what it is. */}
+        <div className="mb-16 sm:mb-20 flex flex-col gap-6">
+          <div className="flex flex-col gap-2">
+            <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase leading-[0.95]">
+              Tell us what you want for it.
+            </h1>
+            <p className="text-2xl sm:text-3xl font-black tracking-tighter uppercase leading-[0.95] text-black/40">
+              We'll tell you what we'll pay.
+            </p>
+          </div>
+          <p className="body-copy max-w-xl text-black/70">
+            zarketplace buys your item outright. You name your asking price, we come back
+            with what we will pay for it, and you decide before anything goes live. Once you
+            accept, that number is locked. We arrange the pickup, check the item when it
+            reaches us, and pay you.
+          </p>
           <p className="text-xs font-black uppercase tracking-[0.3em] text-black/40">
-            List in under two minutes.{' '}
+            Takes under two minutes.{' '}
             <a href="https://wa.me/918505927538" target="_blank" rel="noreferrer"
               className="underline text-black/60 hover:text-black">Stuck? WhatsApp us</a>
           </p>
@@ -1122,8 +1138,8 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
             own label, and the optional one is plainly a marketing device. */}
         <div className="flex flex-col gap-8 max-w-md">
           <div className="flex flex-col gap-3">
-            <FieldLabel>Your price (INR) *</FieldLabel>
-            <TrustNote>What the buyer pays, and what you get paid.</TrustNote>
+            <FieldLabel>Your asking price (INR) *</FieldLabel>
+            <TrustNote>What you are asking for it. We will come back with our offer.</TrustNote>
             <input type="number" min={freeShipping && selectedRate ? selectedRate + 1 : 1} value={priceVal} onChange={(e) => setPriceVal(e.target.value)}
               placeholder={selectedRate ? String(selectedRate) : '3500'}
               className={cn('border-b py-4 text-sm font-bold focus:outline-none transition-all placeholder:text-black/20',
@@ -1138,8 +1154,8 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
             )}
             <TrustNote>
               {freeShipping
-                ? "You keep this minus shipping, since you're covering it. No selling fees."
-                : 'You keep this in full. No selling fees.'}
+                ? 'We will come back with our offer on this, less the delivery you are covering.'
+                : 'We will come back with our offer on this.'}
             </TrustNote>
           </div>
           <div className="flex flex-col gap-3 border-t border-black/5 pt-8">
@@ -1190,11 +1206,11 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
             className="border-b border-black/10 bg-transparent py-4 text-sm font-bold focus:border-black focus:outline-none transition-all"
           />
           <TrustNote>
-            Where the courier collects this item. While we complete GST compliance
-            setup, only buyers in this state can check out on your listing. We remember
-            it for your next listing.
+            Where the courier collects this item. While we are widening our delivery
+            coverage, only buyers in this state can check out on your listing. We
+            remember it for your next listing.
           </TrustNote>
-          {/* A seller outside Delhi can list, and should - their stock is how
+          {/* A vendor outside Delhi can list, and should - their stock is how
               a city becomes worth opening. But they should hear it from us
               now rather than infer it from silence later. */}
           {pickupState && pickupState !== 'Delhi' && (
@@ -1312,19 +1328,6 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
               })}
             </div>
 
-            {shippingMode === 'self_ship' && (
-              <div className="flex gap-3 border border-amber-500/40 bg-amber-50 px-5 py-4">
-                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-700" />
-                <p className="text-[11px] font-bold uppercase tracking-widest leading-[1.8] text-amber-900">
-                  Shipping it yourself means you book the courier and pay for it, and you
-                  have to add the tracking link in your seller portal once it is sent. Your
-                  payout also takes longer than it would on our courier, because we only
-                  release it after delivery is confirmed and we are relying on your
-                  tracking to tell us.
-                </p>
-              </div>
-            )}
-
             {shippingMode === 'platform' && (
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {shippingCategories.map((c) => (
@@ -1376,22 +1379,20 @@ function ReviewStep({
 
   return (
     <div className="flex flex-col gap-10">
-      {/* Interstate sale under GST needs a GSTIN, which most individual sellers
-          do not have. Until that is sorted, a sale is only valid when the
-          buyer and the seller are in the same state. The seller has to know
-          that before publishing, not after an order fails to arrive, so it
+      {/* Our delivery coverage does not reach every state yet, so for now an
+          order only works when the buyer is in the same state as the pickup
+          address. The vendor has to know that before publishing, not after an
+          order fails to arrive, so it
           sits on Review rather than in a policy page. The pickup address that
           sets the state is collected at first sale in PayoutDetailsForm, which
           carries the matching notice. */}
       <div className="flex gap-3 border border-amber-500/40 bg-amber-50 px-5 py-4">
         <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-700" />
         <p className="text-[11px] font-bold uppercase tracking-widest leading-[1.8] text-amber-900">
-          While we complete GST compliance setup, only buyers in the same state
-          as your pickup address can check out on this listing. Selling to
-          another state needs a GSTIN, which we are working on with specific
-          sellers. Your price and payout are unaffected. You do not need a
-          GSTIN yourself - just a PAN and a one-time enrolment number we will
-          help you get.
+          While we are widening our delivery coverage, only buyers in the same
+          state as your pickup address can check out on this listing. Your
+          payout is unaffected either way, and you do not need a GSTIN: we buy
+          your item and resell it under ours.
         </p>
       </div>
 
@@ -1421,14 +1422,12 @@ function ReviewStep({
             ) : (
               <span className="text-[11px] font-bold uppercase tracking-widest text-emerald-700">No flaws disclosed</span>
             )}
-            {/* This line said "buyer pays" whatever the seller had chosen,
-                which was already wrong for seller-paid delivery. */}
+            {/* This line said "buyer pays" whatever the vendor had chosen,
+                which was already wrong for vendor-paid delivery. */}
             <span className="text-[11px] font-bold uppercase tracking-widest text-black/40">
-              {shippingMode === 'self_ship'
-                ? 'Shipping: you send it with your own courier'
-                : shipRate
-                  ? `Shipping: ${shipRate.label} (${formatCurrency(shipRate.rate)}, ${freeShipping ? 'you cover it' : 'buyer pays'})`
-                  : 'Shipping: not set'}
+              {shipRate
+                ? `Shipping: ${shipRate.label} (${formatCurrency(shipRate.rate)}, ${freeShipping ? 'you cover it' : 'paid at checkout'})`
+                : 'Shipping: not set'}
             </span>
           </div>
         </div>

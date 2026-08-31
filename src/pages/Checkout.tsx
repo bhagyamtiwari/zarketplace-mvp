@@ -239,7 +239,7 @@ function CheckoutInner() {
       const seller = sellerStates[blockedItems[0].listing_id];
       setErrorMsg(
         deliveryResolved.stateName
-          ? `"${blockedItems[0].title}" ships from ${seller?.name}, and pincode ${shippingAddress.pincode} is in ${deliveryResolved.stateName}. Use a delivery address in ${seller?.name}, or remove the item.`
+          ? `We are not delivering "${blockedItems[0].title}" to ${deliveryResolved.stateName} yet. Use a delivery address in ${seller?.name}, or remove the item.`
           : `We cannot confirm which state pincode ${shippingAddress.pincode} is in, so we cannot take payment for it yet. Contact us and we will sort it out.`,
       );
       return;
@@ -496,7 +496,7 @@ function CheckoutInner() {
         <span className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-600">Payment confirmed</span>
         <h1 className="text-5xl font-black tracking-tighter uppercase">You bought it.</h1>
         <p className="text-[11px] font-bold uppercase tracking-widest text-black/60 max-w-md leading-relaxed">
-          Your payment has been received. The seller has been notified to ship your item. Track everything in My Orders.
+          Your payment has been received. We are bringing your item in, checking it and repacking it, then it ships to you. Track everything in My Orders.
         </p>
 
         {confirmedOrders.length > 0 && (
@@ -604,7 +604,7 @@ function CheckoutInner() {
               onSubmit={submitAddress} submitting={submitting} errorMsg={errorMsg}
               blockedNote={blockedItems.length > 0
                 ? (deliveryResolved.stateName
-                    ? `Pincode ${shippingAddress.pincode} is in ${deliveryResolved.stateName}, and this ${blockedItems.length === 1 ? 'item ships' : 'order ships'} from ${sellerStates[blockedItems[0].listing_id]?.name}. We can only deliver within ${sellerStates[blockedItems[0].listing_id]?.name} while we complete GST compliance setup.`
+                    ? `We are not delivering to ${deliveryResolved.stateName} yet. While we widen our coverage, ${blockedItems.length === 1 ? 'this item' : 'this order'} can only be delivered within ${sellerStates[blockedItems[0].listing_id]?.name}.`
                     : `We cannot place pincode ${shippingAddress.pincode} yet, so we cannot take payment for this order. Contact us and we will sort it out.`)
                 : null}
             />
@@ -786,7 +786,7 @@ function AddressStep({
       </button>
       <div className="flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] text-black/30">
         <ShieldCheck className="h-4 w-4" />
-        <span>Your details are only shared with the seller for delivery</span>
+        <span>Your details are only used to deliver your order</span>
       </div>
     </section>
   );
@@ -875,9 +875,11 @@ function RazorpayPayStep({
           label="Shipping"
           value={shippingLoading
             ? 'Calculating...'
-            // "Free" would be true but misleading here: the buyer pays nothing
-            // extra, and the seller is posting it themselves rather than us.
-            : selfShip ? 'Seller ships it'
+            // Legacy rows only: some listings predate every item coming in to
+            // our hub. The buyer pays nothing extra on these, but the buyer
+            // never sees anything about where an item came from, so the line
+            // states the outcome rather than the route.
+            : selfShip ? 'Included'
             : shipping === 0 ? 'Free'
             : formatCurrency(shipping)}
         />
@@ -891,7 +893,7 @@ function RazorpayPayStep({
 
       {buyerProtection > 0 && (
         <p className="text-[9px] font-bold uppercase tracking-widest text-black/40 leading-relaxed -mt-2">
-          Buyer Protection holds your payment in escrow until you confirm delivery, with a refund if the item is significantly not as described.{' '}
+          Every item is received, checked and repacked by us before it ships, with a refund if it arrives significantly not as described.{' '}
           <Link to="/buyer-protection" className="underline text-black/60">Learn more</Link>
         </p>
       )}
@@ -966,9 +968,11 @@ function Summary({ items, subtotal, shipping, shippingLoading, buyerProtection, 
           label="Shipping"
           value={shippingLoading
             ? 'Calculating...'
-            // "Free" would be true but misleading here: the buyer pays nothing
-            // extra, and the seller is posting it themselves rather than us.
-            : selfShip ? 'Seller ships it'
+            // Legacy rows only: some listings predate every item coming in to
+            // our hub. The buyer pays nothing extra on these, but the buyer
+            // never sees anything about where an item came from, so the line
+            // states the outcome rather than the route.
+            : selfShip ? 'Included'
             : shipping === 0 ? 'Free'
             : formatCurrency(shipping)}
         />

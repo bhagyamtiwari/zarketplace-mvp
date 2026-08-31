@@ -89,12 +89,12 @@ For a `paid` order, `/admin → Orders` shows a **Book Pickup (Shiprocket)**
 button (only once the `SHIPROCKET_*` secrets are set - see `docs/SETUP.md`
 §4). Clicking it registers the seller's pickup address with Shiprocket,
 creates the order, assigns a courier + AWB, generates the label, and flips
-the order to `shipped` automatically. See `docs/SHIPPING.md` for the full
+the order to `shipped` automatically. See the admin runbook for the full
 flow and its known simplifications (fixed per-category weight, no rate
 comparison).
 
 If Shiprocket isn't configured, or a particular seller ships some other way,
-sellers add tracking themselves from the Seller Portal, which sets
+sellers add tracking themselves from the vendor portal, which sets
 `status = 'shipped'` and emails the buyer. If a seller can't, an admin can do
 it directly:
 
@@ -157,7 +157,7 @@ so a seller can never clear their own claim.
 Per `RefundPolicy.tsx`, buyers raise a claim by emailing
 `contact@zarketplace.com` with their order number and photos within 48 hours
 of delivery - this is intentionally email-based at MVP (no in-app claim
-form), matching `docs/REALIGNMENT_PLAN.md` §P0-8. When one comes in:
+form), matching the vendor payout flow. When one comes in:
 
 1. Open `/admin → Orders`, find the order, click the **Claim** column
    (shows "None - open one"). This sets `claim_open = true` and immediately
@@ -191,7 +191,7 @@ where o.order_number = 'ZKT-12345' and l.id = o.listing_id;
 ```
 
 ### 6. Deleting a listing
-Sellers can delete their own listings from the Seller Portal, and admins can
+Sellers can delete their own listings from the vendor portal, and admins can
 delete any listing from the Admin Portal → Listings tab (trash icon). Deletes
 are permanent. The `orders.listing_id` foreign key is `ON DELETE SET NULL`, so
 **any existing order keeps its snapshot** (title, SKU, image, amounts) — the

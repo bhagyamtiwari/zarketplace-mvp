@@ -52,7 +52,7 @@ export function Navbar() {
     return () => { document.body.style.overflow = prev; };
   }, [isMenuOpen]);
 
-  // The marketplace opens on a black hero. On a phone the bar sits directly on
+  // The feed opens on a black hero. On a phone the bar sits directly on
   // top of it, so it goes black and merges into the banner rather than cutting a
   // white strip across it. Desktop keeps the white bar the mockups show.
   const onFeed = location.pathname === '/' || location.pathname === '/browse';
@@ -226,9 +226,9 @@ export function Navbar() {
                         </span>
                         <span className="text-[9px] font-bold uppercase tracking-widest text-black/40 ml-6">Items you bought</span>
                       </Link>
-                      <Link to="/seller-portal" onClick={() => setIsAccountOpen(false)} className="flex flex-col gap-0.5 hover:text-black/60">
+                      <Link to="/vendor-portal" onClick={() => setIsAccountOpen(false)} className="flex flex-col gap-0.5 hover:text-black/60">
                         <span className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest">
-                          <LayoutGrid className="h-3.5 w-3.5" /> Seller Portal
+                          <LayoutGrid className="h-3.5 w-3.5" /> Vendor Portal
                         </span>
                         <span className="text-[9px] font-bold uppercase tracking-widest text-black/40 ml-6">Items you sold</span>
                       </Link>
@@ -336,7 +336,7 @@ export function Navbar() {
                     <>
                       <DrawerLink to="/track-order" onClick={closeMenu}>My orders</DrawerLink>
                       <DrawerLink to="/account" onClick={closeMenu}>My profile</DrawerLink>
-                      <DrawerLink to="/seller-portal" onClick={closeMenu}>Seller portal</DrawerLink>
+                      <DrawerLink to="/vendor-portal" onClick={closeMenu}>Vendor portal</DrawerLink>
                       {profile?.is_admin && <DrawerLink to="/admin" onClick={closeMenu}>Admin</DrawerLink>}
                       <button
                         onClick={async () => { await signOut(); closeMenu(); navigate('/'); }}

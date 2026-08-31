@@ -18,17 +18,19 @@ interface ListingCardProps {
 // A card has to answer brand / condition / size / price / trust / favorite
 // state in about a second, so everything here is a glance-level signal. Sold
 // items stay in the feed, greyed: seeing inventory move is what makes a young
-// marketplace feel alive.
+// feed feel alive.
 export const ListingCard: React.FC<ListingCardProps> = ({ listing, priority = false }) => {
   const favorites = useFavorites();
   const favorited = favorites.has(listing.id);
   const sold = !!listing.is_sold;
 
-  // Interstate sale is blocked until GST compliance is done, so a card has to
+  // Our delivery coverage does not reach every state yet, so a card has to
   // say whether this item is actually buyable from where the visitor is. Only
   // ever a note, never a hidden card: a buyer who cannot check out today still
-  // deserves to see that the marketplace has what they want.
+  // deserves to see that we have what they want.
   const [buyerState] = useBuyerState();
+  // Only ever used to work out whether we can deliver to this buyer. It is
+  // never shown: where an item came from is ours, not the buyer's business.
   const shipsFrom = listing.pickup_state ?? null;
   const outOfState = !!buyerState && !!shipsFrom && !sameState(buyerState, shipsFrom);
 
@@ -102,7 +104,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing, priority = fa
           )}
           {outOfState && !sold && (
             <span className="flex items-center gap-1 bg-amber-100 px-2.5 py-1 text-[9px] font-black uppercase tracking-[0.15em] text-amber-900">
-              <MapPin className="h-3 w-3" /> Ships from {shipsFrom}
+              <MapPin className="h-3 w-3" /> Not delivering to you yet
             </span>
           )}
         </div>

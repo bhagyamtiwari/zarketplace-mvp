@@ -40,9 +40,13 @@ const CONDITION_TIERS = [...CONDITIONS].reverse();
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Buyer-safe columns for the owner/admin fallback read on the base `listings`
-// table. Never selects seller_email / seller_upi_vpa / pickup_address.
+// table. Never selects any vendor identity: not seller_email, seller_upi_vpa or
+// pickup_address, and not seller_display_name or seller_instagram either. A
+// buyer's copy of a listing must not carry who we bought it from, even in a
+// field the page does not render. seller_id stays only so the page can
+// recognise a vendor viewing their own listing.
 const SAFE_LISTING_COLUMNS =
-  'id, sku, seller_id, seller_display_name, seller_instagram, title, brand, description, price, sale_price, category, gender, size_type, size, condition, image_url, image_urls, shipping_category, free_shipping, has_flaws, flaws_description, original_tags_attached, original_packaging, item_altered, wear_frequency, authenticity_confirmed, seller_declared_at, status, is_sold, created_at, updated_at, shipping_mode';
+  'id, sku, seller_id, title, brand, description, price, sale_price, category, gender, size_type, size, condition, image_url, image_urls, shipping_category, free_shipping, has_flaws, flaws_description, original_tags_attached, original_packaging, item_altered, wear_frequency, authenticity_confirmed, seller_declared_at, status, is_sold, created_at, updated_at, shipping_mode';
 
 export function ProductPage() {
   const params = useParams();
@@ -68,7 +72,7 @@ export function ProductPage() {
   const stickyStopRef = React.useRef<HTMLDivElement>(null);
 
   // The sticky mobile buy bar should only follow the user down to the end of
-  // the seller's description, not all the way to the footer.
+  // the item description, not all the way to the footer.
   React.useEffect(() => {
     const el = stickyStopRef.current;
     if (!el) return;
@@ -149,7 +153,7 @@ export function ProductPage() {
 
         let data = pubData as Listing | null;
         // The view only exposes approved+unsold rows. Owner/admin arriving from
-        // SellerPortal or Admin may be viewing their own pending/sold listing;
+        // The vendor portal or Admin may be viewing their own pending/sold listing;
         // fall back to the base table (RLS lets owner/admin read it) with safe
         // columns only.
         if (!data && user) {
@@ -228,7 +232,7 @@ export function ProductPage() {
       <div className="mx-auto max-w-7xl px-4 pt-24 sm:pt-28 pb-14 sm:pb-20 text-center">
         <h1 className="text-2xl font-black uppercase tracking-tighter">Listing not found</h1>
         <button onClick={() => navigate('/browse')} className="mt-8 text-xs font-bold uppercase tracking-widest underline">
-          Back to marketplace
+          Back to browsing
         </button>
       </div>
     );
@@ -421,6 +425,9 @@ export function ProductPage() {
                 <span className="text-3xl font-black">{formatCurrency(listing.price)}</span>
               )}
             </div>
+            <span className="mt-3 text-[10px] font-black uppercase tracking-[0.25em] text-black/40">
+              Sold &amp; shipped by zarketplace
+            </span>
           </div>
 
           <div className="grid grid-cols-2 gap-y-6 gap-x-4 border-y border-black/5 py-8">
@@ -468,13 +475,11 @@ export function ProductPage() {
             <div>
               <span className="text-[9px] font-black uppercase tracking-[0.2em] text-black block mb-1">Shipping</span>
               <p className="font-black text-base uppercase tracking-tight">
-                {listing.shipping_mode === 'self_ship'
-                  ? 'Seller ships it'
-                  : listing.free_shipping
+                {listing.free_shipping
                     ? 'Free'
-                    : shippingCategories.length === 0
-                      ? 'Calculating...'
-                      : fmt(shippingRateFor(listing.shipping_category, shippingCategories))}
+                  : shippingCategories.length === 0
+                    ? 'Calculating...'
+                    : fmt(shippingRateFor(listing.shipping_category, shippingCategories))}
               </p>
             </div>
             <div>
@@ -542,7 +547,7 @@ export function ProductPage() {
                 {conflict && (
                   <div className="border border-black/10 bg-zinc-50 p-4 flex flex-col gap-3">
                     <p className="text-[10px] font-bold uppercase tracking-widest">
-                      Your cart already has items from another seller. Clear cart and add this?
+                      Your cart already has an item that ships separately from this one. Clear cart and add this?
                     </p>
                     <div className="flex gap-2">
                       <button
@@ -568,7 +573,7 @@ export function ProductPage() {
 
           <div className="flex flex-col gap-8">
             <div className="flex flex-col gap-4">
-              <h3 className="text-xs font-black uppercase tracking-widest">Seller's Description</h3>
+              <h3 className="text-xs font-black uppercase tracking-widest">Item description</h3>
               <div className="flex flex-col gap-4">
                 <p className="text-black/70 text-xs font-medium uppercase tracking-widest leading-relaxed whitespace-pre-line">{listing.description}</p>
               </div>
@@ -609,14 +614,14 @@ export function ProductPage() {
                   <div className="flex items-start gap-3 border border-amber-200 bg-amber-50 p-4">
                     <AlertTriangle className="h-4 w-4 text-amber-700 mt-0.5 shrink-0" />
                     <div className="flex flex-col gap-1">
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-800">Flaws disclosed by seller</span>
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-800">Flaws disclosed</span>
                       <p className="text-[10px] font-medium leading-relaxed text-amber-800/80">{listing.flaws_description}</p>
                     </div>
                   </div>
                 ) : (
                   <div className="flex items-center gap-3">
                     <ShieldCheck className="h-4 w-4 text-emerald-700 shrink-0" />
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700">No flaws disclosed by seller</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700">No flaws disclosed</span>
                   </div>
                 )}
 
@@ -624,12 +629,12 @@ export function ProductPage() {
                   {listing.authenticity_confirmed ? (
                     <>
                       <ShieldCheck className="h-4 w-4 text-emerald-700 shrink-0" />
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700">Seller confirms this item is authentic</span>
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700">Confirmed authentic</span>
                     </>
                   ) : (
                     <>
                       <AlertTriangle className="h-4 w-4 text-black/40 shrink-0" />
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-black/40">Authenticity not confirmed by seller</span>
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-black/40">Authenticity not confirmed</span>
                     </>
                   )}
                 </div>
@@ -669,7 +674,7 @@ export function ProductPage() {
 
             {user?.id === listing.seller_id && (
               <div className="mt-4 pt-6 border-t border-black/5 flex flex-col gap-3">
-                <span className="text-[9px] font-black uppercase tracking-[0.4em] text-black/40">Seller tools</span>
+                <span className="text-[9px] font-black uppercase tracking-[0.4em] text-black/40">Your listing</span>
                 <button
                   type="button"
                   onClick={() => setShareOpen(true)}

@@ -1,6 +1,6 @@
 // Escrow lifecycle, derived for display. The order state machine and the
 // seller_payouts ledger are the source of truth (see
-// docs/REALIGNMENT_PLAN.md and migration 20260710000001); this module turns
+// COPY_RULES.md and migration 20260710000001); this module turns
 // that data into a single, honest timeline that makes escrow visible to both
 // buyers and sellers:
 //

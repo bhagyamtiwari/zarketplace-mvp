@@ -1,9 +1,10 @@
 // The 28 states and 8 union territories, as GST reckons them.
 //
 // This exists because state stopped being a courier detail and became a rule.
-// Interstate supply needs a GSTIN most individual sellers do not have, so
-// until that is resolved a buyer and a seller have to be in the same state -
-// which means the two values have to be *comparable*. A free-text box is not:
+// We collect, check and ship every item ourselves, and that operation does not
+// reach every state yet, so for now a buyer has to be in the same state as the
+// pickup address - which means the two values have to be *comparable*. A
+// free-text box is not:
 // "Delhi", "New Delhi", "delhi" and "NCT of Delhi" are one state and four
 // strings, and no amount of matching logic recovers from that reliably.
 //
@@ -148,7 +149,7 @@ export function normalizeState(value: string | null | undefined): IndianState | 
   return BY_FOLDED.get(key) ?? ALIASES[key] ?? null;
 }
 
-/** True when buyer and seller may transact without a GSTIN. */
+/** True when the item's pickup state is one we can deliver from to this buyer. */
 export function sameState(a: string | null | undefined, b: string | null | undefined): boolean {
   const left = normalizeState(a);
   const right = normalizeState(b);

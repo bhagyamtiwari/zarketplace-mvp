@@ -179,7 +179,7 @@ export function PayoutDetailsForm({ onSaved, onCancel }: { onSaved: () => void; 
               type="tel" placeholder="+91 98765 43210" className={inputCls} />
           </div>
           <div className="flex flex-col gap-3">
-            <FieldLabel>Seller Email</FieldLabel>
+            <FieldLabel>Vendor Email</FieldLabel>
             <div className="border-b border-black/10 py-4 text-sm font-bold text-black/60">{user?.email}</div>
           </div>
           <div className="flex flex-col gap-3">
@@ -214,17 +214,16 @@ export function PayoutDetailsForm({ onSaved, onCancel }: { onSaved: () => void; 
           <p className="text-xs font-bold uppercase tracking-widest text-black/50 leading-relaxed">Where the courier collects this order.</p>
         </div>
         {/* The state below is not just a courier detail: it decides who is
-            allowed to buy. Interstate sale under GST needs a GSTIN most
-            individual sellers do not have, so until that is resolved a buyer
-            has to be in the same state as this address. Said here, at the
-            field that sets it, rather than only on the listing form. */}
+            allowed to buy. Our delivery coverage does not reach everywhere
+            yet, so for now a buyer has to be in the same state as this
+            address. Said here, at the field that sets it, rather than only on
+            the listing form. */}
         <div className="flex gap-3 border border-amber-500/40 bg-amber-50 px-5 py-4">
           <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-700" />
           <p className="text-[11px] font-bold uppercase tracking-widest leading-[1.8] text-amber-900">
-            The state you enter decides who can buy from you. While we complete
-            GST compliance setup, only buyers in this same state can check out
-            on your listings. Selling to another state needs a GSTIN, which we
-            are working on with specific sellers.
+            The state you enter decides who we can deliver to. While we are
+            widening our delivery coverage, only buyers in this same state can
+            check out on your listings. Your payout is unaffected either way.
           </p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-8">

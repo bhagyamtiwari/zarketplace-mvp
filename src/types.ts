@@ -25,13 +25,13 @@ export interface Listing {
   image_urls: string[];
   shipping_category: string;
   // Seller-funded free shipping: buyer pays no shipping line, and the real
-  // courier cost is deducted from the seller's payout at delivery instead.
+  // courier cost is deducted from the vendor's payout instead.
   free_shipping: boolean;
-  /** State the item ships from. Decides who may buy it while interstate
-      sale is blocked on GST compliance. Null on rows created before the
-      listing form asked for it. */
+  /** State the item is collected from. Decides who we can deliver it to while
+      our coverage is still widening. Never shown to a buyer. Null on rows
+      created before the listing form asked for it. */
   pickup_state?: string | null;
-  /** 'platform' = we book the courier, 'self_ship' = the seller ships it. */
+  /** Always 'platform': we book the courier. 'self_ship' is legacy rows only. */
   shipping_mode?: string | null;
   pickup_address?: Record<string, string> | null;
   has_flaws: boolean;

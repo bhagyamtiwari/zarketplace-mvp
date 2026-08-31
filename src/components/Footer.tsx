@@ -28,7 +28,7 @@ const MARKETPLACE: FooterColumn = {
     { label: 'What Is zarketplace', to: '/about' },
     { label: 'Buy', to: '/browse' },
     { label: 'Sell', to: '/sell' },
-    { label: 'Seller Portal', to: '/seller-portal' },
+    { label: 'Seller Portal', to: '/vendor-portal' },
     { label: 'Conditions Guide', to: '/conditions-guide' },
   ],
 };
@@ -39,7 +39,7 @@ const ACCOUNT: FooterColumn = {
     { label: 'My Orders', to: '/track-order' },
     { label: 'My Profile', to: '/account' },
     { label: 'FAQ', to: '/faq' },
-    { label: 'Seller Guidelines', to: '/seller-policy' },
+    { label: 'Seller Guidelines', to: '/vendor-policy' },
   ],
 };
 

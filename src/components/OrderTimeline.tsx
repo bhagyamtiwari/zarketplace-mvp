@@ -1,4 +1,4 @@
-// Shared escrow timeline, rendered identically for buyers and sellers so the
+// Shared order timeline, rendered identically for buyers and vendors so the
 // same "where is my money" story shows on both sides of a trade. The spine
 // (Paid -> Pickup -> Delivered -> Review -> Paid Out) and its state come from
 // deriveEscrowStages; the contextual line under it comes from escrowCaption.

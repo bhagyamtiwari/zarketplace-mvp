@@ -16,8 +16,8 @@ export function payoutReleasedSeller(ctx: EmailContext): EmailContent {
       <h1 style="font-weight:900; text-transform:uppercase;">Payout released</h1>
       <p>Your payout of <strong>Rs. ${payout}</strong> for order ${esc(o.order_number)} is on its way to your UPI.</p>
       ${o.free_shipping
-        ? `<p>Asking price Rs. ${o.amount}, less Rs. ${shipping} shipping you offered to cover. zarketplace takes no platform fee.</p>`
-        : `<p>That is 100% of your asking price. zarketplace takes no platform fee.</p>`}
+        ? `<p>This is the payout you accepted when you listed this item, less the Rs. ${shipping} delivery you offered to cover.</p>`
+        : `<p>This is the payout you accepted when you listed this item.</p>`}
       ${button(sellerUrl(o, ctx.siteUrl), "View seller portal")}
     </div>`,
   };

@@ -25,7 +25,7 @@ export function Terms() {
         <div className="flex flex-col gap-10 text-black body-copy">
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">What zarketplace Is</h2>
-            <p>zarketplace is a peer-to-peer (P2P/C2C) marketplace for pre-owned and one-of-one fashion. We connect individual buyers and sellers; we are not the seller of record for any listing.</p>
+            <p>zarketplace buys pre-owned and one-of-one fashion from individuals and resells it under its own GST registration. When you buy from zarketplace you are buying from zarketplace: we are the seller of record for every listing, and every order is sold and shipped by us. When you sell to zarketplace you are selling us the item outright, for an amount agreed before the item is listed. These are two separate transactions.</p>
           </section>
 
           <section className="flex flex-col gap-4">
@@ -40,7 +40,7 @@ export function Terms() {
 
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Payments & Policies</h2>
-            <p>All payments are processed securely through Razorpay. Shipping, seller, and refund terms are governed by our <Link to="/shipping-policy" className="font-bold text-black underline">Shipping Policy</Link>, <Link to="/seller-policy" className="font-bold text-black underline">Seller Policy</Link>, and <Link to="/refund-policy" className="font-bold text-black underline">Refund Policy</Link>.</p>
+            <p>All payments are processed securely through Razorpay. Shipping, vendor, and refund terms are governed by our <Link to="/shipping-policy" className="font-bold text-black underline">Shipping Policy</Link>, <Link to="/vendor-policy" className="font-bold text-black underline">Vendor Policy</Link>, and <Link to="/refund-policy" className="font-bold text-black underline">Refund Policy</Link>.</p>
           </section>
 
           <section className="flex flex-col gap-4">

@@ -2,12 +2,13 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "zarketplace-dev",
-      "runtimeExecutable": "/Users/bhagyam/Downloads/zarketplace-mvp/.claude/worktrees/founders-desk-concept-4bf07b/node_modules/.bin/vite",
+      "name": "zarketplace-preview",
+      "runtimeExecutable": "/Users/bhagyam/Downloads/zarketplace-mvp/.claude/worktrees/sad-hamilton-fa60ca/node_modules/.bin/vite",
       "runtimeArgs": [
-        "/Users/bhagyam/Downloads/zarketplace-mvp/.claude/worktrees/founders-desk-concept-4bf07b",
+        "preview",
         "--host=127.0.0.1",
-        "--port=$PORT"
+        "--port=$PORT",
+        "--strictPort"
       ],
       "autoPort": true
     }

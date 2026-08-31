@@ -1,6 +1,6 @@
-// Sitewide banner carrying zarketplace's permanent economics: 0% selling
-// fees, sellers keep the full asking price. Not a launch offer - this is
-// the standing model, so the copy never threatens a future fee.
+// Sitewide banner carrying what zarketplace is: we buy the item, we check it,
+// we ship it. The vendor-facing variant states the one number a vendor cares
+// about - their own payout - and never anything about what we resell it for.
 
 import * as React from 'react';
 import { motion } from 'motion/react';
@@ -13,43 +13,44 @@ interface Props {
 
 // Headline phrases used by the news-ticker variant. Mix punchy + informative.
 const TICKER_PHRASES = [
-  'ZERO SELLING FEES. ALWAYS.',
-  'KEEP 100% OF YOUR SALE PRICE',
-  'SELL YOUR THRIFTED FINDS',
-  'SHOP PRE-LOVED & NEW FASHION',
+  'WE BUY IT. WE CHECK IT. WE SHIP IT.',
+  'SOLD & SHIPPED BY ZARKETPLACE',
+  'ONE SOURCE. EVERY PIECE CHECKED.',
+  'PRE-LOVED, PROPERLY HANDLED.',
 ];
 
 export function PromiseBanner({ variant, className }: Props) {
   if (variant === 'pricing') {
-    // Sell-page callout. States the economics plainly - the numbers a
-    // seller actually cares about (what they pay, what they keep) - with
-    // no expiry framing, since this is the permanent model.
+    // Sell-page callout. States the proposition plainly: a vendor names their
+    // asking price, we come back with what we will pay, and that number is
+    // locked before the item goes live. Nothing here references what the item
+    // is later sold for - a vendor never sees that number.
     return (
       <div className={cn('border border-black bg-white', className)}>
         <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr] divide-y sm:divide-y-0 sm:divide-x divide-black">
           {/* Left: the headline value */}
           <div className="px-8 py-6 flex flex-col gap-3 sm:min-w-[260px]">
             <span className="text-[9px] font-black uppercase tracking-[0.4em] text-black/50">
-              Selling fee
+              Your payout
             </span>
             <div className="flex items-baseline gap-3">
               <span className="text-5xl sm:text-6xl font-black tracking-tighter uppercase leading-none">
-                Free
+                Locked
               </span>
             </div>
             <span className="text-[9px] font-black uppercase tracking-[0.3em] text-black/50">
-              You keep 100% of every sale
+              Agreed before your item goes live
             </span>
           </div>
 
           {/* Right: explanation */}
           <div className="px-8 py-6 flex flex-col justify-center gap-2">
             <span className="text-[9px] font-black uppercase tracking-[0.4em] text-black">
-              Permanent, not a promotion
+              Tell us what you want for it
             </span>
             <p className="text-[11px] font-bold uppercase tracking-widest text-black/60 leading-relaxed">
-              zarketplace takes 0% commission on every sale, now and going
-              forward. What you list is what you keep.
+              We'll tell you what we'll pay. You decide before anything goes
+              live, and that number never moves.
             </p>
           </div>
         </div>

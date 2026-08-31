@@ -13,7 +13,7 @@
 //   3. Create the adhoc order (buyer delivery address + seller pickup
 //      location + a category-based default weight, since this marketplace's
 //      flat shipping rate model never collects per-item weight/dimensions -
-//      see docs/REALIGNMENT_PLAN.md §0.3).
+//      see COPY_RULES.md).
 //   4. Auto-assign a courier + AWB (no courier_id = let Shiprocket pick the
 //      recommended one).
 //   5. Generate the shipping label.
@@ -39,7 +39,7 @@ const SHIPROCKET_BASE = "https://apiv2.shiprocket.in/v1/external";
 // Declared weight in kg per shipping category - the flat-rate shipping model
 // never asks the seller for a real parcel weight, so this is a reasonable
 // fixed default per category rather than a precise per-item value. Tune from
-// real Shiprocket invoices once volume exists (see docs/SHIPPING.md).
+// real Shiprocket invoices once volume exists .
 const CATEGORY_WEIGHT_KG: Record<string, number> = {
   tops: 0.3,
   bottoms: 0.5,
