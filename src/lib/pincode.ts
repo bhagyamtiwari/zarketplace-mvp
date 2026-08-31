@@ -1,30 +1,20 @@
-// Pincode -> GST state code, for the intra-state rule.
+// Pincode -> state, used to route a courier and to normalise a stored address.
 //
 // WHY THIS EXISTS, AND WHY IT IS DELIBERATELY INCOMPLETE
 //
-// Place of supply for goods is where the movement terminates for delivery -
-// the shipping address, not what the buyer picked in a dropdown. A buyer can
-// select "Delhi" and type a Gurgaon pincode, and Gurgaon is Haryana: a
-// different state for GST. The earlier check compared the dropdown to the
-// seller's state and let exactly that through.
+// A pincode is the only location a vendor gives us: the sell form asks for one
+// and derives the state from it, rather than asking twice and then having to
+// reconcile two answers that disagree.
 //
-// The honest constraint: there is no authoritative pincode dataset in this
-// repo, and India Post's numbering has real irregularities (Chandigarh sits
-// inside Punjab's 16x band; 682555 is Lakshadweep inside Kerala's 682).
-// Inventing the missing rows would produce a table that is right most of the
-// time, which for a legal check is worse than one that admits what it does
-// not know.
+// It was originally built for the intra-state delivery rule, where an
+// unrecognised pincode had to fail closed and refuse a sale. That rule is gone
+// - we ship nationwide from our own hub - so an unresolved pincode now costs a
+// tidier address, not an order.
 //
-// So: only prefixes stated with confidence appear below, and resolve() returns
-// null for everything else. Callers MUST treat null as "cannot sell here"
-// rather than "probably fine". An unknown pincode blocks a sale; it never
-// waves one through. Widening the table is a data problem, not a code one -
-// drop verified rows in and the behaviour follows.
-//
-// See blocked_checkouts: every refusal is logged with the pincode, so the
-// prefixes worth verifying next are the ones actually costing sales.
+// The table is prefix-based and does not cover every pincode in India. That is
+// fine for what it now does; resolvePincode returns nulls it cannot place and
+// callers treat that as "unknown", not as "refuse".
 
-/** GST state codes. The numeric code is what tax logic compares, never the name. */
 export const STATE_CODE_TO_NAME: Record<string, string> = {
   '01': 'Jammu and Kashmir',
   '02': 'Himachal Pradesh',
@@ -167,28 +157,4 @@ export function resolvePincode(raw: string | null | undefined): PincodeResolutio
     stateName: code ? STATE_CODE_TO_NAME[code] ?? null : null,
     malformed: false,
   };
-}
-
-export type IntraStateVerdict =
-  | { ok: true; stateCode: string }
-  | { ok: false; reason: 'malformed' | 'unknown_pincode' | 'different_state'; buyerStateName: string | null };
-
-/**
- * The rule: a buyer's delivery pincode must resolve to the seller's state.
- *
- * Fails closed. An unrecognised pincode is refused rather than assumed
- * acceptable, because the failure we cannot afford is completing a sale
- * across a state line, not declining one we could have made.
- */
-export function checkIntraState(
-  deliveryPincode: string | null | undefined,
-  sellerStateCode: string | null | undefined,
-): IntraStateVerdict {
-  const resolved = resolvePincode(deliveryPincode);
-  if (resolved.malformed) return { ok: false, reason: 'malformed', buyerStateName: null };
-  if (!resolved.stateCode) return { ok: false, reason: 'unknown_pincode', buyerStateName: null };
-  if (!sellerStateCode || resolved.stateCode !== sellerStateCode) {
-    return { ok: false, reason: 'different_state', buyerStateName: resolved.stateName };
-  }
-  return { ok: true, stateCode: resolved.stateCode };
 }

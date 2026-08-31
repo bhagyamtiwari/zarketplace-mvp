@@ -12,7 +12,6 @@ import { ListingCard } from '../components/ListingCard';
 import { EmptyState } from '../components/EmptyState';
 import { CampaignBand } from '../components/CampaignBand';
 import { PromiseBanner } from '../components/PromiseBanner';
-import { sameState } from '../lib/states';
 import { cn } from '../lib/utils';
 import { log } from '../lib/log';
 import { usePageMeta, META } from '../lib/pageMeta';
