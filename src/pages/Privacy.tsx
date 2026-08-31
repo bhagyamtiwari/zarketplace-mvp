@@ -7,7 +7,7 @@ export function Privacy() {
   usePageMeta(META.privacy);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
+    <div className="mx-auto max-w-[64ch] px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
       <Link to="/" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-12">
         <ArrowLeft className="h-3 w-3" /> Back to zarketplace
       </Link>
@@ -22,7 +22,7 @@ export function Privacy() {
           <p className="text-sm font-black uppercase tracking-widest text-black">Last updated: July 29, 2026</p>
         </div>
 
-        <div className="flex flex-col gap-14 text-black body-copy max-w-[62ch]">
+        <div className="flex flex-col gap-14 text-black body-longform">
           <p>This Privacy Policy explains how zarketplace ("we", "us", or "our") collects, uses, and shares your personal information when you use our services, including visiting zarketplace.com or contacting us. By using our site or services, you agree to this policy. If you disagree, please don’t use our services. We may update this policy from time to time, and the latest version will always be on our site with the updated date.</p>
 
           <section className="flex flex-col gap-4">

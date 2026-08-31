@@ -7,7 +7,7 @@ export function BuyerProtection() {
   usePageMeta(META.buyerProtection);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
+    <div className="mx-auto max-w-[64ch] px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
       <Link to="/" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-12">
         <ArrowLeft className="h-3 w-3" /> Back to zarketplace
       </Link>
@@ -22,7 +22,7 @@ export function BuyerProtection() {
           <p className="text-sm font-black uppercase tracking-widest text-black">Every order is handled by us, start to finish</p>
         </div>
 
-        <div className="flex flex-col gap-14 text-black body-copy max-w-[62ch]">
+        <div className="flex flex-col gap-14 text-black body-longform">
           <p>zarketplace buys the items it sells. When you order, you are buying from one company with one address and one standard, not from whoever happened to list it. Every order is sold and shipped by zarketplace.</p>
 
           <section className="flex flex-col gap-4">

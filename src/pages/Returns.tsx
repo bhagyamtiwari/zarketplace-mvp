@@ -7,7 +7,7 @@ export function Returns() {
   usePageMeta(META.returns);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
+    <div className="mx-auto max-w-[64ch] px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
       <Link to="/" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-12">
         <ArrowLeft className="h-3 w-3" /> Back to zarketplace
       </Link>
@@ -22,7 +22,7 @@ export function Returns() {
           <p className="text-sm font-black uppercase tracking-widest text-black">The process for sending an item back, and for cancelling before it ships</p>
         </div>
 
-        <div className="flex flex-col gap-14 text-black body-copy max-w-[62ch]">
+        <div className="flex flex-col gap-14 text-black body-longform">
           <p>Since most items sold on zarketplace are pre-owned, one-of-a-kind pieces, there is generally no physical return process: returns are not accepted simply because of a change of mind.</p>
 
           <section className="flex flex-col gap-4">

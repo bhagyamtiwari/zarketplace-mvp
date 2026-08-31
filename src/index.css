@@ -35,6 +35,16 @@
     @apply text-xs font-medium uppercase tracking-widest leading-relaxed;
   }
 
+  /* Long-form reading text: policies, guides, FAQ answers, anything that runs
+     to paragraphs. BrandKit's own typography spec calls for "sentence-case
+     Inter 500 for long-form legal/support text" - .body-copy is the uppercase
+     tracked register for labels and short panels, and setting several hundred
+     words of policy in it is both off-spec and genuinely hard to read.
+     Sentence case, a step larger, normal tracking, generous leading. */
+  .body-longform {
+    @apply text-sm font-normal normal-case tracking-normal leading-[1.75] text-black/80;
+  }
+
   .bg-gradient-dark {
     background: linear-gradient(180deg, #000000 0%, #1a1a1a 100%);
   }

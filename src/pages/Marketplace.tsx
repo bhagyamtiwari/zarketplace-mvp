@@ -347,7 +347,12 @@ export function Marketplace() {
             </div>
 
             <div className="flex shrink-0 items-center gap-2">
-              <SortChip value={sortBy} onChange={(v) => setParam('sort', v === 'relevance' ? null : v)} />
+              {/* Sort moves into the sheet on a phone. On one line with the
+                  gender chips it took 248px of a 343px row and crushed them to
+                  87px, so "Women" rendered as a single clipped letter. */}
+              <span className="hidden sm:flex">
+                <SortChip value={sortBy} onChange={(v) => setParam('sort', v === 'relevance' ? null : v)} />
+              </span>
               <button
                 type="button"
                 onClick={() => setShowFilters(true)}
@@ -471,6 +476,15 @@ export function Marketplace() {
               </button>
             </div>
 
+
+            <SheetGroup title="Sort by" className="sm:hidden">
+              {SORT_OPTIONS.map((o) => (
+                <SheetChip key={o.value} active={sortBy === o.value}
+                  onClick={() => setParam('sort', o.value === 'relevance' ? null : o.value)}>
+                  {o.label}
+                </SheetChip>
+              ))}
+            </SheetGroup>
 
             <SheetGroup title="Show me">
               <SheetChip active={!quick} onClick={() => setParam('q', null)}>Everything</SheetChip>
@@ -765,16 +779,17 @@ const FilterOption: React.FC<ToggleProps> = ({ active, onClick, children }) => {
   );
 };
 
-function SheetGroup({ title, summary, collapsible = false, defaultOpen = true, children }: {
+function SheetGroup({ title, summary, collapsible = false, defaultOpen = true, className, children }: {
   title: string;
   summary?: string;
   collapsible?: boolean;
   defaultOpen?: boolean;
+  className?: string;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = React.useState(collapsible ? defaultOpen : true);
   return (
-    <div className="flex flex-col gap-3">
+    <div className={cn('flex flex-col gap-3', className)}>
       {collapsible ? (
         <button
           type="button"

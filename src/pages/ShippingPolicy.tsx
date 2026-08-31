@@ -7,7 +7,7 @@ export function ShippingPolicy() {
   usePageMeta(META.shipping);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
+    <div className="mx-auto max-w-[64ch] px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
       <Link to="/" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-12">
         <ArrowLeft className="h-3 w-3" /> Back to zarketplace
       </Link>
@@ -22,7 +22,7 @@ export function ShippingPolicy() {
           <p className="text-sm font-black uppercase tracking-widest text-black">How your order reaches you</p>
         </div>
 
-        <div className="flex flex-col gap-14 text-black body-copy max-w-[62ch]">
+        <div className="flex flex-col gap-14 text-black body-longform">
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Shipped by zarketplace</h2>
             <p>Every order ships from our hub, in our packaging, under our name. We book and pay the courier. Your delivery cost is calculated from the item's shipping category and shown to you at checkout.</p>
