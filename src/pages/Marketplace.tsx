@@ -15,7 +15,7 @@ import { PromiseBanner } from '../components/PromiseBanner';
 import { sameState } from '../lib/states';
 import { cn } from '../lib/utils';
 import { log } from '../lib/log';
-import { useDocumentTitle } from '../lib/useDocumentTitle';
+import { usePageMeta, META } from '../lib/pageMeta';
 import { useFavorites } from '../lib/favorites';
 import { CONDITIONS } from '../lib/condition';
 
@@ -99,7 +99,7 @@ function applyDevFilters(
 }
 
 export function Marketplace() {
-  useDocumentTitle('buy & sell pre-owned fashion');
+  usePageMeta(META.home);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const favorites = useFavorites();
@@ -326,39 +326,32 @@ export function Marketplace() {
             />
           </form>
 
-          {/* Two groups: who you are shopping for on the left, what you are in
-              the mood for on the right. On a phone each group keeps its own
-              swipeable row rather than merging into one long strip nobody
-              scrolls to the end of. */}
-          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
-            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 lg:mx-0 lg:px-0">
+          {/* One line, every width. Gender is the only filter that earns a
+              permanent chip - it halves the catalogue in one tap and everyone
+              uses it. Everything else lives behind Filters, including on
+              desktop, so the bar reads the same on a phone as on a laptop. */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide min-w-0 flex-1">
               <Chip active={!gender && !quick && !category} onClick={clearAll}>All</Chip>
               {GENDERS.map((g) => (
                 <Chip key={g} active={gender === g} onClick={() => toggleParam('gender', g)}>{g}</Chip>
-              ))}
-            </div>
-
-            {/* Sort leads this row and Filters closes it, so everything that
-                changes what the grid shows lives on one line. */}
-            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 py-2 -my-2 lg:mx-0 lg:px-0 lg:justify-end">
-              <SortChip value={sortBy} onChange={(v) => setParam('sort', v === 'relevance' ? null : v)} />
-              {QUICK_CHIPS.map((c) => (
-                <Chip key={c.value} active={quick === c.value} onClick={() => toggleParam('q', c.value)} tag={c.tag}>
-                  {c.label}
-                </Chip>
               ))}
               {favorites.size > 0 && (
                 <Chip active={quick === 'saved'} onClick={() => toggleParam('q', 'saved')}>
                   <span className="flex items-center gap-1.5">
                     <Heart className={cn('h-3 w-3', quick === 'saved' ? 'fill-white' : 'fill-black')} />
-                    Saved {favorites.size}
+                    {favorites.size}
                   </span>
                 </Chip>
               )}
+            </div>
+
+            <div className="flex shrink-0 items-center gap-2">
+              <SortChip value={sortBy} onChange={(v) => setParam('sort', v === 'relevance' ? null : v)} />
               <button
                 type="button"
                 onClick={() => setShowFilters(true)}
-                className="lg:hidden shrink-0 flex min-h-[44px] items-center gap-2 border border-black bg-white px-4 py-3 text-[11px] font-black uppercase tracking-widest"
+                className="shrink-0 flex min-h-[44px] items-center gap-2 border border-black bg-white px-4 py-3 text-[11px] font-black uppercase tracking-widest hover:bg-black hover:text-white transition-colors"
               >
                 <SlidersHorizontal className="h-3.5 w-3.5" />
                 Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
@@ -369,48 +362,6 @@ export function Marketplace() {
       </div>
 
       <div className="mx-auto max-w-[1600px] w-full px-4 sm:px-6 lg:px-8 pb-12 pt-4 flex gap-10">
-        {/* Desktop filter rail. Persistent because once the screen is wide
-            enough, horizontal chips are a mobile compromise. */}
-        <aside className="hidden lg:block w-56 shrink-0">
-          {/* The rail still pins, now under the navbar rather than under a
-              control deck that no longer stays. */}
-          <div className="sticky top-24 flex flex-col gap-2 pb-10">
-            {/* First control in the rail, above category: where you are
-                decides what you can buy, so it outranks what it looks like. */}
-            {/* Category and condition are how people actually narrow a resale
-                feed. Size is the long list, so it stays folded until asked for
-                rather than filling the rail with eighteen dead options. */}
-            <FilterGroup title="Category" defaultOpen summary={category ?? 'All'}>
-              <FilterOption active={!category} onClick={() => selectCategory(null)}>All</FilterOption>
-              {PRODUCT_TYPES.map((c) => (
-                <FilterOption key={c} active={category === c} onClick={() => selectCategory(c)}>{c}</FilterOption>
-              ))}
-            </FilterGroup>
-
-            <FilterGroup title="Condition" defaultOpen summary={condition ?? 'Any'}>
-              <FilterOption active={!condition} onClick={() => setParam('condition', null)}>Any</FilterOption>
-              {CONDITIONS.map((c) => (
-                <FilterOption key={c.name} active={condition === c.name} onClick={() => setParam('condition', c.name)}>{c.name}</FilterOption>
-              ))}
-            </FilterGroup>
-
-            <FilterGroup title="Size" defaultOpen={!!sizeType} summary={sizeType ?? 'Any'}>
-              <FilterOption active={!sizeType} onClick={() => setParam('size_type', null)}>Any</FilterOption>
-              {(category ? CATEGORY_SIZES[category] ?? ALL_SIZES : ALL_SIZES).map((s) => (
-                <FilterOption key={s} active={sizeType === s} onClick={() => setParam('size_type', s)}>{s}</FilterOption>
-              ))}
-            </FilterGroup>
-
-            {activeFilterCount > 0 && (
-              <button
-                onClick={clearAll}
-                className="flex items-center gap-2 self-start border border-black/10 px-4 py-2.5 text-[10px] font-black uppercase tracking-widest hover:bg-black hover:text-white transition-colors"
-              >
-                <X className="h-3 w-3" /> Clear all
-              </button>
-            )}
-          </div>
-        </aside>
 
         <div className="min-w-0 flex-1 flex flex-col gap-4">
           {/* Result count and sort, as a single quiet line of text. */}
@@ -499,7 +450,7 @@ export function Marketplace() {
                 // a weight someone actually reads.
                 <div className="py-10 flex justify-center px-4">
                   <p className="max-w-md border border-black/15 bg-zinc-50 px-6 py-5 text-center text-[11px] font-black uppercase tracking-[0.2em] leading-[1.9] text-black/60">
-                    New seller listings archived until further notice
+                    New listings are paused while we clear the queue
                   </p>
                 </div>
               )}
@@ -510,9 +461,9 @@ export function Marketplace() {
 
       {/* Mobile filter sheet */}
       {showFilters && (
-        <div className="lg:hidden fixed inset-0 z-50 flex flex-col justify-end">
+        <div className="fixed inset-0 z-50 flex flex-col justify-end sm:items-center sm:justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowFilters(false)} />
-          <div className="relative max-h-[80vh] overflow-y-auto bg-white border-t border-black/10 p-6 flex flex-col gap-8">
+          <div className="relative max-h-[80vh] w-full sm:max-w-lg overflow-y-auto bg-white border-t sm:border border-black/10 p-6 sm:p-8 flex flex-col gap-10">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-black uppercase tracking-[0.2em]">Filters</h2>
               <button onClick={() => setShowFilters(false)} aria-label="Close filters" className="p-2">
@@ -520,6 +471,15 @@ export function Marketplace() {
               </button>
             </div>
 
+
+            <SheetGroup title="Show me">
+              <SheetChip active={!quick} onClick={() => setParam('q', null)}>Everything</SheetChip>
+              {QUICK_CHIPS.map((c) => (
+                <SheetChip key={c.value} active={quick === c.value} onClick={() => setParam('q', c.value)}>
+                  {c.label}
+                </SheetChip>
+              ))}
+            </SheetGroup>
 
             <SheetGroup title="Category">
               <SheetChip active={!category} onClick={() => selectCategory(null)}>All</SheetChip>
@@ -562,33 +522,16 @@ export function Marketplace() {
         </div>
       )}
 
-      {/* The same three bands the About page opens with, closing the feed.
-          Full-bleed and flush: no gutters between them, no padding around the
-          group, so they read as one block rather than three cards. */}
-      <div className="flex flex-col">
-        <CampaignBand
-          image="/images/boots-web.jpg"
-          heading="Reduce waste,"
-          script="buy pre-loved."
-          body="Keep clothes in circulation and out of landfills."
-          cta={{ label: 'What is zarketplace', to: '/about' }}
-        />
-        <CampaignBand
-          image="/images/red2-web.jpg"
-          heading="F*ck fast fashion!"
-          script="sell ur thrifted finds here."
-          body="Tell us what you want for it. We'll make you an offer, collect it, and pay you."
-          cta={{ label: 'Get an offer', to: '/sell' }}
-          align="right"
-        />
-        <CampaignBand
-          image="/images/resale-web.jpg"
-          heading="Good clothes deserve"
-          script="another life."
-          body="Every piece bought, checked and repacked by us before it ships."
-          cta={{ label: "See what's listed", to: '/browse' }}
-        />
-      </div>
+      {/* One band, not three. Three full-bleed statements below the grid was
+          the same idea said three times, and BrandKit's own rule is one idea
+          per section. The other two live on /about, where an argument belongs. */}
+      <CampaignBand
+        image="/images/resale-web.jpg"
+        heading="Good clothes deserve"
+        script="another life."
+        body="Every piece bought, checked and repacked by us before it ships."
+        cta={{ label: 'Sell us something', to: '/sell' }}
+      />
 
       {/* Getting an offer is one tap from anywhere in the feed, without ever
           occupying space the inventory could have used. */}
@@ -655,7 +598,7 @@ function HeroBanner() {
         <div className="absolute inset-0 bg-gradient-to-r from-black via-black/45 via-35% to-transparent to-75%" />
       </div>
 
-      <div className="relative mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-7 sm:py-14 lg:py-16 flex flex-col gap-6 sm:gap-7">
+      <div className="relative mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20 flex flex-col gap-7 sm:gap-8">
         <h1 className="max-w-[8ch] sm:max-w-none text-[2.1rem] leading-[0.95] sm:text-4xl lg:text-5xl font-black tracking-tighter">
           Pre-owned fashion,<br className="hidden sm:block" /> sold by us.
         </h1>

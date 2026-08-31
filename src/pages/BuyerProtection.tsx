@@ -1,10 +1,10 @@
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { useDocumentTitle } from '../lib/useDocumentTitle';
+import { usePageMeta, META } from '../lib/pageMeta';
 
 export function BuyerProtection() {
-  useDocumentTitle('Buyer Protection');
+  usePageMeta(META.buyerProtection);
 
   return (
     <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
@@ -22,7 +22,7 @@ export function BuyerProtection() {
           <p className="text-sm font-black uppercase tracking-widest text-black">Every order is handled by us, start to finish</p>
         </div>
 
-        <div className="flex flex-col gap-14 text-black body-copy">
+        <div className="flex flex-col gap-14 text-black body-copy max-w-[62ch]">
           <p>zarketplace buys the items it sells. When you order, you are buying from one company with one address and one standard, not from whoever happened to list it. Every order is sold and shipped by zarketplace.</p>
 
           <section className="flex flex-col gap-4">

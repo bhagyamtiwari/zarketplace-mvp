@@ -26,7 +26,7 @@ import { log } from '../lib/log';
 import { scrollToTop } from '../lib/scrollToTop';
 import { encodeVariants, encodeSocialCard, SOCIAL_CARD_SUFFIX } from '../lib/images';
 import { removeBackground } from '../lib/backgroundRemoval';
-import { useDocumentTitle } from '../lib/useDocumentTitle';
+import { usePageMeta, META } from '../lib/pageMeta';
 import { resolvePincode } from '../lib/pincode';
 import { cn, formatCurrency } from '../lib/utils';
 
@@ -135,7 +135,7 @@ interface Declarations {
 }
 
 export function Sell() {
-  useDocumentTitle('Sell');
+  usePageMeta(META.sell);
 
   return (
     <RequireAuth message="Sign in to list an item.">

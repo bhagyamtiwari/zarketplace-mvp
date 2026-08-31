@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, ShieldCheck, Truck, IndianRupee, BadgeCheck, PackageCheck, EyeOff } from 'lucide-react';
-import { useDocumentTitle } from '../lib/useDocumentTitle';
+import { usePageMeta, META } from '../lib/pageMeta';
 
 // "What is zarketplace" is the one page allowed to explain at length, because
 // anyone who opens it has asked the question. The feed sends people here; it
@@ -12,7 +12,7 @@ import { useDocumentTitle } from '../lib/useDocumentTitle';
 // exact width the policy pages render at. Uppercase tracked text goes unreadable long before
 // ordinary prose does, so a consistent measure matters more here than usual.
 export function About() {
-  useDocumentTitle('What is zarketplace');
+  usePageMeta(META.about);
 
   React.useEffect(() => {
     window.scrollTo(0, 0);

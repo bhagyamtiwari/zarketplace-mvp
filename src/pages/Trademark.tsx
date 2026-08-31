@@ -1,10 +1,10 @@
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { useDocumentTitle } from '../lib/useDocumentTitle';
+import { usePageMeta, META } from '../lib/pageMeta';
 
 export function Trademark() {
-  useDocumentTitle('Trademark & Brand Notice');
+  usePageMeta(META.trademark);
 
   return (
     <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
@@ -18,12 +18,12 @@ export function Trademark() {
         className="flex flex-col gap-12"
       >
         <div className="flex flex-col gap-4">
-          <h1 className="text-5xl font-black tracking-tighter uppercase">Trademark &amp; Brand Notice</h1>
+          <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Trademark &amp; Brand Notice</h1>
         </div>
 
         <div className="flex flex-col gap-8 text-black leading-relaxed text-sm font-medium uppercase tracking-widest">
           <p>
-            zarketplace is a peer-to-peer resale marketplace operated by ADNIZ Private Limited.
+            zarketplace is a pre-owned fashion retailer operated by ADNIZ Private Limited. We buy items from individuals and resell them under our own name.
           </p>
 
           <p>

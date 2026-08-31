@@ -23,6 +23,8 @@ jobs:
         run: deno test supabase/functions/dispatch-vendor-emails/templates.test.ts
       - name: No outbound shipping payload carries a vendor address
         run: deno test supabase/functions/shiprocket-book-leg/payload.test.ts
+      - name: No buyer email leaks a vendor
+        run: deno test supabase/functions/send-email/templates/buyer.test.ts
 
   typecheck-and-build:
     name: Typecheck and build

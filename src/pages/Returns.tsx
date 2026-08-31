@@ -1,10 +1,10 @@
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, ArrowUpRight } from 'lucide-react';
-import { useDocumentTitle } from '../lib/useDocumentTitle';
+import { usePageMeta, META } from '../lib/pageMeta';
 
 export function Returns() {
-  useDocumentTitle('Returns');
+  usePageMeta(META.returns);
 
   return (
     <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
@@ -18,11 +18,11 @@ export function Returns() {
         className="flex flex-col gap-12"
       >
         <div className="flex flex-col gap-4">
-          <h1 className="text-5xl font-black tracking-tighter uppercase">Returns</h1>
+          <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Returns</h1>
           <p className="text-sm font-black uppercase tracking-widest text-black">The process for sending an item back, and for cancelling before it ships</p>
         </div>
 
-        <div className="flex flex-col gap-10 text-black body-copy">
+        <div className="flex flex-col gap-14 text-black body-copy max-w-[62ch]">
           <p>Since most items sold on zarketplace are pre-owned, one-of-a-kind pieces, there is generally no physical return process: returns are not accepted simply because of a change of mind.</p>
 
           <section className="flex flex-col gap-4">

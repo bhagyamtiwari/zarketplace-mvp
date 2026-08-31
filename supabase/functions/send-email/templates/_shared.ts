@@ -63,9 +63,6 @@ export function trackUrl(o: any, siteUrl: string): string {
   return `${siteUrl}/track-order?order=${o.order_number}&email=${encodeURIComponent(o.buyer_email ?? "")}`;
 }
 
-export function sellerUrl(o: any, siteUrl: string): string {
-  return `${siteUrl}/seller-portal?email=${encodeURIComponent(o.seller_email ?? "")}`;
-}
 
 export function esc(v: unknown): string {
   if (v == null) return "";

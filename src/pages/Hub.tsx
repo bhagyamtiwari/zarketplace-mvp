@@ -14,7 +14,7 @@ import { Loader2, PackageCheck, PackageX, Truck, IndianRupee, AlertTriangle } fr
 import { supabase } from '../lib/supabase';
 import { RequireAuth } from '../components/RequireAuth';
 import { useAuth } from '../lib/auth';
-import { useDocumentTitle } from '../lib/useDocumentTitle';
+import { usePageMeta, META } from '../lib/pageMeta';
 import { variantUrl } from '../lib/images';
 import { cn, formatCurrency } from '../lib/utils';
 import { log } from '../lib/log';
@@ -60,7 +60,7 @@ const TAB_STATES: Record<Exclude<Tab, 'refunds' | 'holding'>, string[]> = {
 };
 
 export function Hub() {
-  useDocumentTitle('Hub');
+  usePageMeta(META.hub);
   return (
     <RequireAuth message="Sign in to open the hub.">
       <HubInner />

@@ -18,12 +18,12 @@ import { shipmentStatusLabel } from '../lib/orderStatus';
 import { OrderTimeline } from '../components/OrderTimeline';
 import { hasEscrowTimeline } from '../lib/escrowTimeline';
 import { EmptyState } from '../components/EmptyState';
-import { useDocumentTitle } from '../lib/useDocumentTitle';
+import { usePageMeta, META } from '../lib/pageMeta';
 
 const tlog = log('track');
 
 export function TrackOrder() {
-  useDocumentTitle('My Orders');
+  usePageMeta(META.orders);
 
   return (
     <RequireAuth message="Sign in to view your orders.">
@@ -61,7 +61,7 @@ function TrackInner() {
         <p className="text-xs font-bold uppercase tracking-widest text-black/40 max-w-xl leading-relaxed">
           Items you've bought. Track payment and shipping.
           <br />
-          For items you've sold, open the Seller Portal.
+          For items you've sold us, open your vendor portal.
         </p>
       </div>
 
@@ -154,7 +154,7 @@ function Tracking({ order }: { order: Order }) {
       ) : order.status === 'paid' ? (
         <div className="bg-zinc-50 border border-black/5 p-4">
           <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 leading-relaxed">
-            No tracking yet. The seller is packing your item for courier pickup, and your payment stays protected in escrow until it's delivered. We'll email you the moment tracking is added.
+            No tracking yet. We're getting your item ready to send. You'll get an email the moment it's on its way.
           </p>
         </div>
       ) : (

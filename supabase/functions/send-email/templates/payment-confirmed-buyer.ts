@@ -12,7 +12,7 @@ export function paymentConfirmedBuyer(ctx: EmailContext): EmailContent {
       ${header(ctx.siteUrl)}
       <h1 style="font-weight:900; text-transform:uppercase; letter-spacing:-1px;">Payment received</h1>
       <p>Hi ${esc(o.buyer_name)},</p>
-      <p>Your payment for the order below is confirmed and held safely in escrow. The seller has been notified to pack and send your item, and your payment stays protected until it's delivered.</p>
+      <p>Your payment is confirmed. We're getting your item ready: it's checked against its listing, repacked in our own packaging, and sent out to you from our hub. You'll get tracking as soon as it ships.</p>
       <h3 style="margin-top:24px;">${esc(o.listing_title)}</h3>
       ${listingImage(o)}
       <p style="color:#666; font-size:13px;">SKU: ${esc(o.listing_sku)}</p>

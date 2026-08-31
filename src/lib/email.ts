@@ -9,14 +9,10 @@ const elog = log('admin');
 
 export type EmailTemplate =
   | 'order_confirmation_buyer'
-  | 'order_notification_seller'
   | 'tracking_update_buyer'
-  | 'payout_released_seller'
   | 'order_cancelled_buyer'
-  | 'order_cancelled_seller'
   | 'order_refunded_buyer'
   | 'order_delivered_buyer'
-  | 'listing_approved_seller'
   | 'custom';
 
 interface SendEmailArgs {

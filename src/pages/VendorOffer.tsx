@@ -19,7 +19,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { encodeVariants } from '../lib/images';
 import { RequireAuth } from '../components/RequireAuth';
-import { useDocumentTitle } from '../lib/useDocumentTitle';
+import { usePageMeta, META } from '../lib/pageMeta';
 import { scrollToTop } from '../lib/scrollToTop';
 import { cn, formatCurrency } from '../lib/utils';
 import { trackEvent } from '../lib/analytics';
@@ -29,7 +29,7 @@ import {
 } from '../lib/acquisition';
 
 export function VendorOfferPage() {
-  useDocumentTitle('Your offer');
+  usePageMeta(META.offer);
   return (
     <RequireAuth message="Sign in to see your offer.">
       <VendorOfferInner />

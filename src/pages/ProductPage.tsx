@@ -425,12 +425,30 @@ export function ProductPage() {
                 <span className="text-3xl font-black">{formatCurrency(listing.price)}</span>
               )}
             </div>
-            <span className="mt-3 text-[10px] font-black uppercase tracking-[0.25em] text-black/40">
-              Sold &amp; shipped by zarketplace
-            </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-y-6 gap-x-4 border-y border-black/5 py-8">
+          {/* The whole buyer-side proposition, stated once and given room.
+              It used to be a grey line under the price, which is where you put
+              a disclaimer, not the reason someone should buy from you. */}
+          <div className="border-y border-black py-6 flex flex-col gap-4">
+            <span className="text-[10px] font-black uppercase tracking-[0.3em]">
+              Sold &amp; shipped by zarketplace
+            </span>
+            <ul className="flex flex-col gap-2">
+              {[
+                'Bought and owned by us, not listed by someone else',
+                'Checked against this listing before it ships',
+                'Dispatched from our own hub, in our own packaging',
+              ].map((line) => (
+                <li key={line} className="flex gap-3 text-xs font-medium leading-relaxed text-black/60">
+                  <span aria-hidden className="text-black/25">&mdash;</span>
+                  <span>{line}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="grid grid-cols-2 gap-y-6 gap-x-4 border-b border-black/5 pb-8">
             <div>
               <span className="text-[9px] font-black uppercase tracking-[0.2em] text-black block mb-1">Size</span>
               <p className="font-black text-base uppercase tracking-tight">{listing.size_type || 'One Size'}</p>
@@ -573,7 +591,7 @@ export function ProductPage() {
 
           <div className="flex flex-col gap-8">
             <div className="flex flex-col gap-4">
-              <h3 className="text-xs font-black uppercase tracking-widest">Item description</h3>
+              <h3 className="text-xs font-black uppercase tracking-widest">About this piece</h3>
               <div className="flex flex-col gap-4">
                 <p className="text-black/70 text-xs font-medium uppercase tracking-widest leading-relaxed whitespace-pre-line">{listing.description}</p>
               </div>

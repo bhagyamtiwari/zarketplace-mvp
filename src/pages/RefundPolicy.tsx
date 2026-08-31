@@ -1,10 +1,10 @@
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { useDocumentTitle } from '../lib/useDocumentTitle';
+import { usePageMeta, META } from '../lib/pageMeta';
 
 export function RefundPolicy() {
-  useDocumentTitle('Refund Policy');
+  usePageMeta(META.refunds);
 
   return (
     <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
@@ -18,18 +18,18 @@ export function RefundPolicy() {
         className="flex flex-col gap-12"
       >
         <div className="flex flex-col gap-4">
-          <h1 className="text-5xl font-black tracking-tighter uppercase">Refund Policy</h1>
+          <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Refund Policy</h1>
           <p className="text-sm font-black uppercase tracking-widest text-black">When you get your money back, and how long it takes</p>
         </div>
 
-        <div className="flex flex-col gap-10 text-black body-copy">
+        <div className="flex flex-col gap-14 text-black body-copy max-w-[62ch]">
           <p>This page covers what happens to your money. For the process of cancelling an order or flagging an item to send back, see our <Link to="/returns" className="font-bold text-black underline">Returns</Link> page.</p>
 
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">When a Refund Applies</h2>
-            <p>zarketplace is a final-sale marketplace. Purchases are not refunded simply due to change of mind. We issue a refund only when:</p>
+            <p>Items are sold as final sale. We don't refund a change of mind. We do refund when:</p>
             <ul className="list-disc pl-6 flex flex-col gap-2">
-              <li>An order is cancelled before the seller marks it shipped</li>
+              <li>An order is cancelled before we dispatch it</li>
               <li>The item is materially misrepresented compared to its listing</li>
               <li>The item has undisclosed damage not shown or mentioned in the listing</li>
               <li>You received the wrong item</li>

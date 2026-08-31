@@ -7,9 +7,7 @@
 // Templates supported (each lives in its own file under ./templates/, wired up
 // in ./templates/index.ts — editing one template never touches the others):
 //   - order_confirmation_buyer
-//   - order_notification_seller
 //   - tracking_update_buyer
-//   - payout_released_seller
 //   - custom
 //
 // Required env vars:
@@ -43,22 +41,24 @@ interface SendEmailRequest {
 
 const ORDER_BOUND_TEMPLATES = new Set([
   "order_confirmation_buyer",
-  "order_notification_seller",
   "tracking_update_buyer",
-  "payout_released_seller",
   "payment_confirmed_buyer",
   "payment_failed_buyer",
   "payment_conflict_buyer",
   "order_cancelled_buyer",
-  "order_cancelled_seller",
   "order_refunded_buyer",
   "order_delivered_buyer",
 ]);
 
 // Admin-only templates that are NOT tied to an order. Recipient and content are
 // taken from `extra` (the admin action supplies them), so these require admin.
-const ADMIN_EXTRA_TEMPLATES = new Set([
-  "listing_approved_seller",
+//
+// Empty on purpose. Vendor email goes through the outbox instead, where the
+// recipient is resolved server-side from the vendor id - a caller cannot name
+// an address. Adding a template here without adding it to the registry in
+// ./templates/index.ts is what silently 400'd every vendor offer email, so
+// keep the two in step.
+const ADMIN_EXTRA_TEMPLATES = new Set<string>([
 ]);
 
 serve(async (req) => {

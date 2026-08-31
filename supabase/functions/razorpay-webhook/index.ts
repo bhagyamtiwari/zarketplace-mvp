@@ -114,7 +114,7 @@ async function handleCaptured(supabase: ReturnType<typeof createClient>, payment
 
     if (result === "paid") {
       await sendOrderEmail(supabase, { ...order, status: "paid", razorpay_payment_id: payment.id }, "payment_confirmed_buyer");
-      await sendOrderEmail(supabase, { ...order, status: "paid", razorpay_payment_id: payment.id }, "order_notification_seller");
+      // The vendor is told by the outbox, off the item selling, not from here.
       // Auto-book the Shiprocket pickup now that the order is paid, instead of
       // waiting for an admin to click "Book Pickup". Best-effort and fully
       // isolated: any failure (Shiprocket down, KYC pending, bad address) is

@@ -1,10 +1,10 @@
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { useDocumentTitle } from '../lib/useDocumentTitle';
+import { usePageMeta, META } from '../lib/pageMeta';
 
 export function SellerPolicy() {
-  useDocumentTitle('Vendor Policy');
+  usePageMeta(META.vendorPolicy);
 
   return (
     <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
@@ -22,7 +22,7 @@ export function SellerPolicy() {
           <p className="text-sm font-black uppercase tracking-widest text-black">What we expect from every item we buy</p>
         </div>
 
-        <div className="flex flex-col gap-14 text-black body-copy">
+        <div className="flex flex-col gap-14 text-black body-copy max-w-[62ch]">
           <p>zarketplace buys your item outright and resells it. You tell us your asking price, we come back with what we will pay for it, and you decide before anything goes live. Once you accept, that number is locked and it does not move.</p>
 
           <section className="flex flex-col gap-4">

@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, ChevronDown } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { useDocumentTitle } from '../lib/useDocumentTitle';
+import { usePageMeta, META } from '../lib/pageMeta';
 
 interface QA {
   q: string;
@@ -90,7 +90,7 @@ const SECTIONS: FaqSection[] = [
 ];
 
 export function Faq() {
-  useDocumentTitle('FAQ');
+  usePageMeta(META.faq);
 
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">

@@ -8,12 +8,12 @@ import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
 import { VPA_REGEX } from '../components/UpiVpaInput';
 import { log } from '../lib/log';
-import { useDocumentTitle } from '../lib/useDocumentTitle';
+import { usePageMeta, META } from '../lib/pageMeta';
 
 const acclog = log('account');
 
 export function Account() {
-  useDocumentTitle('My Profile');
+  usePageMeta(META.account);
 
   return (
     <RequireAuth message="Sign in to view your profile.">

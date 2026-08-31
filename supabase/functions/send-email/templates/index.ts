@@ -2,34 +2,26 @@
 // registering it here — no other file needs to change.
 import { baseStyle, EmailContent, EmailContext, esc } from "./_shared.ts";
 import { orderConfirmationBuyer } from "./order-confirmation-buyer.ts";
-import { orderNotificationSeller } from "./order-notification-seller.ts";
 import { trackingUpdateBuyer } from "./tracking-update-buyer.ts";
-import { payoutReleasedSeller } from "./payout-released-seller.ts";
 import { paymentConfirmedBuyer } from "./payment-confirmed-buyer.ts";
 import { paymentFailedBuyer } from "./payment-failed-buyer.ts";
 import { paymentConflictBuyer } from "./payment-conflict-buyer.ts";
 import { orderCancelledBuyer } from "./order-cancelled-buyer.ts";
-import { orderCancelledSeller } from "./order-cancelled-seller.ts";
 import { orderRefundedBuyer } from "./order-refunded-buyer.ts";
 import { orderDeliveredBuyer } from "./order-delivered-buyer.ts";
-import { listingApprovedSeller } from "./listing-approved-seller.ts";
 import { custom } from "./custom.ts";
 
 type TemplateFn = (ctx: EmailContext) => EmailContent;
 
 const TEMPLATES: Record<string, TemplateFn> = {
   order_confirmation_buyer: orderConfirmationBuyer,
-  order_notification_seller: orderNotificationSeller,
   tracking_update_buyer: trackingUpdateBuyer,
-  payout_released_seller: payoutReleasedSeller,
   payment_confirmed_buyer: paymentConfirmedBuyer,
   payment_failed_buyer: paymentFailedBuyer,
   payment_conflict_buyer: paymentConflictBuyer,
   order_cancelled_buyer: orderCancelledBuyer,
-  order_cancelled_seller: orderCancelledSeller,
   order_refunded_buyer: orderRefundedBuyer,
   order_delivered_buyer: orderDeliveredBuyer,
-  listing_approved_seller: listingApprovedSeller,
   custom: custom,
 };
 

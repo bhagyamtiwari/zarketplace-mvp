@@ -1,10 +1,10 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Mail, Instagram, MessageCircle } from 'lucide-react';
-import { useDocumentTitle } from '../lib/useDocumentTitle';
+import { usePageMeta, META } from '../lib/pageMeta';
 
 export function Contact() {
-  useDocumentTitle('Contact');
+  usePageMeta(META.contact);
 
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
@@ -61,7 +61,7 @@ export function Contact() {
               <label className="text-[9px] font-black uppercase tracking-widest">Inquiry Type</label>
               <select defaultValue="feedback" className="border-b border-black/10 py-3 text-sm font-bold focus:border-black focus:outline-none bg-transparent" required>
                 <option value="feedback">Customer Feedback</option>
-                <option value="seller">Vendor Support</option>
+                <option value="vendor">Vendor Support</option>
                 <option value="buyer">Buyer Support</option>
                 <option value="investors">Investors</option>
                 <option value="legal">Legal</option>

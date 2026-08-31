@@ -22,7 +22,7 @@ import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
 import { ShareInstagramModal } from '../components/ShareInstagramModal';
 import { log } from '../lib/log';
-import { useDocumentTitle } from '../lib/useDocumentTitle';
+import { usePageMeta, META } from '../lib/pageMeta';
 
 import { getVendorOffers, vendorStatus, type VendorOffer, type VendorStatusView } from '../lib/acquisition';
 
@@ -35,7 +35,7 @@ type Tab = 'listings' | 'tools' | 'payouts';
 const COURIERS = ['Delhivery', 'BlueDart', 'India Post', 'DTDC', 'Ekart', 'Other'];
 
 export function SellerPortal() {
-  useDocumentTitle('Vendor Portal');
+  usePageMeta(META.vendorPortal);
 
   return (
     <RequireAuth message="Sign in to access the vendor portal.">

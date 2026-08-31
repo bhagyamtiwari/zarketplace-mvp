@@ -1,12 +1,12 @@
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { useDocumentTitle } from '../lib/useDocumentTitle';
+import { usePageMeta, META } from '../lib/pageMeta';
 import { cn } from '../lib/utils';
 import { CONDITIONS } from '../lib/condition';
 
 export function Condition() {
-  useDocumentTitle('Conditions Guide');
+  usePageMeta(META.conditions);
 
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
@@ -22,7 +22,7 @@ export function Condition() {
           className="flex flex-col gap-12 flex-1 min-w-0"
         >
         <div className="flex flex-col gap-4">
-          <h1 className="text-5xl font-black tracking-tighter uppercase">Conditions Guide</h1>
+          <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Conditions Guide</h1>
           <p className="text-sm font-black uppercase tracking-widest text-black">How every piece is graded</p>
           <p className="body-copy text-black/60">
             Every item is listed under one of five condition tiers. This allows for complete transparency so you know exactly what you're getting.

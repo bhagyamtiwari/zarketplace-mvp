@@ -8,7 +8,7 @@ import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, Lock } from 'lucide-react';
 import { useAuth } from '../lib/auth';
-import { useDocumentTitle } from '../lib/useDocumentTitle';
+import { usePageMeta, META } from '../lib/pageMeta';
 import { log } from '../lib/log';
 
 const rlog = log('resetpw');
@@ -17,7 +17,7 @@ const rlog = log('resetpw');
 const PASSWORD_RE = /^(?=.*[A-Za-z])(?=.*\d).{10,}$/;
 
 export function ResetPassword() {
-  useDocumentTitle('Reset Password');
+  usePageMeta(META.resetPassword);
   const { user, loading: authLoading, updatePassword } = useAuth();
   const navigate = useNavigate();
 

@@ -1,10 +1,10 @@
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { useDocumentTitle } from '../lib/useDocumentTitle';
+import { usePageMeta, META } from '../lib/pageMeta';
 
 export function Privacy() {
-  useDocumentTitle('Privacy');
+  usePageMeta(META.privacy);
 
   return (
     <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
@@ -18,11 +18,11 @@ export function Privacy() {
         className="flex flex-col gap-12"
       >
         <div className="flex flex-col gap-4">
-          <h1 className="text-5xl font-black tracking-tighter uppercase">Privacy Policy</h1>
+          <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Privacy Policy</h1>
           <p className="text-sm font-black uppercase tracking-widest text-black">Last updated: July 29, 2026</p>
         </div>
 
-        <div className="flex flex-col gap-10 text-black body-copy">
+        <div className="flex flex-col gap-14 text-black body-copy max-w-[62ch]">
           <p>This Privacy Policy explains how zarketplace ("we", "us", or "our") collects, uses, and shares your personal information when you use our services, including visiting zarketplace.com or contacting us. By using our site or services, you agree to this policy. If you disagree, please don’t use our services. We may update this policy from time to time, and the latest version will always be on our site with the updated date.</p>
 
           <section className="flex flex-col gap-4">
@@ -38,7 +38,7 @@ export function Privacy() {
 
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Sharing Your Information</h2>
-            <p>We share only what a transaction needs. Your delivery address goes to the courier so the parcel can reach you. A seller sees the shipping label details required to hand the parcel over, and a buyer sees the seller's display name, not their email or payment details. Payment providers receive what they need to take payment and pay sellers out. We do not sell your personal information to anyone.</p>
+            <p>We share only what a transaction needs. If you buy, your delivery address goes to the courier so the parcel can reach you. If you sell us an item, your address goes to the courier collecting it, and your payout details go to our payment provider so we can pay you. Buyers and the people we buy from are never shown each other's details, because they are not party to each other's transaction. We do not sell your personal information to anyone.</p>
           </section>
 
           <section className="flex flex-col gap-4">

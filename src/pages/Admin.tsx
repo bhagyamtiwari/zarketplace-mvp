@@ -801,7 +801,6 @@ function OrderDrawer({ order, payouts, emails, audit, onClose, onDone }: {
       if (order.listing_id) await supabase.from('listings').update({ is_sold: false }).eq('id', order.listing_id);
       await writeAudit({ entity: 'order', entity_id: order.id, action: 'order.cancel', old_state: { status: order.status }, new_state: { status: 'cancelled' }, reason });
       void sendEmail({ template: 'order_cancelled_buyer', order_id: order.id });
-      void sendEmail({ template: 'order_cancelled_seller', order_id: order.id });
       await onDone(); onClose();
     } catch (err: any) { alert(err?.message ?? 'Failed.'); } finally { setBusy(false); }
   };
@@ -973,9 +972,7 @@ function ListingDrawer({ listing, orders, payouts, audit, onClose, onDone, onOpe
       const { error } = await supabase.from('listings').update({ status }).eq('id', listing.id);
       if (error) throw error;
       await writeAudit({ entity: 'listing', entity_id: listing.id, action: `listing.${status}`, old_state: { status: listing.status }, new_state: { status }, reason: listing.title });
-      // Tell the seller their item is live (only on a fresh approval).
       if (status === 'approved' && listing.status !== 'approved' && listing.seller_email) {
-        void sendEmail({ template: 'listing_approved_seller', extra: { seller_email: listing.seller_email, listing_title: listing.title, listing_id: listing.id } });
       }
       await onDone(); onClose();
     } catch (err: any) { alert(err?.message ?? 'Failed.'); } finally { setBusy(false); }
@@ -1065,7 +1062,6 @@ function ListingDrawer({ listing, orders, payouts, audit, onClose, onDone, onOpe
                 await supabase.from('listings').update({ is_sold: false }).eq('id', listing.id);
                 await writeAudit({ entity: 'order', entity_id: order.id, action: 'order.cancel', old_state: { status: order.status }, new_state: { status: 'cancelled' }, reason });
                 void sendEmail({ template: 'order_cancelled_buyer', order_id: order.id });
-                void sendEmail({ template: 'order_cancelled_seller', order_id: order.id });
               }
               await onDone(); onClose();
             } catch (err: any) { alert(err?.message ?? 'Failed.'); } finally { setBusy(false); }

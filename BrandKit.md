@@ -145,6 +145,13 @@ Shadows are rare and semantic:
 - Split sections use a 12-column mental model (e.g., 5/7 headline-vs-content splits).
 - **Nav height: 80px** fixed, translucent white + heavy backdrop blur, hairline bottom border. Page content starts below it (`pt-24`–`pt-32`).
 
+## Measure (line length)
+- **Long-form body text is capped at `max-w-[62ch]`.** The grid rule above sets
+  the width of a *container*; it never addressed the width of a *line*. At our
+  body size `max-w-3xl` runs to roughly 90 characters, which is past the point
+  where the eye reliably finds the next line. Headings, tables and media keep
+  the container width — this applies to running prose only.
+
 ## Spacing
 - Base unit 4px; common rhythm: 4 / 8 / 12 / 16 / 24 / 32 / 48 / 64 / 96px.
 - **Sections are generous:** 64–96px vertical padding (`py-16 sm:py-24`). Headline-to-content gaps 32–48px.
@@ -201,6 +208,8 @@ Like a limited-run fashion zine that happens to process payments. Confident, fas
 
 ## Layout philosophy
 - **One idea per section.** Each full-width band makes a single statement (a headline, a grid, a claim + proof list) and alternates background: white → zinc-50 → black → black-with-photo.
+- **And one band per idea.** Stacking two or three campaign bands that make adjacent claims is the same idea said twice; it reads as filler, not emphasis. The home page carries exactly one. An argument that genuinely needs three beats belongs on a page built for it.
+- **Filters live behind one control, at every width.** Not a chip row on mobile and a persistent rail on desktop: two surfaces drift, and a wrapping row of chips is the densest thing we would ever put above the merchandise. One `Filters (n)` button opening one sheet, plus at most one always-visible chip group for the filter people actually use.
 - **Asymmetry inside symmetry:** sections are full-bleed and centered as bands, but content within them splits unevenly (5/7), right-aligns, or left-aligns — the eye never falls into a template rhythm.
 - Editorial header pattern: giant headline left / small underlined "VIEW ALL ↗" utility link right, baseline-aligned.
 - Long-form pages (policies, about, FAQ): single narrow column, back-link at top, stacked zinc-50 panels per section, optionally ending on an inverted black panel for the closing statement.

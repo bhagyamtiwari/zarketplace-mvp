@@ -1,10 +1,10 @@
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { useDocumentTitle } from '../lib/useDocumentTitle';
+import { usePageMeta, META } from '../lib/pageMeta';
 
 export function ShippingPolicy() {
-  useDocumentTitle('Shipping Policy');
+  usePageMeta(META.shipping);
 
   return (
     <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
@@ -22,7 +22,7 @@ export function ShippingPolicy() {
           <p className="text-sm font-black uppercase tracking-widest text-black">How your order reaches you</p>
         </div>
 
-        <div className="flex flex-col gap-14 text-black body-copy">
+        <div className="flex flex-col gap-14 text-black body-copy max-w-[62ch]">
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Shipped by zarketplace</h2>
             <p>Every order ships from our hub, in our packaging, under our name. We book and pay the courier. Your delivery cost is calculated from the item's shipping category and shown to you at checkout.</p>
