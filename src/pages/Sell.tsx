@@ -27,9 +27,7 @@ import { scrollToTop } from '../lib/scrollToTop';
 import { encodeVariants, encodeSocialCard, SOCIAL_CARD_SUFFIX } from '../lib/images';
 import { removeBackground } from '../lib/backgroundRemoval';
 import { useDocumentTitle } from '../lib/useDocumentTitle';
-import { normalizeState } from '../lib/states';
 import { resolvePincode } from '../lib/pincode';
-import { StateSelect } from '../components/StateSelect';
 import { cn, formatCurrency } from '../lib/utils';
 
 const slog = log('sell');
@@ -208,7 +206,6 @@ function SellInner() {
   // first sale - a brand new seller has none, and a listing with no state
   // cannot be shown to the right buyers at all. Sticky across listings: it is
   // an account fact, not an item fact, so resetForm deliberately leaves it.
-  const [pickupState, setPickupState] = React.useState('');
   // The pincode is the supply origin that actually counts. The state below is
   // kept for display and for the seller to sanity-check what they typed - if
   // the two disagree, the pincode is what any rule reads.
@@ -246,11 +243,6 @@ function SellInner() {
         if (data.gender) setGender((prev) => prev || data.gender);
         if (data.category) setSelectedCategory((prev) => prev || data.category);
         if (data.shipping_category) setShippingCategory((prev) => prev || data.shipping_category);
-        // Normalized on the way in: rows written before the dropdown existed
-        // hold whatever the seller typed, and an unrecognisable value has to
-        // fall through to an empty select rather than a wrong pre-selection.
-        const lastState = normalizeState(data.pickup_state);
-        if (lastState) setPickupState((prev) => prev || lastState);
         if (data.pickup_pincode) setPickupPincode((prev) => prev || data.pickup_pincode);
       });
   }, [user]);
@@ -260,8 +252,6 @@ function SellInner() {
   React.useEffect(() => {
     const addr = profile?.pickup_address as
       { state?: string; pincode?: string; address?: string; city?: string; landmark?: string } | null;
-    const saved = normalizeState(addr?.state);
-    if (saved) setPickupState((prev) => prev || saved);
     if (addr?.pincode) setPickupPincode((prev) => prev || addr.pincode!);
     if (addr?.address) setPickupAddress((prev) => prev || addr.address!);
     if (addr?.city) setPickupCity((prev) => prev || addr.city!);
@@ -393,18 +383,11 @@ function SellInner() {
       if (!priceVal || Number(priceVal) <= 0) return 'Enter a price.';
       if (salePriceInvalid) return 'The "was" price has to be higher than your price, or buyers see a discount that is not one.';
       if (shippingMode === 'platform' && !shippingCategory) return 'Choose a shipping category.';
-      if (!pickupState) return 'Select the state you ship from.';
       if (!pickupAddress.trim()) return 'Enter the address a courier would collect from.';
       if (!pickupCity.trim()) return 'Enter your city.';
       if (!/^[1-9][0-9]{5}$/.test(pickupPincode)) return 'Enter the 6-digit pincode you post from.';
-      {
-        const resolved = resolvePincode(pickupPincode);
-        if (!resolved.stateCode) {
-          return 'We cannot place that pincode yet. Check it, or contact us and we will add it.';
-        }
-        if (resolved.stateName !== pickupState) {
-          return `Pincode ${pickupPincode} is in ${resolved.stateName}, not ${pickupState}. Fix whichever is wrong.`;
-        }
+      if (!resolvePincode(pickupPincode).stateCode) {
+        return 'We cannot place that pincode yet. Check it, or contact us and we will add it.';
       }
       // Only bites when the seller is absorbing the courier cost. With
       // buyer-paid shipping a low price is fine, the seller keeps all of it.
@@ -523,14 +506,14 @@ function SellInner() {
           address: pickupAddress.trim(),
           landmark: pickupLandmark.trim(),
           city: pickupCity.trim(),
-          state: pickupState,
+          state: resolvePincode(pickupPincode).stateName ?? '',
           pincode: pickupPincode,
         },
         // Stored on the listing, not read through the profile at query time:
         // a seller who later moves must not silently relocate every item they
         // have already listed, and the buyer-facing view can only filter on a
         // column it actually has.
-        pickup_state: pickupState,
+        pickup_state: resolvePincode(pickupPincode).stateName ?? null,
         pickup_pincode: pickupPincode,
         pickup_state_code: resolvePincode(pickupPincode).stateCode,
         shipping_category: shippingCategory,
@@ -571,7 +554,7 @@ function SellInner() {
           address: pickupAddress.trim(),
           landmark: pickupLandmark.trim(),
           city: pickupCity.trim(),
-          state: pickupState,
+          state: resolvePincode(pickupPincode).stateName ?? '',
           pincode: pickupPincode,
         },
       }).eq('id', user.id);
@@ -637,9 +620,7 @@ function SellInner() {
             read one more thing. Said here, in three lines, so the PAN request
             that arrives later is expected rather than alarming. */}
         <p className="text-black/50 font-medium uppercase tracking-widest text-[10px] leading-[1.9] mb-10 max-w-md">
-          You do not need a GSTIN. We buy your item and resell it under ours.
-          We may ask for your PAN before we pay you, which is standard on
-          payments of this kind.{' '}
+          You don't need a GSTIN. We buy your item and resell it under ours.{' '}
           <Link to="/vendor-policy" className="underline text-black/70 hover:text-black">How this works</Link>
         </p>
         <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
@@ -791,7 +772,6 @@ function SellInner() {
                 shippingCategories={shippingCategories}
                 shippingCategory={shippingCategory} setShippingCategory={pickShippingCategory}
                 freeShipping={freeShipping} setFreeShipping={setFreeShipping}
-                pickupState={pickupState} setPickupState={setPickupState}
                 pickupPincode={pickupPincode} setPickupPincode={setPickupPincode}
                 pickupAddress={pickupAddress} setPickupAddress={setPickupAddress}
                 pickupCity={pickupCity} setPickupCity={setPickupCity}
@@ -1204,7 +1184,7 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
   );
 }
 
-function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, salePriceVal, setSalePriceVal, salePriceInvalid, shippingCategories, shippingCategory, setShippingCategory, freeShipping, setFreeShipping, pickupState, setPickupState, pickupPincode, setPickupPincode, pickupAddress, setPickupAddress, pickupCity, setPickupCity, pickupLandmark, setPickupLandmark, shippingMode, setShippingMode }: {
+function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, salePriceVal, setSalePriceVal, salePriceInvalid, shippingCategories, shippingCategory, setShippingCategory, freeShipping, setFreeShipping, pickupPincode, setPickupPincode, pickupAddress, setPickupAddress, pickupCity, setPickupCity, pickupLandmark, setPickupLandmark, shippingMode, setShippingMode }: {
   priceVal: string; setPriceVal: (v: string) => void;
   showSalePrice: boolean; setShowSalePrice: (v: boolean) => void;
   salePriceVal: string; setSalePriceVal: (v: string) => void;
@@ -1212,7 +1192,6 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
   shippingCategories: ShippingCategory[];
   shippingCategory: string; setShippingCategory: (v: string) => void;
   freeShipping: boolean; setFreeShipping: (v: boolean) => void;
-  pickupState: string; setPickupState: (v: string) => void;
   pickupPincode: string; setPickupPincode: (v: string) => void;
   pickupAddress: string; setPickupAddress: (v: string) => void;
   pickupCity: string; setPickupCity: (v: string) => void;
@@ -1226,9 +1205,6 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
     if (pickupPincode.length !== 6) return null;
     const r = resolvePincode(pickupPincode);
     if (!r.stateCode) return 'We cannot place that pincode yet. Check it, or contact us and we will add it.';
-    if (pickupState && r.stateName !== pickupState) {
-      return `That pincode is in ${r.stateName}, not ${pickupState}.`;
-    }
     return null;
   })();
   // The number a buyer would actually pay: the sale price when one is set.
@@ -1301,49 +1277,21 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
           <TrustNote>Closest category to your item. Bigger and heavier costs more. We buy the label.</TrustNote>
         </div>
 
-        {/* A dropdown rather than a text box, and the same list everywhere a
-            state is captured. This value decides who is allowed to buy the
-            item, so "Delhi" and "New Delhi" cannot be two different answers. */}
+        {/* The pincode is the only place a location is captured. It resolves
+            to a state on submit, so there is no second field to disagree with
+            it and nothing to cross-check. */}
         <div className="flex flex-col gap-3">
-          <FieldLabel>Ships from (state) *</FieldLabel>
-          <StateSelect
-            value={pickupState}
-            onChange={(v) => setPickupState(v ?? '')}
-            placeholder="Select your state"
-            className="border-b border-black/10 bg-transparent py-4 text-sm font-bold focus:border-black focus:outline-none transition-all"
+          <FieldLabel>Pickup address *</FieldLabel>
+          <input
+            type="text"
+            value={pickupAddress}
+            onChange={(e) => setPickupAddress(e.target.value)}
+            placeholder="Flat / House no., Street, Area"
+            className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20"
           />
-          <TrustNote>
-            Where the courier collects this item. While we are widening our delivery
-            coverage, only buyers in this state can check out on your listing. We
-            remember it for your next listing.
-          </TrustNote>
-          {/* A vendor outside Delhi can list, and should - their stock is how
-              a city becomes worth opening. But they should hear it from us
-              now rather than infer it from silence later. */}
-          {pickupState && pickupState !== 'Delhi' && (
-            <p className="text-[11px] font-bold uppercase tracking-widest leading-[1.8] text-black/50">
-              List away, we want stock in {pickupState}. Be aware most of our buyers
-              are in Delhi today, so it may sit a while. We open a state properly
-              once there are enough sellers in it to be worth shopping.
-            </p>
-          )}
+        </div>
 
-          {/* The pincode, not the state, is what the rule reads at checkout.
-              A buyer's state dropdown can say Delhi while their pincode is in
-              Gurgaon, which is Haryana - so both ends are pinned to a pincode
-              and the two are cross-checked here rather than at the till. */}
-          <div className="flex flex-col gap-3 pt-2">
-            <FieldLabel>Pickup address *</FieldLabel>
-            <input
-              type="text"
-              value={pickupAddress}
-              onChange={(e) => setPickupAddress(e.target.value)}
-              placeholder="Flat / House no., Street, Area"
-              className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
             <div className="flex flex-col gap-3">
               <FieldLabel>Landmark</FieldLabel>
               <input
@@ -1385,7 +1333,6 @@ function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, sal
                 {pincodeConflict}
               </p>
             )}
-          </div>
         </div>
         {shippingCategories.length === 0 ? (
           <p className="text-xs font-bold uppercase tracking-widest text-black/30">Loading categories…</p>
@@ -1486,23 +1433,6 @@ function ReviewStep({
 
   return (
     <div className="flex flex-col gap-10">
-      {/* Our delivery coverage does not reach every state yet, so for now an
-          order only works when the buyer is in the same state as the pickup
-          address. The vendor has to know that before publishing, not after an
-          order fails to arrive, so it
-          sits on Review rather than in a policy page. The pickup address that
-          sets the state is collected at first sale in PayoutDetailsForm, which
-          carries the matching notice. */}
-      <div className="flex gap-3 border border-amber-500/40 bg-amber-50 px-5 py-4">
-        <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-700" />
-        <p className="text-[11px] font-bold uppercase tracking-widest leading-[1.8] text-amber-900">
-          While we are widening our delivery coverage, only buyers in the same
-          state as your pickup address can check out on this listing. Your
-          payout is unaffected either way, and you do not need a GSTIN: we buy
-          your item and resell it under ours.
-        </p>
-      </div>
-
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
           <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Review</h3>

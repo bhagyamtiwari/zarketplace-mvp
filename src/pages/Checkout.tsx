@@ -16,7 +16,7 @@ import { CartItem, Listing } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { variantUrl } from '../lib/images';
 import { Loader2, ArrowLeft, ArrowRight, ShieldCheck, CheckCircle2, XCircle, Package, AlertTriangle, MapPin } from 'lucide-react';
-import { resolvePincode, checkIntraState } from '../lib/pincode';
+import { resolvePincode } from '../lib/pincode';
 import { useAuth } from '../lib/auth';
 import { useCart } from '../lib/cart';
 import { RequireAuth } from '../components/RequireAuth';
@@ -110,25 +110,6 @@ function CheckoutInner() {
 
   const items: CartItem[] = id ? (buyNowItems ?? []) : cart.items;
 
-  // Which state each item ships from, for the GST same-state rule. Fetched
-  // rather than carried on the cart item, because a cart can sit for days and
-  // the answer has to be the current one at the moment of paying.
-  const [sellerStates, setSellerStates] = React.useState<Record<string, { code: string | null; name: string | null }>>({});
-  const itemIdKey = items.map((i) => i.listing_id).sort().join(',');
-  React.useEffect(() => {
-    const ids = itemIdKey ? itemIdKey.split(',') : [];
-    if (ids.length === 0) { setSellerStates({}); return; }
-    let cancelled = false;
-    supabase
-      .from('public_listings')
-      .select('id, pickup_state, pickup_state_code')
-      .in('id', ids)
-      .then(({ data }) => {
-        if (cancelled || !data) return;
-        setSellerStates(Object.fromEntries(data.map((r) => [r.id, { code: r.pickup_state_code, name: r.pickup_state }])));
-      });
-    return () => { cancelled = true; };
-  }, [itemIdKey]);
 
   const [step, setStep] = React.useState<Step>('address');
 
@@ -163,11 +144,6 @@ function CheckoutInner() {
   // nothing is blocked here; the server refuses regardless, so the UI erring
   // toward "not yet known" costs a late message, not an illegal sale.
   const deliveryResolved = resolvePincode(shippingAddress.pincode);
-  const blockedItems = items.filter((i) => {
-    const seller = sellerStates[i.listing_id];
-    if (!seller?.code) return false;
-    return shippingAddress.pincode.length === 6 && !checkIntraState(shippingAddress.pincode, seller.code).ok;
-  });
 
   React.useEffect(() => {
     if (!user) return;
@@ -235,15 +211,6 @@ function CheckoutInner() {
     setErrorMsg(null);
     if (!user) return;
     if (items.length === 0) { setErrorMsg('Your cart is empty.'); return; }
-    if (blockedItems.length > 0) {
-      const seller = sellerStates[blockedItems[0].listing_id];
-      setErrorMsg(
-        deliveryResolved.stateName
-          ? `We are not delivering "${blockedItems[0].title}" to ${deliveryResolved.stateName} yet. Use a delivery address in ${seller?.name}, or remove the item.`
-          : `We cannot confirm which state pincode ${shippingAddress.pincode} is in, so we cannot take payment for it yet. Contact us and we will sort it out.`,
-      );
-      return;
-    }
     const required: Array<[string, string]> = [
       ['fullName', shippingAddress.fullName], ['email', shippingAddress.email],
       ['phone', shippingAddress.phone], ['address', shippingAddress.address],
@@ -306,11 +273,10 @@ function CheckoutInner() {
             state: resolvePincode((billingToSave as { pincode?: string }).pincode).stateName
               ?? deliveryResolved.stateName ?? '',
           } as unknown as Record<string, string>,
-          // Snapshots, so a historical order stays readable after a seller
-          // moves or a pincode table is widened.
+          // Snapshotted so a historical order stays readable after a pincode
+          // table is widened.
           buyer_delivery_pincode: shippingAddress.pincode,
           buyer_delivery_state_code: deliveryResolved.stateCode,
-          seller_state_code: sellerStates[i.listing_id]?.code ?? null,
           amount: itemPrice,
           shipping_cost: itemShip,
           total_amount: itemPrice + itemShip,
@@ -602,11 +568,7 @@ function CheckoutInner() {
               billingSame={billingSameAsShipping} onBillingSameChange={setBillingSameAsShipping}
               billingAddr={billingAddress} onBillingChange={setBillingAddress}
               onSubmit={submitAddress} submitting={submitting} errorMsg={errorMsg}
-              blockedNote={blockedItems.length > 0
-                ? (deliveryResolved.stateName
-                    ? `We are not delivering to ${deliveryResolved.stateName} yet. While we widen our coverage, ${blockedItems.length === 1 ? 'this item' : 'this order'} can only be delivered within ${sellerStates[blockedItems[0].listing_id]?.name}.`
-                    : `We cannot place pincode ${shippingAddress.pincode} yet, so we cannot take payment for this order. Contact us and we will sort it out.`)
-                : null}
+              blockedNote={null}
             />
           </div>
           <div className="lg:col-span-5">

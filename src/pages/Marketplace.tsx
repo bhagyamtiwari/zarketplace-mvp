@@ -12,8 +12,6 @@ import { ListingCard } from '../components/ListingCard';
 import { EmptyState } from '../components/EmptyState';
 import { CampaignBand } from '../components/CampaignBand';
 import { PromiseBanner } from '../components/PromiseBanner';
-import { DeliverToPicker } from '../components/DeliverToPicker';
-import { useBuyerState } from '../lib/buyerState';
 import { sameState } from '../lib/states';
 import { cn } from '../lib/utils';
 import { log } from '../lib/log';
@@ -119,9 +117,7 @@ export function Marketplace() {
   // Opt-in, never the default. Defaulting this on would show an empty feed to
   // everyone outside Delhi, where all current stock is, and an empty grid
   // cannot distinguish "nothing near you" from "nothing here".
-  const inStateOnly = searchParams.get('instate') === '1';
 
-  const [buyerState] = useBuyerState();
 
   const [listings, setListings] = React.useState<Listing[]>([]);
   const [total, setTotal] = React.useState<number | null>(null);
@@ -141,7 +137,7 @@ export function Marketplace() {
   const favoritesRef = React.useRef(favorites);
   favoritesRef.current = favorites;
 
-  const filterKey = [category, gender, sizeType, condition, quick, searchQuery, sortBy, inStateOnly ? buyerState ?? '' : ''].join('|');
+  const filterKey = [category, gender, sizeType, condition, quick, searchQuery, sortBy].join('|');
 
   // Any filter change starts a fresh feed rather than appending to the old one.
   React.useEffect(() => { setPage(0); }, [filterKey]);
@@ -177,7 +173,6 @@ export function Marketplace() {
         if (gender) query = query.eq('gender', gender);
         if (sizeType) query = query.eq('size_type', sizeType);
         if (condition) query = query.eq('condition', condition);
-        if (inStateOnly && buyerState) query = query.eq('pickup_state', buyerState);
 
         if (quick === 'new_today') {
           const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
@@ -347,16 +342,6 @@ export function Marketplace() {
                 changes what the grid shows lives on one line. */}
             <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide -mx-4 px-4 py-2 -my-2 lg:mx-0 lg:px-0 lg:justify-end">
               <SortChip value={sortBy} onChange={(v) => setParam('sort', v === 'relevance' ? null : v)} />
-              {/* Only offered once we know where the buyer is - "in my state"
-                  is meaningless until they have told us which state that is. */}
-              {buyerState && (
-                <Chip
-                  active={inStateOnly}
-                  onClick={() => setParam('instate', inStateOnly ? null : '1')}
-                >
-                  Ships to {buyerState}
-                </Chip>
-              )}
               {QUICK_CHIPS.map((c) => (
                 <Chip key={c.value} active={quick === c.value} onClick={() => toggleParam('q', c.value)} tag={c.tag}>
                   {c.label}
@@ -392,7 +377,6 @@ export function Marketplace() {
           <div className="sticky top-24 flex flex-col gap-2 pb-10">
             {/* First control in the rail, above category: where you are
                 decides what you can buy, so it outranks what it looks like. */}
-            <DeliverToPicker />
             {/* Category and condition are how people actually narrow a resale
                 feed. Size is the long list, so it stays folded until asked for
                 rather than filling the rail with eighteen dead options. */}
@@ -464,20 +448,15 @@ export function Marketplace() {
             <EmptyState
               action={
                 <Link to="/sell" className="bg-black px-8 py-3 text-[10px] font-black uppercase tracking-[0.3em] text-white">
-                  List an item
+                  Sell us something
                 </Link>
               }
             >
               {quick === 'saved'
                 ? 'Nothing saved yet'
-                : inStateOnly && buyerState
-                  // Not "no results". A buyer who filtered to their own state
-                  // and got nothing has learned something specific, and the
-                  // honest version of it keeps them on the site.
-                  ? `No sellers in ${buyerState} yet. We are signing them up - browse everything meanwhile.`
-                  : activeFilterCount > 0 || searchQuery
-                    ? 'No items match these filters'
-                    : 'Nothing listed yet'}
+                : activeFilterCount > 0 || searchQuery
+                  ? 'Nothing matches that'
+                  : 'Nothing listed yet'}
             </EmptyState>
           ) : (
             <>
@@ -541,7 +520,6 @@ export function Marketplace() {
               </button>
             </div>
 
-            <DeliverToPicker compact />
 
             <SheetGroup title="Category">
               <SheetChip active={!category} onClick={() => selectCategory(null)}>All</SheetChip>
