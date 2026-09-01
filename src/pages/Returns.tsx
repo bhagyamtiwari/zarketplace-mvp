@@ -44,7 +44,7 @@ export function Returns() {
 
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Reporting a problem</h2>
-            <p>If you need to report a problem with an order or a listing, reach out to us immediately at <a href="mailto:contact@zarketplace.com" className="font-bold text-black underline">contact@zarketplace.com</a>. We take the integrity of our community seriously.</p>
+            <p>If you need to report a problem with an order or a listing, write to us at <a href="mailto:contact@zarketplace.com" className="font-bold text-black underline">contact@zarketplace.com</a>. We acknowledge every complaint within 48 hours and resolve it within one month. Our grievance officer's details are on the <a href="/grievance-officer" className="font-bold text-black underline">Grievance Officer</a> page.</p>
           </section>
         </div>
 

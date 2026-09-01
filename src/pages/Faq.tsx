@@ -49,7 +49,7 @@ const SECTIONS: FaqSection[] = [
       },
       {
         q: 'How long do I have to send it?',
-        a: 'You have 72 hours from the time your item is bought to pack it and hand it off. We send you a prepaid label and book the courier, so you never arrange a pickup, buy a label, or pay for the shipping to our hub.',
+        a: 'You have 5 days from the time your item is bought to pack it and hand it to the courier. We send the prepaid label and pay for it. If it does not go in that time we cancel the order and refund the buyer.',
       },
       {
         q: 'What happens if I miss the pickup deadline?',
