@@ -25,6 +25,11 @@ jobs:
         run: deno test supabase/functions/shiprocket-book-leg/payload.test.ts
       - name: No buyer email leaks a vendor
         run: deno test supabase/functions/send-email/templates/buyer.test.ts
+      - name: Nothing the live API serves leaks a vendor or a buyer
+        env:
+          TEST_VENDOR_EMAIL: ${{ secrets.TEST_VENDOR_EMAIL }}
+          TEST_VENDOR_PASSWORD: ${{ secrets.TEST_VENDOR_PASSWORD }}
+        run: deno test --allow-net --allow-env --allow-read tests/isolation.test.ts
 
   typecheck-and-build:
     name: Typecheck and build
