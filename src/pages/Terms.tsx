@@ -35,7 +35,7 @@ export function Terms() {
 
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Prohibited Items & Conduct</h2>
-            <p>Counterfeit goods, stolen items, and anything illegal to sell are prohibited. Harassment, fraud, and circumventing the platform's payment system are also prohibited and may result in account suspension.</p>
+            <p>Counterfeit goods, stolen items and anything illegal to sell are prohibited, and we do not buy them. Fraud and abuse of our staff may result in your account being closed.</p>
           </section>
 
           <section className="flex flex-col gap-4">
@@ -50,7 +50,7 @@ export function Terms() {
 
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Changes to These Terms</h2>
-            <p>We may update these terms as the platform evolves. Continued use of zarketplace after an update means you accept the revised terms.</p>
+            <p>We may update these terms as the business changes. Continuing to use zarketplace after an update means you accept the revised version. An acquisition price you have already accepted is not affected by any later change.</p>
           </section>
         </div>
       </motion.div>

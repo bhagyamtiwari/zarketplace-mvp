@@ -27,7 +27,7 @@ export function SellerPolicy() {
 
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Accurate descriptions</h2>
-            <p>Your listing must accurately reflect the item's condition, size, measurements, and any flaws. When your item reaches our hub we check it against what you described and photographed. Anything that does not match is sent back rather than accepted, and repeated mismatches end the relationship.</p>
+            <p>Your listing must accurately reflect the item's condition, size, measurements, and any flaws. When your item reaches us we check it against what you described and photographed.</p>
           </section>
 
           <section className="flex flex-col gap-4">
@@ -42,8 +42,9 @@ export function SellerPolicy() {
           </section>
 
           <section className="flex flex-col gap-4">
-            <h2 className="text-xl font-black uppercase tracking-tight text-black">Pack and hand off within 72 hours</h2>
-            <p>Once your item is bought, we send you a prepaid label and book the courier. Pack the item well and hand it off within 72 hours. You never arrange a pickup or buy a label yourself, and you never pay for the shipping to our hub.</p>
+            <h2 className="text-xl font-black uppercase tracking-tight text-black">Pack and hand it over within 5 days</h2>
+            <p>Once your item is bought, we send you a prepaid label and book the courier. Pack it well and hand it to them within 5 days. You never arrange a pickup, buy a label, or pay for the postage to us.</p>
+            <p>If it does not go in that time we cancel the order, refund the buyer, and the item stays yours. It counts against your account.</p>
           </section>
 
           <section className="flex flex-col gap-4">
@@ -51,6 +52,18 @@ export function SellerPolicy() {
             <p>You do not need a GSTIN, and you are not registering a business anywhere. You are selling us one item, and we resell it under our own GST registration. That is what makes this simple for you.</p>
             <p>We may ask for your PAN before a payout, which is a standard requirement on payments of this kind.</p>
             <p className="text-black/50">This is a plain-language summary of how we operate, not tax advice. If your situation is unusual, check with your accountant.</p>
+          </section>
+
+          <section className="flex flex-col gap-4">
+            <h2 className="text-xl font-black uppercase tracking-tight text-black">If we cannot accept an item</h2>
+            <p>If it does not match its listing, we do not take it and no payout is due. We will tell you why.</p>
+            <p>You can have it back. Tell us and we will send it, and <strong>you cover the return postage</strong>. We hold a refused item for <strong>60 days</strong> from the day we tell you. After that we may donate or dispose of it, and it is no longer yours to claim. You agree to this when you accept an offer.</p>
+          </section>
+
+          <section className="flex flex-col gap-4">
+            <h2 className="text-xl font-black uppercase tracking-tight text-black">Your account standing</h2>
+            <p>Every account starts at 100 points. A missed dispatch costs 25, an item refused on condition costs 20, and one refused on authenticity costs 60. Cancelling before the deadline, which we would rather you did, costs 10.</p>
+            <p>Below 40 you cannot list until we lift it. Nothing here affects a payout you have already been promised.</p>
           </section>
 
           <section className="flex flex-col gap-4">

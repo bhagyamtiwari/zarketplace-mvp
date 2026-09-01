@@ -27,19 +27,19 @@ export function Trademark() {
           </p>
 
           <p>
-            We are not affiliated with, associated with, or endorsed by any of the brands listed or
-            sold on our platform. All brand names, trademarks, and logos belong to their respective
+            We are not affiliated with, associated with, or endorsed by any of the brands we
+            sell. All brand names, trademarks, and logos belong to their respective
             owners. zarketplace claims no rights to any third-party trademarks or intellectual
             property.
           </p>
 
           <p>
-            Listings on zarketplace are for secondhand/resale items only.
+            Everything we sell is pre-owned.
           </p>
 
           <p>
             If you are a trademark owner or authorized representative and have questions or concerns
-            regarding content on the platform, please contact us at{' '}
+            about anything we have listed, please contact us at{' '}
             <a href="mailto:contact@zarketplace.com" className="font-bold text-black underline">contact@zarketplace.com</a>.
           </p>
         </div>

@@ -25,14 +25,14 @@ export function Condition() {
           <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Conditions Guide</h1>
           <p className="text-sm font-black uppercase tracking-widest text-black">How every piece is graded</p>
           <p className="body-copy text-black/60">
-            Every item is listed under one of five condition tiers. This allows for complete transparency so you know exactly what you're getting.
+            Every item is graded on the same five-tier scale, so the word on one listing means what it means on all of them.
           </p>
         </div>
 
         <section className="p-6 sm:p-10 bg-black text-white flex flex-col gap-4">
           <h3 className="text-sm font-black uppercase tracking-widest">Please note</h3>
           <p className="text-xs font-bold uppercase tracking-widest leading-relaxed">
-            Conditions are filled in by sellers. While we require sellers to follow our criteria strictly, condition assessments can still be subjective.
+            Condition is a judgement, and an honest one can still be a close call between two tiers. We check every item against its listing before it ships, and anything that does not match does not go out.
           </p>
         </section>
 

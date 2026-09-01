@@ -27,7 +27,7 @@ export function Privacy() {
 
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Information We Collect</h2>
-            <p>When you create an account we collect your email address and, if you set one, a display name. When you buy, we collect the delivery address and contact number you enter at checkout. When you sell, we collect your pickup address, your Instagram handle, and the UPI ID we pay you out to. Card and UPI payment details are entered on our payment provider's screen and are never stored by us.</p>
+            <p>When you create an account we collect your email address and, if you set one, a name and phone number. When you buy, we collect the delivery address and contact number you enter at checkout. When you sell us an item, we collect the address we collect it from, and the payout details we pay you with, which may be a UPI ID or a bank account name, number and IFSC. We may also hold your PAN, which is a standard requirement on payments of this kind. We keep a record of items we have declined and why, which affects whether you can list again. Card details are entered on our payment provider's screen and are never stored by us.</p>
             <p>If, and only if, you accept analytics, we also record which pages you view and which actions you take, tied to a random identifier rather than your name.</p>
           </section>
 
