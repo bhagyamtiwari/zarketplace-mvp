@@ -860,18 +860,33 @@ function RazorpayPayStep({
         </p>
       )}
 
-      {/* GST hold notice. It sits directly above the pay button rather than in
-          a policy page, because the only moment it matters is the moment
-          before someone hands over money. Amber, not red: this is a condition
-          of the order, not an error with what they just did. */}
-      <div className="border border-amber-500/40 bg-amber-50 px-5 py-4 flex gap-3">
-        <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-700" />
-        <p className="text-[10px] font-bold uppercase tracking-widest leading-[1.9] text-amber-900">
-          Please read before paying. We are working through a GST issue on our
-          side. Your order may be refunded in full if we cannot fulfil it. If
-          that happens, the money goes back to the account you paid from and you
-          are charged nothing.
-        </p>
+      {/* What the buyer is actually agreeing to, at the moment they agree to
+          it. This replaces a GST hold warning that told people their order
+          might not be fulfilled - true under the old model, false now, and
+          sitting directly above the pay button.
+
+          These three lines are the plain-language version of the returns,
+          refund and grievance policies. They are here because nobody reads a
+          policy page before paying, and these are the commitments that matter. */}
+      <div className="border border-black/10 bg-zinc-50 px-5 py-5 flex flex-col gap-2.5">
+        <span className="text-[9px] font-black uppercase tracking-[0.3em] text-black/40">
+          Buying from zarketplace
+        </span>
+        <ul className="flex flex-col gap-1.5">
+          {[
+            'We check every item against its listing before it ships to you.',
+            'Not as described? Tell us within 48 hours of delivery and we put it right.',
+            "If we can't supply it, you're refunded in full to the account you paid from.",
+          ].map((line) => (
+            <li key={line} className="flex gap-2 text-[11px] font-medium leading-relaxed text-black/70">
+              <span aria-hidden className="text-black/25">&mdash;</span>
+              <span>{line}</span>
+            </li>
+          ))}
+        </ul>
+        <Link to="/returns" className="self-start text-[10px] font-black uppercase tracking-[0.25em] underline text-black/50 hover:text-black">
+          Returns &amp; refunds
+        </Link>
       </div>
 
       {errorMsg && <p className="text-[10px] font-bold uppercase tracking-widest text-red-600 text-center">{errorMsg}</p>}

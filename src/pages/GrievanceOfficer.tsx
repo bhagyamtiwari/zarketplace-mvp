@@ -21,27 +21,45 @@ export function GrievanceOfficer() {
           <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Grievance Officer</h1>
         </div>
 
-        <div className="flex flex-col gap-8 text-black leading-relaxed text-sm font-medium uppercase tracking-widest">
+        <div className="flex flex-col gap-10 text-black body-longform">
           <p>
-            As required under Rule 3(1)(c) of the Information Technology (Intermediary Guidelines
-            and Digital Media Ethics Code) Rules, 2021, zarketplace designates the following
-            Grievance Officer.
+            If something goes wrong with an order, write to us and a person will
+            answer. This page exists so you always know who that is.
           </p>
 
-          <div className="flex flex-col gap-2 border border-black/10 bg-zinc-50 p-6 normal-case text-sm">
-            <p><span className="font-black uppercase tracking-widest text-xs">Name:</span> BHAGYAM TIWARI</p>
-            <p><span className="font-black uppercase tracking-widest text-xs">Organisation:</span> ADNIZ Private Limited</p>
+          <div className="flex flex-col gap-2 border border-black p-6">
+            <p><span className="font-black uppercase tracking-widest text-xs">Grievance officer</span><br />Bhagyam Tiwari</p>
+            <p><span className="font-black uppercase tracking-widest text-xs">Company</span><br />ADNIZ Private Limited</p>
             <p>
-              <span className="font-black uppercase tracking-widest text-xs">Email:</span>{' '}
+              <span className="font-black uppercase tracking-widest text-xs">Email</span><br />
               <a href="mailto:grievance@zarketplace.com" className="font-bold text-black underline">grievance@zarketplace.com</a>
             </p>
           </div>
 
-          <p>
-            Any complaint or concern regarding content hosted on the platform must be submitted in
-            writing. The Grievance Officer will acknowledge the complaint within 24 hours and
-            resolve it within 30 days of receipt.
-          </p>
+          <div className="flex flex-col gap-3">
+            <h2 className="text-xl font-black uppercase tracking-tight">What happens when you write</h2>
+            <p>
+              We acknowledge every complaint within <strong>48 hours</strong> and
+              resolve it within <strong>one month</strong> of receiving it. If we
+              need something from you to resolve it, we will ask in that first reply.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <h2 className="text-xl font-black uppercase tracking-tight">Who you are dealing with</h2>
+            <p>
+              zarketplace is a trading name of ADNIZ Private Limited. We buy
+              pre-owned items and resell them, so we are the seller for every
+              order on this site, not a venue where other people sell to you.
+              That means your complaint is with us and is ours to fix.
+            </p>
+            {/* Required of a seller under the Consumer Protection (E-Commerce)
+                Rules 2020. Filled in before launch - see the note below. */}
+            <p className="text-black/50">
+              Registered address and GSTIN are published on our{' '}
+              <Link to="/terms" className="font-bold text-black underline">Terms</Link> page.
+            </p>
+          </div>
         </div>
       </motion.div>
     </div>

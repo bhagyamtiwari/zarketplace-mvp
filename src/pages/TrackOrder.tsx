@@ -1,4 +1,4 @@
-// TrackOrder - buyer's "My Orders" page. Auth required. Lists every order
+// TrackOrder - buyer's "Your orders" page. Auth required. Lists every order
 // where buyer_id = auth.uid() (RLS enforces this). Each row shows:
 //  - status timeline (Ordered → Verified → Shipped)
 //  - tracking section (link, courier, number, package photo) once available
@@ -26,7 +26,7 @@ export function TrackOrder() {
   usePageMeta(META.orders);
 
   return (
-    <RequireAuth message="Sign in to view your orders.">
+    <RequireAuth message="Sign in to see your orders.">
       <TrackInner />
     </RequireAuth>
   );

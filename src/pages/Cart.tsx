@@ -9,7 +9,7 @@ import { getShippingCategories, shippingRateFor, type ShippingCategory } from '.
 
 export function Cart() {
   return (
-    <RequireAuth message="Sign in to view your cart.">
+    <RequireAuth message="Sign in to see your bag.">
       <CartInner />
     </RequireAuth>
   );
@@ -34,7 +34,7 @@ function CartInner() {
         <div className="flex h-24 w-24 items-center justify-center rounded-full bg-zinc-100 text-black/40">
           <ShoppingBag className="h-10 w-10" />
         </div>
-        <h1 className="text-5xl font-black tracking-tighter uppercase">Cart is empty</h1>
+        <h1 className="text-5xl font-black tracking-tighter uppercase">Nothing in your bag yet</h1>
         <p className="text-xs font-bold uppercase tracking-widest text-black/60 max-w-md">
           Find something you love and add it here.
         </p>
@@ -54,7 +54,7 @@ function CartInner() {
         <ArrowLeft className="h-3 w-3" /> Continue Shopping
       </Link>
 
-      <h1 className="text-3xl sm:text-4xl font-black tracking-tighter uppercase mb-8">Your Cart</h1>
+      <h1 className="text-3xl sm:text-4xl font-black tracking-tighter uppercase mb-8">Your bag</h1>
 
       {hasMultipleSellers && (
         <div className="flex items-start gap-3 border border-amber-300 bg-amber-50 p-4 mb-6">
