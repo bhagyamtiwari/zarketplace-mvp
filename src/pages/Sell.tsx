@@ -40,6 +40,16 @@ const CATEGORY_SIZES: Record<string, string[]> = {
   'Shoes': ['UK 5', 'UK 6', 'UK 7', 'UK 8', 'UK 9', 'UK 10', 'UK 11', 'UK 12', 'UK 13'],
 };
 
+// Two lines instead of six ticks and an authenticity radio. Every element of
+// the old set survives: one-item is its own rule, and accuracy now carries
+// photos, flaws and authenticity in a sentence someone reads rather than five
+// they scroll past. The binding version is the three-clause agreement at offer
+// acceptance.
+const PUBLISH_CONFIRMATIONS: Array<{ key: string; label: string }> = [
+  { key: 'oneItem', label: 'This is one item, and it is mine to sell.' },
+  { key: 'accurate', label: 'It is genuine, the photos are of this item, and I have described its condition and any flaws accurately.' },
+];
+
 const WEAR_OPTIONS: Array<{ key: string; label: string }> = [
   { key: 'never', label: 'Never' },
   { key: '1_2_times', label: '1-2 Times' },
@@ -85,30 +95,9 @@ function findBannedPhrase(text: string): string | null {
 // it is not offered.
 type ShippingMode = 'platform' | 'self_ship';
 
-const SHIPPING_CHOICES: Array<{
-  key: string;
-  mode: ShippingMode;
-  free?: boolean;
-  label: string;
-  recommended?: boolean;
-  body: (rate: number) => string;
-}> = [
-  {
-    key: 'platform_free',
-    mode: 'platform',
-    free: true,
-    label: 'We collect it, you cover delivery',
-    recommended: true,
-    body: (rate) => `Items sell faster when checkout says free. The ${formatCurrency(rate)} comes out of your payout instead.`,
-  },
-  {
-    key: 'platform_buyer',
-    mode: 'platform',
-    free: false,
-    label: 'We collect it, delivery paid at checkout',
-    body: (rate) => `We book the courier and collect from your door on a prepaid label. The ${formatCurrency(rate)} is paid at checkout, not out of your payout.`,
-  },
-];
+// No shipping choice is offered any more. Delivery on both legs is ours and is
+// already inside the amount we offer, so asking a vendor who should absorb it
+// was asking about a number they never see and cannot change.
 
 // The shipping category is derivable from the item category the vendor has
 // already chosen, so asking again is asking the same question twice in
@@ -124,7 +113,11 @@ const CATEGORY_TO_SHIPPING: Record<string, string> = {
 
 const MAX_IMAGES = 8;
 
-const STEP_LABELS = ['Photos', 'Details', 'Condition', 'Price', 'Review'];
+// Three steps, not five. Condition belonged with price (they are the two
+// judgements a vendor makes about the same object) and Review was five
+// checkboxes restating what the form already said. The binding consent is the
+// agreement at offer acceptance, where money is actually promised.
+const STEP_LABELS = ['Photos', 'Details', 'Price'];
 
 interface Declarations {
   oneItem: boolean;
@@ -178,19 +171,19 @@ function SellInner() {
   const [hasFlaws, setHasFlaws] = React.useState<boolean | null>(null);
   const [flawsDescription, setFlawsDescription] = React.useState('');
 
-  const [showSalePrice, setShowSalePrice] = React.useState(false);
   const [priceVal, setPriceVal] = React.useState('');
-  const [salePriceVal, setSalePriceVal] = React.useState('');
   const [shippingCategories, setShippingCategories] = React.useState<ShippingCategory[]>([]);
   const [shippingCategory, setShippingCategory] = React.useState('');
   // Seller-funded free shipping: buyer pays no shipping line, and the real
   // courier cost is deducted from the seller's payout instead of the buyer's
   // total (see migration shipping_reprice_and_seller_free_shipping). Off by
   // default - it's a choice, not the default cost to the vendor.
-  const [freeShipping, setFreeShipping] = React.useState(false);
   // Always 'platform': our courier on our prepaid label, with free_shipping
   // deciding who absorbs the cost. 'self_ship' is no longer offered.
-  const [shippingMode, setShippingMode] = React.useState<ShippingMode>('platform');
+  // Always our courier on our label. Kept as a constant so the column keeps
+  // its shape without offering a choice that is not the vendor's to make.
+  const shippingMode: ShippingMode = 'platform';
+  const freeShipping = true;
   // Set once the vendor picks a shipping category themselves, so a later
   // category change stops overwriting their deliberate choice.
   const shippingCategoryTouched = React.useRef(false);
@@ -209,12 +202,7 @@ function SellInner() {
   // The pincode is the supply origin that actually counts. The state below is
   // kept for display and for the seller to sanity-check what they typed - if
   // the two disagree, the pincode is what any rule reads.
-  const [pickupPincode, setPickupPincode] = React.useState('');
-  const [pickupAddress, setPickupAddress] = React.useState('');
-  const [pickupCity, setPickupCity] = React.useState('');
-  const [pickupLandmark, setPickupLandmark] = React.useState('');
 
-  const [authenticity, setAuthenticity] = React.useState<'confirmed' | 'unsure' | null>(null);
   const [declarations, setDeclarations] = React.useState<Declarations>({
     oneItem: false, photosActual: false, disclosedFlaws: false, accurate: false, authenticIfMarked: false,
   });
@@ -243,20 +231,8 @@ function SellInner() {
         if (data.gender) setGender((prev) => prev || data.gender);
         if (data.category) setSelectedCategory((prev) => prev || data.category);
         if (data.shipping_category) setShippingCategory((prev) => prev || data.shipping_category);
-        if (data.pickup_pincode) setPickupPincode((prev) => prev || data.pickup_pincode);
       });
   }, [user]);
-
-  // The saved pickup address wins over the last listing when both exist: it is
-  // the address a courier will actually collect from.
-  React.useEffect(() => {
-    const addr = profile?.pickup_address as
-      { state?: string; pincode?: string; address?: string; city?: string; landmark?: string } | null;
-    if (addr?.pincode) setPickupPincode((prev) => prev || addr.pincode!);
-    if (addr?.address) setPickupAddress((prev) => prev || addr.address!);
-    if (addr?.city) setPickupCity((prev) => prev || addr.city!);
-    if (addr?.landmark) setPickupLandmark((prev) => prev || addr.landmark!);
-  }, [profile]);
 
   // Follow the item category. Falls back to the first option only when the
   // item category maps to nothing, which no current category does.
@@ -267,13 +243,6 @@ function SellInner() {
     setShippingCategory((prev) => derived ?? prev ?? shippingCategories[0].key);
   }, [shippingCategories, selectedCategory]);
 
-  // priceVal is now what the buyer actually pays, and salePriceVal is the
-  // optional higher "was" price shown struck through. The old arrangement had
-  // the required field mean "original price" and the optional one mean "what
-  // you get paid", so a seller typing their real price into the first box was
-  // quietly setting a strike-through instead.
-  const salePriceInvalid =
-    showSalePrice && !!salePriceVal && !!priceVal && Number(salePriceVal) <= Number(priceVal);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const fileList = e.target.files;
@@ -375,29 +344,10 @@ function SellInner() {
     }
     if (s === 2) {
       if (!condition) return 'Select a condition.';
-      if (hasFlaws === null) return 'Let buyers know whether this item has any flaws.';
-      if (hasFlaws && !flawsDescription.trim()) return 'Describe the flaw(s), or select "No" if there are none.';
-      if (hasFlaws && imageFiles.length < 2) return 'Add a close-up photo of the flaw in your photos.';
-    }
-    if (s === 3) {
-      if (!priceVal || Number(priceVal) <= 0) return 'Enter a price.';
-      if (salePriceInvalid) return 'The "was" price has to be higher than your price, or buyers see a discount that is not one.';
-      if (shippingMode === 'platform' && !shippingCategory) return 'Choose a shipping category.';
-      if (!pickupAddress.trim()) return 'Enter the address a courier would collect from.';
-      if (!pickupCity.trim()) return 'Enter your city.';
-      if (!/^[1-9][0-9]{5}$/.test(pickupPincode)) return 'Enter the 6-digit pincode you post from.';
-      if (!resolvePincode(pickupPincode).stateCode) {
-        return 'We cannot place that pincode yet. Check it, or contact us and we will add it.';
-      }
-      // Only bites when the seller is absorbing the courier cost. With
-      // buyer-paid shipping a low price is fine, the seller keeps all of it.
-      // Mirrors the server rule listings_require_positive_payout, which is what
-      // actually rejects the insert.
-      const floor = shippingCategories.find((c) => c.key === shippingCategory)?.rate ?? 0;
-      const lowest = Number(priceVal);
-      if (freeShipping && floor > 0 && lowest <= floor) {
-        return `With free delivery the ${formatCurrency(floor)} courier cost comes out of your payout, so ${formatCurrency(lowest)} would pay you nothing. Price it above ${formatCurrency(floor)}, or turn free delivery off.`;
-      }
+      if (hasFlaws === null) return 'Say whether this item has any flaws.';
+      if (hasFlaws && !flawsDescription.trim()) return 'Describe the flaw, or answer No.';
+      if (hasFlaws && imageFiles.length < 2) return 'Add a close-up of the flaw to your photos.';
+      if (!priceVal || Number(priceVal) <= 0) return 'Enter what you want for it.';
     }
     return null;
   };
@@ -411,23 +361,22 @@ function SellInner() {
   const goBack = () => goToStep(step - 1);
 
   const allDeclared = Object.values(declarations).every(Boolean);
-  const canPublish = authenticity !== null && allDeclared && !loading;
+  const canPublish = allDeclared && !loading;
 
   // Review is the only step without its own validator: it is complete when the
   // two things it asks for are answered.
   const stepComplete = (s: number) =>
-    s === STEP_LABELS.length - 1 ? authenticity !== null && allDeclared : validateStep(s) === null;
+    s === STEP_LABELS.length - 1 ? allDeclared && validateStep(s) === null : validateStep(s) === null;
 
   const handlePublish = async () => {
     setStepError(null);
     if (!user) { setStepError('Sign in first.'); return; }
 
-    for (let s = 0; s <= 3; s++) {
+    for (let s = 0; s <= 2; s++) {
       const err = validateStep(s);
       if (err) { setStep(s); setStepError(err); scrollToTop(); return; }
     }
-    if (authenticity === null) { setStepError('Confirm whether this item is authentic.'); scrollToTop(); return; }
-    if (!allDeclared) { setStepError('Check every declaration below before publishing.'); scrollToTop(); return; }
+    if (!allDeclared) { setStepError('Tick both lines above before sending it to us.'); scrollToTop(); return; }
 
     setLoading(true);
     const tFull = slog.time('full submit');
@@ -471,9 +420,11 @@ function SellInner() {
       // The database contract is unchanged - price is the struck-through
       // number and sale_price is what is charged - so the form's friendlier
       // wording is mapped back onto it here rather than migrating data.
-      const hasWas = showSalePrice && !!salePriceVal;
-      const price = hasWas ? Number(salePriceVal) : Number(priceVal);
-      const sale_price = hasWas ? Number(priceVal) : null;
+      // A placeholder only. listings.price is replaced with our own figure
+      // the moment an operator prices the item, and a trigger stops a vendor
+      // changing it afterwards. Nothing goes live before that happens.
+      const price = Number(priceVal);
+      const sale_price = null;
 
       const { data: created, error } = await supabase.from('listings').insert({
         title: title.trim(),
@@ -500,22 +451,19 @@ function SellInner() {
         // Collected here now, not at first sale. Approval requires a complete
         // pickup address, so a new seller's listing used to be unapprovable
         // until they had already sold something - which they could not do.
-        pickup_address: {
-          fullName: profile?.full_name ?? '',
-          phone: profile?.phone ?? '',
-          address: pickupAddress.trim(),
-          landmark: pickupLandmark.trim(),
-          city: pickupCity.trim(),
-          state: resolvePincode(pickupPincode).stateName ?? '',
-          pincode: pickupPincode,
-        },
-        // Stored on the listing, not read through the profile at query time:
-        // a seller who later moves must not silently relocate every item they
-        // have already listed, and the buyer-facing view can only filter on a
-        // column it actually has.
-        pickup_state: resolvePincode(pickupPincode).stateName ?? null,
-        pickup_pincode: pickupPincode,
-        pickup_state_code: resolvePincode(pickupPincode).stateCode,
+        // Collected when the vendor accepts our offer, not here. Asking for a
+        // collection address before we have told them a number is four fields
+        // spent on an item we may not take. accept_acquisition_offer refuses
+        // to record an acceptance without one, so nothing can be agreed with
+        // nowhere to collect from.
+        pickup_address: profile?.pickup_address ?? null,
+        // Filled in at acceptance alongside the address, from the pincode the
+        // vendor gives there. Stored on the listing rather than read through
+        // the profile, so a vendor who later moves does not silently relocate
+        // every item they have already listed.
+        pickup_state: null,
+        pickup_pincode: null,
+        pickup_state_code: null,
         shipping_category: shippingCategory,
         free_shipping: freeShipping,
         has_flaws: !!hasFlaws,
@@ -524,7 +472,9 @@ function SellInner() {
         original_packaging: originalPackaging,
         item_altered: itemAltered,
         wear_frequency: wearFrequency,
-        authenticity_confirmed: authenticity === 'confirmed',
+        // Carried by the accuracy line the vendor ticks, which says the item
+        // is genuine. Restated in full at the agreement screen.
+        authenticity_confirmed: !!declarations.accurate,
         seller_declared_at: new Date().toISOString(),
         status: 'pending',
       }).select('id').single();
@@ -543,21 +493,6 @@ function SellInner() {
         asking_price: Number(priceVal),
       });
       if (acqError) throw acqError;
-
-      // Remembered on the account so the seller types it once. Fire and
-      // forget: a failure here costs a prefill, never the listing.
-      void supabase.from('profiles').update({
-        pickup_address: {
-          ...(profile?.pickup_address ?? {}),
-          fullName: profile?.full_name ?? '',
-          phone: profile?.phone ?? '',
-          address: pickupAddress.trim(),
-          landmark: pickupLandmark.trim(),
-          city: pickupCity.trim(),
-          state: resolvePincode(pickupPincode).stateName ?? '',
-          pincode: pickupPincode,
-        },
-      }).eq('id', user.id);
 
       tFull.end({ outcome: 'success' });
       // Seller-side conversion. Compared against sell_started, this is the
@@ -590,9 +525,8 @@ function SellInner() {
     setSelectedCategory(''); setSizeType(''); setSizeDetail('');
     setOriginalTags(null); setOriginalPackaging(null); setItemAltered(null); setWearFrequency(null);
     setCondition(''); setHasFlaws(null); setFlawsDescription('');
-    setPriceVal(''); setSalePriceVal(''); setShowSalePrice(false);
-    setAuthenticity(null);
-    setDeclarations({ oneItem: false, photosActual: false, disclosedFlaws: false, accurate: false, authenticIfMarked: false });
+    setPriceVal('');
+    setDeclarations({ oneItem: false, accurate: false });
   };
 
   if (submitted) {
@@ -756,40 +690,11 @@ function SellInner() {
             )}
 
             {step === 2 && (
-              <ConditionStep
+              <PriceStep
                 condition={condition} setCondition={setCondition}
                 hasFlaws={hasFlaws} setHasFlaws={setHasFlaws}
                 flawsDescription={flawsDescription} setFlawsDescription={setFlawsDescription}
-              />
-            )}
-
-            {step === 3 && (
-              <PriceStep
                 priceVal={priceVal} setPriceVal={setPriceVal}
-                showSalePrice={showSalePrice} setShowSalePrice={setShowSalePrice}
-                salePriceVal={salePriceVal} setSalePriceVal={setSalePriceVal}
-                salePriceInvalid={salePriceInvalid}
-                shippingCategories={shippingCategories}
-                shippingCategory={shippingCategory} setShippingCategory={pickShippingCategory}
-                freeShipping={freeShipping} setFreeShipping={setFreeShipping}
-                pickupPincode={pickupPincode} setPickupPincode={setPickupPincode}
-                pickupAddress={pickupAddress} setPickupAddress={setPickupAddress}
-                pickupCity={pickupCity} setPickupCity={setPickupCity}
-                pickupLandmark={pickupLandmark} setPickupLandmark={setPickupLandmark}
-                shippingMode={shippingMode} setShippingMode={setShippingMode}
-              />
-            )}
-
-            {step === 4 && (
-              <ReviewStep
-                imagePreviews={imagePreviews}
-                title={title} brand={brand}
-                price={showSalePrice && salePriceVal ? salePriceVal : priceVal}
-                salePrice={showSalePrice && salePriceVal ? priceVal : ''}
-                condition={condition} hasFlaws={hasFlaws} flawsDescription={flawsDescription}
-                shippingCategory={shippingCategory} shippingCategories={shippingCategories}
-                shippingMode={shippingMode} freeShipping={freeShipping}
-                authenticity={authenticity} setAuthenticity={setAuthenticity}
                 declarations={declarations} setDeclarations={setDeclarations}
               />
             )}
@@ -1184,353 +1089,78 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
   );
 }
 
-function PriceStep({ priceVal, setPriceVal, showSalePrice, setShowSalePrice, salePriceVal, setSalePriceVal, salePriceInvalid, shippingCategories, shippingCategory, setShippingCategory, freeShipping, setFreeShipping, pickupPincode, setPickupPincode, pickupAddress, setPickupAddress, pickupCity, setPickupCity, pickupLandmark, setPickupLandmark, shippingMode, setShippingMode }: {
+
+// Condition and price, together. They are the two judgements a vendor makes
+// about the same object, and splitting them across two screens made the flow
+// feel longer than it is.
+//
+// The publish confirmations live here rather than on a Review screen of their
+// own. Review restated what the form already showed and asked for six ticks;
+// the consent that binds anyone is the agreement at offer acceptance, which is
+// where money is promised. Two lines here, three clauses there.
+function PriceStep({
+  condition, setCondition, hasFlaws, setHasFlaws, flawsDescription, setFlawsDescription,
+  priceVal, setPriceVal, declarations, setDeclarations,
+}: {
+  condition: string; setCondition: (v: string) => void;
+  hasFlaws: boolean | null; setHasFlaws: (v: boolean) => void;
+  flawsDescription: string; setFlawsDescription: (v: string) => void;
   priceVal: string; setPriceVal: (v: string) => void;
-  showSalePrice: boolean; setShowSalePrice: (v: boolean) => void;
-  salePriceVal: string; setSalePriceVal: (v: string) => void;
-  salePriceInvalid: boolean;
-  shippingCategories: ShippingCategory[];
-  shippingCategory: string; setShippingCategory: (v: string) => void;
-  freeShipping: boolean; setFreeShipping: (v: boolean) => void;
-  pickupPincode: string; setPickupPincode: (v: string) => void;
-  pickupAddress: string; setPickupAddress: (v: string) => void;
-  pickupCity: string; setPickupCity: (v: string) => void;
-  pickupLandmark: string; setPickupLandmark: (v: string) => void;
-  shippingMode: ShippingMode; setShippingMode: (v: ShippingMode) => void;
+  declarations: Record<string, boolean>;
+  setDeclarations: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
 }) {
-  const selectedRate = shippingCategories.find((c) => c.key === shippingCategory)?.rate ?? 0;
-  // Surfaced while the number is still under the cursor rather than at
-  // Continue, since a mistyped pincode is easiest to fix the second it is made.
-  const pincodeConflict = (() => {
-    if (pickupPincode.length !== 6) return null;
-    const r = resolvePincode(pickupPincode);
-    if (!r.stateCode) return 'We cannot place that pincode yet. Check it, or contact us and we will add it.';
-    return null;
-  })();
-  // The number a buyer would actually pay: the sale price when one is set.
-  const effectivePrice = Number(priceVal);
-  const belowFloor = freeShipping && selectedRate > 0 && effectivePrice > 0 && effectivePrice <= selectedRate;
   return (
-    <div className="flex flex-col gap-10">
-      <div className="flex flex-col gap-6">
-        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Pricing</h3>
-        {/* One decision at a time, stacked rather than side by side. Two money
-            fields sitting as equals is what made this confusing: both looked
-            like "the price", and the seller had to work out which one they
-            were being paid. Now the required field states the payout in its
-            own label, and the optional one is plainly a marketing device. */}
-        <div className="flex flex-col gap-8 max-w-md">
-          <div className="flex flex-col gap-3">
-            <FieldLabel>Your asking price (INR) *</FieldLabel>
-            <TrustNote>What you are asking for it. We will come back with our offer.</TrustNote>
-            <input type="number" min={freeShipping && selectedRate ? selectedRate + 1 : 1} value={priceVal} onChange={(e) => setPriceVal(e.target.value)}
-              placeholder={selectedRate ? String(selectedRate) : '3500'}
-              className={cn('border-b py-4 text-sm font-bold focus:outline-none transition-all placeholder:text-black/20',
-                belowFloor ? 'border-red-500 focus:border-red-600' : 'border-black/10 focus:border-black')} />
-            {/* Caught here rather than at Continue, so the seller sees it while
-                the number is still under their cursor. */}
-            {belowFloor && (
-              <p className="text-[11px] font-bold uppercase tracking-widest text-red-600 leading-relaxed">
-                With free delivery, {formatCurrency(selectedRate)} comes out of your payout.<br />
-                At this price you'd receive nothing. Price above {formatCurrency(selectedRate)}, or turn free delivery off.
-              </p>
-            )}
-            <TrustNote>
-              {freeShipping
-                ? 'We will come back with our offer on this, less the delivery you are covering.'
-                : 'We will come back with our offer on this.'}
-            </TrustNote>
-          </div>
-          <div className="flex flex-col gap-3 border-t border-black/5 pt-8">
-            <div className="flex items-center justify-between">
-              <FieldLabel>Show it as a discount (optional)</FieldLabel>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" className="sr-only peer" checked={showSalePrice} onChange={() => setShowSalePrice(!showSalePrice)} />
-                <div className="w-8 h-4 bg-zinc-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-black"></div>
-              </label>
-            </div>
-            {showSalePrice && (
-              <>
-                <FieldLabel>Was (INR)</FieldLabel>
-                <motion.input initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-                  type="number" min="1" value={salePriceVal} onChange={(e) => setSalePriceVal(e.target.value)}
-                  placeholder={priceVal ? String(Math.round(Number(priceVal) * 1.3)) : '4900'}
-                  className={cn('border-b py-4 text-sm font-bold focus:outline-none transition-all placeholder:text-black/20',
-                    salePriceInvalid ? 'border-red-500 focus:border-red-600' : 'border-black/10 focus:border-black')} />
-                {salePriceInvalid && (
-                  <p className="text-[11px] font-bold uppercase tracking-widest text-red-600 leading-relaxed">
-                    This has to be higher than your price. Buyers see it struck through next to what they pay.
-                  </p>
-                )}
-                <TrustNote>
-                  Shown struck through beside your price. It does not change what you are paid.
-                </TrustNote>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
+    <div className="flex flex-col gap-14">
+      <ConditionStep
+        condition={condition} setCondition={setCondition}
+        hasFlaws={hasFlaws} setHasFlaws={setHasFlaws}
+        flawsDescription={flawsDescription} setFlawsDescription={setFlawsDescription}
+      />
 
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-1">
-          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Shipping</h3>
-          <TrustNote>Closest category to your item. Bigger and heavier costs more. We buy the label.</TrustNote>
-        </div>
-
-        {/* The pincode is the only place a location is captured. It resolves
-            to a state on submit, so there is no second field to disagree with
-            it and nothing to cross-check. */}
-        <div className="flex flex-col gap-3">
-          <FieldLabel>Pickup address *</FieldLabel>
+      <div className="flex flex-col gap-4">
+        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">
+          What do you want for it?
+        </h3>
+        <div className="flex items-baseline gap-3">
+          <span className="text-2xl font-black tracking-tighter">Rs.</span>
           <input
-            type="text"
-            value={pickupAddress}
-            onChange={(e) => setPickupAddress(e.target.value)}
-            placeholder="Flat / House no., Street, Area"
-            className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20"
+            type="number" inputMode="numeric" value={priceVal}
+            onChange={(e) => setPriceVal(e.target.value)}
+            placeholder="3500"
+            className="w-full border-b border-black/10 py-3 text-3xl font-black tracking-tighter focus:border-black focus:outline-none placeholder:text-black/15"
           />
         </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
-            <div className="flex flex-col gap-3">
-              <FieldLabel>Landmark</FieldLabel>
-              <input
-                type="text"
-                value={pickupLandmark}
-                onChange={(e) => setPickupLandmark(e.target.value)}
-                placeholder="Optional"
-                className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20"
-              />
-            </div>
-            <div className="flex flex-col gap-3">
-              <FieldLabel>City *</FieldLabel>
-              <input
-                type="text"
-                value={pickupCity}
-                onChange={(e) => setPickupCity(e.target.value)}
-                placeholder="New Delhi"
-                className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20"
-              />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-3">
-            <FieldLabel>Pickup pincode *</FieldLabel>
-            <input
-              type="text"
-              inputMode="numeric"
-              maxLength={6}
-              value={pickupPincode}
-              onChange={(e) => setPickupPincode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              placeholder="110085"
-              className={cn(
-                'border-b py-4 text-sm font-bold focus:outline-none transition-all placeholder:text-black/20',
-                pincodeConflict ? 'border-red-500 focus:border-red-600' : 'border-black/10 focus:border-black',
-              )}
-            />
-            {pincodeConflict && (
-              <p className="text-[11px] font-bold uppercase tracking-widest text-red-600 leading-relaxed">
-                {pincodeConflict}
-              </p>
-            )}
-        </div>
-        {shippingCategories.length === 0 ? (
-          <p className="text-xs font-bold uppercase tracking-widest text-black/30">Loading categories…</p>
-        ) : (
-          <>
-            {/* Money can leave the seller's payout because of this choice, so it
-                is stated on the page rather than tucked behind an icon. */}
-            <TrustNote>
-              Couriers weigh every parcel. If it's much heavier than the category, we may recover
-              the difference from your payout, and we'll tell you first.
-            </TrustNote>
-            {/* Three ways an item can reach a buyer, as three cards rather
-                than a toggle plus a hidden third path. Sellers who already
-                have a courier were previously unable to list at all. */}
-            <div className="flex flex-col gap-3">
-              {SHIPPING_CHOICES.map((choice) => {
-                const active = choice.mode === shippingMode
-                  && (choice.mode === 'self_ship' || choice.free === freeShipping);
-                return (
-                  <button
-                    key={choice.key}
-                    type="button"
-                    onClick={() => {
-                      setShippingMode(choice.mode);
-                      if (choice.mode === 'platform') setFreeShipping(!!choice.free);
-                      else setFreeShipping(false);
-                    }}
-                    className={cn('border p-5 text-left transition-all flex items-start justify-between gap-4',
-                      active ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}
-                  >
-                    <div>
-                      <span className="block text-xs font-black uppercase tracking-widest">
-                        {choice.label}
-                        {choice.recommended && (
-                          <span className={cn(active ? 'text-white/60' : 'text-black/40')}> (Recommended)</span>
-                        )}
-                      </span>
-                      <span className={cn('block text-[11px] font-bold uppercase tracking-widest leading-[1.8] mt-2 max-w-md',
-                        active ? 'text-white/80' : 'text-black/60')}>
-                        {choice.body(selectedRate)}
-                      </span>
-                    </div>
-                    <span className={cn('mt-1 h-4 w-4 shrink-0 rounded-full border-2',
-                      active ? 'border-white bg-white' : 'border-black/20')} />
-                  </button>
-                );
-              })}
-            </div>
-
-            {shippingMode === 'platform' && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {shippingCategories.map((c) => (
-                <button key={c.key} type="button" onClick={() => setShippingCategory(c.key)}
-                  className={cn('border p-5 text-left transition-all',
-                    shippingCategory === c.key ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
-                  <span className="block text-xs font-black uppercase tracking-widest">{c.label}</span>
-                  <span className="block text-[10px] font-bold uppercase tracking-widest mt-1.5 opacity-70">
-                    {freeShipping ? 'Free for buyer' : `Buyer pays ${formatCurrency(c.rate)}`}
-                  </span>
-                </button>
-              ))}
-            </div>
-            )}
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ReviewStep({
-  imagePreviews, title, brand, price, salePrice, condition, hasFlaws, flawsDescription,
-  shippingCategory, shippingCategories, shippingMode, freeShipping, authenticity, setAuthenticity, declarations, setDeclarations,
-}: {
-  imagePreviews: string[]; title: string; brand: string; price: string; salePrice: string;
-  condition: string; hasFlaws: boolean | null; flawsDescription: string;
-  shippingCategory: string; shippingCategories: ShippingCategory[];
-  shippingMode: ShippingMode; freeShipping: boolean;
-  authenticity: 'confirmed' | 'unsure' | null; setAuthenticity: (v: 'confirmed' | 'unsure') => void;
-  declarations: Declarations;
-  setDeclarations: React.Dispatch<React.SetStateAction<Declarations>>;
-}) {
-  const shipRate = shippingCategories.find((c) => c.key === shippingCategory);
-
-  // Word for word: these are the attestations we stand on when a buyer disputes
-  // a listing, so the wording never gets shortened. Ticking them together is
-  // fine - only seller_declared_at is stored, so the record is "affirmed at time
-  // T" rather than which boxes were tapped, and each one stays visible and
-  // individually clearable.
-  const DECLARATION_ITEMS: Array<{ key: keyof typeof declarations; label: string }> = [
-    { key: 'oneItem', label: 'This listing represents one physical item only.' },
-    { key: 'photosActual', label: 'The photos show the actual item being sold.' },
-    { key: 'disclosedFlaws', label: 'I have disclosed all known flaws.' },
-    { key: 'accurate', label: 'The description and details above are accurate.' },
-    { key: 'authenticIfMarked', label: 'If marked authentic, this item is genuine.' },
-  ];
-  const declaredCount = DECLARATION_ITEMS.filter((d) => declarations[d.key]).length;
-
-  return (
-    <div className="flex flex-col gap-10">
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-1">
-          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Review</h3>
-          <TrustNote>What buyers see. Tap any step above to edit.</TrustNote>
-        </div>
-
-        <div className="flex gap-5 p-6 bg-zinc-50 border border-black/5">
-          {imagePreviews[0] && (
-            <div className="h-28 w-20 shrink-0 overflow-hidden border border-black/5">
-              <img src={imagePreviews[0]} alt={title} className="h-full w-full object-cover" />
-            </div>
-          )}
-          <div className="flex flex-col gap-1.5 min-w-0">
-            <span className="text-xs font-black uppercase tracking-tight truncate">{title || 'Untitled item'}</span>
-            <span className="text-xs font-bold uppercase tracking-widest text-black/40">{brand}</span>
-            <span className="text-sm font-black">
-              {salePrice ? (
-                <><span className="text-red-600">{formatCurrency(Number(salePrice))}</span>{' '}<span className="text-black/30 line-through font-bold text-xs">{formatCurrency(Number(price))}</span></>
-              ) : formatCurrency(Number(price) || 0)}
-            </span>
-            <span className="text-xs font-bold uppercase tracking-widest text-black/40">{condition}</span>
-            {hasFlaws ? (
-              <span className="text-[11px] font-bold uppercase tracking-widest text-amber-700">Flaws disclosed: {flawsDescription.slice(0, 60)}{flawsDescription.length > 60 ? '…' : ''}</span>
-            ) : (
-              <span className="text-[11px] font-bold uppercase tracking-widest text-emerald-700">No flaws disclosed</span>
-            )}
-            {/* This line said "buyer pays" whatever the vendor had chosen,
-                which was already wrong for vendor-paid delivery. */}
-            <span className="text-[11px] font-bold uppercase tracking-widest text-black/40">
-              {shipRate
-                ? `Shipping: ${shipRate.label} (${formatCurrency(shipRate.rate)}, ${freeShipping ? 'you cover it' : 'paid at checkout'})`
-                : 'Shipping: not set'}
-            </span>
-          </div>
-        </div>
+        <TrustNote>This is your ask. We come back with what we will pay.</TrustNote>
       </div>
 
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">To the best of your knowledge, is this item authentic? *</h3>
-        </div>
-        <div className="grid grid-cols-2 gap-3 max-w-md">
-          <button type="button" onClick={() => setAuthenticity('confirmed')}
-            className={cn('border p-4 text-left flex items-center gap-2 transition-all',
-              authenticity === 'confirmed' ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
-            <ShieldCheck className="h-4 w-4 shrink-0" />
-            <span className="text-xs font-black uppercase tracking-widest">Yes, confirmed</span>
-          </button>
-          <button type="button" onClick={() => setAuthenticity('unsure')}
-            className={cn('border p-4 text-left flex items-center gap-2 transition-all',
-              authenticity === 'unsure' ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
-            <AlertTriangle className="h-4 w-4 shrink-0" />
-            <span className="text-xs font-black uppercase tracking-widest">I'm not sure</span>
-          </button>
-        </div>
-        {authenticity === 'unsure' && (
-          <div className="max-w-md">
-            <TrustNote>Buyers will see this as unconfirmed. Proof of purchase in your description helps.</TrustNote>
-          </div>
-        )}
-        <div className="max-w-md">
-          <TrustNote>No counterfeits. We remove listings, ask for proof, and suspend repeat offenders.</TrustNote>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-baseline justify-between gap-4 border-b border-black/5 pb-3">
-            <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50">Before you publish</h3>
+      {/* Two lines, both load-bearing. The first is the one rule that makes a
+          listing a listing; the second carries accuracy, flaws and
+          authenticity in one sentence a person will actually read. */}
+      <div className="flex flex-col gap-1">
+        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3 mb-3">
+          Before you send it to us
+        </h3>
+        {PUBLISH_CONFIRMATIONS.map((item) => {
+          const on = !!declarations[item.key];
+          return (
             <button
-              type="button"
-              onClick={() => {
-                const next = declaredCount < DECLARATION_ITEMS.length;
-                setDeclarations({
-                  oneItem: next, photosActual: next, disclosedFlaws: next,
-                  accurate: next, authenticIfMarked: next,
-                });
-              }}
-              className="shrink-0 text-[10px] font-black uppercase tracking-[0.2em] text-black border-b border-black pb-0.5 hover:text-black/60 hover:border-black/60 transition-colors"
+              key={item.key} type="button"
+              onClick={() => setDeclarations((prev) => ({ ...prev, [item.key]: !prev[item.key] }))}
+              aria-pressed={on}
+              className="group flex items-start gap-4 py-4 text-left border-b border-black/5 last:border-b-0"
             >
-              {declaredCount === DECLARATION_ITEMS.length ? 'Clear all' : 'Select all'}
+              <span className={cn(
+                'mt-px flex h-5 w-5 shrink-0 items-center justify-center border transition-colors',
+                on ? 'border-black bg-black text-white' : 'border-black/25 group-hover:border-black',
+              )}>
+                {on && <Check className="h-3 w-3" strokeWidth={3} />}
+              </span>
+              <span className="text-sm font-medium leading-relaxed text-black">{item.label}</span>
             </button>
-          </div>
-          <TrustNote>{declaredCount} of {DECLARATION_ITEMS.length} confirmed.</TrustNote>
-        </div>
-        <div className="flex flex-col gap-3">
-          {DECLARATION_ITEMS.map((d) => (
-            <label key={d.key} className="flex items-start gap-3 cursor-pointer group">
-              <input type="checkbox" checked={declarations[d.key]}
-                onChange={(e) => setDeclarations((prev) => ({ ...prev, [d.key]: e.target.checked }))}
-                className="mt-0.5 h-4 w-4 accent-black shrink-0" />
-              {/* Attestations the seller is agreeing to, so they carry the same
-                  weight and face as every other instruction in the form. */}
-              <span className="text-[11px] font-bold uppercase tracking-widest text-black leading-[1.8]">{d.label}</span>
-            </label>
-          ))}
-        </div>
+          );
+        })}
       </div>
     </div>
   );
 }
+

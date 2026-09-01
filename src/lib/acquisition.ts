@@ -8,6 +8,7 @@
 // table underneath it. See migration 20260831000001.
 
 import { supabase } from './supabase';
+import { resolvePincode } from './pincode';
 import { log } from './log';
 
 const alog = log('acquisition');
@@ -71,22 +72,27 @@ export async function getVendorOffer(listingId: string): Promise<VendorOffer | n
 // this text can never change what someone actually agreed to. Bump the version
 // whenever a line below changes; never edit a line in place.
 // ---------------------------------------------------------------------------
-export const AGREEMENT_VERSION = '2026-08-31.1';
+export const AGREEMENT_VERSION = '2026-09-01.1';
 
 export interface AgreementClause { key: string; text: string }
 
+// Same three commitments, in sentences a person reads rather than scrolls
+// past. Nothing is compressed out: genuine and accurately described, return
+// postage at the vendor's cost on refusal, and forfeiture after 60 days are
+// each still their own tick. They are never collapsed behind a link - someone
+// who loses an item after 60 days has to have seen that sentence.
 export const AGREEMENT_CLAUSES: AgreementClause[] = [
   {
     key: 'genuine_and_accurate',
-    text: 'I confirm this item is genuine and accurately described to the best of my knowledge.',
+    text: "This item is genuine, and it's described accurately as far as I know.",
   },
   {
     key: 'return_shipping_payable',
-    text: 'If zarketplace cannot accept this item on arrival (condition or authenticity mismatch), I can pay return shipping to have it sent back.',
+    text: "If it doesn't match when it reaches you, you won't take it — and I can pay the return postage to get it back.",
   },
   {
     key: 'sixty_day_forfeit',
-    text: 'If I do not claim a rejected item within 60 days, zarketplace may donate or dispose of it and I forfeit any claim to it.',
+    text: "If I don't claim it back within 60 days, zarketplace can donate or dispose of it.",
   },
 ];
 
@@ -95,12 +101,23 @@ export const AGREEMENT_CLAUSES: AgreementClause[] = [
  * function, in one transaction: there is no path that records an acceptance
  * without the agreement, or the other way round.
  */
-export async function acceptOffer(listingId: string): Promise<{ offer_amount: number }> {
+export async function acceptOffer(
+  listingId: string,
+  pickup: { address: string; city: string; pincode: string },
+): Promise<{ offer_amount: number }> {
   const { data, error } = await supabase.rpc('accept_acquisition_offer', {
     p_listing_id: listingId,
     p_terms_version: AGREEMENT_VERSION,
     p_terms_text: AGREEMENT_CLAUSES,
     p_user_agent: typeof navigator === 'undefined' ? null : navigator.userAgent,
+    p_pickup_address: pickup.address,
+    p_pickup_city: pickup.city,
+    p_pickup_pincode: pickup.pincode,
+    // Resolved here, from the pincode we just collected, so a vendor is asked
+    // once and the two answers cannot disagree. The mapping lives in
+    // lib/pincode.ts and has no database equivalent to do this server-side.
+    p_pickup_state: resolvePincode(pickup.pincode).stateName,
+    p_pickup_state_code: resolvePincode(pickup.pincode).stateCode,
   });
   if (error) throw error;
   return data as { offer_amount: number };

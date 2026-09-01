@@ -48,6 +48,9 @@ function VendorOfferInner() {
   const [loading, setLoading] = React.useState(true);
   const [phase, setPhase] = React.useState<Phase>('offer');
   const [checked, setChecked] = React.useState<Record<string, boolean>>({});
+  const [pickupAddress, setPickupAddress] = React.useState('');
+  const [pickupCity, setPickupCity] = React.useState('');
+  const [pickupPincode, setPickupPincode] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -69,12 +72,15 @@ function VendorOfferInner() {
   }, [listingId]);
 
   const allChecked = AGREEMENT_CLAUSES.every((c) => checked[c.key]);
+  const addressReady = pickupAddress.trim().length > 4
+    && pickupCity.trim().length > 1
+    && /^[1-9][0-9]{5}$/.test(pickupPincode.trim());
 
   const onAccept = async () => {
     setError(null);
     setSubmitting(true);
     try {
-      await acceptOffer(listingId);
+      await acceptOffer(listingId, { address: pickupAddress.trim(), city: pickupCity.trim(), pincode: pickupPincode.trim() });
       trackEvent('acquisition_offer_accepted', { listing_id: listingId });
       setPhase('done');
       scrollToTop();
@@ -169,6 +175,10 @@ function VendorOfferInner() {
             checked={checked}
             onToggle={(k) => setChecked((c) => ({ ...c, [k]: !c[k] }))}
             allChecked={allChecked}
+            pickupAddress={pickupAddress} setPickupAddress={setPickupAddress}
+            pickupCity={pickupCity} setPickupCity={setPickupCity}
+            pickupPincode={pickupPincode} setPickupPincode={setPickupPincode}
+            addressReady={addressReady}
             submitting={submitting}
             onBack={() => { setPhase('offer'); scrollToTop(); }}
             onAccept={onAccept}
@@ -269,10 +279,17 @@ function OfferScreen({
  * because that is what it will be read as later.
  */
 function AgreementScreen({
-  amount, checked, onToggle, allChecked, submitting, onBack, onAccept,
+  amount, checked, onToggle, allChecked,
+  pickupAddress, setPickupAddress, pickupCity, setPickupCity, pickupPincode, setPickupPincode, addressReady,
+  submitting, onBack, onAccept,
 }: {
   amount: number; checked: Record<string, boolean>; onToggle: (k: string) => void;
-  allChecked: boolean; submitting: boolean; onBack: () => void; onAccept: () => void;
+  allChecked: boolean;
+  pickupAddress: string; setPickupAddress: (v: string) => void;
+  pickupCity: string; setPickupCity: (v: string) => void;
+  pickupPincode: string; setPickupPincode: (v: string) => void;
+  addressReady: boolean;
+  submitting: boolean; onBack: () => void; onAccept: () => void;
 }) {
   return (
     <div className="flex flex-col gap-14">
@@ -318,9 +335,57 @@ function AgreementScreen({
         })}
       </ul>
 
+      {/* Asked here rather than in the listing form: four fields before we
+          have told anyone a number is four fields spent on an item we might
+          not take. accept_acquisition_offer refuses an acceptance without
+          them, so nothing can be agreed with nowhere to collect from. */}
+      <div className="flex flex-col gap-6 border-t border-black/10 pt-10">
+        <div className="flex flex-col gap-1.5">
+          <span className="text-[9px] font-black uppercase tracking-[0.4em] text-black/40">
+            Where should the courier collect it?
+          </span>
+          <p className="text-xs font-medium leading-relaxed text-black/50">
+            We only use this when the item sells.
+          </p>
+        </div>
+        <input
+          type="text" value={pickupAddress}
+          onChange={(e) => setPickupAddress(e.target.value)}
+          placeholder="Flat / house no., street, area"
+          className="border-b border-black/15 py-3 text-sm font-bold focus:border-black focus:outline-none placeholder:text-black/25"
+        />
+        <div className="grid grid-cols-2 gap-4">
+          <input
+            type="text" value={pickupCity}
+            onChange={(e) => setPickupCity(e.target.value)}
+            placeholder="City"
+            className="border-b border-black/15 py-3 text-sm font-bold focus:border-black focus:outline-none placeholder:text-black/25"
+          />
+        <input
+          type="text" inputMode="numeric" maxLength={6} value={pickupPincode}
+          onChange={(e) => setPickupPincode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+          placeholder="Pincode"
+          className="border-b border-black/15 py-3 text-sm font-bold focus:border-black focus:outline-none placeholder:text-black/25"
+        />
+        </div>
+      </div>
+
+      {/* The ship-by deadline is a commitment made here, so it is disclosed
+          here. It previously appeared only in an email after an item sold. */}
+      <div className="border-l-2 border-black pl-6 py-1 flex flex-col gap-2">
+        <span className="text-[9px] font-black uppercase tracking-[0.4em] text-black/40">
+          One more thing
+        </span>
+        <p className="body-copy text-black normal-case tracking-normal text-sm font-normal leading-relaxed">
+          When it sells you will have <strong>5 days</strong> to hand it to the courier.
+          We send the label and pay for it. If it does not go in that time the
+          order is cancelled and the buyer refunded.
+        </p>
+      </div>
+
       <div className="flex flex-col sm:flex-row gap-4">
         <button
-          type="button" onClick={onAccept} disabled={!allChecked || submitting}
+          type="button" onClick={onAccept} disabled={!allChecked || !addressReady || submitting}
           className="flex items-center justify-between gap-3 bg-black px-7 py-5 text-[11px] font-black uppercase tracking-widest text-white transition-transform enabled:hover:scale-[1.02] enabled:active:scale-95 disabled:opacity-40 sm:min-w-[260px]"
         >
           {submitting ? 'Recording...' : 'Agree and list it'}
@@ -334,9 +399,9 @@ function AgreementScreen({
         </button>
       </div>
 
-      {!allChecked && (
+      {(!allChecked || !addressReady) && (
         <p className="text-[10px] font-black uppercase tracking-[0.3em] text-black/30 -mt-8">
-          Tick all three to continue
+          {!allChecked ? 'Tick all three to continue' : 'Add the collection address'}
         </p>
       )}
     </div>
