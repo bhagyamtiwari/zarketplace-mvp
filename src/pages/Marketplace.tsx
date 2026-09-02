@@ -401,6 +401,11 @@ export function Marketplace() {
             </FeedGrid>
           ) : listings.length === 0 ? (
             <EmptyState
+              detail={
+                activeFilterCount > 0 || searchQuery || quick === 'saved'
+                  ? undefined
+                  : 'Every piece here is one we bought, checked and repacked ourselves, so the shelf fills one item at a time. Sell us something and it could be the next one.'
+              }
               action={
                 <Link to="/sell" className="bg-black px-8 py-3 text-[10px] font-black uppercase tracking-[0.3em] text-white">
                   Sell us something
@@ -411,7 +416,10 @@ export function Marketplace() {
                 ? 'Nothing saved yet'
                 : activeFilterCount > 0 || searchQuery
                   ? 'Nothing matches that'
-                  : 'Nothing listed yet'}
+                  // No filters and no results means the shelf is genuinely
+                  // empty, which is a different thing from a search that missed
+                  // and deserves a different answer.
+                  : "We're buying stock right now"}
             </EmptyState>
           ) : (
             <>

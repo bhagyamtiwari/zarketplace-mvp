@@ -41,7 +41,7 @@ export function About() {
             {/* Copy fills its box rather than stopping short of the right edge:
                 inside a bounded panel the panel is the measure. */}
             <div className="bg-black text-white p-6 sm:p-10">
-              <p className="body-copy">
+              <p className="body-longform max-w-[64ch]">
                 India's resale market existed but was fragmented. Buying meant Instagram DMs and
                 WhatsApp groups, hidden prices, and no way to know what would arrive. zarketplace
                 does it differently: we buy the item from the person who owns it, bring it in,
@@ -113,7 +113,7 @@ export function About() {
                 >
                   <Icon className="h-6 w-6 shrink-0" />
                   <h3 className="text-sm font-black uppercase tracking-widest">{title}</h3>
-                  <p className="body-copy text-black/50">{body}</p>
+                  <p className="body-longform">{body}</p>
                   <span className="mt-auto pt-3 text-[10px] font-black uppercase tracking-[0.25em] text-black/30 group-hover:text-black">
                     Read the policy
                   </span>
@@ -128,7 +128,7 @@ export function About() {
       <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 flex flex-col gap-6 sm:gap-8">
         <section className="flex flex-col gap-4 bg-zinc-50 p-6 sm:p-10 border border-black/5">
           <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight">The market exists</h2>
-          <p className="body-copy">
+          <p className="body-longform max-w-[64ch]">
             India's secondhand apparel market is worth roughly $3.5 billion and growing at double-digit rates a year.
             {' '}
             <a
@@ -146,7 +146,7 @@ export function About() {
 
         <section className="flex flex-col gap-4 bg-black text-white p-6 sm:p-10">
           <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight">Why it matters</h2>
-          <p className="body-copy">
+          <p className="body-longform max-w-[64ch]">
             Fashion is one of the dirtiest industries on the planet, and most of what it makes ends up
             in a landfill within a year. Every item resold here is one that stays in use instead. That
             is the whole reason we built this.

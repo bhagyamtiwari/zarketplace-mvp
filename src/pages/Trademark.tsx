@@ -21,7 +21,7 @@ export function Trademark() {
           <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Trademark &amp; Brand Notice</h1>
         </div>
 
-        <div className="flex flex-col gap-8 text-black leading-relaxed text-sm font-medium uppercase tracking-widest">
+        <div className="flex flex-col gap-8 text-black body-longform">
           <p>
             zarketplace is a pre-owned fashion retailer operated by ADNIZ Private Limited. We buy items from individuals and resell them under our own name.
           </p>

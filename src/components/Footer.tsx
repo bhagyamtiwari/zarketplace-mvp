@@ -23,12 +23,12 @@ interface FooterColumn {
 // used to link them was removed), so every public page must appear here.
 // Columns are kept close in length (5/4/5/4) so the desktop grid stays even.
 const MARKETPLACE: FooterColumn = {
-  title: 'Marketplace',
+  title: 'Shop',
   links: [
     { label: 'What Is zarketplace', to: '/about' },
     { label: 'Buy', to: '/browse' },
     { label: 'Sell', to: '/sell' },
-    { label: 'Seller Portal', to: '/vendor-portal' },
+    { label: 'Your items', to: '/vendor-portal' },
     { label: 'Conditions Guide', to: '/conditions-guide' },
   ],
 };
@@ -39,7 +39,7 @@ const ACCOUNT: FooterColumn = {
     { label: 'My Orders', to: '/track-order' },
     { label: 'My Profile', to: '/account' },
     { label: 'FAQ', to: '/faq' },
-    { label: 'Seller Guidelines', to: '/vendor-policy' },
+    { label: 'Selling to us', to: '/vendor-policy' },
   ],
 };
 
