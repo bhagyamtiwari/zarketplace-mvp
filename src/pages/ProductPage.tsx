@@ -3,9 +3,10 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Listing } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
-import { variantUrl, variantSrcSet } from '../lib/images';
+import { variantUrl } from '../lib/images';
+import { ProductGallery } from '../components/ProductGallery';
 import { motion } from 'motion/react';
-import { Loader2, RotateCcw, ArrowLeft, ChevronLeft, ChevronRight, Grid, Layout, ShoppingBag, Check, Share2, X, ZoomIn, Link as LinkIcon, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { Loader2, RotateCcw, ArrowLeft, ShoppingBag, Check, Share2, X, Link as LinkIcon, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { log } from '../lib/log';
 import { useCart } from '../lib/cart';
 import { useAuth } from '../lib/auth';
@@ -17,16 +18,6 @@ import { getShippingCategories, shippingRateFor, type ShippingCategory } from '.
 import { CONDITIONS, conditionByName } from '../lib/condition';
 
 const plog = log('product');
-
-// Best-effort deterrence against casual image saving: blocks right-click save,
-// native drag-to-download, and iOS Safari's long-press "Save Image" callout.
-// Not a real DRM measure (images are still in the page source) — just removes
-// the easy one-tap/one-click paths without breaking image loading or zoom.
-const imageProtectStyle: React.CSSProperties = {
-  WebkitTouchCallout: 'none',
-  WebkitUserSelect: 'none',
-  userSelect: 'none',
-};
 
 const WEAR_LABELS: Record<string, string> = {
   never: 'Never', '1_2_times': '1-2 Times', occasionally: 'Occasionally', frequently: 'Frequently',
@@ -59,10 +50,6 @@ export function ProductPage() {
   const [shippingCategories, setShippingCategories] = React.useState<ShippingCategory[]>([]);
   React.useEffect(() => { getShippingCategories().then(setShippingCategories); }, []);
   const [loading, setLoading] = React.useState(true);
-  const [currentImageIdx, setCurrentImageIdx] = React.useState(0);
-  const [viewMode, setViewMode] = React.useState<'carousel' | 'grid'>('carousel');
-  const [zoomOpen, setZoomOpen] = React.useState(false);
-  const [pan, setPan] = React.useState({ x: 0, y: 0 });
   const [cartMsg, setCartMsg] = React.useState<string | null>(null);
   const [conflict, setConflict] = React.useState(false);
   const [shareOpen, setShareOpen] = React.useState(false);
@@ -87,54 +74,10 @@ export function ProductPage() {
   // Swipe state for the mobile carousel. Declared here (not below the
   // loading/not-found early returns) so the hook order stays identical
   // across renders — hooks after a conditional return crash React (#310).
-  const swipeRef = React.useRef<{ startX: number } | null>(null);
-  const justSwipedRef = React.useRef(false);
 
-  const dragRef = React.useRef<{ startX: number; startY: number; panX: number; panY: number; moved: boolean } | null>(null);
-  const zoomImgRef = React.useRef<HTMLImageElement>(null);
-  const [panLimit, setPanLimit] = React.useState({ x: 0, y: 0 });
 
-  const openZoom = () => { setPan({ x: 0, y: 0 }); setZoomOpen(true); };
-  const closeZoom = () => setZoomOpen(false);
 
-  const ZOOM_SCALE = 2.2;
 
-  // Pan limits must match how far the scaled image actually overflows the
-  // viewport on each axis - a fixed pixel limit left corners unreachable on
-  // large viewports and over-restricted small ones.
-  const recomputePanLimit = React.useCallback(() => {
-    const img = zoomImgRef.current;
-    if (!img || !img.offsetWidth || !img.offsetHeight) return;
-    setPanLimit({
-      x: Math.max(0, (img.offsetWidth * ZOOM_SCALE - window.innerWidth) / 2),
-      y: Math.max(0, (img.offsetHeight * ZOOM_SCALE - window.innerHeight) / 2),
-    });
-  }, []);
-
-  React.useEffect(() => {
-    if (!zoomOpen) return;
-    recomputePanLimit();
-    window.addEventListener('resize', recomputePanLimit);
-    return () => window.removeEventListener('resize', recomputePanLimit);
-  }, [zoomOpen, recomputePanLimit]);
-
-  const onZoomPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    dragRef.current = { startX: e.clientX, startY: e.clientY, panX: pan.x, panY: pan.y, moved: false };
-  };
-  const onZoomPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragRef.current) return;
-    const dx = e.clientX - dragRef.current.startX;
-    const dy = e.clientY - dragRef.current.startY;
-    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) dragRef.current.moved = true;
-    const nextX = Math.max(-panLimit.x, Math.min(panLimit.x, dragRef.current.panX + dx));
-    const nextY = Math.max(-panLimit.y, Math.min(panLimit.y, dragRef.current.panY + dy));
-    setPan({ x: nextX, y: nextY });
-  };
-  const onZoomPointerUp = () => {
-    const wasDrag = dragRef.current?.moved;
-    dragRef.current = null;
-    if (!wasDrag) closeZoom();
-  };
 
   React.useEffect(() => {
     async function fetchListing() {
@@ -244,29 +187,8 @@ export function ProductPage() {
 
   const currentConditionIdx = CONDITION_TIERS.findIndex(t => t.name === listing.condition);
 
-  const nextImage = () => setCurrentImageIdx((prev) => (prev + 1) % images.length);
-  const prevImage = () => setCurrentImageIdx((prev) => (prev - 1 + images.length) % images.length);
 
-  // Swipe left/right on the mobile carousel to switch photos. A swipe past
-  // the threshold suppresses the click-to-zoom that follows touchend.
-  const SWIPE_THRESHOLD = 40;
 
-  const onCarouselTouchStart = (e: React.TouchEvent) => {
-    swipeRef.current = { startX: e.touches[0].clientX };
-  };
-  const onCarouselTouchEnd = (e: React.TouchEvent) => {
-    if (!swipeRef.current || images.length <= 1) { swipeRef.current = null; return; }
-    const dx = e.changedTouches[0].clientX - swipeRef.current.startX;
-    if (Math.abs(dx) > SWIPE_THRESHOLD) {
-      justSwipedRef.current = true;
-      if (dx < 0) nextImage(); else prevImage();
-    }
-    swipeRef.current = null;
-  };
-  const handleCarouselClick = () => {
-    if (justSwipedRef.current) { justSwipedRef.current = false; return; }
-    openZoom();
-  };
 
   const purchasable = listing.status === 'approved' && !listing.is_sold;
 
@@ -285,129 +207,12 @@ export function ProductPage() {
       </Link>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16">
-        {/* Image Gallery */}
-        <div className="lg:col-span-5 flex flex-col gap-6">
-          <div className="flex items-center justify-between">
-            <div className="flex gap-4">
-              <button 
-                onClick={() => setViewMode('carousel')}
-                className={cn(
-                  "p-2 transition-colors",
-                  viewMode === 'carousel' ? "text-black" : "text-black/40"
-                )}
-              >
-                <Layout className="h-4 w-4" />
-              </button>
-              <button 
-                onClick={() => setViewMode('grid')}
-                className={cn(
-                  "p-2 transition-colors",
-                  viewMode === 'grid' ? "text-black" : "text-black/40"
-                )}
-              >
-                <Grid className="h-4 w-4" />
-              </button>
-            </div>
-            {viewMode === 'carousel' && images.length > 1 && (
-              <span className="text-[10px] font-black uppercase tracking-widest text-black">
-                {currentImageIdx + 1} / {images.length}
-              </span>
-            )}
-          </div>
-
-          {viewMode === 'carousel' ? (
-            <div
-              className="relative aspect-[3/4] overflow-hidden bg-zinc-50 group cursor-zoom-in touch-pan-y"
-              onContextMenu={(e) => e.preventDefault()}
-              onClick={handleCarouselClick}
-              onTouchStart={onCarouselTouchStart}
-              onTouchEnd={onCarouselTouchEnd}
-            >
-              <div className="h-full w-full overflow-hidden">
-                <motion.img
-                  key={currentImageIdx}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3 }}
-                  src={variantUrl(images[currentImageIdx], 'full')}
-                  srcSet={variantSrcSet(images[currentImageIdx], ['grid', 'full'])}
-                  sizes="(min-width: 1024px) 50vw, 100vw"
-                  alt={listing.title}
-                  className="h-full w-full object-cover"
-                  referrerPolicy="no-referrer"
-                  draggable={false}
-                  onDragStart={(e) => e.preventDefault()}
-                  style={imageProtectStyle}
-                />
-              </div>
-
-              {images.length > 1 && (
-                <>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); prevImage(); }}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 p-3 text-black opacity-0 group-hover:opacity-100 transition-all hover:bg-white"
-                  >
-                    <ChevronLeft className="h-5 w-5" />
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); nextImage(); }}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 p-3 text-black opacity-0 group-hover:opacity-100 transition-all hover:bg-white"
-                  >
-                    <ChevronRight className="h-5 w-5" />
-                  </button>
-                </>
-              )}
-              <div className="absolute bottom-4 right-4 bg-white/80 p-2 text-black pointer-events-none">
-                <ZoomIn className="h-3.5 w-3.5" />
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-6" onContextMenu={(e) => e.preventDefault()}>
-              {images.map((img, idx) => (
-                <div key={idx} className="aspect-[3/4] overflow-hidden bg-zinc-50">
-                  <img
-                    src={variantUrl(img, 'full')}
-                    srcSet={variantSrcSet(img, ['grid', 'full'])}
-                    sizes="(min-width: 1024px) 50vw, 100vw"
-                    alt={`${listing.title} - ${idx + 1}`}
-                    className="h-full w-full object-cover"
-                    referrerPolicy="no-referrer"
-                    loading={idx === 0 ? 'eager' : 'lazy'}
-                    decoding="async"
-                    draggable={false}
-                    onDragStart={(e) => e.preventDefault()}
-                    style={imageProtectStyle}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-
-          {viewMode === 'carousel' && images.length > 1 && (
-            <div className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide" onContextMenu={(e) => e.preventDefault()}>
-              {images.map((img, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setCurrentImageIdx(idx)}
-                  className={cn(
-                    "relative aspect-[3/4] w-24 flex-shrink-0 overflow-hidden border-2 transition-all",
-                    currentImageIdx === idx ? "border-black" : "border-transparent opacity-50"
-                  )}
-                >
-                  <img
-                    src={variantUrl(img, 'thumb')}
-                    className="h-full w-full object-cover"
-                    loading="lazy"
-                    decoding="async"
-                    alt={`Thumb ${idx}`}
-                    draggable={false}
-                    onDragStart={(e) => e.preventDefault()}
-                    style={imageProtectStyle}
-                  />
-                </button>
-              ))}
-            </div>
-          )}
+        {/* One component owns the carousel, the thumbnails and zoom. They
+            used to be three behaviours that had grown separately: hover-only
+            arrows, a swipe that only moved on release, and a zoom that closed
+            on the same tap that opened it. */}
+        <div className="lg:col-span-5">
+          <ProductGallery images={images} alt={listing.title} />
         </div>
 
         {/* Product Info */}
@@ -743,41 +548,7 @@ export function ProductPage() {
         </div>
       )}
 
-      {zoomOpen && (
-        <div
-          className="fixed inset-0 z-[100] bg-black flex items-center justify-center touch-none select-none"
-          onPointerDown={onZoomPointerDown}
-          onPointerMove={onZoomPointerMove}
-          onPointerUp={onZoomPointerUp}
-          onPointerCancel={onZoomPointerUp}
-          onContextMenu={(e) => e.preventDefault()}
-        >
-          <button
-            type="button"
-            onClick={closeZoom}
-            className="absolute top-6 right-6 z-10 bg-white/10 p-3 text-white hover:bg-white/20 transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
-          <span className="absolute top-7 left-6 z-10 text-[10px] font-black uppercase tracking-[0.2em] text-white">
-            Drag to look around
-          </span>
-          <img
-            ref={zoomImgRef}
-            src={variantUrl(images[currentImageIdx], 'full')}
-            alt={listing.title}
-            draggable={false}
-            onDragStart={(e) => e.preventDefault()}
-            onLoad={recomputePanLimit}
-            className="max-w-none w-full h-full object-contain cursor-grab"
-            style={{
-              transform: `scale(${ZOOM_SCALE}) translate(${pan.x / ZOOM_SCALE}px, ${pan.y / ZOOM_SCALE}px)`,
-              ...imageProtectStyle,
-            }}
-            referrerPolicy="no-referrer"
-          />
-        </div>
-      )}
+      
 
       <AuthModal
         open={!!authModal}

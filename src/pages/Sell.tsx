@@ -591,23 +591,23 @@ function SellInner() {
             first thing read and the fields start well below it, so the work
             reads as the consequence of the offer rather than the price of
             finding out what it is. */}
-        <div className="mb-10 sm:mb-12 flex flex-col gap-5 max-w-[34ch]">
-          {/* Both lines are the proposition, so both are set as the
-              proposition. The second used to sit at black/40 - the colour this
-              site uses for disabled text - which made the half that states the
-              value the faintest thing on the page. The measure is on the block
-              rather than the paragraph, so the heading and the body share a rag
-              instead of running to two different widths. */}
-          <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase leading-[0.95]">
-            Tell us what you want for it.
-            <span className="block text-black/55">We'll tell you what we'll pay.</span>
+        {step === 0 ? (
+          <div className="mb-10 sm:mb-12 flex flex-col gap-5 max-w-2xl">
+            <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase leading-[0.95]">
+              Tell us what you want for it.
+              <span className="block text-black/55">We'll tell you what we'll pay.</span>
+            </h1>
+            <p className="body-longform max-w-[52ch]">
+              You name your price. We come back with what we'll pay, and you decide before
+              anything goes live. Accept, and that number is locked — we collect the item,
+              check it, and pay you.
+            </p>
+          </div>
+        ) : (
+          <h1 className="mb-8 text-2xl sm:text-3xl font-black tracking-tighter uppercase leading-none">
+            {STEP_LABELS[step]}
           </h1>
-          <p className="body-longform max-w-[52ch]">
-            You name your price. We come back with what we'll pay, and you decide before
-            anything goes live. Accept, and that number is locked — we collect the item,
-            check it, and pay you.
-          </p>
-        </div>
+        )}
 
         {/* Progress. Every step is reachable directly and only Publish is gated,
             so the names carry a tick once their step validates: seeing what is
@@ -730,19 +730,20 @@ function SellInner() {
           )}
         </div>
 
-        {step === STEP_LABELS.length - 1 && (
-          <p className="mt-6 text-center text-xs font-normal leading-relaxed text-black/50 mx-auto max-w-[46ch]">
-            Nothing is listed yet. We'll look at it and come back within 24 hours
-            with either an offer or what needs changing first.
+        <div className="mt-8 flex flex-col items-center gap-3 text-center">
+          {step === STEP_LABELS.length - 1 && (
+            <p className="text-xs font-normal leading-relaxed text-black/50 max-w-[46ch]">
+              Nothing is listed yet. We'll look at it and come back within 24 hours
+              with either an offer or what needs changing first.
+            </p>
+          )}
+          <p className="hidden sm:block text-[10px] font-bold uppercase tracking-widest text-black/25">
+            Something not working?{' '}
+            <Link to="/contact" className="underline hover:text-black">Tell us</Link>
+            {' · '}
+            <a href="https://wa.me/918505927538" target="_blank" rel="noreferrer" className="underline hover:text-black">WhatsApp</a>
           </p>
-        )}
-        <p className="hidden sm:block mt-6 text-center text-[10px] font-bold uppercase tracking-widest text-black/25">
-          Something not working?{' '}
-          <Link to="/contact" className="underline hover:text-black">Tell us</Link>
-          {' · '}
-          <a href="https://wa.me/918505927538" target="_blank" rel="noreferrer" className="underline hover:text-black">WhatsApp</a>
-        </p>
-        <div className="hidden sm:block mt-10 pt-10 border-t border-black/5" />
+        </div>
       </div>
 
       {/* Mobile step nav. Sits at the end of the step rather than riding the
