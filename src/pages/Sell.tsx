@@ -117,7 +117,7 @@ const MAX_IMAGES = 8;
 // judgements a vendor makes about the same object) and Review was five
 // checkboxes restating what the form already said. The binding consent is the
 // agreement at offer acceptance, where money is actually promised.
-const STEP_LABELS = ['Photos', 'Details', 'Price'];
+const STEP_LABELS = ['Photos', 'Details', 'Condition & price'];
 
 interface Declarations {
   oneItem: boolean;
@@ -591,25 +591,21 @@ function SellInner() {
             first thing read and the fields start well below it, so the work
             reads as the consequence of the offer rather than the price of
             finding out what it is. */}
-        <div className="mb-16 sm:mb-20 flex flex-col gap-6">
-          <div className="flex flex-col gap-2">
-            <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase leading-[0.95]">
-              Tell us what you want for it.
-            </h1>
-            <p className="text-2xl sm:text-3xl font-black tracking-tighter uppercase leading-[0.95] text-black/40">
-              We'll tell you what we'll pay.
-            </p>
-          </div>
-          <p className="body-copy max-w-xl text-black/70">
-            zarketplace buys your item outright. You name your asking price, we come back
-            with what we will pay for it, and you decide before anything goes live. Once you
-            accept, that number is locked. We arrange the pickup, check the item when it
-            reaches us, and pay you.
-          </p>
-          <p className="text-xs font-black uppercase tracking-[0.3em] text-black/40">
-            Takes under two minutes.{' '}
-            <a href="https://wa.me/918505927538" target="_blank" rel="noreferrer"
-              className="underline text-black/60 hover:text-black">Stuck? WhatsApp us</a>
+        <div className="mb-10 sm:mb-12 flex flex-col gap-5 max-w-[34ch]">
+          {/* Both lines are the proposition, so both are set as the
+              proposition. The second used to sit at black/40 - the colour this
+              site uses for disabled text - which made the half that states the
+              value the faintest thing on the page. The measure is on the block
+              rather than the paragraph, so the heading and the body share a rag
+              instead of running to two different widths. */}
+          <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase leading-[0.95]">
+            Tell us what you want for it.
+            <span className="block text-black/55">We'll tell you what we'll pay.</span>
+          </h1>
+          <p className="body-longform max-w-[52ch]">
+            You name your price. We come back with what we'll pay, and you decide before
+            anything goes live. Accept, and that number is locked — we collect the item,
+            check it, and pay you.
           </p>
         </div>
 
@@ -628,7 +624,10 @@ function SellInner() {
             <span className="text-black sm:hidden">{STEP_LABELS[step]}</span>
           </div>
 
-          <div className="grid grid-cols-5 gap-1.5">
+          {/* Columns follow the steps. This was hardcoded to five and kept
+              that way when the flow became three, so the bars filled
+              three-fifths of the width and stopped. */}
+          <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${STEP_LABELS.length}, minmax(0, 1fr))` }}>
             {STEP_LABELS.map((label, i) => {
               const complete = stepComplete(i);
               return (
@@ -726,14 +725,22 @@ function SellInner() {
             <button type="button" onClick={handlePublish} disabled={!canPublish}
               className="inline-flex items-center gap-3 bg-black px-12 py-5 text-xs font-black uppercase tracking-[0.3em] text-white hover:bg-zinc-800 disabled:opacity-40">
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              Publish Listing
+              Send it to us
             </button>
           )}
         </div>
 
-        <p className="hidden sm:block mt-6 text-center text-[10px] font-bold uppercase tracking-widest text-black/30">
-          Something here not working?{' '}
-          <Link to="/contact" className="underline text-black/50 hover:text-black">Send feedback</Link>
+        {step === STEP_LABELS.length - 1 && (
+          <p className="mt-6 text-center text-xs font-normal leading-relaxed text-black/50 mx-auto max-w-[46ch]">
+            Nothing is listed yet. We'll look at it and come back within 24 hours
+            with either an offer or what needs changing first.
+          </p>
+        )}
+        <p className="hidden sm:block mt-6 text-center text-[10px] font-bold uppercase tracking-widest text-black/25">
+          Something not working?{' '}
+          <Link to="/contact" className="underline hover:text-black">Tell us</Link>
+          {' · '}
+          <a href="https://wa.me/918505927538" target="_blank" rel="noreferrer" className="underline hover:text-black">WhatsApp</a>
         </p>
         <div className="hidden sm:block mt-10 pt-10 border-t border-black/5" />
       </div>
@@ -757,7 +764,7 @@ function SellInner() {
           <button type="button" onClick={handlePublish} disabled={!canPublish}
             className="flex-1 bg-black py-4 text-xs font-black uppercase tracking-[0.3em] text-white disabled:opacity-40 flex items-center justify-center gap-2">
             {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            Publish Listing
+            Send it to us
           </button>
         )}
       </div>
@@ -805,16 +812,6 @@ function PhotosStep({ imagePreviews, onAdd, onRemove, originals, cleaning, onUse
 
   return (
     <div className="flex flex-col gap-8">
-      {/* The one-item rule stays on screen and stays first: it is the only rule
-          that blocks publishing (banned-phrase check on step 2), so it cannot
-          hide in a tip the seller reads after being stopped. */}
-      <div className="flex items-start gap-3 border-l-2 border-black pl-4">
-        <AlertTriangle className="h-4 w-4 text-black mt-0.5 shrink-0" />
-        <p className="text-xs font-bold uppercase tracking-widest text-black/60 leading-relaxed">
-          One listing, one item. Five of the same thing means five listings.
-        </p>
-      </div>
-
       {/* Guidance before the camera, not after. These are suggestions and
           nothing here is ever enforced: a photo is never rejected and a listing
           is never blocked on how it was shot. Better photos sell faster, which
@@ -906,6 +903,9 @@ function PhotosStep({ imagePreviews, onAdd, onRemove, originals, cleaning, onUse
   );
 }
 
+// The one-item rule lives here, on the step that enforces it. The
+// banned-phrase check runs against these fields, so the rule and the thing
+// that rejects it are finally on the same screen.
 function DetailsStep(props: {
   title: string; setTitle: (v: string) => void;
   brand: string; setBrand: (v: string) => void;
@@ -929,6 +929,13 @@ function DetailsStep(props: {
 
   return (
     <div className="flex flex-col gap-10">
+      <div className="flex items-start gap-3 border-l-2 border-black pl-4">
+        <AlertTriangle className="h-4 w-4 text-black mt-0.5 shrink-0" />
+        <p className="text-xs font-bold uppercase tracking-widest text-black/60 leading-relaxed">
+          One listing, one item. Five of the same thing means five listings.
+        </p>
+      </div>
+
       <div className="flex flex-col gap-6">
         <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Item Details</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-8">
