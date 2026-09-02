@@ -940,9 +940,9 @@ function OrderDrawer({ order, payouts, emails, audit, onClose, onDone }: {
   );
 }
 
-function ActBtn({ label, onClick, busy, danger }: { label: string; onClick: () => void; busy: boolean; danger?: boolean }) {
+function ActBtn({ label, onClick, busy, danger, disabled }: { label: string; onClick: () => void; busy: boolean; danger?: boolean; disabled?: boolean }) {
   return (
-    <button onClick={onClick} disabled={busy}
+    <button onClick={onClick} disabled={busy || disabled}
       className={cn('border px-3 py-2 text-[10px] font-black uppercase tracking-widest transition-colors disabled:opacity-50',
         danger ? 'border-red-600 text-red-600 hover:bg-red-600 hover:text-white' : 'border-black hover:bg-black hover:text-white')}>
       {busy ? '…' : label}
@@ -972,8 +972,6 @@ function ListingDrawer({ listing, orders, payouts, audit, onClose, onDone, onOpe
       const { error } = await supabase.from('listings').update({ status }).eq('id', listing.id);
       if (error) throw error;
       await writeAudit({ entity: 'listing', entity_id: listing.id, action: `listing.${status}`, old_state: { status: listing.status }, new_state: { status }, reason: listing.title });
-      if (status === 'approved' && listing.status !== 'approved' && listing.seller_email) {
-      }
       await onDone(); onClose();
     } catch (err: any) { alert(err?.message ?? 'Failed.'); } finally { setBusy(false); }
   };
@@ -1137,19 +1135,29 @@ function AcquisitionPanel({ listingId, listingTitle, vendorEmail, askingPriceFal
     return () => { alive = false; clearTimeout(t); };
   }, [resale]);
 
+  // make_acquisition_offer raises on both of these. The operator should be
+  // told by the form, not by a Postgres exception after they hit send.
+  const resaleNum = Number(resale);
+  const offerNum = Number(offer);
+  const problem =
+    !(resaleNum > 0) ? 'Set the listed price first. It is what the item goes live at.'
+    : !(offerNum > 0) ? 'Type the amount we will pay the vendor.'
+    : offerNum >= resaleNum ? 'The offer has to be below the listed price.'
+    : null;
+
   const toggleReason = (r: string) =>
     setReasons((prev) => prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]);
 
   const sendOffer = async () => {
-    const amount = Number(offer);
-    if (!(amount > 0)) { setErr('Type the amount we will pay the vendor.'); return; }
+    if (problem) { setErr(problem); return; }
+    const amount = offerNum;
     if (!confirm(`Offer the vendor ${formatCurrency(amount)}? Once they accept, this amount is locked and cannot be changed.`)) return;
     setBusy(true); setErr(null);
     try {
       const { error } = await supabase.rpc('make_acquisition_offer', {
         p_listing_id: listingId,
         p_offer: amount,
-        p_expected_resale: Number(resale) > 0 ? Number(resale) : null,
+        p_expected_resale: resaleNum,
       });
       if (error) throw error;
       // The vendor email is enqueued by make_acquisition_offer itself, into
@@ -1219,15 +1227,18 @@ function AcquisitionPanel({ listingId, listingTitle, vendorEmail, askingPriceFal
       {openForReview ? (
         <div className="flex flex-col gap-5 pt-3">
           <div className="flex flex-col gap-1.5">
-            <label className="text-[9px] font-black uppercase tracking-widest text-black/40">
-              Expected resale (optional, for the model)
+            <label className="text-[9px] font-black uppercase tracking-widest text-black">
+              Listed price (INR) - what the buyer pays
             </label>
             <input
               type="number" inputMode="numeric" value={resale}
               onChange={(e) => setResale(e.target.value)}
               placeholder={String(askingPriceFallback ?? '')}
-              className="border border-black/15 px-3 py-2 text-sm font-bold focus:border-black focus:outline-none"
+              className="border border-black px-3 py-2 text-sm font-bold focus:outline-none"
             />
+            <p className="text-[9px] text-black/40 leading-relaxed">
+              This goes live as the price on the product page. Required.
+            </p>
             {suggestion != null && (
               <button
                 type="button" onClick={() => setOffer(String(suggestion))}
@@ -1251,7 +1262,10 @@ function AcquisitionPanel({ listingId, listingTitle, vendorEmail, askingPriceFal
               The only number the vendor sees. They never see the resale figure or the spread.
             </p>
           </div>
-          <ActBtn label="Send this offer" onClick={sendOffer} busy={busy} />
+          {problem && (
+            <p className="text-[9px] font-bold uppercase tracking-widest text-black/40">{problem}</p>
+          )}
+          <ActBtn label="Send this offer" onClick={sendOffer} busy={busy} disabled={!!problem} />
 
           <div className="flex flex-col gap-2 border-t border-black/5 pt-4">
             <span className="text-[9px] font-black uppercase tracking-widest text-black/40">
