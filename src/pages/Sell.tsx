@@ -57,14 +57,6 @@ const WEAR_OPTIONS: Array<{ key: string; label: string }> = [
   { key: 'frequently', label: 'Frequently' },
 ];
 
-// Shown above the photo grid, before anything is uploaded. Advice only: none
-// of this is checked, and no listing is ever refused over a photo.
-const PHOTO_TIPS: Array<{ title: string; body: string }> = [
-  { title: 'Lay it flat', body: 'On a bed, a floor, a table. Flat and uncreased beats held up every time.' },
-  { title: 'Natural light', body: 'Near a window in the daytime. No flash, no overhead bulb, no filter.' },
-  { title: 'No mirror shots', body: 'A mirror puts you, your room and your phone in frame. The item should be the only thing in it.' },
-];
-
 // Recommended photo order - purely a labeling/placeholder aid over the same
 // image array (index 0 is still the cover). Not a hard per-slot requirement.
 // These are the instruction: they say what to shoot, so no paragraph above the
@@ -331,19 +323,19 @@ function SellInner() {
   // to the first incomplete step and show what's needed there.
   const validateStep = (s: number): string | null => {
     if (s === 0) {
-      if (imageFiles.length === 0) return 'Upload at least one photo.';
+      if (imageFiles.length === 0) return 'Add at least one photo.';
     }
     if (s === 1) {
-      if (!title.trim()) return 'Enter an item name.';
-      if (!brand.trim()) return 'Enter a brand.';
-      if (!gender) return 'Select a gender.';
-      if (!selectedCategory) return 'Select a category.';
-      if (!sizeType) return 'Select a size.';
+      if (!title.trim()) return 'Tell us what the item is.';
+      if (!brand.trim()) return 'Add the brand.';
+      if (!gender) return 'Choose who the item is for.';
+      if (!selectedCategory) return 'Choose a category.';
+      if (!sizeType) return 'Choose a size.';
       const banned = findBannedPhrase(`${title} ${brand} ${description}`);
       if (banned) return `Remove "${banned}" - each listing is one item, not a batch or store catalogue.`;
     }
     if (s === 2) {
-      if (!condition) return 'Select a condition.';
+      if (!condition) return 'Choose a condition.';
       if (hasFlaws === null) return 'Say whether this item has any flaws.';
       if (hasFlaws && !flawsDescription.trim()) return 'Describe the flaw, or answer No.';
       if (hasFlaws && imageFiles.length < 2) return 'Add a close-up of the flaw to your photos.';
@@ -773,8 +765,27 @@ function SellInner() {
   );
 }
 
-function FieldLabel({ children }: { children: React.ReactNode }) {
-  return <label className="text-xs font-black uppercase tracking-widest">{children}</label>;
+function FieldLabel({ children, optional }: { children: React.ReactNode; optional?: boolean }) {
+  return (
+    <label className="flex items-baseline gap-2 text-sm font-semibold tracking-tight text-black">
+      {children}
+      {optional && (
+        <span className="text-[11px] font-medium tracking-normal text-black/35">Optional</span>
+      )}
+    </label>
+  );
+}
+
+// One step above a field label and clearly not one of them. Every section used
+// to be set in the same register as the fields under it, so nothing told you
+// where one group ended and the next began.
+function SectionHeading({ children, note }: { children: React.ReactNode; note?: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tighter leading-none">{children}</h3>
+      {note && <p className="text-sm font-normal leading-relaxed text-black/50 max-w-[52ch]">{note}</p>}
+    </div>
+  );
 }
 
 function YesNoToggle({ value, onChange }: { value: boolean | null; onChange: (v: boolean) => void }) {
@@ -797,7 +808,7 @@ function YesNoToggle({ value, onChange }: { value: boolean | null; onChange: (v:
 // Short one-line trust cue - uppercase micro-label, matches the site's
 // system-voice register.
 function TrustNote({ children }: { children: React.ReactNode }) {
-  return <p className="text-xs font-bold uppercase tracking-widest text-black/50 leading-relaxed">{children}</p>;
+  return <p className="text-[13px] font-normal leading-relaxed text-black/45">{children}</p>;
 }
 
 function PhotosStep({ imagePreviews, onAdd, onRemove, originals, cleaning, onUseOriginal }: {
@@ -812,46 +823,15 @@ function PhotosStep({ imagePreviews, onAdd, onRemove, originals, cleaning, onUse
   const slots = Array.from({ length: Math.min(slotCount, MAX_IMAGES) }, (_, i) => i);
 
   return (
-    <div className="flex flex-col gap-8">
-      {/* Guidance before the camera, not after. These are suggestions and
-          nothing here is ever enforced: a photo is never rejected and a listing
-          is never blocked on how it was shot. Better photos sell faster, which
-          is the only argument this panel makes. */}
-      <div className="flex flex-col gap-6 bg-zinc-50 border border-black/5 p-6 sm:p-8">
-        <div className="flex flex-col gap-1.5">
-          <span className="text-[9px] font-black uppercase tracking-[0.4em] text-black/40">
-            Before you shoot
-          </span>
-          <h3 className="text-lg sm:text-xl font-black uppercase tracking-tighter leading-none">
-            Three things that sell an item
-          </h3>
-        </div>
-        <ul className="flex flex-col gap-4">
-          {PHOTO_TIPS.map((tip, i) => (
-            <li key={tip.title} className="flex gap-4">
-              <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.3em] text-black/25 pt-0.5">
-                0{i + 1}
-              </span>
-              <span className="flex flex-col gap-1 min-w-0">
-                <span className="text-xs font-black uppercase tracking-widest text-black">{tip.title}</span>
-                <span className="text-xs font-medium leading-relaxed text-black/50">{tip.body}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
-        <p className="text-[10px] font-bold uppercase tracking-widest leading-[1.9] text-black/30 border-t border-black/5 pt-5">
-          Suggestions, not requirements. We never reject an item over its photos.
-        </p>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Item Photos</h3>
-        <TrustNote>
-          Messy background? Strip it free with{' '}
-          <a href="https://www.photoroom.com/tools/background-remover" target="_blank" rel="noreferrer"
-            className="underline text-black hover:text-black/60">PhotoRoom</a>.
-        </TrustNote>
-      </div>
+    <div className="flex flex-col gap-12">
+      {/* One heading and one line. This was a kicker, a headline, three
+          numbered tips, a footnote and a plug for a third-party background
+          remover - six pieces of chrome to say "lay it flat in daylight". The
+          rule that matters, that we never turn an item down over its photos,
+          stays; the scaffolding does not, and we strip backgrounds ourselves. */}
+      <SectionHeading note="Lay it flat, shoot in daylight, skip the mirror. Two or three photos is plenty and the first is the cover. Better photos sell faster, but we never turn an item down over them.">
+        Photos
+      </SectionHeading>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         {slots.map((i) => {
@@ -929,7 +909,7 @@ function DetailsStep(props: {
   } = props;
 
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-12">
       <div className="flex items-start gap-3 border-l-2 border-black pl-4">
         <AlertTriangle className="h-4 w-4 text-black mt-0.5 shrink-0" />
         <p className="text-xs font-bold uppercase tracking-widest text-black/60 leading-relaxed">
@@ -938,20 +918,20 @@ function DetailsStep(props: {
       </div>
 
       <div className="flex flex-col gap-6">
-        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Item Details</h3>
+        <SectionHeading note="What a buyer needs to know before they commit.">The item</SectionHeading>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-8">
           <div className="flex flex-col gap-3">
-            <FieldLabel>Item Name *</FieldLabel>
+            <FieldLabel>What is it?</FieldLabel>
             <input value={title} onChange={(e) => setTitle(e.target.value)} type="text" placeholder="e.g. Vintage 90s Biker Jacket"
               className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20" />
           </div>
           <div className="flex flex-col gap-3">
-            <FieldLabel>Brand *</FieldLabel>
+            <FieldLabel>Brand</FieldLabel>
             <input value={brand} onChange={(e) => setBrand(e.target.value)} type="text" placeholder="e.g. Levi's"
               className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20" />
           </div>
           <div className="flex flex-col gap-3">
-            <FieldLabel>Gender *</FieldLabel>
+            <FieldLabel>Who is it for?</FieldLabel>
             <select value={gender} onChange={(e) => setGender(e.target.value)}
               className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none bg-white appearance-none">
               <option value="">Select Gender</option>
@@ -961,7 +941,7 @@ function DetailsStep(props: {
             </select>
           </div>
           <div className="flex flex-col gap-3">
-            <FieldLabel>Category *</FieldLabel>
+            <FieldLabel>Category</FieldLabel>
             <select value={selectedCategory} onChange={(e) => { setSelectedCategory(e.target.value); setSizeType(''); }}
               className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none bg-white appearance-none">
               <option value="">Select Category</option>
@@ -973,7 +953,7 @@ function DetailsStep(props: {
             </select>
           </div>
           <div className="flex flex-col gap-3">
-            <FieldLabel>Size *</FieldLabel>
+            <FieldLabel>Size</FieldLabel>
             <select value={sizeType} onChange={(e) => setSizeType(e.target.value)} disabled={!selectedCategory}
               className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none bg-white appearance-none disabled:opacity-50">
               <option value="">{selectedCategory ? 'Select Size' : 'Select Category First'}</option>
@@ -981,14 +961,14 @@ function DetailsStep(props: {
             </select>
           </div>
           <div className="flex flex-col gap-3">
-            <FieldLabel>Size Detail (Optional)</FieldLabel>
+            <FieldLabel optional>Size detail</FieldLabel>
             <input value={sizeDetail} onChange={(e) => setSizeDetail(e.target.value)} type="text" placeholder="e.g. 34x30 or Oversized fit"
               className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20" />
           </div>
         </div>
 
         <div className="flex flex-col gap-3">
-          <FieldLabel>Description</FieldLabel>
+          <FieldLabel optional>Anything a photo cannot show</FieldLabel>
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4}
             placeholder="Fit, material, how it runs, anything a photo can't show."
             className="border border-black/10 p-6 text-sm font-medium focus:border-black focus:outline-none resize-none transition-all placeholder:text-black/20" />
@@ -997,25 +977,25 @@ function DetailsStep(props: {
       </div>
 
       <div className="flex flex-col gap-6">
-        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">More details (optional)</h3>
+        <SectionHeading note="Skip anything that does not apply. These help an item sell, none of them are required.">Worth mentioning</SectionHeading>
         {/* Yes/No rather than switches: an unset switch would publish "no
             packaging" as a claim the seller never made. Three states matter
             here (yes, no, unanswered) and a switch only has two. */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
           <div className="flex flex-col gap-3">
-            <FieldLabel>Tags attached</FieldLabel>
+            <FieldLabel optional>Tags still attached</FieldLabel>
             <YesNoToggle value={originalTags} onChange={setOriginalTags} />
           </div>
           <div className="flex flex-col gap-3">
-            <FieldLabel>Original packaging</FieldLabel>
+            <FieldLabel optional>Original packaging</FieldLabel>
             <YesNoToggle value={originalPackaging} onChange={setOriginalPackaging} />
           </div>
           <div className="flex flex-col gap-3">
-            <FieldLabel>Altered or tailored</FieldLabel>
+            <FieldLabel optional>Altered or tailored</FieldLabel>
             <YesNoToggle value={itemAltered} onChange={setItemAltered} />
           </div>
           <div className="flex flex-col gap-3">
-            <FieldLabel>Times worn</FieldLabel>
+            <FieldLabel optional>Times worn</FieldLabel>
             <div className="grid grid-cols-2 gap-2">
               {WEAR_OPTIONS.map((w) => (
                 <button key={w.key} type="button" onClick={() => setWearFrequency(w.key)}
@@ -1038,9 +1018,9 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
   flawsDescription: string; setFlawsDescription: (v: string) => void;
 }) {
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-12">
       <div className="flex flex-col gap-6">
-        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Condition *</h3>
+        <SectionHeading note="Be honest here. We check the item against this when it reaches us.">Condition</SectionHeading>
         {/* Numerals rather than stars: the same labels render on product pages,
             where one star out of five reads as a bad listing instead of a worn
             one. The definitions are short enough to sit on the card, so nothing
@@ -1061,7 +1041,7 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
       </div>
 
       <div className="flex flex-col gap-6">
-        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Any flaws? *</h3>
+        <SectionHeading>Any flaws?</SectionHeading>
         {/* Yes before No: the question is "any flaws?", and a Yes/No question
             reads Yes-then-No everywhere else. Leading with No also nudged
             sellers toward the answer that hides flaws, which is the one
@@ -1083,7 +1063,7 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
           {hasFlaws && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
               <div className="flex flex-col gap-3">
-                <FieldLabel>Describe the flaw *</FieldLabel>
+                <FieldLabel>Describe the flaw</FieldLabel>
                 <textarea value={flawsDescription} onChange={(e) => setFlawsDescription(e.target.value)} rows={3}
                   placeholder="e.g. small stain on the left cuff, loose stitching on the hem"
                   className="border border-black/10 p-6 text-sm font-medium focus:border-black focus:outline-none resize-none transition-all placeholder:text-black/20" />
@@ -1118,7 +1098,7 @@ function PriceStep({
   setDeclarations: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
 }) {
   return (
-    <div className="flex flex-col gap-14">
+    <div className="flex flex-col gap-12">
       <ConditionStep
         condition={condition} setCondition={setCondition}
         hasFlaws={hasFlaws} setHasFlaws={setHasFlaws}
@@ -1126,9 +1106,7 @@ function PriceStep({
       />
 
       <div className="flex flex-col gap-4">
-        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">
-          What do you want for it?
-        </h3>
+        <SectionHeading note="Your ask, not the price we list it at. We come back with what we will pay.">What do you want for it?</SectionHeading>
         <div className="flex items-baseline gap-3">
           <span className="text-2xl font-black tracking-tighter">Rs.</span>
           <input
@@ -1145,9 +1123,7 @@ function PriceStep({
           listing a listing; the second carries accuracy, flaws and
           authenticity in one sentence a person will actually read. */}
       <div className="flex flex-col gap-1">
-        <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3 mb-3">
-          Before you send it to us
-        </h3>
+        <SectionHeading>Two things to confirm</SectionHeading>
         {PUBLISH_CONFIRMATIONS.map((item) => {
           const on = !!declarations[item.key];
           return (
