@@ -103,7 +103,6 @@ export function Faq() {
         <div className="flex-1 min-w-0 max-w-3xl">
           <div className="flex flex-col gap-4 mb-12">
             <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Frequently Asked Questions</h1>
-            <p className="text-sm font-black uppercase tracking-widest text-black">Answers to common questions about buying, selling to us, and your account</p>
           </div>
 
           <div className="flex flex-col gap-12">

@@ -19,7 +19,6 @@ export function ShippingPolicy() {
       >
         <div className="flex flex-col gap-4">
           <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Shipping Policy</h1>
-          <p className="text-sm font-black uppercase tracking-widest text-black">How your order reaches you</p>
         </div>
 
         <div className="flex flex-col gap-14 text-black body-longform">

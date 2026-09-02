@@ -221,7 +221,6 @@ function OfferScreen({
   return (
     <div className="flex flex-col gap-14">
       <div className="flex flex-col gap-3">
-        <span className="text-[9px] font-black uppercase tracking-[0.4em] text-black/40">Your offer</span>
         <h1 className="text-3xl sm:text-4xl font-black tracking-tighter uppercase leading-[0.95]">
           zarketplace will pay you
         </h1>
@@ -294,7 +293,6 @@ function AgreementScreen({
   return (
     <div className="flex flex-col gap-14">
       <div className="flex flex-col gap-3">
-        <span className="text-[9px] font-black uppercase tracking-[0.4em] text-black/40">Before we list it</span>
         <h1 className="text-3xl sm:text-4xl font-black tracking-tighter uppercase leading-[0.95]">
           Three things to agree to
         </h1>
@@ -341,7 +339,7 @@ function AgreementScreen({
           them, so nothing can be agreed with nowhere to collect from. */}
       <div className="flex flex-col gap-6 border-t border-black/10 pt-10">
         <div className="flex flex-col gap-1.5">
-          <span className="text-[9px] font-black uppercase tracking-[0.4em] text-black/40">
+          <span className="text-sm font-semibold tracking-tight text-black">
             Where should the courier collect it?
           </span>
           <p className="text-xs font-medium leading-relaxed text-black/50">
@@ -373,9 +371,6 @@ function AgreementScreen({
       {/* The ship-by deadline is a commitment made here, so it is disclosed
           here. It previously appeared only in an email after an item sold. */}
       <div className="border-l-2 border-black pl-6 py-1 flex flex-col gap-2">
-        <span className="text-[9px] font-black uppercase tracking-[0.4em] text-black/40">
-          One more thing
-        </span>
         <p className="body-copy text-black normal-case tracking-normal text-sm font-normal leading-relaxed">
           When it sells you will have <strong>5 days</strong> to hand it to the courier.
           We send the label and pay for it. If it does not go in that time the
@@ -448,9 +443,6 @@ function Waiting({ title, round }: { title: string; round: number }) {
   return (
     <div className="flex flex-col gap-10">
       <div className="flex flex-col gap-3">
-        <span className="text-[9px] font-black uppercase tracking-[0.4em] text-black/40">
-          {round > 1 ? `With us again - look ${round}` : 'With us'}
-        </span>
         <h1 className="text-3xl sm:text-4xl font-black tracking-tighter uppercase leading-[0.95]">
           We will come back within 24 hours
         </h1>
@@ -475,22 +467,18 @@ function Verdict({ status, reasons, note, listingId, canSendBack, submitting, on
 }) {
   const copy = {
     declined: {
-      kicker: 'Not this time',
       heading: 'We cannot make an offer on this yet',
       body: 'This is not final. Sort out what is listed here, send the item back to us, and we will look again within 24 hours.',
     },
     offer_rejected: {
-      kicker: 'Offer turned down',
       heading: 'No problem',
       body: 'That number did not work for you. If you want us to look again, improve the photos or the description and send it back.',
     },
     expired: {
-      kicker: 'Expired',
       heading: 'This offer has lapsed',
       body: 'Offers stay open for a limited time. Send this item back to us and we will price it again.',
     },
   }[status] ?? {
-    kicker: 'Update',
     heading: 'There is no open offer on this item',
     body: 'Nothing is waiting on you right now.',
   };
@@ -498,7 +486,6 @@ function Verdict({ status, reasons, note, listingId, canSendBack, submitting, on
   return (
     <div className="flex flex-col gap-12">
       <div className="flex flex-col gap-3">
-        <span className="text-[9px] font-black uppercase tracking-[0.4em] text-black/40">{copy.kicker}</span>
         <h1 className="text-3xl sm:text-4xl font-black tracking-tighter uppercase leading-[0.95]">
           {copy.heading}
         </h1>
@@ -506,7 +493,7 @@ function Verdict({ status, reasons, note, listingId, canSendBack, submitting, on
 
       {(reasons?.length || note) && (
         <div className="border-l-2 border-black pl-6 py-1 flex flex-col gap-4">
-          <span className="text-[9px] font-black uppercase tracking-[0.4em] text-black/40">
+          <span className="text-sm font-semibold tracking-tight text-black">
             What needs fixing
           </span>
           {reasons && reasons.length > 0 && (

@@ -36,7 +36,6 @@ export function About() {
           <header className="flex flex-col gap-5">
             <div className="flex flex-col gap-3">
               <h1 className="text-4xl sm:text-6xl font-black tracking-tighter uppercase">What Is zarketplace</h1>
-              <p className="text-sm font-black uppercase tracking-widest text-black">We buy pre-owned fashion and resell it</p>
             </div>
             {/* Copy fills its box rather than stopping short of the right edge:
                 inside a bounded panel the panel is the measure. */}
@@ -125,7 +124,7 @@ export function About() {
         </motion.div>
       </div>
 
-      <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 flex flex-col gap-6 sm:gap-8">
+      <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 pb-20 sm:pb-24 flex flex-col gap-6 sm:gap-8">
         <section className="flex flex-col gap-4 bg-zinc-50 p-6 sm:p-10 border border-black/5">
           <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight">The market exists</h2>
           <p className="body-longform max-w-[64ch]">

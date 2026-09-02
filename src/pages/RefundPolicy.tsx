@@ -19,7 +19,6 @@ export function RefundPolicy() {
       >
         <div className="flex flex-col gap-4">
           <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Refund Policy</h1>
-          <p className="text-sm font-black uppercase tracking-widest text-black">When you get your money back, and how long it takes</p>
         </div>
 
         <div className="flex flex-col gap-14 text-black body-longform">

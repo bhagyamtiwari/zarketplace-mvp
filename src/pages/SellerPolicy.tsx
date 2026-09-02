@@ -19,7 +19,6 @@ export function SellerPolicy() {
       >
         <div className="flex flex-col gap-4">
           <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Vendor Policy</h1>
-          <p className="text-sm font-black uppercase tracking-widest text-black">What we expect from every item we buy</p>
         </div>
 
         <div className="flex flex-col gap-14 text-black body-longform">

@@ -23,7 +23,6 @@ export function Condition() {
         >
         <div className="flex flex-col gap-4">
           <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Conditions Guide</h1>
-          <p className="text-sm font-black uppercase tracking-widest text-black">How every piece is graded</p>
           <p className="body-longform max-w-[64ch]">
             Every item is graded on the same five-tier scale, so the word on one listing means what it means on all of them.
           </p>

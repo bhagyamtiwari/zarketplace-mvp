@@ -19,7 +19,6 @@ export function Terms() {
       >
         <div className="flex flex-col gap-4">
           <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Terms of Service</h1>
-          <p className="text-sm font-black uppercase tracking-widest text-black">The basics of using zarketplace</p>
         </div>
 
         <div className="flex flex-col gap-14 text-black body-longform">

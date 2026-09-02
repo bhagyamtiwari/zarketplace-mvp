@@ -578,7 +578,7 @@ function SellInner() {
 
   return (
     <div className="flex flex-col">
-      <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 lg:px-8 pt-28 sm:pt-32">
+      <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 lg:px-8 pt-28 sm:pt-32 pb-20 sm:pb-24">
         {/* The page opens as an offer, not as a form. The proposition is the
             first thing read and the fields start well below it, so the work
             reads as the consequence of the offer rather than the price of
@@ -829,7 +829,7 @@ function PhotosStep({ imagePreviews, onAdd, onRemove, originals, cleaning, onUse
           remover - six pieces of chrome to say "lay it flat in daylight". The
           rule that matters, that we never turn an item down over its photos,
           stays; the scaffolding does not, and we strip backgrounds ourselves. */}
-      <SectionHeading note="Lay it flat, shoot in daylight, skip the mirror. Two or three photos is plenty and the first is the cover. Better photos sell faster, but we never turn an item down over them.">
+      <SectionHeading note="Daylight, flat, no mirror. The first photo is the cover.">
         Photos
       </SectionHeading>
 
@@ -918,7 +918,7 @@ function DetailsStep(props: {
       </div>
 
       <div className="flex flex-col gap-6">
-        <SectionHeading note="What a buyer needs to know before they commit.">The item</SectionHeading>
+        <SectionHeading>The item</SectionHeading>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-8">
           <div className="flex flex-col gap-3">
             <FieldLabel>What is it?</FieldLabel>
@@ -977,7 +977,7 @@ function DetailsStep(props: {
       </div>
 
       <div className="flex flex-col gap-6">
-        <SectionHeading note="Skip anything that does not apply. These help an item sell, none of them are required.">Worth mentioning</SectionHeading>
+        <SectionHeading>Worth mentioning</SectionHeading>
         {/* Yes/No rather than switches: an unset switch would publish "no
             packaging" as a claim the seller never made. Three states matter
             here (yes, no, unanswered) and a switch only has two. */}

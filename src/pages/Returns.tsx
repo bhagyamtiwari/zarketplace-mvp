@@ -19,7 +19,6 @@ export function Returns() {
       >
         <div className="flex flex-col gap-4">
           <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Returns</h1>
-          <p className="text-sm font-black uppercase tracking-widest text-black">The process for sending an item back, and for cancelling before it ships</p>
         </div>
 
         <div className="flex flex-col gap-14 text-black body-longform">

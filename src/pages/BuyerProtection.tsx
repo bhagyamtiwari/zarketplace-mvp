@@ -19,7 +19,6 @@ export function BuyerProtection() {
       >
         <div className="flex flex-col gap-4">
           <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Buyer Protection</h1>
-          <p className="text-sm font-black uppercase tracking-widest text-black">Every order is handled by us, start to finish</p>
         </div>
 
         <div className="flex flex-col gap-14 text-black body-longform">

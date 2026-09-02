@@ -117,7 +117,6 @@ function HubInner() {
   return (
     <Shell>
       <div className="flex flex-col gap-3 mb-12">
-        <span className="text-[9px] font-black uppercase tracking-[0.4em] text-black/40">Operations</span>
         <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase leading-none">Hub</h1>
       </div>
 

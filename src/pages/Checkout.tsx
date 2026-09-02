@@ -459,7 +459,6 @@ function CheckoutInner() {
           className="h-24 w-24 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mb-4">
           <CheckCircle2 className="h-12 w-12" />
         </motion.div>
-        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-emerald-600">Payment confirmed</span>
         <h1 className="text-5xl font-black tracking-tighter uppercase">You bought it.</h1>
         <p className="text-[11px] font-bold uppercase tracking-widest text-black/60 max-w-md leading-relaxed">
           Your payment has been received. We are bringing your item in, checking it and repacking it, then it ships to you. Track everything in My Orders.
