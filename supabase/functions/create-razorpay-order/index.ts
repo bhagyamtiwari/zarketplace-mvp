@@ -18,7 +18,7 @@
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { checkIntraState } from "../_shared/pincode.ts";
+import { checkIntraState, resolvePincode, STATE_CODE_TO_NAME } from "../_shared/pincode.ts";
 import { corsHeadersFor } from "../_shared/cors.ts";
 
 interface RequestBody {
@@ -78,14 +78,6 @@ serve(async (req) => {
     if (orders.some((o) => o.status !== "awaiting_payment" && o.status !== "payment_failed")) {
       return json({ error: "One or more orders are not awaiting payment" }, 409);
     }
-    // One order = one seller = one shipment = one payout (§0.4). The cart UI
-    // already prevents mixing sellers, but this is the actual charge path -
-    // it must not trust the client to have enforced that.
-    const sellerIds = new Set(orders.map((o) => o.seller_id).filter(Boolean));
-    if (sellerIds.size > 1) {
-      return json({ error: "Orders from multiple sellers cannot be paid in one checkout" }, 400);
-    }
-
     // Retry-path guard: an order can sit in payment_failed (a prior failed
     // attempt, or its reservation lapsing) while the listing itself gets
     // bought by someone else in the meantime. Re-verify availability before
@@ -96,7 +88,7 @@ serve(async (req) => {
     if (listingIds.length > 0) {
       const { data: listings, error: listingsErr } = await supabase
         .from("listings")
-        .select("id, is_sold, status, pickup_state, pickup_state_code")
+        .select("id, is_sold, status")
         .in("id", listingIds);
       if (listingsErr) throw listingsErr;
       const unavailable = (listings ?? []).filter((l) => l.is_sold || l.status !== "approved");
@@ -107,41 +99,64 @@ serve(async (req) => {
         return json({ error: "One or more items in this order are no longer available" }, 409);
       }
 
-      // GST same-state rule, decided by the DELIVERY PINCODE.
+      // GST place of supply, decided by the DELIVERY PINCODE.
       //
-      // Place of supply for goods is where the movement terminates. The
-      // previous version compared the buyer's SELECTED state against the
-      // seller's, which a buyer defeats without trying: pick "Delhi", type a
-      // Gurgaon pincode, and Gurgaon is Haryana. One metro to a buyer, three
-      // states to GST. The dropdown is a claim; the pincode is the fact.
+      // Place of supply for goods is where the movement terminates, and the
+      // movement that matters here is OURS: the hub ships to the buyer, under
+      // our GSTIN. The vendor's state is a fact about the purchase leg, which
+      // is a separate transaction on a separate invoice, and has nothing to
+      // say about this sale. The previous version compared the buyer against
+      // the VENDOR's state, which was wrong on the model and also named the
+      // vendor's location to the buyer in the refusal message.
       //
-      // Fails closed on every uncertainty - unreadable pincode, pincode
-      // outside the verified table, seller with no state on file. Declining a
-      // sale we could have made is recoverable; completing one we could not
-      // lawfully make is not.
-      const stateById = new Map((listings ?? []).map((l) => [l.id, l.pickup_state_code]));
-      const nameById = new Map((listings ?? []).map((l) => [l.id, l.pickup_state]));
+      // Reading the hub state per request rather than from a constant means
+      // this starts working the moment the hub address is filled in, with no
+      // redeploy.
+      //
+      // Fails closed on an unreadable or unknown pincode. Declining a sale we
+      // could have made is recoverable; completing one we could not lawfully
+      // make is not.
+      const { data: hubRow } = await supabase
+        .from("hub_location").select("state, pincode").eq("id", 1).maybeSingle();
+      const hubState = (hubRow?.state ?? "").trim();
+      const hubPincode = (hubRow?.pincode ?? "").trim();
+      // Pincode first, name second, for the same reason the buyer side reads
+      // the pincode rather than the dropdown: a typed state name is a claim,
+      // a pincode is a fact.
+      const hubCode = resolvePincode(hubPincode).stateCode
+        ?? (hubState
+          ? Object.entries(STATE_CODE_TO_NAME).find(([, n]) => n.toLowerCase() === hubState.toLowerCase())?.[0] ?? null
+          : null);
+
+      // An unconfigured hub is an operations problem, not something a buyer
+      // did. It must reach us, loudly, and never read to them as their fault.
+      if (!hubCode) {
+        console.error(
+          "create-razorpay-order: BLOCKED - hub_location has no usable state or pincode. " +
+          "Every checkout will be refused until it is set.",
+        );
+        return json({
+          error: "We cannot take payment right now. This is a problem on our side, not with your details. " +
+                 "Nothing has been charged. Please try again shortly.",
+          operator_alert: "hub_location is not configured: set state or pincode on row id 1.",
+        }, 503);
+      }
 
       for (const o of orders) {
         const addr = o.shipping_address as { pincode?: string; state?: string } | null;
-        const sellerCode = stateById.get(o.listing_id) ?? null;
-        const sellerName = nameById.get(o.listing_id) ?? null;
-        const verdict = checkIntraState(addr?.pincode, sellerCode);
+        const verdict = checkIntraState(addr?.pincode, hubCode);
         if (verdict.ok) continue;
 
         // Logged before returning, so the cost of the restriction is
-        // measurable and the states worth recruiting in are the ones showing
-        // up here. Never allowed to fail the request.
+        // measurable and the states worth expanding to are the ones showing
+        // up here.
         try {
           await supabase.from("blocked_checkouts").insert({
             buyer_id: o.buyer_id,
             listing_id: o.listing_id,
-            seller_id: o.seller_id,
             attempted_pincode: addr?.pincode ?? null,
             resolved_state_code: verdict.stateCode,
             resolved_state_name: verdict.stateName,
-            seller_state_code: sellerCode,
-            seller_state_name: sellerName,
             reason: verdict.reason,
             item_value: o.total_amount,
           });
@@ -149,9 +164,11 @@ serve(async (req) => {
           console.error("create-razorpay-order: blocked_checkouts insert failed", logErr);
         }
 
+        // Nothing here names a vendor, a vendor's state, or anything that
+        // implies a third party. We are the seller; this is our delivery
+        // limit and it is stated as ours.
         const message = verdict.reason === "different_state"
-          ? `This item ships from ${sellerName}, and your delivery pincode is in ${verdict.stateName}. ` +
-            `We can only deliver within ${sellerName} right now - interstate orders need a GSTIN we are still setting up. Nothing has been charged.`
+          ? `We cannot deliver to ${verdict.stateName ?? "that area"} yet. We are working on it. Nothing has been charged.`
           : verdict.reason === "malformed"
           ? "That delivery pincode does not look right. Check it and try again. Nothing has been charged."
           : "We cannot confirm which state that pincode is in, so we cannot take payment for it yet. " +

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingBag, Trash2, ArrowRight, ArrowLeft, Package, AlertTriangle } from 'lucide-react';
+import { ShoppingBag, Trash2, ArrowRight, ArrowLeft, Package } from 'lucide-react';
 import { useCart } from '../lib/cart';
 import { formatCurrency } from '../lib/utils';
 import { variantUrl } from '../lib/images';
@@ -25,8 +25,6 @@ function CartInner() {
   const subtotal = items.reduce((sum, i) => sum + (i.sale_price ?? i.price ?? 0), 0);
   const shipping = items.reduce((sum, i) => sum + (i.free_shipping ? 0 : shippingRateFor(i.shipping_category, shippingCategories)), 0);
   const total = subtotal + shipping;
-  const sellerIds = new Set(items.map((i) => i.seller_id).filter(Boolean));
-  const hasMultipleSellers = sellerIds.size > 1;
 
   if (count === 0) {
     return (
@@ -56,14 +54,6 @@ function CartInner() {
 
       <h1 className="text-3xl sm:text-4xl font-black tracking-tighter uppercase mb-8">Your bag</h1>
 
-      {hasMultipleSellers && (
-        <div className="flex items-start gap-3 border border-amber-300 bg-amber-50 p-4 mb-6">
-          <AlertTriangle className="h-4 w-4 text-amber-700 mt-0.5 shrink-0" />
-          <p className="text-[11px] font-bold uppercase tracking-widest text-amber-800 leading-relaxed">
-            As of now, these items cannot be combined into a single order. Please complete each purchase separately.
-          </p>
-        </div>
-      )}
 
       <div className="flex flex-col gap-8 p-8 sm:p-10 bg-zinc-50 border border-black/5">
         <h2 className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
@@ -125,8 +115,7 @@ function CartInner() {
         <button
           type="button"
           onClick={() => navigate('/checkout')}
-          disabled={hasMultipleSellers}
-          className="w-full bg-black py-6 text-xs font-black uppercase tracking-[0.4em] text-white transition-all hover:bg-zinc-800 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+          className="w-full bg-black py-6 text-xs font-black uppercase tracking-[0.4em] text-white transition-all hover:bg-zinc-800 flex items-center justify-center gap-3"
         >
           Checkout <ArrowRight className="h-4 w-4" />
         </button>

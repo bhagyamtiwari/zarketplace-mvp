@@ -70,16 +70,19 @@ export type IntraStateVerdict =
   | { ok: true; stateCode: string; stateName: string | null }
   | { ok: false; reason: 'malformed' | 'unknown_pincode' | 'different_state' | 'no_seller_state'; stateCode: string | null; stateName: string | null };
 
-/** A buyer's delivery pincode must resolve to the seller's state. Fails closed. */
+/** A buyer's delivery pincode must resolve to the state we ship FROM (the
+ * hub, under our own GSTIN). Never a vendor's state: the purchase from a
+ * vendor is a separate transaction and does not decide this one. Fails
+ * closed. */
 export function checkIntraState(
   deliveryPincode: string | null | undefined,
-  sellerStateCode: string | null | undefined,
+  originStateCode: string | null | undefined,
 ): IntraStateVerdict {
   const r = resolvePincode(deliveryPincode);
   if (r.malformed) return { ok: false, reason: 'malformed', stateCode: null, stateName: null };
   if (!r.stateCode) return { ok: false, reason: 'unknown_pincode', stateCode: null, stateName: null };
-  if (!sellerStateCode) return { ok: false, reason: 'no_seller_state', stateCode: r.stateCode, stateName: r.stateName };
-  if (r.stateCode !== sellerStateCode) {
+  if (!originStateCode) return { ok: false, reason: 'no_seller_state', stateCode: r.stateCode, stateName: r.stateName };
+  if (r.stateCode !== originStateCode) {
     return { ok: false, reason: 'different_state', stateCode: r.stateCode, stateName: r.stateName };
   }
   return { ok: true, stateCode: r.stateCode, stateName: r.stateName };
