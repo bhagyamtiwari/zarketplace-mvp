@@ -50,7 +50,7 @@ export function SellerPolicy() {
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Tax</h2>
             <p>You do not need a GSTIN, and you are not registering a business anywhere. You are selling us one item, and we resell it under our own GST registration. That is what makes this simple for you.</p>
             <p>We may ask for your PAN before a payout, which is a standard requirement on payments of this kind.</p>
-            <p className="text-black/50">This is a plain-language summary of how we operate, not tax advice. If your situation is unusual, check with your accountant.</p>
+            <p className="text-black/70">This is a plain-language summary of how we operate, not tax advice. If your situation is unusual, check with your accountant.</p>
           </section>
 
           <section className="flex flex-col gap-4">

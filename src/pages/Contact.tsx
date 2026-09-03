@@ -29,7 +29,7 @@ export function Contact() {
                     <Mail className="h-4 w-4" />
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-black/40">Email</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-black/60">Email</span>
                     <span className="text-sm font-bold">contact@zarketplace.com</span>
                   </div>
                 </a>
@@ -38,7 +38,7 @@ export function Contact() {
                     <Instagram className="h-4 w-4" />
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-black/40">Instagram</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-black/60">Instagram</span>
                     <span className="text-sm font-bold">@zarketplace</span>
                   </div>
                 </a>
@@ -47,9 +47,9 @@ export function Contact() {
                     <MessageCircle className="h-4 w-4" />
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-black/40">WhatsApp</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-black/60">WhatsApp</span>
                     <span className="text-sm font-bold">+91 8505-ZARKET</span>
-                    <span className="text-sm font-bold text-black/40">or +91 8505-927538</span>
+                    <span className="text-sm font-bold text-black/60">or +91 8505-927538</span>
                   </div>
                 </a>
               </div>
@@ -92,11 +92,11 @@ export function Contact() {
               <button
                 type="button"
                 disabled
-                className="w-full bg-zinc-200 text-zinc-500 py-4 text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 cursor-not-allowed"
+                className="w-full bg-zinc-200 text-zinc-700 py-4 text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-3 cursor-not-allowed"
               >
                 Form Temporarily Paused
               </button>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 text-center">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-black/60 text-center">
                 Please email <a href="mailto:contact@zarketplace.com" className="underline text-black/60 hover:text-black">contact@zarketplace.com</a> for now
               </p>
             </div>

@@ -108,7 +108,7 @@ export function Faq() {
           <div className="flex flex-col gap-12">
             {SECTIONS.map((section) => (
               <div key={section.title} className="flex flex-col gap-3">
-                <h2 className="text-xs font-black uppercase tracking-[0.3em] text-black/40 border-b border-black pb-3 mb-2">
+                <h2 className="text-xs font-black uppercase tracking-[0.3em] text-black/60 border-b border-black pb-3 mb-2">
                   {section.title}
                 </h2>
                 {section.items.map((item) => (

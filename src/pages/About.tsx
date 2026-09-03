@@ -63,7 +63,7 @@ export function About() {
                   'It ships tracked to your door, sold and shipped by zarketplace.',
                 ].map((step, i) => (
                   <li key={i} className="flex gap-4">
-                    <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.3em] text-black/30 pt-1">0{i + 1}</span>
+                    <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.3em] text-black/60 pt-1">0{i + 1}</span>
                     <span className="body-copy">{step}</span>
                   </li>
                 ))}
@@ -83,7 +83,7 @@ export function About() {
                   'We check it in, accept it, and pay you the amount you agreed to.',
                 ].map((step, i) => (
                   <li key={i} className="flex gap-4">
-                    <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.3em] text-white/30 pt-1">0{i + 1}</span>
+                    <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.3em] text-white/70 pt-1">0{i + 1}</span>
                     <span className="body-copy">{step}</span>
                   </li>
                 ))}
@@ -113,7 +113,7 @@ export function About() {
                   <Icon className="h-6 w-6 shrink-0" />
                   <h3 className="text-sm font-black uppercase tracking-widest">{title}</h3>
                   <p className="body-longform">{body}</p>
-                  <span className="mt-auto pt-3 text-[10px] font-black uppercase tracking-[0.25em] text-black/30 group-hover:text-black">
+                  <span className="mt-auto pt-3 text-[10px] font-black uppercase tracking-[0.25em] text-black/60 group-hover:text-black">
                     Read the policy
                   </span>
                 </Link>
@@ -166,7 +166,7 @@ export function About() {
           </div>
         </section>
 
-        <p className="text-center text-xs font-medium uppercase tracking-widest text-black/40">
+        <p className="text-center text-xs font-medium uppercase tracking-widest text-black/60">
           zarketplace is an ADNIZ Private Limited project.
         </p>
       </div>

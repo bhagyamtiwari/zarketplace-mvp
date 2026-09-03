@@ -43,3 +43,17 @@ jobs:
       - run: npm ci
       - run: npx tsc --noEmit
       - run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      # Contrast is a property of the rendered page, not of the source: the
+      # class that shipped three invisible paragraphs was correct in isolation
+      # and only failed against the ground it landed on. So this boots the
+      # built app in a real browser and measures composited pixels.
+      - run: npx playwright install --with-deps chromium
+      - name: Nothing user-facing renders below WCAG AA
+        run: |
+          npx vite preview --port 4173 &
+          npx wait-on -t 60000 http://localhost:4173
+          npm run test:contrast

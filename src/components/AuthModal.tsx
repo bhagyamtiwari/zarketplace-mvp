@@ -161,7 +161,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                 <h2 className="text-2xl font-black uppercase tracking-tighter">
                   {mode === 'signup' ? 'Create Account' : mode === 'forgot' ? 'Reset Password' : 'Sign In'}
                 </h2>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-black/50">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-black/60">
                   {message ?? (mode === 'signup'
                     ? 'Email and password.'
                     : mode === 'forgot'
@@ -176,7 +176,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                     type="button"
                     onClick={() => switchMode('signin')}
                     className={`py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${
-                      mode === 'signin' ? 'bg-black text-white' : 'bg-white text-black/50 hover:text-black'
+                      mode === 'signin' ? 'bg-black text-white' : 'bg-white text-black/60 hover:text-black'
                     }`}
                   >
                     Sign In
@@ -185,7 +185,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                     type="button"
                     onClick={() => switchMode('signup')}
                     className={`py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${
-                      mode === 'signup' ? 'bg-black text-white' : 'bg-white text-black/50 hover:text-black'
+                      mode === 'signup' ? 'bg-black text-white' : 'bg-white text-black/60 hover:text-black'
                     }`}
                   >
                     Create Account
@@ -246,7 +246,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                   {phoneDigits && !phoneValid && (
                     <p className="text-[9px] font-bold uppercase tracking-widest text-red-600">Enter a valid phone number.</p>
                   )}
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-black/40">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-black/60">
                     For delivery updates and order problems. We do not send marketing texts.
                   </p>
                 </div>
@@ -260,7 +260,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                       <button
                         type="button"
                         onClick={() => switchMode('forgot')}
-                        className="text-[9px] font-bold uppercase tracking-widest text-black/40 hover:text-black underline transition-colors"
+                        className="text-[9px] font-bold uppercase tracking-widest text-black/60 hover:text-black underline transition-colors"
                       >
                         Forgot password?
                       </button>
@@ -328,12 +328,12 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                 <button
                   type="button"
                   onClick={() => switchMode('signin')}
-                  className="text-[9px] font-bold uppercase tracking-widest text-black/40 hover:text-black text-center underline transition-colors"
+                  className="text-[9px] font-bold uppercase tracking-widest text-black/60 hover:text-black text-center underline transition-colors"
                 >
                   Back to Sign In
                 </button>
               ) : (
-                <p className="text-[9px] font-bold uppercase tracking-widest text-black/30 text-center leading-relaxed">
+                <p className="text-[9px] font-bold uppercase tracking-widest text-black/60 text-center leading-relaxed">
                   By continuing, you agree to the zarketplace Terms.<br />
                   One account for buying &amp; selling.
                 </p>

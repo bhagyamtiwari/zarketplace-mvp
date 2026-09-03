@@ -19,7 +19,7 @@ export function Privacy() {
       >
         <div className="flex flex-col gap-4">
           <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Privacy Policy</h1>
-          <p className="text-[11px] font-medium tracking-normal text-black/40">Last updated 29 July 2026</p>
+          <p className="text-[11px] font-medium tracking-normal text-black/60">Last updated 29 July 2026</p>
         </div>
 
         <div className="flex flex-col gap-14 text-black body-longform">

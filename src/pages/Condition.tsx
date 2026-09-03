@@ -10,7 +10,7 @@ export function Condition() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
-      <Link to="/" className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-black/40 hover:text-black mb-8 lg:mb-12">
+      <Link to="/" className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-black/60 hover:text-black mb-8 lg:mb-12">
         <ArrowLeft className="h-3 w-3" /> Back to zarketplace
       </Link>
 
@@ -46,7 +46,7 @@ export function Condition() {
             >
               <h2 className="flex items-baseline gap-2.5 text-lg font-black uppercase tracking-tight text-black">
                 {c.name}
-                <span className="text-xs tracking-[0.2em] text-black/40">{c.grade}</span>
+                <span className="text-xs tracking-[0.2em] text-black/60">{c.grade}</span>
               </h2>
               <p className="body-longform">{c.desc}</p>
             </div>
