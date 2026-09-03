@@ -63,7 +63,7 @@ interface Leaf {
   label: string;
   kind: LeafKind;
   order?: (o: Order) => boolean;
-  listing?: (l: Listing) => boolean;
+  listing?: (l: Listing, a?: AcqRow) => boolean;
   payout?: (p: VendorPayout) => boolean;
   user?: (u: AdminUser, ctx: UserCtx) => boolean;
 }
@@ -81,12 +81,51 @@ interface UserCtx { buyerIds: Set<string>; sellerIds: Set<string>; }
 // Sidebar structure
 // ---------------------------------------------------------------------------
 
+export interface AcqRow {
+  listing_id: string;
+  offer_status: string;
+  offer_amount: number | null;
+  expected_resale: number | null;
+  offered_at: string | null;
+  offer_expires_at: string | null;
+  reviewed_at: string | null;
+  offer_round: number;
+  updated_at: string | null;
+}
+
+/**
+ * Whose turn it is. This is the distinction the admin page was missing: an
+ * item's listings.status says 'pending' whether we owe the vendor an answer,
+ * the vendor owes us a fix, or an offer is sitting with them unanswered.
+ * Reading those as one queue is what made the 24-hour promise measure the
+ * wrong thing.
+ */
+export type Turn = 'ours' | 'theirs' | 'settled';
+
+export function turnFor(offerStatus: string | undefined): Turn {
+  switch (offerStatus) {
+    case 'pending_pricing': return 'ours';      // we owe them an offer
+    case 'offered': return 'theirs';            // they owe us an answer
+    case 'declined': return 'theirs';           // they owe us a fix, or nothing
+    case 'expired': return 'theirs';
+    case 'accepted': return 'settled';
+    default: return 'ours';                     // no acquisition row: we look at it
+  }
+}
+
 const NAV: Section[] = [
   { key: 'overview', label: 'Overview', icon: LayoutGrid, leaves: [
     { key: 'overview', label: 'Overview', kind: 'overview' },
   ] },
   { key: 'listings', label: 'Listings', icon: Boxes, leaves: [
-    { key: 'l_pending', label: 'Pending Approval', kind: 'listings', listing: (l) => l.status === 'pending' },
+    // Split deliberately. These were one queue, and merging them is what let
+    // an item waiting on a vendor look like work an operator could do.
+    { key: 'l_triage', label: 'Needs an offer', kind: 'listings',
+      listing: (l, a) => l.status === 'pending' && turnFor(a?.offer_status) === 'ours' },
+    { key: 'l_with_vendor', label: 'With the vendor', kind: 'listings',
+      listing: (l, a) => l.status === 'pending' && turnFor(a?.offer_status) === 'theirs' },
+    { key: 'l_accepted', label: 'Accepted, not live', kind: 'listings',
+      listing: (l, a) => l.status === 'pending' && a?.offer_status === 'accepted' },
     { key: 'l_live', label: 'Live', kind: 'listings', listing: (l) => l.status === 'approved' && !l.is_sold },
     { key: 'l_sold', label: 'Sold', kind: 'listings', listing: (l) => l.status === 'approved' && l.is_sold },
     // Live listings that could never be picked up: no usable pickup address.
@@ -94,7 +133,11 @@ const NAV: Section[] = [
     // only ever holds legacy rows - but it must be visible, because such a
     // listing fails Shiprocket booking *after* the buyer has already paid.
     { key: 'l_no_pickup', label: 'Missing Pickup Address', kind: 'listings', listing: (l) => l.status === 'approved' && !l.is_sold && !l.pickup_address?.pincode },
-    { key: 'l_rejected', label: 'Rejected', kind: 'listings', listing: (l) => l.status === 'rejected' },
+    // reject_listing writes acquisitions.offer_status, never listings.status,
+    // so keying this on the listing left it permanently empty while every
+    // declined item hid in the approval queue.
+    { key: 'l_rejected', label: 'Declined', kind: 'listings',
+      listing: (l, a) => a?.offer_status === 'declined' || l.status === 'rejected' },
     { key: 'l_archived', label: 'Archived', kind: 'listings', listing: (l) => l.status === 'archived' || l.status === 'suspended' },
   ] },
   { key: 'orders', label: 'Orders', icon: Package, leaves: [
@@ -165,6 +208,7 @@ function Console() {
   const [listings, setListings] = React.useState<Listing[]>([]);
   const [payouts, setPayouts] = React.useState<VendorPayout[]>([]);
   const [vendorUpi, setVendorUpi] = React.useState<Map<string, string | null>>(new Map());
+  const [acqByListing, setAcqByListing] = React.useState<Map<string, AcqRow>>(new Map());
   const [refundsOverdue, setRefundsOverdue] = React.useState(0);
   const [users, setUsers] = React.useState<AdminUser[]>([]);
   const [emails, setEmails] = React.useState<EmailLogRow[]>([]);
@@ -185,6 +229,18 @@ function Console() {
         supabase.from('email_log').select('*').order('created_at', { ascending: false }).limit(500),
         supabase.from('admin_audit_log').select('*').order('created_at', { ascending: false }).limit(500),
       ]);
+      // The acquisition, not the listing, holds the real state of an item
+      // before it goes live. Every queue and count on this page used to read
+      // listings.status alone, which is why an item waiting on the VENDOR sat
+      // in the operator's queue accruing hours against the 24-hour promise,
+      // and why the Rejected queue was permanently empty: reject_listing sets
+      // acquisitions.offer_status and never touches listings.status.
+      const { data: acqRows } = await supabase
+        .from('acquisitions')
+        .select('listing_id, offer_status, offer_amount, expected_resale, offered_at, offer_expires_at, reviewed_at, offer_round, updated_at');
+      setAcqByListing(new Map(
+        ((acqRows as AcqRow[]) ?? []).map((a) => [a.listing_id, a]),
+      ));
       const { data: pr } = await supabase.from('pending_refunds').select('hours_pending');
       setRefundsOverdue(((pr as Array<{ hours_pending: number }>) ?? []).filter((x) => x.hours_pending >= 24).length);
       const { data: v } = await supabase.from('vendors').select('id, upi_vpa');
@@ -270,7 +326,7 @@ function Console() {
             <div className="flex h-64 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-black/20" /></div>
           ) : (
             <LeafView
-              leaf={leaf} orders={orders} listings={listings} payouts={payouts} users={users}
+              leaf={leaf} orders={orders} listings={listings} acqByListing={acqByListing} payouts={payouts} users={users}
               vendorUpi={vendorUpi} refundsOverdue={refundsOverdue}
               emails={emails} audit={audit} userCtx={userCtx}
               onOpenOrder={(id) => setDrawer({ type: 'order', id })}
@@ -286,7 +342,7 @@ function Console() {
           onClose={() => setDrawer(null)} onDone={loadAll} />
       )}
       {drawerListing && (
-        <ListingDrawer listing={drawerListing} orders={orders} payouts={payouts} audit={audit}
+        <ListingDrawer listing={drawerListing} acq={acqByListing.get(drawerListing.id)} orders={orders} payouts={payouts} audit={audit}
           onClose={() => setDrawer(null)} onDone={loadAll}
           onOpenOrder={(id) => setDrawer({ type: 'order', id })} />
       )}
@@ -349,15 +405,16 @@ function GlobalSearch({ orders, listings, users, onOpenOrder, onOpenListing }: {
 // Views
 // ---------------------------------------------------------------------------
 
-function LeafView({ leaf, orders, listings, payouts, users, vendorUpi, refundsOverdue, emails, audit, userCtx, onOpenOrder, onOpenListing }: {
-  leaf: Leaf; orders: Order[]; listings: Listing[]; payouts: VendorPayout[]; users: AdminUser[];
+function LeafView({ leaf, orders, listings, acqByListing, payouts, users, vendorUpi, refundsOverdue, emails, audit, userCtx, onOpenOrder, onOpenListing }: {
+  leaf: Leaf; orders: Order[]; listings: Listing[]; acqByListing: Map<string, AcqRow>;
+  payouts: VendorPayout[]; users: AdminUser[];
   vendorUpi: Map<string, string | null>; refundsOverdue: number;
   emails: EmailLogRow[]; audit: AuditEntry[]; userCtx: UserCtx;
   onOpenOrder: (id: string) => void; onOpenListing: (id: string) => void;
 }) {
-  if (leaf.kind === 'overview') return <OverviewView orders={orders} listings={listings} payouts={payouts} refundsOverdue={refundsOverdue} />;
+  if (leaf.kind === 'overview') return <OverviewView orders={orders} listings={listings} acqByListing={acqByListing} payouts={payouts} refundsOverdue={refundsOverdue} />;
   if (leaf.kind === 'orders') return <OrdersView rows={orders.filter(leaf.order ?? (() => true))} onOpen={onOpenOrder} />;
-  if (leaf.kind === 'listings') return <ListingsView rows={listings.filter(leaf.listing ?? (() => true))} orders={orders} onOpen={onOpenListing} />;
+  if (leaf.kind === 'listings') return <ListingsView rows={listings.filter((l) => (leaf.listing ?? (() => true))(l, acqByListing.get(l.id)))} acqByListing={acqByListing} orders={orders} onOpen={onOpenListing} />;
   if (leaf.kind === 'payouts') return <PayoutsView rows={payouts.filter(leaf.payout ?? (() => true))} listings={listings} vendorUpi={vendorUpi} />;
   if (leaf.kind === 'users') return <UsersView rows={users.filter((u) => (leaf.user ?? (() => true))(u, userCtx))} />;
   if (leaf.kind === 'emails') return <EmailsView rows={emails} />;
@@ -374,8 +431,9 @@ function Th({ children, right }: { children: React.ReactNode; right?: boolean })
   return <th className={cn('py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40', right && 'text-right')}>{children}</th>;
 }
 
-function OverviewView({ orders, listings, payouts, refundsOverdue }: {
-  orders: Order[]; listings: Listing[]; payouts: VendorPayout[]; refundsOverdue: number;
+function OverviewView({ orders, listings, acqByListing, payouts, refundsOverdue }: {
+  orders: Order[]; listings: Listing[]; acqByListing: Map<string, AcqRow>;
+  payouts: VendorPayout[]; refundsOverdue: number;
 }) {
   const stat = (label: string, value: number | string) => (
     <div className="border border-black/10 px-4 py-3">
@@ -383,15 +441,20 @@ function OverviewView({ orders, listings, payouts, refundsOverdue }: {
       <p className="text-xl font-black tabular-nums mt-1">{value}</p>
     </div>
   );
-  const pendingListings = listings.filter((l) => l.status === 'pending').length;
+  const pendingListings = listings.filter((l) => l.status === 'pending' && turnFor(acqByListing.get(l.id)?.offer_status) === 'ours').length;
   const toVerify = orders.filter((o) => o.status === 'awaiting_verification').length;
   const toBook = orders.filter((o) => o.status === 'paid' && !o.shiprocket_order_id).length;
   const openClaims = orders.filter((o) => o.claim_open).length;
   const payoutsDue = payouts.filter((p) => p.status === 'due').length;
   // Past the 24 hours the submit screen promises.
-  const triageOverdue = listings.filter(
-    (l) => l.status === 'pending' && Date.now() - new Date(l.created_at).getTime() >= 864e5,
-  ).length;
+  const triageOverdue = listings.filter((l) => {
+    const a = acqByListing.get(l.id);
+    if (l.status !== 'pending' || turnFor(a?.offer_status) !== 'ours') return false;
+    // Time starts from when it became ours, not from submission: a vendor's
+    // rework should not be billed to our clock.
+    const since = new Date(a?.updated_at ?? l.created_at).getTime();
+    return Date.now() - since >= 864e5;
+  }).length;
   const shipFailed = orders.filter((o) => !!o.shiprocket_order_id && !o.tracking_number).length;
   const noPickupAddr = listings.filter((l) => l.status === 'approved' && !l.is_sold && !l.pickup_address?.pincode).length;
   return (
@@ -467,11 +530,31 @@ function OrdersView({ rows, onOpen }: { rows: Order[]; onOpen: (id: string) => v
  * promises 24 hours, and nothing tracked it - so the promise was only ever
  * kept by accident. Only meaningful while it is our turn.
  */
-function WaitingCell({ listing }: { listing: Listing }) {
-  if (listing.status !== 'pending') {
+/**
+ * One badge that names the actual situation. listings.status alone read
+ * "pending" whether we owed an offer, an offer was sitting unanswered, or the
+ * vendor had been asked for changes and might never come back.
+ */
+function StateBadge({ listing, acq }: { listing: Listing; acq?: AcqRow }) {
+  const [label, tone] =
+    listing.is_sold ? ['Sold', 'text-red-600']
+    : listing.status === 'approved' ? ['Live', 'text-emerald-700']
+    : listing.status === 'archived' || listing.status === 'suspended' ? [listing.status, 'text-black/40']
+    : acq?.offer_status === 'accepted' ? ['Accepted, not live', 'text-emerald-700']
+    : acq?.offer_status === 'offered' ? ['Offer with vendor', 'text-amber-700']
+    : acq?.offer_status === 'declined' ? ['Declined', 'text-black/50']
+    : acq?.offer_status === 'expired' ? ['Offer expired', 'text-black/50']
+    : ['Needs an offer', 'text-black'];
+  return <span className={cn('text-[9px] font-black uppercase tracking-widest', tone)}>{label}</span>;
+}
+
+function WaitingCell({ listing, acq }: { listing: Listing; acq?: AcqRow }) {
+  // Only counts while the answer is ours to give. An item sitting with the
+  // vendor used to accrue hours here against a promise we had already kept.
+  if (listing.status !== 'pending' || turnFor(acq?.offer_status) !== 'ours') {
     return <span className="text-[10px] text-black/25">—</span>;
   }
-  const hours = Math.floor((Date.now() - new Date(listing.created_at).getTime()) / 36e5);
+  const hours = Math.floor((Date.now() - new Date(acq?.updated_at ?? listing.created_at).getTime()) / 36e5);
   const overdue = hours >= 24;
   return (
     <span className={cn(
@@ -483,7 +566,7 @@ function WaitingCell({ listing }: { listing: Listing }) {
   );
 }
 
-function ListingsView({ rows, orders, onOpen }: { rows: Listing[]; orders: Order[]; onOpen: (id: string) => void }) {
+function ListingsView({ rows, acqByListing, orders, onOpen }: { rows: Listing[]; acqByListing: Map<string, AcqRow>; orders: Order[]; onOpen: (id: string) => void }) {
   if (rows.length === 0) return <Empty label="No listings." />;
   const orderByListing = new Map<string, Order>();
   for (const o of orders) if (o.listing_id && o.status !== 'cancelled' && o.status !== 'refunded') orderByListing.set(o.listing_id, o);
@@ -510,12 +593,9 @@ function ListingsView({ rows, orders, onOpen }: { rows: Listing[]; orders: Order
                 <td className="py-3 px-3 text-[11px]">{l.seller_email}</td>
                 <td className="py-3 px-3 text-xs font-black text-right tabular-nums">{formatCurrency(l.price)}</td>
                 <td className="py-3 px-3">
-                  <span className={cn('text-[9px] font-black uppercase tracking-widest',
-                    l.is_sold ? 'text-red-600' : l.status === 'approved' ? 'text-emerald-700' : 'text-black/50')}>
-                    {l.is_sold ? 'Sold' : l.status === 'approved' ? 'Live' : l.status}
-                  </span>
+                  <StateBadge listing={l} acq={acqByListing.get(l.id)} />
                 </td>
-                <td className="py-3 px-3"><WaitingCell listing={l} /></td>
+                <td className="py-3 px-3"><WaitingCell listing={l} acq={acqByListing.get(l.id)} /></td>
                 <td className="py-3 px-3 text-[10px] font-bold uppercase tracking-widest text-black/50">{ord ? ord.order_number : '—'}</td>
                 <td className="py-3 px-3 text-right"><ChevronRight className="h-4 w-4 text-black/30 inline" /></td>
               </tr>
@@ -954,8 +1034,8 @@ function ActBtn({ label, onClick, busy, danger, disabled }: { label: string; onC
 // Listing drawer
 // ---------------------------------------------------------------------------
 
-function ListingDrawer({ listing, orders, payouts, audit, onClose, onDone, onOpenOrder }: {
-  listing: Listing; orders: Order[]; payouts: VendorPayout[]; audit: AuditEntry[];
+function ListingDrawer({ listing, acq, orders, payouts, audit, onClose, onDone, onOpenOrder }: {
+  listing: Listing; acq?: AcqRow; orders: Order[]; payouts: VendorPayout[]; audit: AuditEntry[];
   onClose: () => void; onDone: () => Promise<void> | void; onOpenOrder: (id: string) => void;
 }) {
   const [busy, setBusy] = React.useState(false);
@@ -1037,7 +1117,25 @@ function ListingDrawer({ listing, orders, payouts, audit, onClose, onDone, onOpe
 
       <Sec title="Admin actions">
         <div className="flex flex-col gap-2 pt-1">
-          {listing.status !== 'approved' && <ActBtn label="Approve" onClick={() => setStatus('approved', 'Approve')} busy={busy} />}
+          {listing.status !== 'approved' && (
+            <div className="flex flex-col gap-1.5">
+              <ActBtn
+                label="Approve"
+                onClick={() => setStatus('approved', 'Approve')}
+                busy={busy}
+                disabled={acq?.offer_status !== 'accepted'}
+              />
+              {acq?.offer_status !== 'accepted' && (
+                <p className="text-[10px] leading-relaxed text-black/50 max-w-[38ch]">
+                  {acq?.offer_status === 'offered'
+                    ? 'The vendor has not accepted the offer yet. Nothing can go live until they do.'
+                    : acq?.offer_status === 'declined'
+                    ? 'This item is declined. Reopen it below, or wait for the vendor to send it back.'
+                    : 'Make an offer first, and wait for the vendor to accept it.'}
+                </p>
+              )}
+            </div>
+          )}
           {listing.status !== 'rejected' && <ActBtn label="Reject" onClick={() => setStatus('rejected', 'Reject')} busy={busy} />}
           {listing.status === 'approved' && <ActBtn label="Suspend" onClick={() => setStatus('suspended', 'Suspend')} busy={busy} />}
           {listing.status !== 'archived' && <ActBtn label="Archive" onClick={() => setStatus('archived', 'Archive')} busy={busy} />}
@@ -1164,6 +1262,24 @@ function AcquisitionPanel({ listingId, listingTitle, vendorEmail, askingPriceFal
       // vendor_notifications. It is not sent from here: this call used to hit
       // the "Unknown template" branch of send-email and silently deliver
       // nothing, which is exactly the failure the outbox exists to prevent.
+      await load(); await onDone();
+    } catch (e: any) { setErr(e?.message ?? 'That did not work.'); }
+    finally { setBusy(false); }
+  };
+
+  // An operator could reject but never undo it: only the vendor could call
+  // resubmit_listing. Kept as its own RPC rather than reusing the vendor's,
+  // because "I was wrong to reject this" and "I fixed what you asked for" are
+  // different facts and the first is worth being able to count.
+  const reopen = async () => {
+    setBusy(true); setErr(null);
+    try {
+      const { error } = await supabase.rpc('reopen_declined_item', {
+        p_listing_id: listingId,
+        p_reason: note.trim() || null,
+      });
+      if (error) throw error;
+      setNote('');
       await load(); await onDone();
     } catch (e: any) { setErr(e?.message ?? 'That did not work.'); }
     finally { setBusy(false); }
@@ -1298,6 +1414,21 @@ function AcquisitionPanel({ listingId, listingTitle, vendorEmail, askingPriceFal
             </p>
           </div>
           <ActBtn label="Reject and tell the vendor" danger onClick={reject} busy={busy} />
+        </div>
+      ) : acq.offer_status === 'declined' || acq.offer_status === 'expired' ? (
+        <div className="flex flex-col gap-3 pt-3">
+          <p className="text-[11px] leading-relaxed text-black/60 max-w-[44ch]">
+            {acq.offer_status === 'declined'
+              ? 'Declined. The vendor can fix what was named and send it back. Nothing happens to this item until they do, or until you reopen it here.'
+              : 'The offer lapsed unanswered. Reopening puts it back in the queue for a fresh offer.'}
+          </p>
+          <textarea
+            value={note} onChange={(e) => setNote(e.target.value)} rows={2}
+            placeholder="Why are you reopening it? (recorded for us, the vendor never sees this)"
+            className="border border-black/15 px-3 py-2 text-xs font-medium leading-relaxed focus:border-black focus:outline-none"
+          />
+          <ActBtn label="Reopen for a fresh offer" onClick={reopen} busy={busy} />
+          {err && <p className="text-[11px] text-red-600 leading-relaxed">{err}</p>}
         </div>
       ) : (
         <>
