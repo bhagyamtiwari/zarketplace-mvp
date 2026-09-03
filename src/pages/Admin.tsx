@@ -871,9 +871,12 @@ function OrderDrawer({ order, payouts, emails, audit, onClose, onDone }: {
     } catch (err: any) { alert(err?.message ?? 'Failed.'); } finally { setBusy(false); }
   };
 
-  const cancelAndRefund = async () => {
+  const cancelUnpaidOrder = async () => {
     const reason = prompt('Reason for cancelling this order? (stored in the audit log)') ?? '';
-    if (!confirm('Cancel this order, relist the item, void any unpaid payout, and email both parties?\n\nRefund the payment in Razorpay manually.')) return;
+    // No longer says "refund it manually in Razorpay". Money is never left to
+    // an operator's memory: if a payment was captured, the database refuses
+    // this action and the refund control is the only way through.
+    if (!confirm('Cancel this order and put the item back on sale? No money is involved: this order has no captured payment.')) return;
     setBusy(true);
     try {
       const { error } = await supabase.from('orders').update({ status: 'cancelled' }).eq('id', order.id);
@@ -1012,7 +1015,21 @@ function OrderDrawer({ order, payouts, emails, audit, onClose, onDone }: {
           )}
           {/* No captured payment -> just cancel + relist (nothing to refund). */}
           {!order.razorpay_payment_id && order.status !== 'cancelled' && order.status !== 'refunded' && (
-            <ActBtn label="Cancel & relist" danger onClick={cancelAndRefund} busy={busy} />
+            <div className="flex flex-col gap-1.5">
+              <ActBtn
+                label="Cancel & relist"
+                danger
+                onClick={cancelUnpaidOrder}
+                busy={busy}
+                disabled={!!order.razorpay_payment_id}
+              />
+              {!!order.razorpay_payment_id && (
+                <p className="text-[10px] leading-relaxed text-black/50 max-w-[38ch]">
+                  This order has money in it. Use "Refund via Razorpay" instead, which returns the
+                  payment and then closes the order. Cancelling would leave the buyer paid out of pocket.
+                </p>
+              )}
+            </div>
           )}
         </div>
       </Sec>
