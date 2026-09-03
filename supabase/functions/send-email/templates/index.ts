@@ -1,6 +1,6 @@
 // Template registry. Add a new email by dropping a file in this folder and
 // registering it here — no other file needs to change.
-import { baseStyle, EmailContent, EmailContext, esc } from "./_shared.ts";
+import { baseStyle, EmailContent, EmailContext, esc, shell } from "./_shared.ts";
 import { orderConfirmationBuyer } from "./order-confirmation-buyer.ts";
 import { trackingUpdateBuyer } from "./tracking-update-buyer.ts";
 import { paymentConfirmedBuyer } from "./payment-confirmed-buyer.ts";
@@ -33,6 +33,6 @@ export function buildEmail(template: string, ctx: EmailContext): EmailContent {
   return {
     to: (ctx.extra?.to as string) ?? "",
     subject: "Notification from zarketplace",
-    html: `<div style="${baseStyle}"><p>${esc(JSON.stringify(ctx.extra))}</p></div>`,
+    html: shell(`<div style="${baseStyle}"><p style="color:#111111;">${esc(JSON.stringify(ctx.extra))}</p></div>`),
   };
 }

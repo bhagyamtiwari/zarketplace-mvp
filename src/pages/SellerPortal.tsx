@@ -15,9 +15,7 @@ import { supabase } from '../lib/supabase';
 import { Listing } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { variantUrl } from '../lib/images';
-import {
-  Loader2, Trash2, Share2,
-} from 'lucide-react';
+import { ChevronRight, Loader2, Share2, Trash2 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
 import { ShareInstagramModal } from '../components/ShareInstagramModal';
@@ -360,40 +358,84 @@ function ActionCallout({ rows, offers, statusOf }: {
   offers: Map<string, VendorOffer>;
   statusOf: (l: Listing) => VendorStatusView;
 }) {
+  // An open offer is the one thing a vendor is actually waiting for, and it
+  // used to be a 10px line of tracked caps inside a list. It is now the
+  // loudest thing on the page, with the number at display size and the
+  // consequence of accepting stated rather than implied: people did not know
+  // that accepting is what puts the item on sale.
+  const withOffer = rows.filter((l) => statusOf(l).key === 'offer_ready');
+  const others = rows.filter((l) => statusOf(l).key !== 'offer_ready');
+
   return (
-    <div className="border border-black">
-      <div className="border-b border-black px-6 py-4 sm:px-8">
-        <span className="text-[9px] font-black uppercase tracking-[0.4em]">
-          {rows.length === 1 ? 'One item needs you' : `${rows.length} items need you`}
-        </span>
-      </div>
-      <ul className="flex flex-col">
-        {rows.map((l) => {
-          const offer = offers.get(l.id);
-          const status = statusOf(l);
-          const amount = offer?.offer_amount;
-          return (
-            <li key={l.id} className="border-b border-black/10 last:border-b-0">
+    <div className="flex flex-col gap-6">
+      {withOffer.map((l) => {
+        const amount = offers.get(l.id)?.offer_amount;
+        return (
+          <div key={l.id} className="border-2 border-black bg-white">
+            <div className="flex flex-col gap-6 px-6 py-8 sm:px-10 sm:py-10">
+              <div className="flex flex-col gap-2">
+                <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tighter leading-none">
+                  Your offer is ready
+                </h2>
+                <p className="text-sm font-normal leading-relaxed text-black/60 max-w-[46ch]">
+                  For {l.title}. This is what we will pay you for it.
+                </p>
+              </div>
+
+              {amount != null && (
+                <p className="text-5xl sm:text-6xl font-black tracking-tighter leading-none tabular-nums">
+                  {formatCurrency(Number(amount))}
+                </p>
+              )}
+
+              <p className="text-sm font-normal leading-relaxed text-black/70 max-w-[52ch]">
+                Accept it and your item goes on sale on zarketplace straight away. We will send
+                you a prepaid label to post it to us. Nothing is listed until you accept.
+              </p>
+
               <Link
                 to={`/offer/${l.id}`}
-                className="group flex items-center justify-between gap-5 px-6 py-5 sm:px-8 hover:bg-zinc-50 transition-colors"
+                className="self-start inline-flex items-center gap-3 bg-black px-10 py-5 text-xs font-black uppercase tracking-[0.3em] text-white hover:bg-zinc-800 transition-colors"
               >
-                <span className="flex flex-col gap-1.5 min-w-0">
-                  <span className="text-xs font-black uppercase tracking-tight truncate">{l.title}</span>
-                  <span className="text-[10px] font-black uppercase tracking-[0.25em] text-black/40">
-                    {status.key === 'offer_ready' && amount != null
-                      ? `We will pay you ${formatCurrency(Number(amount))}`
-                      : status.detail}
-                  </span>
-                </span>
-                <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.25em] border-b-2 border-black pb-1 group-hover:text-black/60">
-                  {status.key === 'offer_ready' ? 'Review' : 'Open'}
-                </span>
+                Review and accept <ChevronRight className="h-4 w-4" />
               </Link>
-            </li>
-          );
-        })}
-      </ul>
+            </div>
+          </div>
+        );
+      })}
+
+      {others.length > 0 && (
+        <div className="border border-black">
+          <div className="border-b border-black px-6 py-4 sm:px-8">
+            <span className="text-[9px] font-black uppercase tracking-[0.4em]">
+              {others.length === 1 ? 'One item needs you' : `${others.length} items need you`}
+            </span>
+          </div>
+          <ul className="flex flex-col">
+            {others.map((l) => {
+              const status = statusOf(l);
+              return (
+                <li key={l.id} className="border-b border-black/10 last:border-b-0">
+                  <Link
+                    to={`/offer/${l.id}`}
+                    className="group flex items-center justify-between gap-5 px-6 py-5 sm:px-8 hover:bg-zinc-50 transition-colors"
+                  >
+                    <span className="flex flex-col gap-1.5 min-w-0">
+                      <span className="text-xs font-black uppercase tracking-tight truncate">{l.title}</span>
+                      <span className="text-[11px] font-normal leading-relaxed text-black/60">
+                        {status.detail}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.25em] border-b-2 border-black pb-1 group-hover:text-black/60">
+                      Open
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }

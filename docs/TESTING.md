@@ -38,6 +38,16 @@ hidden real defects:
    information it is displaying.
    *Surfaced is not the same as reported.*
 
+5. **An orphan scan reported every file in the project as unused.** Twice. A
+   shell variable never expanded inside single quotes, so the pattern matched
+   nothing and every module looked unimported. It was caught only because
+   `Footer.tsx` is obviously imported, and a third implementation was needed
+   before the result was trustworthy: the second still flagged all 27 pages,
+   because they are loaded through `React.lazy` and the pattern only looked
+   for static imports.
+   *A detector that flags everything is as broken as one that flags nothing.
+   The tell is a result too clean, or too damning, to be true.*
+
 The shape is the same every time: the test verified what we reasoned about
 rather than what ships.
 
@@ -50,6 +60,7 @@ produced findings here.
 |---|---|---|
 | **Silence** | The operation fails and nothing says so. A 400 swallowed by a helper, a trigger reverting a write, an email template that was never registered. | Assert the outcome, not the call. Check the row, the endpoint, the rendered page. |
 | **Vacuous green** | The check runs, finds nothing to check, and reports success. A skipped test, a blank page, an empty result set. | Make the check fail when it examined nothing. Print the size of what was checked. |
+| **Implausible result** | The check runs and returns an answer nobody sanity-checks. Everything passes, or everything fails. | Before believing a result, find one item you already know the answer for and confirm the tool agrees. |
 | **Surfaced without information** | The failure IS reported, in a form that carries none of the meaning. A browser `alert()`, a generic 500, a message with no next step. | State what happened and what to do next, in place, where the action was taken. |
 
 The third is the one that cost the most time, because it does not look like a
