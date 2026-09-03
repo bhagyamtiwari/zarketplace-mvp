@@ -48,6 +48,24 @@ hidden real defects:
    *A detector that flags everything is as broken as one that flags nothing.
    The tell is a result too clean, or too damning, to be true.*
 
+6. **The email check passed against a stale copy of the templates.** The
+   harness staged the template sources into a temp directory by hand. Editing
+   a template and re-running then tested the *previous* code, while producing
+   a real, detailed, entirely trustworthy-looking result. It now stages the
+   sources itself on every run.
+   *A harness that runs, checks real things, and passes against code that is
+   not the code under edit looks healthier than vacuous green, because it
+   does produce a real result. Ask what the check actually read, not what it
+   reported.*
+
+7. **The proof that a check goes red was itself wrong.** To trust the email
+   check, the dark-mode bug was reintroduced deliberately. It stayed green.
+   The break was incomplete: `shell()` still carried a white `<table bgcolor>`,
+   so the background never actually went away, and the test was right to pass.
+   *When a deliberate break does not fail the test, suspect the break before
+   suspecting the test.* Verifying the verifier is a step that can fail on its
+   own terms.
+
 The shape is the same every time: the test verified what we reasoned about
 rather than what ships.
 
@@ -61,6 +79,7 @@ produced findings here.
 | **Silence** | The operation fails and nothing says so. A 400 swallowed by a helper, a trigger reverting a write, an email template that was never registered. | Assert the outcome, not the call. Check the row, the endpoint, the rendered page. |
 | **Vacuous green** | The check runs, finds nothing to check, and reports success. A skipped test, a blank page, an empty result set. | Make the check fail when it examined nothing. Print the size of what was checked. |
 | **Implausible result** | The check runs and returns an answer nobody sanity-checks. Everything passes, or everything fails. | Before believing a result, find one item you already know the answer for and confirm the tool agrees. |
+| **Stale input** | The check runs properly and reports a real result, about code that is not the code you just changed. | Make the harness gather its own inputs at run time. Never stage by hand. |
 | **Surfaced without information** | The failure IS reported, in a form that carries none of the meaning. A browser `alert()`, a generic 500, a message with no next step. | State what happened and what to do next, in place, where the action was taken. |
 
 The third is the one that cost the most time, because it does not look like a
