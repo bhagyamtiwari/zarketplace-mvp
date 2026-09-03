@@ -3,14 +3,17 @@ export type ListingStatus = 'pending' | 'approved' | 'rejected' | 'suspended' | 
 export interface Listing {
   id: string;
   sku?: string;
-  seller_id: string;
-  // Sensitive seller fields live only on the base `listings` table (owner/admin
-  // reads). The public `public_listings` view omits them, so they are optional
-  // here and absent from any anon/non-owner read.
+  // Vendor fields live only on the base `listings` table, behind owner/admin
+  // policies. The public view omits every one of them, so they are optional
+  // here and absent from any storefront read. is_mine is the view's answer to
+  // the only question the storefront ever asked seller_id: is this the
+  // vendor's own item?
+  seller_id?: string;
   seller_email?: string;
-  seller_display_name: string | null;
-  seller_instagram: string; // full URL
+  seller_display_name?: string | null;
+  seller_instagram?: string; // full URL
   seller_upi_vpa?: string;
+  is_mine?: boolean | null;
   title: string;
   brand: string | null;
   description: string | null;
@@ -41,7 +44,7 @@ export interface Listing {
   item_altered: boolean | null;
   wear_frequency: string | null;
   authenticity_confirmed: boolean;
-  seller_declared_at: string | null;
+  seller_declared_at?: string | null;
   status: ListingStatus;
   is_sold: boolean;
   created_at: string;

@@ -43,6 +43,12 @@ const OBJECTS = [
  */
 const FORBIDDEN: Array<[RegExp, string]> = [
   [/seller_display_name|seller_instagram|seller_email|vendor_email|full_name/i, "vendor identity"],
+  // seller_id survived three audits of this view because the list only looked
+  // for columns that NAME someone. A bare uuid names nobody, and still lets
+  // anyone group the catalogue by vendor and count each one's items, which is
+  // vendor structure reaching buyers. A stable per-vendor key is identity
+  // whether or not it is readable.
+  [/^seller_id$|^vendor_id$|seller_uuid/i, "a per-vendor key a buyer could group by"],
   [/upi|bank_account|ifsc|\bpan\b/i, "vendor payout identity"],
   [/pickup_address|pickup_pincode|pickup_state|hub_notes/i, "vendor or hub location"],
   [/asking_price/i, "the vendor's ask"],

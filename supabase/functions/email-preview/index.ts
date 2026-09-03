@@ -105,7 +105,15 @@ serve(async (req) => {
       await deliver(`vendor/${kind}`, e.subject, e.html);
     }
 
-    return json({ to, sent: sent.length, failed: failed.length, sent_templates: sent, failures: failed });
+    // Reported back so the sender is checked before the rendering is judged:
+    // a preview that lands in spam because of an unverified From tells you
+    // nothing about dark mode. Not sensitive - it is the public From address.
+    return json({
+      from: EMAIL_FROM,
+      sender_is_resend_default: EMAIL_FROM === "onboarding@resend.dev",
+      to, sent: sent.length, failed: failed.length,
+      sent_templates: sent, failures: failed,
+    });
   } catch (err) {
     console.error("email-preview error", err);
     return json({ error: String(err) }, 500);

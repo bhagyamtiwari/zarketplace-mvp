@@ -36,9 +36,7 @@ interface CartContextValue {
   items: CartItem[];
   count: number;
   loading: boolean;
-  sellerId: string | null; // active seller for the cart (single-seller rule)
-  add: (listing: ListingLike) => Promise<{ ok: true } | { ok: false; reason: 'different_seller' }>;
-  forceAdd: (listing: ListingLike) => Promise<void>; // clears cart then adds
+  add: (listing: ListingLike) => Promise<{ ok: true }>;
   remove: (listingId: string) => Promise<void>;
   clear: () => Promise<void>;
   has: (listingId: string) => boolean;
@@ -58,7 +56,6 @@ function snapshot(l: ListingLike): CartItem {
     sale_price: l.sale_price ?? null,
     image_url: l.image_url,
     size: l.size,
-    seller_id: l.seller_id,
     shipping_category: l.shipping_category,
     free_shipping: l.free_shipping,
     // Carried so the checkout summary can zero the delivery line for a
@@ -90,7 +87,7 @@ async function fetchListingsByIds(ids: string[]): Promise<Record<string, Listing
   if (ids.length === 0) return {};
   const { data, error } = await supabase
     .from('public_listings')
-    .select('id, sku, title, brand, price, sale_price, image_url, size, seller_id, shipping_category, free_shipping, shipping_mode')
+    .select('id, sku, title, brand, price, sale_price, image_url, size, shipping_category, free_shipping, shipping_mode')
     .in('id', ids);
   if (error) {
     clog.warn('fetchListingsByIds error', error);
@@ -105,8 +102,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const [items, setItems] = React.useState<CartItem[]>(() => readLocal());
   const [loading, setLoading] = React.useState(false);
-
-  const sellerId = items[0]?.seller_id ?? null;
 
   // Hydrate from DB on login + merge any local items.
   const loadFromDb = React.useCallback(async (uid: string) => {
@@ -127,18 +122,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const newIdsToInsert = localIds.filter((id) => !dbIds.includes(id));
 
       if (newIdsToInsert.length > 0) {
-        // Validate single-seller before merging - if the local seller doesn't
-        // match an existing DB seller, the DB cart wins and we discard local.
-        const allIds = Array.from(new Set([...dbIds, ...newIdsToInsert]));
-        const map = await fetchListingsByIds(allIds);
-        const sellers = new Set(Object.values(map).map((l) => l.seller_id).filter(Boolean));
-        if (sellers.size <= 1) {
-          await supabase.from('cart_items').insert(
-            newIdsToInsert.map((listing_id) => ({ user_id: uid, listing_id })),
-          );
-        } else {
-          clog('discarding local cart on merge: would mix sellers');
-        }
+        // Everything in a bag is ours to sell, so there is nothing to
+        // validate before merging. This used to discard the local cart when
+        // items came from different vendors.
+        await supabase.from('cart_items').insert(
+          newIdsToInsert.map((listing_id) => ({ user_id: uid, listing_id })),
+        );
       }
 
       // Always re-read after potential insert.
@@ -197,16 +186,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const add: CartContextValue['add'] = async (listing) => {
     if (items.some((i) => i.listing_id === listing.id)) return { ok: true };
-    if (sellerId && listing.seller_id && sellerId !== listing.seller_id) {
-      return { ok: false, reason: 'different_seller' };
-    }
     await persist([...items, snapshot(listing)]);
     return { ok: true };
   };
 
-  const forceAdd: CartContextValue['forceAdd'] = async (listing) => {
-    await persist([snapshot(listing)]);
-  };
 
   const remove: CartContextValue['remove'] = async (listingId) => {
     await persist(items.filter((i) => i.listing_id !== listingId));
@@ -227,9 +210,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     items,
     count: items.length,
     loading,
-    sellerId,
     add,
-    forceAdd,
     remove,
     clear,
     has,

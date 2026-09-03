@@ -33,17 +33,18 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 // Buyer-safe columns for the owner/admin fallback read on the base `listings`
 // table. Never selects any vendor identity: not seller_email, seller_upi_vpa or
 // pickup_address, and not seller_display_name or seller_instagram either. A
-// buyer's copy of a listing must not carry who we bought it from, even in a
-// field the page does not render. seller_id stays only so the page can
-// recognise a vendor viewing their own listing.
+// The buyer's copy of a listing carries nothing about who we bought it from.
+// It used to carry seller_id so the page could recognise a vendor looking at
+// their own item; the view now answers that as an is_mine boolean instead, so
+// the key itself never leaves the database.
 const SAFE_LISTING_COLUMNS =
-  'id, sku, seller_id, title, brand, description, price, sale_price, category, gender, size_type, size, condition, image_url, image_urls, shipping_category, free_shipping, has_flaws, flaws_description, original_tags_attached, original_packaging, item_altered, wear_frequency, authenticity_confirmed, seller_declared_at, status, is_sold, created_at, updated_at, shipping_mode';
+  'id, sku, title, brand, description, price, sale_price, category, gender, size_type, size, condition, image_url, image_urls, shipping_category, free_shipping, has_flaws, flaws_description, original_tags_attached, original_packaging, item_altered, wear_frequency, authenticity_confirmed, status, is_sold, created_at, updated_at, shipping_mode, is_mine';
 
 export function ProductPage() {
   const params = useParams();
   const slug = (params.sku || params.id || '').trim();
   const navigate = useNavigate();
-  const { add, has, forceAdd } = useCart();
+  const { add, has } = useCart();
   const { user } = useAuth();
   const [authModal, setAuthModal] = React.useState<null | { redirectTo: string; onSuccess?: () => void; message?: string }>(null);
   const [listing, setListing] = React.useState<Listing | null>(null);
@@ -51,7 +52,6 @@ export function ProductPage() {
   React.useEffect(() => { getShippingCategories().then(setShippingCategories); }, []);
   const [loading, setLoading] = React.useState(true);
   const [cartMsg, setCartMsg] = React.useState<string | null>(null);
-  const [conflict, setConflict] = React.useState(false);
   const [shareOpen, setShareOpen] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
   const [showConditionMeter, setShowConditionMeter] = React.useState(false);
@@ -318,7 +318,7 @@ export function ProductPage() {
                   {listing.status === 'pending' ? 'Pending admin approval' : 'Listing not available'}
                 </span>
                 <p className="text-[11px] font-bold uppercase tracking-widest text-amber-700/80 leading-relaxed">
-                  {user?.id === listing.seller_id
+                  {listing.is_mine === true
                     ? 'Your listing is awaiting admin approval. It will be visible on browse and purchasable once approved. Until then, no one (including you) can buy or add it to cart.'
                     : 'This listing is not yet available to purchase.'}
                 </p>
@@ -347,16 +347,14 @@ export function ProductPage() {
                         redirectTo: `/product/${listing.id}`,
                         message: 'Sign in to add to cart.',
                         onSuccess: async () => {
-                          const res = await add(target);
-                          if (res.ok) setCartMsg('Added to cart');
-                          else if ('reason' in res && res.reason === 'different_seller') setConflict(true);
+                          await add(target);
+                          setCartMsg('Added to cart');
                         },
                       });
                       return;
                     }
-                    const res = await add(listing);
-                    if (res.ok) setCartMsg('Added to cart');
-                    else if ('reason' in res && res.reason === 'different_seller') setConflict(true);
+                    await add(listing);
+                    setCartMsg('Added to cart');
                   }}
                   className="w-full border border-black py-6 text-center text-xs font-black uppercase tracking-[0.3em] text-black transition-all hover:bg-black hover:text-white flex items-center justify-center gap-3"
                 >
@@ -367,29 +365,6 @@ export function ProductPage() {
                   )}
                 </button>
                 {cartMsg && <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600">{cartMsg}</p>}
-                {conflict && (
-                  <div className="border border-black/10 bg-zinc-50 p-4 flex flex-col gap-3">
-                    <p className="text-[10px] font-bold uppercase tracking-widest">
-                      Your cart already has an item that ships separately from this one. Clear cart and add this?
-                    </p>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={async () => { await forceAdd(listing); setConflict(false); setCartMsg('Cart replaced'); }}
-                        className="flex-1 bg-black py-3 text-[10px] font-black uppercase tracking-widest text-white"
-                      >
-                        Clear & Add
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConflict(false)}
-                        className="flex-1 border border-black/10 py-3 text-[10px] font-black uppercase tracking-widest"
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
               </>
             )}
           </div>
@@ -495,7 +470,7 @@ export function ProductPage() {
               </div>
             </div>
 
-            {user?.id === listing.seller_id && (
+            {listing.is_mine === true && (
               <div className="mt-4 pt-6 border-t border-black/5 flex flex-col gap-3">
                 <span className="text-[9px] font-black uppercase tracking-[0.4em] text-black/40">Your listing</span>
                 <button
@@ -557,7 +532,7 @@ export function ProductPage() {
         onSuccess={authModal?.onSuccess}
         message={authModal?.message}
       />
-      {user?.id === listing.seller_id && (
+      {listing.is_mine === true && (
         <ShareInstagramModal open={shareOpen} onClose={() => setShareOpen(false)} listing={listing} />
       )}
     </div>
