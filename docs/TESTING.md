@@ -30,8 +30,30 @@ hidden real defects:
    count it checked.
    *An assertion that examined nothing is a failure, not a pass.*
 
+4. **A working refusal looked like a broken feature for days.** Approval was
+   refusing correctly: `require_accepted_acquisition` raised the right message,
+   the client caught it, and `alert()` displayed it. Every link worked. It
+   still read as "approval is broken" because a browser dialog with no
+   context, no next step and no trace after you dismiss it carries none of the
+   information it is displaying.
+   *Surfaced is not the same as reported.*
+
 The shape is the same every time: the test verified what we reasoned about
 rather than what ships.
+
+## The three ways a failure hides
+
+Worth naming separately, because they need different defences and all three
+produced findings here.
+
+| | How it hides | What catches it |
+|---|---|---|
+| **Silence** | The operation fails and nothing says so. A 400 swallowed by a helper, a trigger reverting a write, an email template that was never registered. | Assert the outcome, not the call. Check the row, the endpoint, the rendered page. |
+| **Vacuous green** | The check runs, finds nothing to check, and reports success. A skipped test, a blank page, an empty result set. | Make the check fail when it examined nothing. Print the size of what was checked. |
+| **Surfaced without information** | The failure IS reported, in a form that carries none of the meaning. A browser `alert()`, a generic 500, a message with no next step. | State what happened and what to do next, in place, where the action was taken. |
+
+The third is the one that cost the most time, because it does not look like a
+missing signal. It looks like a working feature that does nothing.
 
 ## Corollaries
 

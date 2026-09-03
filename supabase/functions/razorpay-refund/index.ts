@@ -90,10 +90,48 @@ serve(async (req) => {
     }
     const refundId = String(rpData.id ?? "");
 
-    // Bring the order to a clean terminal state. Do these best-effort past the
-    // successful refund - the money is already back, so a follow-up write
-    // failing must not make the caller think the refund itself failed.
-    await supabase.from("orders").update({ status: "refunded" }).eq("id", order.id);
+    // Bring the order to a clean terminal state.
+    //
+    // This used to be a single best-effort write, on the reasoning that the
+    // money was already back so a failed follow-up must not look like a failed
+    // refund. That reasoning is right about the caller and wrong about the
+    // record: a refund that happens at Razorpay and is never written here is
+    // invisible to us afterwards, and reconciling it means going to Razorpay's
+    // dashboard to discover it. The money moving is exactly why the write has
+    // to be durable.
+    //
+    // So: retry, and if it still will not land, say so loudly and hand the
+    // caller the refund id rather than a bare success. Nothing is silent.
+    let written = false;
+    let lastWriteErr: string | null = null;
+    for (let attempt = 1; attempt <= 4 && !written; attempt++) {
+      const { error: wErr } = await supabase
+        .from("orders").update({ status: "refunded" }).eq("id", order.id);
+      if (!wErr) { written = true; break; }
+      lastWriteErr = wErr.message ?? String(wErr);
+      console.error(`razorpay-refund: write-back attempt ${attempt} failed`, wErr);
+      if (attempt < 4) await new Promise((r) => setTimeout(r, attempt * 400));
+    }
+    if (!written) {
+      // The refund is real and our record does not show it. This is the exact
+      // shape razorpay-reconcile exists to catch, so leave a trail it and an
+      // operator can both find.
+      console.error(
+        `razorpay-refund: REFUND SUCCEEDED BUT NOT RECORDED. order=${order.order_number} ` +
+        `refund_id=${refundId} amount=${paise / 100}. Our record still says "${order.status}".`,
+      );
+      try {
+        await supabase.from("admin_audit_log").insert({
+          entity: "order", entity_id: order.id,
+          action: "order.refund.write_back_failed",
+          old_state: { status: order.status },
+          new_state: { refund_id: refundId, amount: paise / 100, error: lastWriteErr },
+          reason: "Refund succeeded at Razorpay; the order status write failed after retries.",
+        });
+      } catch (auditErr) {
+        console.error("razorpay-refund: could not even record the write-back failure", auditErr);
+      }
+    }
     // Put the item back on sale only when the refund was a change of mind
     // about the ORDER. A refund that follows a fulfillment failure must not
     // relist: the item was refused at the hub, never dispatched, or is lost,
@@ -121,7 +159,19 @@ serve(async (req) => {
 
     void sendRefundEmail(order).catch((e) => console.error("refund email failed", e));
 
-    return json({ ok: true, refund_id: refundId, amount: paise });
+    return json({
+      ok: true,
+      refund_id: refundId,
+      amount: paise,
+      // Told plainly rather than swallowed: the caller needs to know the
+      // difference between "done" and "done but our record disagrees".
+      recorded: written,
+      ...(written ? {} : {
+        warning:
+          "The refund went through at Razorpay but this order's status could not be updated. " +
+          "Run razorpay-reconcile and correct it before relying on the order record.",
+      }),
+    });
   } catch (err) {
     console.error("razorpay-refund error", err);
     return json({ error: String(err) }, 500);
