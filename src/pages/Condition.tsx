@@ -24,7 +24,7 @@ export function Condition() {
         <div className="flex flex-col gap-4">
           <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Conditions Guide</h1>
           <p className="body-longform max-w-[64ch]">
-            Every item is graded on the same five-tier scale, so the word on one listing means what it means on all of them.
+            Every item is graded on the same four-tier scale, so the word on one listing means what it means on all of them.
           </p>
         </div>
 
@@ -48,14 +48,14 @@ export function Condition() {
                 {c.name}
                 <span className="text-xs tracking-[0.2em] text-black/40">{c.grade}</span>
               </h2>
-              <p className="text-xs font-medium uppercase tracking-widest leading-relaxed text-black/60">{c.desc}</p>
+              <p className="body-longform">{c.desc}</p>
             </div>
           ))}
         </div>
 
         <section className="p-6 sm:p-10 bg-black text-white flex flex-col gap-4">
           <h3 className="text-sm font-black uppercase tracking-widest">A note on pre-owned items</h3>
-          <p className="text-xs font-bold uppercase tracking-widest leading-relaxed">
+          <p className="body-longform max-w-[64ch]">
             As pre-owned pieces, items may carry light odors or signs of storage. We recommend following care labels and washing, or dry cleaning, garments before first wear.
           </p>
         </section>

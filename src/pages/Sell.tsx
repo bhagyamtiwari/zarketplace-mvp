@@ -111,13 +111,11 @@ const MAX_IMAGES = 8;
 // agreement at offer acceptance, where money is actually promised.
 const STEP_LABELS = ['Photos', 'Details', 'Condition & price'];
 
-interface Declarations {
-  oneItem: boolean;
-  photosActual: boolean;
-  disclosedFlaws: boolean;
-  accurate: boolean;
-  authenticIfMarked: boolean;
-}
+type Declarations = Record<string, boolean>;
+
+/** Every confirmation unticked. The only place this shape is built. */
+const noDeclarations = (): Declarations =>
+  Object.fromEntries(PUBLISH_CONFIRMATIONS.map((c) => [c.key, false]));
 
 export function Sell() {
   usePageMeta(META.sell);
@@ -195,9 +193,7 @@ function SellInner() {
   // kept for display and for the seller to sanity-check what they typed - if
   // the two disagree, the pincode is what any rule reads.
 
-  const [declarations, setDeclarations] = React.useState<Declarations>({
-    oneItem: false, photosActual: false, disclosedFlaws: false, accurate: false, authenticIfMarked: false,
-  });
+  const [declarations, setDeclarations] = React.useState<Declarations>(noDeclarations);
 
   React.useEffect(() => { getShippingCategories().then(setShippingCategories); }, []);
 
@@ -352,8 +348,14 @@ function SellInner() {
   const goNext = () => goToStep(step + 1);
   const goBack = () => goToStep(step - 1);
 
-  const allDeclared = Object.values(declarations).every(Boolean);
+  const undeclared = PUBLISH_CONFIRMATIONS.filter((c) => !declarations[c.key]).length;
+  const allDeclared = undeclared === 0;
   const canPublish = allDeclared && !loading;
+  // A disabled button that does not say why reads as a broken one.
+  const blockedReason = loading ? null
+    : undeclared === PUBLISH_CONFIRMATIONS.length ? 'Tick both lines above to send it to us.'
+    : undeclared > 0 ? 'One line above is still unticked.'
+    : null;
 
   // Review is the only step without its own validator: it is complete when the
   // two things it asks for are answered.
@@ -518,7 +520,7 @@ function SellInner() {
     setOriginalTags(null); setOriginalPackaging(null); setItemAltered(null); setWearFrequency(null);
     setCondition(''); setHasFlaws(null); setFlawsDescription('');
     setPriceVal('');
-    setDeclarations({ oneItem: false, accurate: false });
+    setDeclarations(noDeclarations());
   };
 
   if (submitted) {
@@ -714,11 +716,16 @@ function SellInner() {
               Continue <ChevronRight className="h-4 w-4" />
             </button>
           ) : (
-            <button type="button" onClick={handlePublish} disabled={!canPublish}
-              className="inline-flex items-center gap-3 bg-black px-12 py-5 text-xs font-black uppercase tracking-[0.3em] text-white hover:bg-zinc-800 disabled:opacity-40">
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              Send it to us
-            </button>
+            <div className="flex flex-col items-end gap-2">
+              <button type="button" onClick={handlePublish} disabled={!canPublish}
+                className="inline-flex items-center gap-3 bg-black px-12 py-5 text-xs font-black uppercase tracking-[0.3em] text-white hover:bg-zinc-800 disabled:opacity-40">
+                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                {loading ? 'Sending' : 'Send it to us'}
+              </button>
+              {blockedReason && (
+                <p className="text-[11px] font-normal text-black/50">{blockedReason}</p>
+              )}
+            </div>
           )}
         </div>
 
@@ -754,11 +761,16 @@ function SellInner() {
             Continue <ChevronRight className="h-4 w-4" />
           </button>
         ) : (
-          <button type="button" onClick={handlePublish} disabled={!canPublish}
-            className="flex-1 bg-black py-4 text-xs font-black uppercase tracking-[0.3em] text-white disabled:opacity-40 flex items-center justify-center gap-2">
-            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            Send it to us
-          </button>
+          <div className="flex-1 flex flex-col gap-2">
+            <button type="button" onClick={handlePublish} disabled={!canPublish}
+              className="w-full bg-black py-4 text-xs font-black uppercase tracking-[0.3em] text-white disabled:opacity-40 flex items-center justify-center gap-2">
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {loading ? 'Sending' : 'Send it to us'}
+            </button>
+            {blockedReason && (
+              <p className="text-center text-[11px] font-normal text-black/50">{blockedReason}</p>
+            )}
+          </div>
         )}
       </div>
     </div>
@@ -1034,7 +1046,7 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
                 {c.name}
                 <span className={cn('text-[10px] tracking-[0.2em]', condition === c.name ? 'text-white/60' : 'text-black/40')}>{c.grade}</span>
               </span>
-              <span className={cn('text-[11px] font-bold uppercase tracking-widest leading-[1.8]', condition === c.name ? 'text-white' : 'text-black')}>{c.desc}</span>
+              <span className={cn('text-[13px] font-normal normal-case tracking-normal leading-relaxed', condition === c.name ? 'text-white/85' : 'text-black/70')}>{c.desc}</span>
             </button>
           ))}
         </div>

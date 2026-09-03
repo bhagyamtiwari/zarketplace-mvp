@@ -426,7 +426,7 @@ export function ProductPage() {
               <h3 className="text-xs font-black uppercase tracking-widest">Condition & Authenticity</h3>
               <div className="flex flex-col gap-4">
                 {conditionByName(listing.condition ?? '') && (
-                  <p className="text-[11px] font-medium uppercase tracking-widest leading-relaxed text-black/70">
+                  <p className="text-sm font-normal normal-case tracking-normal leading-relaxed text-black/70">
                     <span className="font-black text-black">{conditionByName(listing.condition ?? '')?.name}.</span>
                     {' '}
                     {conditionByName(listing.condition ?? '')?.desc}

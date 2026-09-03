@@ -26,11 +26,10 @@
 }
 
 @layer utilities {
-  /* One body-copy voice for the whole site. Matches the Conditions Guide,
-     which is the reference: 12px, medium, uppercase, wide tracking, relaxed
-     leading. Every long-form page and panel uses this rather than inventing
-     its own size, so nothing reads a step larger or tighter than its
-     neighbour. */
+  /* The label register: 12px, medium, uppercase, wide tracking. For short
+     panels, captions and standing labels. Paragraphs belong in
+     .body-longform below - setting prose in this is what the long-form pages
+     were moved off. */
   .body-copy {
     @apply text-xs font-medium uppercase tracking-widest leading-relaxed;
   }
@@ -41,8 +40,15 @@
      tracked register for labels and short panels, and setting several hundred
      words of policy in it is both off-spec and genuinely hard to read.
      Sentence case, a step larger, normal tracking, generous leading. */
+  /* Colour is derived from whatever the section already sets rather than
+     hardcoded black: this class was setting black-at-80% inside the black
+     panels on /about and /condition, which rendered as invisible text on
+     three live paragraphs. currentColor here resolves to the inherited
+     colour, so a white-on-black section softens white and a normal page
+     softens black. */
   .body-longform {
-    @apply text-sm font-normal normal-case tracking-normal leading-[1.75] text-black/80;
+    @apply text-sm font-normal normal-case tracking-normal leading-[1.75];
+    color: color-mix(in srgb, currentColor 80%, transparent);
   }
 
   .bg-gradient-dark {
