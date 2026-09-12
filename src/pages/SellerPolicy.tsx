@@ -22,7 +22,9 @@ export function SellerPolicy() {
         </div>
 
         <div className="flex flex-col gap-14 text-black body-longform">
-          <p>zarketplace buys your item outright and resells it. You tell us your asking price, we come back with what we will pay for it, and you decide before anything goes live. Once you accept, that number is locked and it does not move.</p>
+          <p>zarketplace buys your item outright and resells it. You send us the item and we make you an offer: a fixed amount we will pay you, which you accept or decline. Once you accept, that number is locked and it does not move. This is what we will pay you. We cover shipping both ways, payment fees and handling, and we carry the risk if it does not sell.</p>
+
+          <p>The item stays with you while it is listed. When somebody buys it we send a prepaid label and book a courier to your door, and you are paid once it reaches us and has been checked.</p>
 
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Accurate descriptions</h2>

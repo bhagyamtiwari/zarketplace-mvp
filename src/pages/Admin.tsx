@@ -1244,16 +1244,13 @@ function AcquisitionPanel({ listingId, listingTitle, vendorEmail, askingPriceFal
     if (!(amount > 0)) { setSuggestion(null); return; }
     let alive = true;
     const t = setTimeout(async () => {
-      // The lane matters: a vendor sending the item at their own cost saves us
-      // the inbound leg, and the suggestion is wrong by that much without it.
-      const { data } = await supabase.rpc('compute_acquisition_offer', {
-        resale: amount,
-        p_vendor_pays_inbound: !!acq?.vendor_pays_inbound,
-      });
+      // We carry both freight legs on every item, so there is nothing about
+      // this vendor that changes the arithmetic.
+      const { data } = await supabase.rpc('compute_acquisition_offer', { resale: amount });
       if (alive && data) setSuggestion(Number((data as any).offer_amount));
     }, 300);
     return () => { alive = false; clearTimeout(t); };
-  }, [resale, acq?.vendor_pays_inbound]);
+  }, [resale]);
 
   // make_acquisition_offer raises on both of these. The operator should be
   // told by the form, not by a Postgres exception after they hit send.

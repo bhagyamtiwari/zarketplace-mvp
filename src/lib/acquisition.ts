@@ -46,17 +46,18 @@ export interface VendorOffer {
   offer_expires_at: string | null;
   accepted_at: string | null;
   paid_at: string | null;
-  /** True when the vendor said they would send the item to us themselves. */
-  vendor_pays_inbound: boolean;
-  /** Set on acceptance: when the item has to be with a courier. */
+  /** Set when the item sells: when it has to be with the courier. Null until
+   *  then, because nothing is expected to move before somebody buys it. */
   ship_by_deadline: string | null;
+  /** MODEL.md fulfilment lane. Always 'patient' today. */
+  lane: 'patient' | 'instant';
 }
 
 const OFFER_COLUMNS =
   'listing_id, asking_price, offer_amount, offer_status, intake_status, ' +
   'review_note, review_reasons, reviewed_at, offer_round, ' +
   'not_accepted_reason, not_accepted_at, offered_at, offer_expires_at, accepted_at, paid_at, ' +
-  'vendor_pays_inbound, ship_by_deadline';
+  'ship_by_deadline, lane';
 
 export async function getVendorOffers(): Promise<VendorOffer[]> {
   const { data, error } = await supabase.from('vendor_offers').select(OFFER_COLUMNS);

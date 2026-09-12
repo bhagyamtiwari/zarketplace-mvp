@@ -21,10 +21,10 @@ const TICKER_PHRASES = [
 
 export function PromiseBanner({ variant, className }: Props) {
   if (variant === 'pricing') {
-    // Sell-page callout. States the proposition plainly: a vendor names their
-    // asking price, we come back with what we will pay, and that number is
-    // locked before the item goes live. Nothing here references what the item
-    // is later sold for - a vendor never sees that number.
+    // Sell-page callout. A vendor never names a price - we make an offer and
+    // they take it or leave it - so this states the offer and the lock, and
+    // nothing about what the item is later sold for. See MODEL.md §2: naming a
+    // price is the seller behaviour that would make us look like an agent.
     return (
       <div className={cn('border border-black bg-white', className)}>
         <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr] divide-y sm:divide-y-0 sm:divide-x divide-black">
@@ -46,11 +46,11 @@ export function PromiseBanner({ variant, className }: Props) {
           {/* Right: explanation */}
           <div className="px-8 py-6 flex flex-col justify-center gap-2">
             <span className="text-[9px] font-black uppercase tracking-[0.4em] text-black">
-              Tell us what you want for it
+              Show us the item
             </span>
             <p className="text-[11px] font-bold uppercase tracking-widest text-black/60 leading-relaxed">
-              We'll tell you what we'll pay. You decide before anything goes
-              live, and that number never moves.
+              We'll make you an offer within 24 hours. You decide before
+              anything goes live, and that number never moves.
             </p>
           </div>
         </div>

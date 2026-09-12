@@ -41,7 +41,7 @@ const SECTIONS: FaqSection[] = [
     items: [
       {
         q: 'How do I sell an item?',
-        a: 'Tap Get an offer, upload photos, and fill in the category, size, condition, your asking price, and the shipping category. We come back with what we will pay for it. If you accept, the item goes live and that number is locked.',
+        a: 'Tap Get an offer, upload photos, and fill in the category, size and condition. Within 24 hours we come back with an offer: a fixed amount we will pay you. If you accept, that number is locked and the item goes live at our price. It stays with you until somebody buys it, then we send a prepaid label and a courier collects from your door.',
       },
       {
         q: 'When do I get paid?',

@@ -110,7 +110,8 @@ export function renderVendorEmail(
         html: shell(`<div style="${WRAP}">${top}
           ${h1("We want to buy it.")}
           <p style="color:#111111; margin:0 0 14px;">We have made you an offer on your ${title}. It is waiting on your offer page.</p>
-          <p style="color:#111111; margin:0 0 14px;">Whatever the amount is, it is fixed from the moment you accept and it does not change afterwards for any reason. Not if it takes us months to sell it, and not if it never sells at all. That is our problem once it is ours.</p>
+          <p style="color:#111111; margin:0 0 14px;">Whatever the amount is, it is fixed from the moment you accept and it does not change afterwards for any reason. Not if it takes us months to sell it, and not if it never sells at all. That risk is ours, not yours.</p>
+          <p style="color:#111111; margin:0 0 14px;">Accepting does not mean posting anything today. The item stays with you until somebody buys it, and then we send a prepaid label and a courier comes to your door.</p>
           ${button(offerUrl, "See your offer")}
           <p style="color:#5a5a5a; font-size:13px;">Not for you? Turn it down and nothing happens. You can improve the item and send it to us again.</p>
         </div>`),
@@ -126,31 +127,26 @@ export function renderVendorEmail(
           ${h1("Got it.")}
           <p style="color:#111111; margin:0 0 14px;">Your ${title} is with us and someone is looking at it properly. You will hear back <strong>within 24 hours</strong>.</p>
           <p style="color:#111111; margin:0 0 14px;">There are three ways that can go: an offer, a request for a better photo or two, or a no. We tell you which either way.</p>
+          <p style="color:#111111; margin:0 0 14px;">Keep hold of the item. Nothing needs posting unless and until it sells.</p>
           <p style="color:#5a5a5a; font-size:13px;">Nothing is needed from you until then.</p>
         </div>`),
       };
 
-    // Replaces the old "your item sold, now post it" email. In buy-to-hub the
-    // item travels as soon as it is ours, so this is sent on acceptance and
-    // there is no buyer to mention because there is not one yet.
-    case "send_it_in": {
-      const ownCourier = payload.vendor_pays_inbound === true;
-      const how = ownCourier
-        ? `<p style="color:#111111; margin:0 0 14px;">You chose to send it to us yourself, so post it with any courier you like and tell us the tracking number.</p>
-           <p style="color:#111111; margin:0 0 14px;">Send it to:<br><strong>zarketplace</strong><br>FF, House No. 99, G-22<br>Rohini Sector 7<br>Delhi 110085</p>`
-        : `<p style="color:#111111; margin:0 0 14px;">Your prepaid label is on its way and will appear on your dashboard shortly. Print it, tape it to the parcel, and hand it to the courier. You do not pay for the postage.</p>`;
+    // The patient lane's one moment of urgency. Until this arrives the vendor
+    // has done nothing since accepting, so it has to carry the whole
+    // instruction, not a reminder of one.
+    case "item_sold":
       return {
-        subject: `Post your ${payload.item_title ?? "item"} by ${shortDate(payload.ship_by)}`,
+        subject: `Sold · post your ${payload.item_title ?? "item"} by ${shortDate(payload.ship_by)}`,
         html: shell(`<div style="${WRAP}">${top}
-          ${h1("It is ours. Send it over.")}
-          <p style="color:#111111; margin:0 0 14px;">Pack your ${title} and get it to a courier <strong>by ${esc(longDate(payload.ship_by))}</strong>.</p>
-          ${how}
-          <p style="color:#111111; margin:0 0 14px;">Once it reaches us we check it against your listing and pay you the same day.</p>
+          ${h1("It sold. Time to send it.")}
+          <p style="color:#111111; margin:0 0 14px;">Your ${title} has been bought. Pack it and have it ready for the courier <strong>by ${esc(longDate(payload.ship_by))}</strong>.</p>
+          <p style="color:#111111; margin:0 0 14px;">We have paid for the label and booked the pickup. You do not arrange a courier, you do not go anywhere, and you do not pay for postage.</p>
+          <p style="color:#111111; margin:0 0 14px;">Once it reaches us and we have checked it, your ${rupees(payload.offer_amount)} is sent.</p>
           ${button(portalUrl, "See what to do")}
-          <p style="color:#5a5a5a; font-size:13px;">Changed your mind or cannot send it? Tell us before the date above.</p>
+          <p style="color:#5a5a5a; font-size:13px;">Cannot send it? Tell us before the date above rather than letting it pass.</p>
         </div>`),
       };
-    }
 
     case "offer_rejected": {
       const reasons = Array.isArray(payload.reasons) ? (payload.reasons as unknown[]).map(String) : [];

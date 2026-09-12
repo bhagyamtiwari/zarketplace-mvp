@@ -57,21 +57,6 @@ const PUBLISH_CONFIRMATIONS: Array<{ key: string; label: string }> = [
   { key: 'accurate', label: 'It is genuine, the photos are of this item, and I have described its condition and any flaws accurately.' },
 ];
 
-// The two ways an item reaches us. Asked at listing time because the lane
-// changes our inbound cost, and therefore the amount we can offer.
-const INBOUND_LANES: Array<{ key: string; vendorPays: boolean; label: string; detail: string }> = [
-  {
-    key: 'label', vendorPays: false,
-    label: 'Send me a prepaid label',
-    detail: 'We pay the postage. Print it, tape it on, hand the parcel over.',
-  },
-  {
-    key: 'own', vendorPays: true,
-    label: 'I will post it myself',
-    detail: 'Any courier you like, at your cost. It costs us less, so we offer you more.',
-  },
-];
-
 // Recommended photo order - purely a labeling/placeholder aid over the same
 // image array (index 0 is still the cover). Not a hard per-slot requirement.
 // These are the instruction: they say what to shoot, so no paragraph above the
@@ -171,7 +156,6 @@ function SellInner() {
   const [hasFlaws, setHasFlaws] = React.useState<boolean | null>(null);
   const [flawsDescription, setFlawsDescription] = React.useState('');
 
-  const [vendorPaysInbound, setVendorPaysInbound] = React.useState(false);
   const [shippingCategories, setShippingCategories] = React.useState<ShippingCategory[]>([]);
   const [shippingCategory, setShippingCategory] = React.useState('');
   // Seller-funded free shipping: buyer pays no shipping line, and the real
@@ -485,9 +469,11 @@ function SellInner() {
       }).select('id').single();
       if (error) throw error;
 
-      // The acquisition record. Carries the lane the vendor picked and nothing
-      // else: the offer, the expected resale and every part of the spread are
+      // The acquisition record, carrying nothing but the link to the vendor.
+      // The offer, the expected resale and every part of the spread are
       // server-set, and the insert policy refuses a row that names any of them.
+      // The lane and the shipping method are defaulted by the database, since
+      // neither is the vendor's to choose.
       //
       // Not fire-and-forget. Without this row the item can never be priced and
       // can never go live, so a failure here has to surface as one.
@@ -495,7 +481,6 @@ function SellInner() {
       const { error: acqError } = await supabase.from('listing_acquisitions').insert({
         listing_id: listingId,
         vendor_id: user.id,
-        vendor_pays_inbound: vendorPaysInbound,
       });
       if (acqError) throw acqError;
 
@@ -506,7 +491,6 @@ function SellInner() {
         category: selectedCategory,
         shipping_category: shippingCategory,
         free_shipping: freeShipping,
-        vendor_pays_inbound: vendorPaysInbound,
         photo_count: imageFiles.length,
       });
       setSubmitted(true);
@@ -529,7 +513,6 @@ function SellInner() {
     setTitle(''); setBrand(''); setDescription('');
     setSelectedCategory(''); setSizeType(''); setSizeDetail('');
     setCondition(''); setHasFlaws(null); setFlawsDescription('');
-    setVendorPaysInbound(false);
     setDeclarations(noDeclarations());
   };
 
@@ -552,7 +535,7 @@ function SellInner() {
         <p className="text-black/70 font-medium uppercase tracking-widest text-[11px] leading-[1.9] mb-10 max-w-md">
           You will hear either an offer, or what would need to change before we
           can make one. Nothing is listed until you have seen a number and
-          agreed to it.
+          agreed to it, and the item stays with you either way.
         </p>
         {/* The vendor has just finished a form and is at their most willing to
             read one more thing. Said here, in three lines, so the PAN request
@@ -603,9 +586,9 @@ function SellInner() {
             </h1>
             <p className="body-longform max-w-[52ch]">
               Photos and a few details, and you hear back within 24 hours. If we want it, we
-              name a price. Accept and that number is fixed: you send the item over, and we
-              pay you the day it reaches us. Whether it sells, and for how much, stops being
-              your problem.
+              name a price. Accept and that number is fixed. The item stays with you until
+              somebody buys it, then we send a prepaid label and a courier comes to your door.
+              What it sells for, and how long that takes, is our problem.
             </p>
           </div>
         ) : (
@@ -694,7 +677,6 @@ function SellInner() {
                 condition={condition} setCondition={setCondition}
                 hasFlaws={hasFlaws} setHasFlaws={setHasFlaws}
                 flawsDescription={flawsDescription} setFlawsDescription={setFlawsDescription}
-                vendorPaysInbound={vendorPaysInbound} setVendorPaysInbound={setVendorPaysInbound}
                 declarations={declarations} setDeclarations={setDeclarations}
               />
             )}
@@ -1051,12 +1033,11 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
 // where money is promised. Two lines here, three clauses there.
 function LastStep({
   condition, setCondition, hasFlaws, setHasFlaws, flawsDescription, setFlawsDescription,
-  vendorPaysInbound, setVendorPaysInbound, declarations, setDeclarations,
+  declarations, setDeclarations,
 }: {
   condition: string; setCondition: (v: string) => void;
   hasFlaws: boolean | null; setHasFlaws: (v: boolean) => void;
   flawsDescription: string; setFlawsDescription: (v: string) => void;
-  vendorPaysInbound: boolean; setVendorPaysInbound: (v: boolean) => void;
   declarations: Record<string, boolean>;
   setDeclarations: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
 }) {
@@ -1068,35 +1049,26 @@ function LastStep({
         flawsDescription={flawsDescription} setFlawsDescription={setFlawsDescription}
       />
 
-      {/* The inbound lane, asked here rather than at acceptance. It changes
-          what the item costs us, so it has to be settled before the offer is
-          worked out: an amount that moved after a vendor had seen it would
-          break the one promise the whole flow is built on. */}
+      {/* Not a question. There is one shipping method and we pay for it, so
+          this states what will happen rather than asking the vendor to choose
+          between options that differ only in who absorbs a cost they never
+          see. The two facts here are the ones vendors most often get wrong:
+          the item stays with them, and they have to be there when it goes. */}
       <div className="flex flex-col gap-4">
-        <SectionHeading note="Once we agree on a price, the item comes to us. Pick how it gets here.">Getting it to us</SectionHeading>
-        <div className="flex flex-col gap-1">
-          {INBOUND_LANES.map((lane) => {
-            const on = vendorPaysInbound === lane.vendorPays;
-            return (
-              <button
-                key={lane.key} type="button"
-                onClick={() => setVendorPaysInbound(lane.vendorPays)}
-                aria-pressed={on}
-                className="group flex items-start gap-4 py-4 text-left border-b border-black/5 last:border-b-0"
-              >
-                <span className={cn(
-                  'mt-px flex h-5 w-5 shrink-0 items-center justify-center border transition-colors',
-                  on ? 'border-black bg-black text-white' : 'border-black/25 group-hover:border-black',
-                )}>
-                  {on && <Check className="h-3 w-3" strokeWidth={3} />}
-                </span>
-                <span className="flex flex-col gap-1">
-                  <span className="text-sm font-medium leading-relaxed text-black">{lane.label}</span>
-                  <span className="text-xs leading-relaxed text-black/50">{lane.detail}</span>
-                </span>
-              </button>
-            );
-          })}
+        <SectionHeading note="The part people miss, so it is worth reading twice.">What happens after you accept</SectionHeading>
+        <div className="border-l-2 border-black pl-6 py-1 flex flex-col gap-3">
+          <p className="text-sm font-medium leading-relaxed text-black">
+            <strong>The item stays with you.</strong> It goes live on zarketplace, but it does
+            not leave your home until somebody buys it. That might be next week or next month.
+          </p>
+          <p className="text-sm font-medium leading-relaxed text-black">
+            <strong>When it sells, we come to you.</strong> We send a prepaid label and book a
+            courier to your door the next working day. You do not pay for postage and you do
+            not go to a courier office.
+          </p>
+          <p className="text-sm leading-relaxed text-black/60">
+            All we need from you in between is that you still have it and we can reach you.
+          </p>
         </div>
       </div>
 

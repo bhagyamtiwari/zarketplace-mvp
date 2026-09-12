@@ -12,7 +12,7 @@ import { assert } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { renderVendorEmail } from "./templates.ts";
 
 const KINDS = [
-  "offer_made", "item_submitted", "send_it_in", "offer_rejected",
+  "offer_made", "item_submitted", "item_sold", "offer_rejected",
   "label_issued", "ship_by_reminder", "received_at_hub", "accepted",
   "payout_sent", "refused", "abandonment_30", "abandonment_7",
   "vendor_cancelled",
@@ -22,7 +22,7 @@ const KINDS = [
 // these two must never carry it. The emails sent after acceptance may, and do:
 // by then the number is something we are confirming, not something we are
 // asking someone to decide on from their inbox.
-const KINDS_WITHOUT_THE_AMOUNT = ["offer_made", "item_submitted", "send_it_in"];
+const KINDS_WITHOUT_THE_AMOUNT = ["offer_made", "item_submitted"];
 
 // Every field a vendor must never receive, stuffed into the payload under both
 // the names the code uses and names a careless future template might reach for.

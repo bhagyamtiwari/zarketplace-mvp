@@ -389,9 +389,9 @@ function ActionCallout({ rows, offers, statusOf }: {
               )}
 
               <p className="text-sm font-normal leading-relaxed text-black/70 max-w-[52ch]">
-                Accept it and the item is ours. Send it over, and we pay you the day it
-                reaches us. What it sells for after that, and how long it takes, is our
-                problem rather than yours.
+                Accept it and the amount is locked. The item stays with you and goes live at
+                our price. When it sells we send a prepaid label, collect from your door, and
+                pay you once we have checked it in.
               </p>
 
               <Link

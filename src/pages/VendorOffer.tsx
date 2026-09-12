@@ -131,7 +131,7 @@ function VendorOfferInner() {
   if (!offer) return <Shell><Notice>We could not find an offer for this item.</Notice></Shell>;
 
   if (offer.offer_status === 'accepted' || phase === 'done') {
-    return <Shell><Accepted amount={offer.offer_amount} vendorPaysInbound={!!offer.vendor_pays_inbound} /></Shell>;
+    return <Shell><Accepted amount={offer.offer_amount} /></Shell>;
   }
 
   if (offer.offer_status === 'pending_pricing') {
@@ -172,7 +172,6 @@ function VendorOfferInner() {
           />
         : <AgreementScreen
             amount={offer.offer_amount ?? 0}
-            vendorPaysInbound={!!offer.vendor_pays_inbound}
             checked={checked}
             onToggle={(k) => setChecked((c) => ({ ...c, [k]: !c[k] }))}
             allChecked={allChecked}
@@ -242,9 +241,13 @@ function OfferScreen({
           listed, and it does not change afterwards for any reason.
         </p>
         <p>
-          Once you accept, the item is ours. You send it to us, we check it against your
-          listing, and we pay you the same day it arrives. We list it, we sell it, and we
-          ship it. Whether it sells quickly, slowly or not at all stops being your problem.
+          This is what we will pay you. We cover shipping both ways, payment fees and
+          handling, and we carry the risk if it does not sell.
+        </p>
+        <p>
+          Accepting does not mean posting anything today. The item stays with you and goes
+          live on zarketplace at our price. When somebody buys it we send a prepaid label
+          and a courier comes to your door.
         </p>
         {expiresAt && (
           <p className="text-black/40">
@@ -279,11 +282,11 @@ function OfferScreen({
  * because that is what it will be read as later.
  */
 function AgreementScreen({
-  amount, vendorPaysInbound, checked, onToggle, allChecked,
+  amount, checked, onToggle, allChecked,
   pickupAddress, setPickupAddress, pickupCity, setPickupCity, pickupPincode, setPickupPincode, addressReady,
   submitting, onBack, onAccept,
 }: {
-  amount: number; vendorPaysInbound: boolean;
+  amount: number;
   checked: Record<string, boolean>; onToggle: (k: string) => void;
   allChecked: boolean;
   pickupAddress: string; setPickupAddress: (v: string) => void;
@@ -370,15 +373,21 @@ function AgreementScreen({
         </div>
       </div>
 
-      {/* The ship-by deadline is a commitment made here, so it is disclosed
-          here rather than turning up in an email afterwards. */}
-      <div className="border-l-2 border-black pl-6 py-1 flex flex-col gap-2">
+      {/* The two things vendors get wrong, stated at the moment they commit
+          rather than in an email weeks later when the item has already sold. */}
+      <div className="border-l-2 border-black pl-6 py-1 flex flex-col gap-3">
         <p className="body-copy text-black normal-case tracking-normal text-sm font-normal leading-relaxed">
-          You will have <strong>5 days</strong> from accepting to hand the item to a courier.
-          {vendorPaysInbound
-            ? ' You told us you would send it yourself, so post it to our address and let us know the tracking number.'
-            : ' We send you a prepaid label and pay the postage.'}
-          {' '}If it does not go in that time we cancel the purchase and the item stays yours.
+          <strong>Keep the item safe.</strong> It stays with you while it is listed. Do not
+          sell it anywhere else, and do not wear it out.
+        </p>
+        <p className="body-copy text-black normal-case tracking-normal text-sm font-normal leading-relaxed">
+          <strong>Be reachable when it sells.</strong> We will message you, send a prepaid
+          label, and book a courier to your door. You then have <strong>5 days</strong> to
+          have it packed and hand it over.
+        </p>
+        <p className="body-copy text-black normal-case tracking-normal text-sm font-normal leading-relaxed">
+          If it cannot go in that time we have to cancel the buyer's order, so tell us before
+          the date rather than letting it pass.
         </p>
       </div>
 
@@ -407,7 +416,7 @@ function AgreementScreen({
   );
 }
 
-function Accepted({ amount, vendorPaysInbound }: { amount: number | null; vendorPaysInbound: boolean }) {
+function Accepted({ amount }: { amount: number | null }) {
   return (
     <div className="flex flex-col gap-10">
       <div className="flex h-14 w-14 items-center justify-center bg-black text-white">
@@ -415,14 +424,12 @@ function Accepted({ amount, vendorPaysInbound }: { amount: number | null; vendor
       </div>
       <div className="flex flex-col gap-3">
         <h1 className="text-3xl sm:text-4xl font-black tracking-tighter uppercase leading-[0.95]">
-          Agreed. Now send it over.
+          Agreed. It goes live shortly.
         </h1>
         <p className="body-copy text-black/70 max-w-prose">
-          {amount != null && <>Your {formatCurrency(amount)} is confirmed and we pay it the day the item reaches us. </>}
-          Next: get it to us within 5 days.{' '}
-          {vendorPaysInbound
-            ? 'Post it with any courier to our address, which is on your dashboard, and tell us the tracking number.'
-            : 'Your prepaid label will appear on your dashboard shortly. Print it, tape it on, and hand the parcel over.'}
+          {amount != null && <>Your {formatCurrency(amount)} is locked in and does not change. </>}
+          Nothing to do now: keep the item safe and leave it with you. The moment somebody
+          buys it we will message you with a prepaid label and a pickup date.
         </p>
       </div>
       <Link
