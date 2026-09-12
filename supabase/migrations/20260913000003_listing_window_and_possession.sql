@@ -107,9 +107,11 @@ ALTER TABLE public.possession_checks ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS possession_checks_admin ON public.possession_checks;
 CREATE POLICY possession_checks_admin ON public.possession_checks
   FOR ALL USING (public.is_admin()) WITH CHECK (public.is_admin());
+-- Deliberately no vendor policy. A vendor answers a check through the token in
+-- their email, which runs as owner, and their dashboard reads possession state
+-- from vendor_offers. A SELECT policy here would serve nobody while exposing a
+-- per-vendor key that the isolation test rightly treats as identity.
 DROP POLICY IF EXISTS possession_checks_vendor_select ON public.possession_checks;
-CREATE POLICY possession_checks_vendor_select ON public.possession_checks FOR SELECT
-  USING (vendor_id = auth.uid() OR public.is_admin());
 
 -- Answering. Callable by anyone holding the token, because the link is opened
 -- from an email and we will not make someone sign in to say "yes, still here".
