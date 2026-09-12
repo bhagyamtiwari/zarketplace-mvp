@@ -16,7 +16,7 @@ const KINDS = [
   "label_issued", "ship_by_reminder", "received_at_hub", "accepted",
   "payout_sent", "refused", "abandonment_30", "abandonment_7",
   "vendor_cancelled", "possession_check", "listing_expired",
-  "delisted_no_response",
+  "delisted_no_response", "reoffer_made",
 ];
 
 // The offer amount reaches a vendor on the offer page and nowhere else, so
@@ -25,7 +25,7 @@ const KINDS = [
 // asking someone to decide on from their inbox.
 const KINDS_WITHOUT_THE_AMOUNT = [
   "offer_made", "item_submitted", "possession_check", "listing_expired",
-  "delisted_no_response",
+  "delisted_no_response", "reoffer_made",
 ];
 
 // Every field a vendor must never receive, stuffed into the payload under both

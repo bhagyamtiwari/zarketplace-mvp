@@ -59,6 +59,7 @@ const vendorPayloads = {
   possession_check: { item_title: 'Test item', token: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', due_at: new Date().toISOString() },
   listing_expired: { item_title: 'Test item' },
   delisted_no_response: { item_title: 'Test item' },
+  reoffer_made: { item_title: 'Test item' },
 };
 
 const { buildEmail } = await import(pathToFileURL(`${STAGE}/index.ts`).href);

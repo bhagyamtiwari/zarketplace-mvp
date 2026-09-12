@@ -186,6 +186,21 @@ export function renderVendorEmail(
       };
     }
 
+    // MODEL.md §5. The amount is deliberately absent for the same reason it is
+    // absent from the first offer: the number belongs on the offer page, next
+    // to what accepting it commits them to.
+    case "reoffer_made":
+      return {
+        subject: `A second go at your ${payload.item_title ?? "item"}?`,
+        html: shell(`<div style="${WRAP}">${top}
+          ${h1("Want to try again, lower?")}
+          <p style="color:#111111; margin:0 0 14px;">Your ${title} did not sell at the price we listed it at. That is on us, not on you: we set that price.</p>
+          <p style="color:#111111; margin:0 0 14px;">We would like to try again at a lower one. There is a new offer waiting on your offer page, fixed the same way as the last one, for a shorter run this time.</p>
+          ${button(offerUrl, "See the new offer")}
+          <p style="color:#5a5a5a; font-size:13px;">Or say no and keep it. The item has been yours the whole time, and you owe us nothing either way.</p>
+        </div>`),
+      };
+
     case "listing_expired":
       return {
         subject: `Your ${payload.item_title ?? "item"} has come off the site`,

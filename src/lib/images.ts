@@ -103,10 +103,77 @@ export interface EncodedImage {
   ext: 'webp' | 'jpg';
 }
 
+// MODEL.md §9: consistency comes from processing, not from the vendor's camera.
+// We enforce completeness of angles and never reject for lighting, which means
+// the pipeline has to do the work instead - otherwise the grid is a jumble of
+// letterboxed phone photos in six different white balances and reads as sloppy
+// rather than as honest.
+//
+// Three passes, all deliberately gentle. The aim is a catalogue that scans as
+// one set, not photos that look retouched: over-processing used clothing is the
+// thing that suppresses trust in the first place.
+const CARD_ASPECT = 3 / 4;
+
+// Fill behind a photo that does not reach the edges. Matches the card's own
+// bg-zinc-50 so the letterbox is invisible against the grid.
+const NEUTRAL = '#fafafa';
+
+// Cropping is preferable to bars, but not at any price: past this much loss we
+// are cutting the garment rather than tidying the frame, so we letterbox.
+const MAX_CROP = 0.12;
+
+// Mid-grey in linear terms. Phone photos of clothing on a bed skew dark; this
+// nudges them together without flattening a deliberately moody shot.
+const TARGET_LUMA = 0.56;
+const MIN_GAIN = 0.85;
+const MAX_GAIN = 1.35;
+
 /**
- * Resize + re-encode one file into the three variants. Images smaller than a
- * target width are never upscaled - the variant is just capped at the source
- * size, so a small photo does not get bigger on the way in.
+ * Average perceived brightness, 0-1, sampled from a small copy. Sampling a
+ * 32px thumbnail rather than the full image keeps this off the main thread's
+ * critical path; the number only needs to be roughly right.
+ */
+function meanLuma(bitmap: CanvasImageSource, w: number, h: number): number | null {
+  try {
+    const c = document.createElement('canvas');
+    c.width = 32;
+    c.height = Math.max(1, Math.round((h / w) * 32));
+    const cx = c.getContext('2d', { willReadFrequently: true });
+    if (!cx) return null;
+    cx.drawImage(bitmap, 0, 0, c.width, c.height);
+    const { data } = cx.getImageData(0, 0, c.width, c.height);
+    let sum = 0;
+    let n = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      // Rec. 601 luma, which is close enough to perceived brightness here.
+      sum += (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) / 255;
+      n++;
+    }
+    return n ? sum / n : null;
+  } catch {
+    // A tainted canvas or a browser that refuses getImageData. Skip the pass
+    // rather than fail the upload: a slightly dark photo beats no listing.
+    return null;
+  }
+}
+
+function supportsFilter(ctx: CanvasRenderingContext2D): boolean {
+  try {
+    ctx.filter = 'brightness(1.01)';
+    const ok = ctx.filter !== 'none';
+    ctx.filter = 'none';
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Resize, normalise and re-encode one file into the three variants.
+ *
+ * Every variant comes out at the same 3:4 the cards render at, so the grid
+ * stops depending on CSS cropping something it was never given. Images smaller
+ * than a target width are not upscaled.
  */
 export async function encodeVariants(file: File): Promise<Record<ImageVariant, EncodedImage>> {
   const bitmap = await loadBitmap(file);
@@ -118,19 +185,56 @@ export async function encodeVariants(file: File): Promise<Record<ImageVariant, E
   const mime = webp ? 'image/webp' : 'image/jpeg';
   const ext: 'webp' | 'jpg' = webp ? 'webp' : 'jpg';
 
+  // How far the source is from the card's shape decides crop versus letterbox.
+  const srcAspect = srcW / srcH;
+  const cropLoss = srcAspect > CARD_ASPECT
+    ? 1 - (CARD_ASPECT / srcAspect)   // too wide: we would lose width
+    : 1 - (srcAspect / CARD_ASPECT);  // too tall: we would lose height
+  const shouldCrop = cropLoss <= MAX_CROP;
+
+  const luma = meanLuma(bitmap as CanvasImageSource, srcW, srcH);
+  const gain = luma && luma > 0.01
+    ? Math.min(MAX_GAIN, Math.max(MIN_GAIN, TARGET_LUMA / luma))
+    : 1;
+
   const out = {} as Record<ImageVariant, EncodedImage>;
   for (const variant of ['thumb', 'grid', 'full'] as ImageVariant[]) {
     const targetW = Math.min(VARIANT_WIDTH[variant], srcW);
-    const targetH = Math.round((srcH / srcW) * targetW);
+    const targetH = Math.round(targetW / CARD_ASPECT);
 
     const canvas = document.createElement('canvas');
     canvas.width = targetW;
     canvas.height = targetH;
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('Could not process that image.');
+
+    // Painted first so a letterboxed photo sits on the neutral rather than on
+    // transparency, which would encode as black in a jpeg.
+    ctx.fillStyle = NEUTRAL;
+    ctx.fillRect(0, 0, targetW, targetH);
+
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(bitmap as CanvasImageSource, 0, 0, targetW, targetH);
+    if (gain !== 1 && supportsFilter(ctx)) {
+      ctx.filter = `brightness(${gain.toFixed(3)})`;
+    }
+
+    // Cover fills the frame and trims the overflow; contain fits the whole
+    // garment and leaves neutral at the edges. Either way the output is 3:4.
+    const scale = shouldCrop
+      ? Math.max(targetW / srcW, targetH / srcH)
+      : Math.min(targetW / srcW, targetH / srcH);
+    const drawW = srcW * scale;
+    const drawH = srcH * scale;
+
+    ctx.drawImage(
+      bitmap as CanvasImageSource,
+      (targetW - drawW) / 2,
+      (targetH - drawH) / 2,
+      drawW,
+      drawH,
+    );
+    ctx.filter = 'none';
 
     const blob = await new Promise<Blob | null>((res) =>
       canvas.toBlob(res, mime, VARIANT_QUALITY[variant]),

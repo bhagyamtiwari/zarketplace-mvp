@@ -52,6 +52,7 @@ const VENDOR_PAYLOADS: Record<string, Record<string, unknown>> = {
   possession_check: { token: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", due_at: new Date(Date.now() + 5 * 864e5).toISOString() },
   listing_expired: {},
   delisted_no_response: {},
+  reoffer_made: {},
 };
 
 serve(async (req) => {
