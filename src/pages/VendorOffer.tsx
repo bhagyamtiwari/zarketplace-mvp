@@ -131,7 +131,7 @@ function VendorOfferInner() {
   if (!offer) return <Shell><Notice>We could not find an offer for this item.</Notice></Shell>;
 
   if (offer.offer_status === 'accepted' || phase === 'done') {
-    return <Shell><Accepted amount={offer.offer_amount} /></Shell>;
+    return <Shell><Accepted amount={offer.offer_amount} vendorPaysInbound={!!offer.vendor_pays_inbound} /></Shell>;
   }
 
   if (offer.offer_status === 'pending_pricing') {
@@ -172,6 +172,7 @@ function VendorOfferInner() {
           />
         : <AgreementScreen
             amount={offer.offer_amount ?? 0}
+            vendorPaysInbound={!!offer.vendor_pays_inbound}
             checked={checked}
             onToggle={(k) => setChecked((c) => ({ ...c, [k]: !c[k] }))}
             allChecked={allChecked}
@@ -241,9 +242,9 @@ function OfferScreen({
           listed, and it does not change afterwards for any reason.
         </p>
         <p>
-          Once you accept, we list the item, and it is sold and shipped by zarketplace.
-          When it sells we send you a prepaid label, you post it to us, and we pay you as
-          soon as we have checked it in.
+          Once you accept, the item is ours. You send it to us, we check it against your
+          listing, and we pay you the same day it arrives. We list it, we sell it, and we
+          ship it. Whether it sells quickly, slowly or not at all stops being your problem.
         </p>
         {expiresAt && (
           <p className="text-black/40">
@@ -278,11 +279,12 @@ function OfferScreen({
  * because that is what it will be read as later.
  */
 function AgreementScreen({
-  amount, checked, onToggle, allChecked,
+  amount, vendorPaysInbound, checked, onToggle, allChecked,
   pickupAddress, setPickupAddress, pickupCity, setPickupCity, pickupPincode, setPickupPincode, addressReady,
   submitting, onBack, onAccept,
 }: {
-  amount: number; checked: Record<string, boolean>; onToggle: (k: string) => void;
+  amount: number; vendorPaysInbound: boolean;
+  checked: Record<string, boolean>; onToggle: (k: string) => void;
   allChecked: boolean;
   pickupAddress: string; setPickupAddress: (v: string) => void;
   pickupCity: string; setPickupCity: (v: string) => void;
@@ -369,12 +371,14 @@ function AgreementScreen({
       </div>
 
       {/* The ship-by deadline is a commitment made here, so it is disclosed
-          here. It previously appeared only in an email after an item sold. */}
+          here rather than turning up in an email afterwards. */}
       <div className="border-l-2 border-black pl-6 py-1 flex flex-col gap-2">
         <p className="body-copy text-black normal-case tracking-normal text-sm font-normal leading-relaxed">
-          When it sells you will have <strong>5 days</strong> to hand it to the courier.
-          We send the label and pay for it. If it does not go in that time the
-          order is cancelled and the buyer refunded.
+          You will have <strong>5 days</strong> from accepting to hand the item to a courier.
+          {vendorPaysInbound
+            ? ' You told us you would send it yourself, so post it to our address and let us know the tracking number.'
+            : ' We send you a prepaid label and pay the postage.'}
+          {' '}If it does not go in that time we cancel the purchase and the item stays yours.
         </p>
       </div>
 
@@ -403,7 +407,7 @@ function AgreementScreen({
   );
 }
 
-function Accepted({ amount }: { amount: number | null }) {
+function Accepted({ amount, vendorPaysInbound }: { amount: number | null; vendorPaysInbound: boolean }) {
   return (
     <div className="flex flex-col gap-10">
       <div className="flex h-14 w-14 items-center justify-center bg-black text-white">
@@ -411,12 +415,14 @@ function Accepted({ amount }: { amount: number | null }) {
       </div>
       <div className="flex flex-col gap-3">
         <h1 className="text-3xl sm:text-4xl font-black tracking-tighter uppercase leading-[0.95]">
-          Agreed. It goes live shortly.
+          Agreed. Now send it over.
         </h1>
         <p className="body-copy text-black/70 max-w-prose">
-          {amount != null && <>We will pay you {formatCurrency(amount)} when this item sells. </>}
-          You do not need to do anything until then. When it sells we will send you a prepaid
-          label and let you know.
+          {amount != null && <>Your {formatCurrency(amount)} is confirmed and we pay it the day the item reaches us. </>}
+          Next: get it to us within 5 days.{' '}
+          {vendorPaysInbound
+            ? 'Post it with any courier to our address, which is on your dashboard, and tell us the tracking number.'
+            : 'Your prepaid label will appear on your dashboard shortly. Print it, tape it on, and hand the parcel over.'}
         </p>
       </div>
       <Link

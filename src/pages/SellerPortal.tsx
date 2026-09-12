@@ -389,8 +389,9 @@ function ActionCallout({ rows, offers, statusOf }: {
               )}
 
               <p className="text-sm font-normal leading-relaxed text-black/70 max-w-[52ch]">
-                Accept it and your item goes on sale on zarketplace straight away. We will send
-                you a prepaid label to post it to us. Nothing is listed until you accept.
+                Accept it and the item is ours. Send it over, and we pay you the day it
+                reaches us. What it sells for after that, and how long it takes, is our
+                problem rather than yours.
               </p>
 
               <Link

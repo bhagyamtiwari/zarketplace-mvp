@@ -100,18 +100,57 @@ export function renderVendorEmail(
   const top = header(site);
 
   switch (kind) {
+    // The amount is deliberately absent. A number in an inbox is a number to
+    // think about for a week; the offer page puts it in front of someone who
+    // can accept it in the same breath. It is also the only page that can show
+    // what accepting actually commits them to.
     case "offer_made":
       return {
-        subject: `Your offer: ${rupees(payload.offer_amount)} · ${payload.item_title ?? "your item"}`,
+        subject: `Your offer is ready · ${payload.item_title ?? "your item"}`,
         html: shell(`<div style="${WRAP}">${top}
-          ${h1(`We will pay you ${rupees(payload.offer_amount)}.`)}
-          <p style="color:#111111; margin:0 0 14px;">That is our offer for your ${title}, and it is what we pay you in full when it sells.</p>
-          <p style="color:#111111; margin:0 0 14px;">The amount is fixed now, before your item is listed, and it does not change afterwards for any reason.</p>
-          <p style="color:#111111; margin:0 0 14px;">Accept it and we list the item. When it sells we send you a prepaid label, you post it to us, and we pay you as soon as we have checked it in.</p>
-          ${button(offerUrl, "Review your offer")}
-          <p style="color:#5a5a5a; font-size:13px;">Not for you? You can turn it down, improve the item, and send it back to us for another look.</p>
+          ${h1("We want to buy it.")}
+          <p style="color:#111111; margin:0 0 14px;">We have made you an offer on your ${title}. It is waiting on your offer page.</p>
+          <p style="color:#111111; margin:0 0 14px;">Whatever the amount is, it is fixed from the moment you accept and it does not change afterwards for any reason. Not if it takes us months to sell it, and not if it never sells at all. That is our problem once it is ours.</p>
+          ${button(offerUrl, "See your offer")}
+          <p style="color:#5a5a5a; font-size:13px;">Not for you? Turn it down and nothing happens. You can improve the item and send it to us again.</p>
         </div>`),
       };
+
+    // Sent the moment an item is submitted. Someone who has just handed over
+    // photographs of something they own should not be left wondering whether
+    // the form worked.
+    case "item_submitted":
+      return {
+        subject: `We have your ${payload.item_title ?? "item"}`,
+        html: shell(`<div style="${WRAP}">${top}
+          ${h1("Got it.")}
+          <p style="color:#111111; margin:0 0 14px;">Your ${title} is with us and someone is looking at it properly. You will hear back <strong>within 24 hours</strong>.</p>
+          <p style="color:#111111; margin:0 0 14px;">There are three ways that can go: an offer, a request for a better photo or two, or a no. We tell you which either way.</p>
+          <p style="color:#5a5a5a; font-size:13px;">Nothing is needed from you until then.</p>
+        </div>`),
+      };
+
+    // Replaces the old "your item sold, now post it" email. In buy-to-hub the
+    // item travels as soon as it is ours, so this is sent on acceptance and
+    // there is no buyer to mention because there is not one yet.
+    case "send_it_in": {
+      const ownCourier = payload.vendor_pays_inbound === true;
+      const how = ownCourier
+        ? `<p style="color:#111111; margin:0 0 14px;">You chose to send it to us yourself, so post it with any courier you like and tell us the tracking number.</p>
+           <p style="color:#111111; margin:0 0 14px;">Send it to:<br><strong>zarketplace</strong><br>FF, House No. 99, G-22<br>Rohini Sector 7<br>Delhi 110085</p>`
+        : `<p style="color:#111111; margin:0 0 14px;">Your prepaid label is on its way and will appear on your dashboard shortly. Print it, tape it to the parcel, and hand it to the courier. You do not pay for the postage.</p>`;
+      return {
+        subject: `Post your ${payload.item_title ?? "item"} by ${shortDate(payload.ship_by)}`,
+        html: shell(`<div style="${WRAP}">${top}
+          ${h1("It is ours. Send it over.")}
+          <p style="color:#111111; margin:0 0 14px;">Pack your ${title} and get it to a courier <strong>by ${esc(longDate(payload.ship_by))}</strong>.</p>
+          ${how}
+          <p style="color:#111111; margin:0 0 14px;">Once it reaches us we check it against your listing and pay you the same day.</p>
+          ${button(portalUrl, "See what to do")}
+          <p style="color:#5a5a5a; font-size:13px;">Changed your mind or cannot send it? Tell us before the date above.</p>
+        </div>`),
+      };
+    }
 
     case "offer_rejected": {
       const reasons = Array.isArray(payload.reasons) ? (payload.reasons as unknown[]).map(String) : [];
@@ -132,25 +171,12 @@ export function renderVendorEmail(
       };
     }
 
-    case "item_sold":
-      return {
-        subject: `Time to post your ${payload.item_title ?? "item"} · by ${shortDate(payload.ship_by)}`,
-        html: shell(`<div style="${WRAP}">${top}
-          ${h1("Your item is bought.")}
-          <p style="color:#111111; margin:0 0 14px;">Pack your ${title} and hand it to the courier <strong>by ${esc(longDate(payload.ship_by))}</strong>.</p>
-          <p style="color:#111111; margin:0 0 14px;">We have paid for the label. You do not arrange a pickup and you do not pay for the postage.</p>
-          <p style="color:#111111; margin:0 0 14px;">Once it reaches us we check it in and send your ${rupees(payload.offer_amount)}.</p>
-          ${button(portalUrl, "See what to do")}
-          <p style="color:#5a5a5a; font-size:13px;">Cannot send it? Tell us before the date above and we will sort it out.</p>
-        </div>`),
-      };
-
     case "label_issued":
       return {
         subject: `Your label is ready · ${payload.item_title ?? "your item"}`,
         html: shell(`<div style="${WRAP}">${top}
           ${h1("Your label is ready.")}
-          <p style="color:#111111; margin:0 0 14px;">Print it, tape it to the parcel, and hand it over by <strong>${esc(longDate(payload.ship_by))}</strong>.
+          <p style="color:#111111; margin:0 0 14px;">Print it, tape it to the parcel, and hand it over by <strong>${esc(longDate(payload.ship_by))}</strong>. The postage is ours.
              Courier: ${esc(payload.courier ?? "—")}. Tracking: ${esc(payload.awb ?? "—")}.</p>
           ${button(portalUrl, "Get your label")}
         </div>`),

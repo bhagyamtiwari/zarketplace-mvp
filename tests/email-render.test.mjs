@@ -45,7 +45,8 @@ const order = {
 const vendorPayloads = {
   offer_made: { offer_amount: 1200, expires_at: new Date().toISOString(), item_title: 'Test item' },
   offer_rejected: { reasons: ['Photos are too dark.'], note: null, item_title: 'Test item' },
-  item_sold: { item_title: 'Test item', offer_amount: 1200 },
+  item_submitted: { item_title: 'Test item' },
+  send_it_in: { item_title: 'Test item', ship_by: new Date().toISOString(), vendor_pays_inbound: false },
   label_issued: { item_title: 'Test item', ship_by: new Date().toISOString(), tracking_number: 'TRK1' },
   ship_by_reminder: { item_title: 'Test item', ship_by: new Date().toISOString() },
   received_at_hub: { item_title: 'Test item' },

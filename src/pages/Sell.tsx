@@ -50,6 +50,21 @@ const PUBLISH_CONFIRMATIONS: Array<{ key: string; label: string }> = [
   { key: 'accurate', label: 'It is genuine, the photos are of this item, and I have described its condition and any flaws accurately.' },
 ];
 
+// The two ways an item reaches us. Asked at listing time because the lane
+// changes our inbound cost, and therefore the amount we can offer.
+const INBOUND_LANES: Array<{ key: string; vendorPays: boolean; label: string; detail: string }> = [
+  {
+    key: 'label', vendorPays: false,
+    label: 'Send me a prepaid label',
+    detail: 'We pay the postage. You print the label, tape it on, and hand the parcel over.',
+  },
+  {
+    key: 'own', vendorPays: true,
+    label: "I'll send it myself",
+    detail: 'Any courier you like, at your cost. Because it costs us nothing, your offer is higher.',
+  },
+];
+
 const WEAR_OPTIONS: Array<{ key: string; label: string }> = [
   { key: 'never', label: 'Never' },
   { key: '1_2_times', label: '1-2 Times' },
@@ -161,7 +176,7 @@ function SellInner() {
   const [hasFlaws, setHasFlaws] = React.useState<boolean | null>(null);
   const [flawsDescription, setFlawsDescription] = React.useState('');
 
-  const [priceVal, setPriceVal] = React.useState('');
+  const [vendorPaysInbound, setVendorPaysInbound] = React.useState(false);
   const [shippingCategories, setShippingCategories] = React.useState<ShippingCategory[]>([]);
   const [shippingCategory, setShippingCategory] = React.useState('');
   // Seller-funded free shipping: buyer pays no shipping line, and the real
@@ -335,7 +350,6 @@ function SellInner() {
       if (hasFlaws === null) return 'Say whether this item has any flaws.';
       if (hasFlaws && !flawsDescription.trim()) return 'Describe the flaw, or answer No.';
       if (hasFlaws && imageFiles.length < 2) return 'Add a close-up of the flaw to your photos.';
-      if (!priceVal || Number(priceVal) <= 0) return 'Enter what you want for it.';
     }
     return null;
   };
@@ -411,13 +425,11 @@ function SellInner() {
       }
       setUploadProgress(null);
 
-      // The database contract is unchanged - price is the struck-through
-      // number and sale_price is what is charged - so the form's friendlier
-      // wording is mapped back onto it here rather than migrating data.
-      // A placeholder only. listings.price is replaced with our own figure
-      // the moment an operator prices the item, and a trigger stops a vendor
-      // changing it afterwards. Nothing goes live before that happens.
-      const price = Number(priceVal);
+      // Zero, and deliberately so. A vendor no longer names a number at all:
+      // the one that matters is the amount we offer them, and the one a buyer
+      // sees is set by an operator when the item is priced. Nothing goes live
+      // before that happens, so the placeholder is never shown to anyone.
+      const price = 0;
       const sale_price = null;
 
       const { data: created, error } = await supabase.from('listings').insert({
@@ -474,7 +486,7 @@ function SellInner() {
       }).select('id').single();
       if (error) throw error;
 
-      // The acquisition record. Carries the vendor's asking price and nothing
+      // The acquisition record. Carries the lane the vendor picked and nothing
       // else: the offer, the expected resale and every part of the spread are
       // server-set, and the insert policy refuses a row that names any of them.
       //
@@ -484,7 +496,7 @@ function SellInner() {
       const { error: acqError } = await supabase.from('listing_acquisitions').insert({
         listing_id: listingId,
         vendor_id: user.id,
-        asking_price: Number(priceVal),
+        vendor_pays_inbound: vendorPaysInbound,
       });
       if (acqError) throw acqError;
 
@@ -495,7 +507,7 @@ function SellInner() {
         category: selectedCategory,
         shipping_category: shippingCategory,
         free_shipping: freeShipping,
-        price: Number(priceVal) || 0,
+        vendor_pays_inbound: vendorPaysInbound,
         photo_count: imageFiles.length,
       });
       setSubmitted(true);
@@ -519,7 +531,7 @@ function SellInner() {
     setSelectedCategory(''); setSizeType(''); setSizeDetail('');
     setOriginalTags(null); setOriginalPackaging(null); setItemAltered(null); setWearFrequency(null);
     setCondition(''); setHasFlaws(null); setFlawsDescription('');
-    setPriceVal('');
+    setVendorPaysInbound(false);
     setDeclarations(noDeclarations());
   };
 
@@ -687,7 +699,7 @@ function SellInner() {
                 condition={condition} setCondition={setCondition}
                 hasFlaws={hasFlaws} setHasFlaws={setHasFlaws}
                 flawsDescription={flawsDescription} setFlawsDescription={setFlawsDescription}
-                priceVal={priceVal} setPriceVal={setPriceVal}
+                vendorPaysInbound={vendorPaysInbound} setVendorPaysInbound={setVendorPaysInbound}
                 declarations={declarations} setDeclarations={setDeclarations}
               />
             )}
@@ -1100,12 +1112,12 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
 // where money is promised. Two lines here, three clauses there.
 function PriceStep({
   condition, setCondition, hasFlaws, setHasFlaws, flawsDescription, setFlawsDescription,
-  priceVal, setPriceVal, declarations, setDeclarations,
+  vendorPaysInbound, setVendorPaysInbound, declarations, setDeclarations,
 }: {
   condition: string; setCondition: (v: string) => void;
   hasFlaws: boolean | null; setHasFlaws: (v: boolean) => void;
   flawsDescription: string; setFlawsDescription: (v: string) => void;
-  priceVal: string; setPriceVal: (v: string) => void;
+  vendorPaysInbound: boolean; setVendorPaysInbound: (v: boolean) => void;
   declarations: Record<string, boolean>;
   setDeclarations: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
 }) {
@@ -1117,18 +1129,37 @@ function PriceStep({
         flawsDescription={flawsDescription} setFlawsDescription={setFlawsDescription}
       />
 
+      {/* The inbound lane, asked here rather than at acceptance. It changes
+          what the item costs us, so it has to be settled before the offer is
+          worked out: an amount that moved after a vendor had seen it would
+          break the one promise the whole flow is built on. */}
       <div className="flex flex-col gap-4">
-        <SectionHeading note="Your ask, not the price we list it at. We come back with what we will pay.">What do you want for it?</SectionHeading>
-        <div className="flex items-baseline gap-3">
-          <span className="text-2xl font-black tracking-tighter">Rs.</span>
-          <input
-            type="number" inputMode="numeric" value={priceVal}
-            onChange={(e) => setPriceVal(e.target.value)}
-            placeholder="3500"
-            className="w-full border-b border-black/10 py-3 text-3xl font-black tracking-tighter focus:border-black focus:outline-none placeholder:text-black/15"
-          />
+        <SectionHeading note="Once we agree on a price, the item comes to us. Pick how it gets here.">Getting it to us</SectionHeading>
+        <div className="flex flex-col gap-1">
+          {INBOUND_LANES.map((lane) => {
+            const on = vendorPaysInbound === lane.vendorPays;
+            return (
+              <button
+                key={lane.key} type="button"
+                onClick={() => setVendorPaysInbound(lane.vendorPays)}
+                aria-pressed={on}
+                className="group flex items-start gap-4 py-4 text-left border-b border-black/5 last:border-b-0"
+              >
+                <span className={cn(
+                  'mt-px flex h-5 w-5 shrink-0 items-center justify-center border transition-colors',
+                  on ? 'border-black bg-black text-white' : 'border-black/25 group-hover:border-black',
+                )}>
+                  {on && <Check className="h-3 w-3" strokeWidth={3} />}
+                </span>
+                <span className="flex flex-col gap-1">
+                  <span className="text-sm font-medium leading-relaxed text-black">{lane.label}</span>
+                  <span className="text-xs leading-relaxed text-black/50">{lane.detail}</span>
+                </span>
+              </button>
+            );
+          })}
         </div>
-        <TrustNote>This is your ask. We come back with what we will pay.</TrustNote>
+        <TrustNote>Sending it yourself costs us less, so the amount we offer you is higher.</TrustNote>
       </div>
 
       {/* Two lines, both load-bearing. The first is the one rule that makes a

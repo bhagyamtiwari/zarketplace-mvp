@@ -28,7 +28,8 @@ export type IntakeStatus =
 /** Exactly the columns public.vendor_offers exposes. */
 export interface VendorOffer {
   listing_id: string;
-  asking_price: number;
+  /** Null on anything listed since the form stopped asking. Kept for old rows. */
+  asking_price: number | null;
   offer_amount: number | null;
   offer_status: OfferStatus;
   intake_status: IntakeStatus | null;
@@ -45,12 +46,17 @@ export interface VendorOffer {
   offer_expires_at: string | null;
   accepted_at: string | null;
   paid_at: string | null;
+  /** True when the vendor said they would send the item to us themselves. */
+  vendor_pays_inbound: boolean;
+  /** Set on acceptance: when the item has to be with a courier. */
+  ship_by_deadline: string | null;
 }
 
 const OFFER_COLUMNS =
   'listing_id, asking_price, offer_amount, offer_status, intake_status, ' +
   'review_note, review_reasons, reviewed_at, offer_round, ' +
-  'not_accepted_reason, not_accepted_at, offered_at, offer_expires_at, accepted_at, paid_at';
+  'not_accepted_reason, not_accepted_at, offered_at, offer_expires_at, accepted_at, paid_at, ' +
+  'vendor_pays_inbound, ship_by_deadline';
 
 export async function getVendorOffers(): Promise<VendorOffer[]> {
   const { data, error } = await supabase.from('vendor_offers').select(OFFER_COLUMNS);
