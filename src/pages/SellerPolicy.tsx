@@ -43,6 +43,19 @@ export function SellerPolicy() {
           </section>
 
           <section className="flex flex-col gap-4">
+            <h2 className="text-xl font-black uppercase tracking-tight text-black">You keep the item while it is listed</h2>
+            <p>Accepting an offer does not mean posting anything. Your item stays with you, at home, for the whole time it is listed. Nothing moves until somebody buys it.</p>
+            <p>Two things are on you in the meantime. <strong>Keep the item</strong>, in the condition you described, and do not sell it anywhere else. <strong>Stay reachable</strong>, so we can tell you the day it sells.</p>
+          </section>
+
+          <section className="flex flex-col gap-4">
+            <h2 className="text-xl font-black uppercase tracking-tight text-black">45 days, and we check in</h2>
+            <p>A listing runs for <strong>45 days</strong> from the day you accept. If it has not sold by then it simply comes off the site. Nothing is owed either way, and you can send it to us again for a fresh look.</p>
+            <p>Every couple of weeks we email you one question: do you still have it? It is two buttons, yes or no, and it takes a second. Saying no costs you nothing and is far better than a courier arriving for something that has gone.</p>
+            <p>If we ask twice and hear nothing back, we take the listing down. That is not a penalty. We just cannot leave something on sale when we are no longer sure we can send it.</p>
+          </section>
+
+          <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Pack and hand it over within 5 days</h2>
             <p>Once your item is bought, we send you a prepaid label and book the courier. Pack it well and hand it to them within 5 days. You never arrange a pickup, buy a label, or pay for the postage to us.</p>
             <p>If it does not go in that time we cancel the order, refund the buyer, and the item stays yours. It counts against your account.</p>
@@ -56,9 +69,12 @@ export function SellerPolicy() {
           </section>
 
           <section className="flex flex-col gap-4">
-            <h2 className="text-xl font-black uppercase tracking-tight text-black">If we cannot accept an item</h2>
-            <p>If it does not match its listing, we do not take it and no payout is due. We will tell you why.</p>
-            <p>You can have it back. Tell us and we will send it, and <strong>you cover the return postage</strong>. We hold a refused item for <strong>60 days</strong> from the day we tell you. After that we may donate or dispose of it, and it is no longer yours to claim. You agree to this when you accept an offer.</p>
+            <h2 className="text-xl font-black uppercase tracking-tight text-black">If the item does not match its listing</h2>
+            <p>When your item reaches us we check it against what you wrote and photographed. What happens next is decided in advance, so the same finding gives the same result for everyone.</p>
+            <p><strong>A small difference.</strong> Something we can describe honestly and still send on. We take the item and <strong>you are paid in full</strong>. Sorting it out is our cost, not yours.</p>
+            <p><strong>A real difference.</strong> Anything that changes what the item is, what size it is, or what condition it is in, including a flaw you did not mention. We can refuse it, and no payout is due. You can have it back and <strong>you cover the return postage</strong>.</p>
+            <p><strong>A fake, or not the item in the photos.</strong> We keep it, nothing is paid, and you will not be able to sell with us again. We do not send counterfeits back.</p>
+            <p>For a refused item we hold it for <strong>60 days</strong> from the day we tell you. After that we may donate or dispose of it, and it is no longer yours to claim. You agree to this when you accept an offer.</p>
           </section>
 
           <section className="flex flex-col gap-4">

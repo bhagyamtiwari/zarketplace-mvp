@@ -386,8 +386,13 @@ function AgreementScreen({
           have it packed and hand it over.
         </p>
         <p className="body-copy text-black normal-case tracking-normal text-sm font-normal leading-relaxed">
-          If it cannot go in that time we have to cancel the buyer's order, so tell us before
-          the date rather than letting it pass.
+          If it cannot go in that time we have to cancel the order, so tell us before the date
+          rather than letting it pass.
+        </p>
+        <p className="body-copy text-black normal-case tracking-normal text-sm font-normal leading-relaxed">
+          <strong>It runs for 45 days.</strong> If nobody buys it by then the listing comes off
+          the site and nothing is owed either way. Every couple of weeks we will email to ask
+          whether you still have it, which is two buttons and takes a second.
         </p>
       </div>
 

@@ -1463,15 +1463,38 @@ function AcquisitionPanel({ listingId, listingTitle, vendorEmail, askingPriceFal
               v={`${formatCurrency(Number(acq.model_offer_amount))}${acq.offer_manually_set ? ' (overridden)' : ''}`}
             />
           )}
-          {b.margin_tier && (
+          {/* Operator-only, and the only place any of this is ever rendered.
+              The old breakdown listed five cost lines; MODEL.md's formula has
+              three terms, so it shows three. Rows from before the change still
+              carry the old keys, which is why both shapes are handled. */}
+          {(b.contribution_tier || b.margin_tier) && (
             <div className="mt-2 border-t border-black/5 pt-2 flex flex-col gap-1">
-              <span className="text-[9px] font-black uppercase tracking-widest text-black/30">Model spread</span>
-              <Row k="Inbound shipping" v={formatCurrency(Number(b.inbound_shipping ?? 0))} />
-              <Row k="Outbound shipping" v={formatCurrency(Number(b.outbound_shipping ?? 0))} />
-              <Row k="Payment processing" v={formatCurrency(Number(b.payment_processing ?? 0))} />
-              <Row k="RTO / damage reserve" v={formatCurrency(Number(b.rto_damage_reserve ?? 0))} />
-              <Row k="Target margin" v={formatCurrency(Number(b.target_margin ?? 0))} />
-              <Row k="Tier" v={b.margin_tier} />
+              <span className="text-[9px] font-black uppercase tracking-widest text-black/30">
+                {b.contribution_tier ? 'Offer model' : 'Model spread (legacy)'}
+              </span>
+              {b.contribution_tier ? (
+                <>
+                  <Row k="Payment gateway" v={formatCurrency(Number(b.gateway ?? 0))} />
+                  <Row k="Fixed cost per item" v={formatCurrency(Number(b.fixed_cost ?? 0))} />
+                  <Row
+                    k="Required contribution"
+                    v={`${formatCurrency(Number(b.required_contribution ?? 0))}${b.contribution_at_floor ? ' (at floor)' : ''}`}
+                  />
+                  <Row k="Tier" v={String(b.contribution_tier)} />
+                  {b.below_resale_floor === true && (
+                    <Row k="Below resale floor" v={`Min ${formatCurrency(Number(b.min_resale ?? 0))}`} />
+                  )}
+                </>
+              ) : (
+                <>
+                  <Row k="Inbound shipping" v={formatCurrency(Number(b.inbound_shipping ?? 0))} />
+                  <Row k="Outbound shipping" v={formatCurrency(Number(b.outbound_shipping ?? 0))} />
+                  <Row k="Payment processing" v={formatCurrency(Number(b.payment_processing ?? 0))} />
+                  <Row k="RTO / damage reserve" v={formatCurrency(Number(b.rto_damage_reserve ?? 0))} />
+                  <Row k="Target margin" v={formatCurrency(Number(b.target_margin ?? 0))} />
+                  <Row k="Tier" v={b.margin_tier} />
+                </>
+              )}
             </div>
           )}
         </>

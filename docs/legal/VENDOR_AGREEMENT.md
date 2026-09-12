@@ -68,11 +68,23 @@ to anyone that it has done so.
 **4.2** If the item matches, the Company accepts it into its inventory and the
 acquisition price becomes payable.
 
-**4.3** If it does not match, the Company may refuse it. No acquisition price
-is payable for a refused item.
+**4.3** If it does not match, the outcome depends on how far it is out. The
+Company applies the following, decided in advance rather than case by case, so
+that the same finding produces the same result for every Vendor:
+
+| What the check finds | What happens |
+|---|---|
+| **Minor variance.** The item is substantially as described, with a difference the Company judges it can disclose to its customer. | The Company accepts the item and the full acquisition price is payable. The Company may compensate its own customer at its own expense. Nothing is deducted from the Vendor. |
+| **Material variance.** A difference that goes to what the item is, its size, or its condition grade, including an undisclosed flaw. | The Company may refuse the item. No acquisition price is payable. The item is returned under 4.5 at the Vendor's cost. Where an acquisition price is payable on another item, the Company may deduct the return cost from that instead. |
+| **Counterfeit, or not the item photographed.** | The Company refuses and retains the item pending investigation, no acquisition price is payable, and the Company may end the Vendor's access under clause 10. The Company may be required to report the item and will not return a counterfeit. |
+
+**4.3.1** Which of the three applies is the Company's judgement, made against the
+Vendor's own listing and photographs. The Company records the finding and the
+reason.
 
 **4.4** On refusal the Company notifies the Vendor, states the reason, and
-offers to return the item **at the Vendor's cost**.
+offers to return the item **at the Vendor's cost**, except where 4.3 provides
+otherwise for counterfeits.
 
 **4.5** If the Vendor does not claim a refused item **within 60 days** of that
 notice, the Company may donate or dispose of it, and the Vendor forfeits any
@@ -136,6 +148,11 @@ already accepted survive.
 ---
 
 ## Notes for counsel
+
+- **Clause 4.3** sets a fixed three-way decision tree for condition mismatch
+  (minor / material / counterfeit). Confirm the deduction permitted for material
+  variance, and the retention of a suspected counterfeit without return, are
+  both enforceable against a consumer counterparty, and what notice each needs.
 
 1. §2.2 (price fixed before resale price is known) and §7 (no clawback) are the
    two clauses doing the work of distinguishing a purchase from a facilitated

@@ -30,6 +30,7 @@ const Checkout = lazy(() => import('./pages/Checkout').then((m) => ({ default: m
 const About = lazy(() => import('./pages/About').then((m) => ({ default: m.About })));
 const Contact = lazy(() => import('./pages/Contact').then((m) => ({ default: m.Contact })));
 const TrackOrder = lazy(() => import('./pages/TrackOrder').then((m) => ({ default: m.TrackOrder })));
+const PossessionCheck = lazy(() => import('./pages/PossessionCheck').then((m) => ({ default: m.PossessionCheck })));
 const SellerPortal = lazy(() => import('./pages/SellerPortal').then((m) => ({ default: m.SellerPortal })));
 const Account = lazy(() => import('./pages/Account').then((m) => ({ default: m.Account })));
 const Faq = lazy(() => import('./pages/Faq').then((m) => ({ default: m.Faq })));
@@ -121,6 +122,10 @@ export default function App() {
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/track-order" element={<TrackOrder />} />
+            {/* Reached from a possession-check email. No auth: the token in the
+                path is the authorisation, and a login here would turn a
+                one-tap answer into a chore nobody does. */}
+            <Route path="/possession/:token" element={<PossessionCheck />} />
             <Route path="/vendor-portal" element={<SellerPortal />} />
             <Route path="/offer/:listingId" element={<VendorOfferPage />} />
             <Route path="/hub" element={<Hub />} />

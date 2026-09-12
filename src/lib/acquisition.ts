@@ -51,13 +51,21 @@ export interface VendorOffer {
   ship_by_deadline: string | null;
   /** MODEL.md fulfilment lane. Always 'patient' today. */
   lane: 'patient' | 'instant';
+  /** End of the 45-day listing window, set at acceptance. */
+  listing_expires_at: string | null;
+  /** Set when the listing came down, whether it lapsed or was pulled. */
+  listing_expired_at: string | null;
+  delisted_reason: string | null;
+  /** Last time the vendor confirmed they still have the item. */
+  possession_confirmed_at: string | null;
 }
 
 const OFFER_COLUMNS =
   'listing_id, asking_price, offer_amount, offer_status, intake_status, ' +
   'review_note, review_reasons, reviewed_at, offer_round, ' +
   'not_accepted_reason, not_accepted_at, offered_at, offer_expires_at, accepted_at, paid_at, ' +
-  'ship_by_deadline, lane';
+  'ship_by_deadline, lane, listing_expires_at, listing_expired_at, ' +
+  'delisted_reason, possession_confirmed_at';
 
 export async function getVendorOffers(): Promise<VendorOffer[]> {
   const { data, error } = await supabase.from('vendor_offers').select(OFFER_COLUMNS);

@@ -55,6 +55,22 @@ const SECTIONS: FaqSection[] = [
         q: 'What happens if I miss the pickup deadline?',
         a: 'Contact support as soon as possible. Repeated missed pickup deadlines may affect whether we keep buying from you.',
       },
+      {
+        q: 'Do I send the item as soon as I accept?',
+        a: 'No. This is the part people most often get wrong. The item stays with you the whole time it is listed, and only moves once somebody buys it. All we ask in between is that you keep it and stay reachable.',
+      },
+      {
+        q: 'How long is my offer open, and how long does the listing run?',
+        a: 'Two different clocks. You have 7 days to accept an offer before it lapses. Once you accept, the listing runs for 45 days. If it has not sold by then it comes off the site, nothing is owed either way, and you are welcome to send it to us again.',
+      },
+      {
+        q: 'Why do you email asking if I still have it?',
+        a: 'Because we cannot sell something we are not sure is still there. Every couple of weeks we send one question with two buttons, yes or no. It takes a second. If we ask twice and hear nothing, we take the listing down. Saying no costs you nothing.',
+      },
+      {
+        q: 'What if my item does not match what I described?',
+        a: 'It depends how far out it is. A small difference we can describe honestly, we take the item and pay you in full. A real difference, in what the item is, its size or its condition, we can refuse and no payout is due, though you can have it back if you cover the return postage. A fake means we keep it, pay nothing, and stop buying from you.',
+      },
     ],
   },
   {
