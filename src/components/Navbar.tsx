@@ -91,7 +91,7 @@ export function Navbar() {
                       location.pathname === '/browse' ? "text-black" : "text-black hover:text-black/80"
                     )}
                   >
-                    Buy
+                    Buy now
                   </Link>
                   
                   {isBrowseOpen && (
@@ -113,16 +113,6 @@ export function Navbar() {
                     </motion.div>
                   )}
                 </div>
-
-                <Link
-                  to="/sell"
-                  className={cn(
-                    "relative text-[10px] font-black uppercase tracking-[0.3em] transition-colors hover:text-black",
-                    location.pathname === '/sell' ? "text-black" : "text-black hover:text-black/80"
-                  )}
-                >
-                  Sell
-                </Link>
 
               </div>
             </div>
@@ -258,8 +248,11 @@ export function Navbar() {
                 </button>
               )}
 
+              {/* "List item" described the old model, where a vendor listed
+                  something and waited to see if it sold. They are asking us to
+                  buy it, so the label says that. */}
               <Link to="/sell" className="bg-black px-8 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-white transition-all hover:scale-105 active:scale-95">
-                List Item
+                Get an offer
               </Link>
             </div>
 
@@ -314,7 +307,7 @@ export function Navbar() {
                     competing for the eye. */}
                 <DrawerSection>
                   <DrawerLink to="/browse" Icon={Search} onClick={closeMenu}>Browse</DrawerLink>
-                  <DrawerLink to="/sell" Icon={Tag} onClick={closeMenu}>Sell an item</DrawerLink>
+                  <DrawerLink to="/sell" Icon={Tag} onClick={closeMenu}>Get an offer</DrawerLink>
                   <DrawerLink to="/browse?q=saved" Icon={Heart} onClick={closeMenu}>Saved items</DrawerLink>
                   {/* The phone navbar has no cart icon, so the drawer is the
                       only way to a basket that already has items in it. */}
@@ -364,7 +357,7 @@ export function Navbar() {
                   className="flex w-full items-center justify-center gap-3 bg-black py-5 text-[11px] font-black uppercase tracking-[0.3em] text-white"
                   onClick={closeMenu}
                 >
-                  List Item
+                  Get an offer
                 </Link>
                 <div className="flex items-center justify-center gap-8 pb-1">
                   {SOCIALS.map(({ label, href, Icon }) => (

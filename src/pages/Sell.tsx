@@ -1,6 +1,13 @@
-// Sell page. Guided multi-step listing flow (Photos -> Details ->
-// Condition -> Price -> Review) optimized for mobile and for sellers listing
-// several similar items in one sitting.
+// Sell page. Three steps: Photos -> Details -> Condition.
+//
+// The form asks for what we need in order to price the item, and nothing else.
+// That line moved when we started taking physical possession: anything we can
+// see for ourselves when the parcel is opened is not worth a field here. Tags,
+// packaging, alterations and how often something was worn were all questions a
+// vendor answered about an object we were about to hold in our hands, so they
+// are gone. What survives is what a photograph cannot settle and an operator
+// needs before quoting: what it is, whose it is for, what size, what condition,
+// and what is wrong with it.
 //
 // No payout data is collected here. UPI, Instagram and the pickup address are
 // asked for once, at the seller's first sale, in PayoutDetailsForm - see the
@@ -56,20 +63,13 @@ const INBOUND_LANES: Array<{ key: string; vendorPays: boolean; label: string; de
   {
     key: 'label', vendorPays: false,
     label: 'Send me a prepaid label',
-    detail: 'We pay the postage. You print the label, tape it on, and hand the parcel over.',
+    detail: 'We pay the postage. Print it, tape it on, hand the parcel over.',
   },
   {
     key: 'own', vendorPays: true,
-    label: "I'll send it myself",
-    detail: 'Any courier you like, at your cost. Because it costs us nothing, your offer is higher.',
+    label: 'I will post it myself',
+    detail: 'Any courier you like, at your cost. It costs us less, so we offer you more.',
   },
-];
-
-const WEAR_OPTIONS: Array<{ key: string; label: string }> = [
-  { key: 'never', label: 'Never' },
-  { key: '1_2_times', label: '1-2 Times' },
-  { key: 'occasionally', label: 'Occasionally' },
-  { key: 'frequently', label: 'Frequently' },
 ];
 
 // Recommended photo order - purely a labeling/placeholder aid over the same
@@ -120,11 +120,10 @@ const CATEGORY_TO_SHIPPING: Record<string, string> = {
 
 const MAX_IMAGES = 8;
 
-// Three steps, not five. Condition belonged with price (they are the two
-// judgements a vendor makes about the same object) and Review was five
-// checkboxes restating what the form already said. The binding consent is the
-// agreement at offer acceptance, where money is actually promised.
-const STEP_LABELS = ['Photos', 'Details', 'Condition & price'];
+// Three steps. The last one used to be "Condition & price" and no longer holds
+// a price: a vendor names no number at all now, so the step carries condition,
+// how the item reaches us, and the two confirmations.
+const STEP_LABELS = ['Photos', 'Details', 'Condition'];
 
 type Declarations = Record<string, boolean>;
 
@@ -136,7 +135,7 @@ export function Sell() {
   usePageMeta(META.sell);
 
   return (
-    <RequireAuth message="Sign in to list an item.">
+    <RequireAuth message="Sign in to get an offer.">
       <SellInner />
     </RequireAuth>
   );
@@ -167,10 +166,6 @@ function SellInner() {
   const [sizeType, setSizeType] = React.useState('');
   const [sizeDetail, setSizeDetail] = React.useState('');
   const [description, setDescription] = React.useState('');
-  const [originalTags, setOriginalTags] = React.useState<boolean | null>(null);
-  const [originalPackaging, setOriginalPackaging] = React.useState<boolean | null>(null);
-  const [itemAltered, setItemAltered] = React.useState<boolean | null>(null);
-  const [wearFrequency, setWearFrequency] = React.useState<string | null>(null);
 
   const [condition, setCondition] = React.useState('');
   const [hasFlaws, setHasFlaws] = React.useState<boolean | null>(null);
@@ -192,7 +187,7 @@ function SellInner() {
   // Set once the vendor picks a shipping category themselves, so a later
   // category change stops overwriting their deliberate choice.
   const shippingCategoryTouched = React.useRef(false);
-  // PriceStep is a separate component, so the override flag is set here and
+  // LastStep is a separate component, so the override flag is set here and
   // handed down as the setter rather than reaching into a ref from outside.
   const pickShippingCategory = React.useCallback((key: string) => {
     shippingCategoryTouched.current = true;
@@ -367,12 +362,12 @@ function SellInner() {
   const canPublish = allDeclared && !loading;
   // A disabled button that does not say why reads as a broken one.
   const blockedReason = loading ? null
-    : undeclared === PUBLISH_CONFIRMATIONS.length ? 'Tick both lines above to send it to us.'
+    : undeclared === PUBLISH_CONFIRMATIONS.length ? 'Tick both lines above to get your offer.'
     : undeclared > 0 ? 'One line above is still unticked.'
     : null;
 
-  // Review is the only step without its own validator: it is complete when the
-  // two things it asks for are answered.
+  // The last step needs both its validator and the two confirmations: unlike
+  // the others it carries something the vendor agrees to, not just fills in.
   const stepComplete = (s: number) =>
     s === STEP_LABELS.length - 1 ? allDeclared && validateStep(s) === null : validateStep(s) === null;
 
@@ -384,7 +379,7 @@ function SellInner() {
       const err = validateStep(s);
       if (err) { setStep(s); setStepError(err); scrollToTop(); return; }
     }
-    if (!allDeclared) { setStepError('Tick both lines above before sending it to us.'); scrollToTop(); return; }
+    if (!allDeclared) { setStepError('Tick both lines above before we can price this.'); scrollToTop(); return; }
 
     setLoading(true);
     const tFull = slog.time('full submit');
@@ -474,10 +469,14 @@ function SellInner() {
         free_shipping: freeShipping,
         has_flaws: !!hasFlaws,
         flaws_description: hasFlaws ? flawsDescription.trim() : null,
-        original_tags_attached: originalTags,
-        original_packaging: originalPackaging,
-        item_altered: itemAltered,
-        wear_frequency: wearFrequency,
+        // Left unanswered on purpose. We open the parcel before any of this
+        // reaches a buyer, so these are ours to record at check-in rather than
+        // four more questions asked of someone who is still deciding whether to
+        // bother. The columns stay for the rows that already carry answers.
+        original_tags_attached: null,
+        original_packaging: null,
+        item_altered: null,
+        wear_frequency: null,
         // Carried by the accuracy line the vendor ticks, which says the item
         // is genuine. Restated in full at the agreement screen.
         authenticity_confirmed: !!declarations.accurate,
@@ -529,7 +528,6 @@ function SellInner() {
     setImageFiles([]); setImagePreviews([]);
     setTitle(''); setBrand(''); setDescription('');
     setSelectedCategory(''); setSizeType(''); setSizeDetail('');
-    setOriginalTags(null); setOriginalPackaging(null); setItemAltered(null); setWearFrequency(null);
     setCondition(''); setHasFlaws(null); setFlawsDescription('');
     setVendorPaysInbound(false);
     setDeclarations(noDeclarations());
@@ -600,13 +598,14 @@ function SellInner() {
         {step === 0 ? (
           <div className="mb-10 sm:mb-12 flex flex-col gap-5 max-w-2xl">
             <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase leading-[0.95]">
-              Tell us what you want for it.
-              <span className="block text-black/55">We'll tell you what we'll pay.</span>
+              Show us what you have.
+              <span className="block text-black/55">We will tell you what we will pay.</span>
             </h1>
             <p className="body-longform max-w-[52ch]">
-              You name your price. We come back with what we'll pay, and you decide before
-              anything goes live. Accept, and that number is locked — we collect the item,
-              check it, and pay you.
+              Photos and a few details, and you hear back within 24 hours. If we want it, we
+              name a price. Accept and that number is fixed: you send the item over, and we
+              pay you the day it reaches us. Whether it sells, and for how much, stops being
+              your problem.
             </p>
           </div>
         ) : (
@@ -687,15 +686,11 @@ function SellInner() {
                 sizeType={sizeType} setSizeType={setSizeType}
                 sizeDetail={sizeDetail} setSizeDetail={setSizeDetail}
                 description={description} setDescription={setDescription}
-                originalTags={originalTags} setOriginalTags={setOriginalTags}
-                originalPackaging={originalPackaging} setOriginalPackaging={setOriginalPackaging}
-                itemAltered={itemAltered} setItemAltered={setItemAltered}
-                wearFrequency={wearFrequency} setWearFrequency={setWearFrequency}
               />
             )}
 
             {step === 2 && (
-              <PriceStep
+              <LastStep
                 condition={condition} setCondition={setCondition}
                 hasFlaws={hasFlaws} setHasFlaws={setHasFlaws}
                 flawsDescription={flawsDescription} setFlawsDescription={setFlawsDescription}
@@ -732,7 +727,7 @@ function SellInner() {
               <button type="button" onClick={handlePublish} disabled={!canPublish}
                 className="inline-flex items-center gap-3 bg-black px-12 py-5 text-xs font-black uppercase tracking-[0.3em] text-white hover:bg-zinc-800 disabled:opacity-40">
                 {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                {loading ? 'Sending' : 'Send it to us'}
+                {loading ? 'Sending' : 'Get my offer'}
               </button>
               {blockedReason && (
                 <p className="text-[11px] font-normal text-black/50">{blockedReason}</p>
@@ -777,7 +772,7 @@ function SellInner() {
             <button type="button" onClick={handlePublish} disabled={!canPublish}
               className="w-full bg-black py-4 text-xs font-black uppercase tracking-[0.3em] text-white disabled:opacity-40 flex items-center justify-center gap-2">
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {loading ? 'Sending' : 'Send it to us'}
+              {loading ? 'Sending' : 'Get my offer'}
             </button>
             {blockedReason && (
               <p className="text-center text-[11px] font-normal text-black/50">{blockedReason}</p>
@@ -808,23 +803,6 @@ function SectionHeading({ children, note }: { children: React.ReactNode; note?: 
     <div className="flex flex-col gap-1.5">
       <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tighter leading-none">{children}</h3>
       {note && <p className="text-sm font-normal leading-relaxed text-black/50 max-w-[52ch]">{note}</p>}
-    </div>
-  );
-}
-
-function YesNoToggle({ value, onChange }: { value: boolean | null; onChange: (v: boolean) => void }) {
-  return (
-    <div className="grid grid-cols-2 gap-2">
-      <button type="button" onClick={() => onChange(true)}
-        className={cn('border py-3 text-xs font-black uppercase tracking-widest transition-all',
-          value === true ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
-        Yes
-      </button>
-      <button type="button" onClick={() => onChange(false)}
-        className={cn('border py-3 text-xs font-black uppercase tracking-widest transition-all',
-          value === false ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
-        No
-      </button>
     </div>
   );
 }
@@ -919,17 +897,11 @@ function DetailsStep(props: {
   sizeType: string; setSizeType: (v: string) => void;
   sizeDetail: string; setSizeDetail: (v: string) => void;
   description: string; setDescription: (v: string) => void;
-  originalTags: boolean | null; setOriginalTags: (v: boolean) => void;
-  originalPackaging: boolean | null; setOriginalPackaging: (v: boolean) => void;
-  itemAltered: boolean | null; setItemAltered: (v: boolean) => void;
-  wearFrequency: string | null; setWearFrequency: (v: string) => void;
 }) {
   const {
     title, setTitle, brand, setBrand, gender, setGender,
     selectedCategory, setSelectedCategory, sizeType, setSizeType, sizeDetail, setSizeDetail,
     description, setDescription,
-    originalTags, setOriginalTags, originalPackaging, setOriginalPackaging,
-    itemAltered, setItemAltered, wearFrequency, setWearFrequency,
   } = props;
 
   return (
@@ -937,7 +909,7 @@ function DetailsStep(props: {
       <div className="flex items-start gap-3 border-l-2 border-black pl-4">
         <AlertTriangle className="h-4 w-4 text-black mt-0.5 shrink-0" />
         <p className="text-xs font-bold uppercase tracking-widest text-black/60 leading-relaxed">
-          One listing, one item. Five of the same thing means five listings.
+          One item at a time. Five of the same thing means five of these.
         </p>
       </div>
 
@@ -996,40 +968,7 @@ function DetailsStep(props: {
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4}
             placeholder="Fit, material, how it runs, anything a photo can't show."
             className="border border-black/10 p-6 text-sm font-medium focus:border-black focus:outline-none resize-none transition-all placeholder:text-black/20" />
-          <TrustNote>Optional, but items with one sell faster. You own what it says.</TrustNote>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-6">
-        <SectionHeading>Worth mentioning</SectionHeading>
-        {/* Yes/No rather than switches: an unset switch would publish "no
-            packaging" as a claim the seller never made. Three states matter
-            here (yes, no, unanswered) and a switch only has two. */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
-          <div className="flex flex-col gap-3">
-            <FieldLabel optional>Tags still attached</FieldLabel>
-            <YesNoToggle value={originalTags} onChange={setOriginalTags} />
-          </div>
-          <div className="flex flex-col gap-3">
-            <FieldLabel optional>Original packaging</FieldLabel>
-            <YesNoToggle value={originalPackaging} onChange={setOriginalPackaging} />
-          </div>
-          <div className="flex flex-col gap-3">
-            <FieldLabel optional>Altered or tailored</FieldLabel>
-            <YesNoToggle value={itemAltered} onChange={setItemAltered} />
-          </div>
-          <div className="flex flex-col gap-3">
-            <FieldLabel optional>Times worn</FieldLabel>
-            <div className="grid grid-cols-2 gap-2">
-              {WEAR_OPTIONS.map((w) => (
-                <button key={w.key} type="button" onClick={() => setWearFrequency(w.key)}
-                  className={cn('border py-3 text-[11px] font-black uppercase tracking-widest transition-all',
-                    wearFrequency === w.key ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
-                  {w.label}
-                </button>
-              ))}
-            </div>
-          </div>
+          <TrustNote>Optional. The more we know, the better we can price it.</TrustNote>
         </div>
       </div>
     </div>
@@ -1102,15 +1041,15 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
 }
 
 
-// Condition and price, together. They are the two judgements a vendor makes
-// about the same object, and splitting them across two screens made the flow
-// feel longer than it is.
+// The last step: condition, how the item reaches us, and the two lines a
+// vendor confirms. It was called PriceStep when it held an asking price, and
+// holds none now - a vendor names no number anywhere in this form.
 //
-// The publish confirmations live here rather than on a Review screen of their
-// own. Review restated what the form already showed and asked for six ticks;
-// the consent that binds anyone is the agreement at offer acceptance, which is
+// The confirmations live here rather than on a Review screen of their own.
+// Review restated what the form already showed and asked for six ticks; the
+// consent that binds anyone is the agreement at offer acceptance, which is
 // where money is promised. Two lines here, three clauses there.
-function PriceStep({
+function LastStep({
   condition, setCondition, hasFlaws, setHasFlaws, flawsDescription, setFlawsDescription,
   vendorPaysInbound, setVendorPaysInbound, declarations, setDeclarations,
 }: {
@@ -1159,7 +1098,6 @@ function PriceStep({
             );
           })}
         </div>
-        <TrustNote>Sending it yourself costs us less, so the amount we offer you is higher.</TrustNote>
       </div>
 
       {/* Two lines, both load-bearing. The first is the one rule that makes a
