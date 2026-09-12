@@ -39,6 +39,9 @@ const OBJECTS = [
   // possession checks carry a token that answers a question about one item and
   // grants nothing else, but it is still tied to a vendor and an item.
   "offer_log", "acquisition_contribution_tiers", "possession_checks",
+  // Aggregated per vendor, so it is a per-vendor key by construction and is
+  // granted to nobody but an operator.
+  "vendor_reliability",
 ];
 
 /**

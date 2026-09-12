@@ -38,7 +38,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 // their own item; the view now answers that as an is_mine boolean instead, so
 // the key itself never leaves the database.
 const SAFE_LISTING_COLUMNS =
-  'id, sku, title, brand, description, price, sale_price, category, gender, size_type, size, condition, image_url, image_urls, shipping_category, free_shipping, has_flaws, flaws_description, original_tags_attached, original_packaging, item_altered, wear_frequency, authenticity_confirmed, status, is_sold, created_at, updated_at, shipping_mode, is_mine';
+  'id, sku, title, brand, description, price, sale_price, category, gender, size_type, size, pit_to_pit_cm, length_cm, sleeve_cm, waist_cm, inseam_cm, condition, image_url, image_urls, shipping_category, free_shipping, has_flaws, flaws_description, original_tags_attached, original_packaging, item_altered, wear_frequency, authenticity_confirmed, status, is_sold, created_at, updated_at, shipping_mode, is_mine';
 
 export function ProductPage() {
   const params = useParams();
@@ -397,6 +397,55 @@ export function ProductPage() {
               </div>
             )}
 
+            {/* MODEL.md §8. Tag size is not enough on used clothing, least of
+                all vintage, and "it didn't fit" is the biggest single reason
+                things come back. The measured garment gets its own block with
+                the same weight as the price, not a line inside a description. */}
+            {(listing.pit_to_pit_cm || listing.length_cm || listing.sleeve_cm
+              || listing.waist_cm || listing.inseam_cm) && (
+              <div className="flex flex-col gap-4">
+                <h3 className="text-xs font-black uppercase tracking-widest">Measurements</h3>
+                <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4">
+                  {([
+                    ['Pit to pit', listing.pit_to_pit_cm],
+                    ['Length', listing.length_cm],
+                    ['Sleeve', listing.sleeve_cm],
+                    ['Waist', listing.waist_cm],
+                    ['Inseam', listing.inseam_cm],
+                  ] as Array<[string, number | null | undefined]>)
+                    .filter(([, v]) => v != null)
+                    .map(([label, v]) => (
+                      <div key={label} className="flex flex-col gap-1">
+                        <dt className="text-[10px] font-black uppercase tracking-[0.2em] text-black/40">{label}</dt>
+                        <dd className="text-lg font-black tracking-tight tabular-nums">{v} cm</dd>
+                      </div>
+                    ))}
+                </dl>
+                <p className="text-[13px] font-normal leading-relaxed text-black/45">
+                  Measured flat, by hand. Sizing on pre-owned pieces is not consistent between
+                  brands or decades, so compare these against something you already own rather
+                  than going by the tag.
+                </p>
+              </div>
+            )}
+
+            {/* Flaws, stated as their own section rather than tucked inside the
+                condition box. Every flaw photographed and written down is the
+                thing that actually prevents a return, and burying it reads as
+                hiding it. */}
+            {listing.has_flaws && (
+              <div className="flex flex-col gap-3 border-l-2 border-black pl-5">
+                <h3 className="text-xs font-black uppercase tracking-widest">Flaws, stated plainly</h3>
+                <p className="text-sm font-normal normal-case tracking-normal leading-relaxed text-black/75">
+                  {listing.flaws_description}
+                </p>
+                <p className="text-[13px] font-normal leading-relaxed text-black/45">
+                  This is a used item and we would rather tell you than have you find out.
+                  The flaw is in the photos too.
+                </p>
+              </div>
+            )}
+
             <div className="flex flex-col gap-4">
               <h3 className="text-xs font-black uppercase tracking-widest">Condition & Authenticity</h3>
               <div className="flex flex-col gap-4">
@@ -409,12 +458,9 @@ export function ProductPage() {
                 )}
 
                 {listing.has_flaws ? (
-                  <div className="flex items-start gap-3 border border-amber-200 bg-amber-50 p-4">
-                    <AlertTriangle className="h-4 w-4 text-amber-700 mt-0.5 shrink-0" />
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-800">Flaws disclosed</span>
-                      <p className="text-[10px] font-medium leading-relaxed text-amber-800/80">{listing.flaws_description}</p>
-                    </div>
+                  <div className="flex items-center gap-3">
+                    <AlertTriangle className="h-4 w-4 text-amber-700 shrink-0" />
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-800">Flaws disclosed above</span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-3">

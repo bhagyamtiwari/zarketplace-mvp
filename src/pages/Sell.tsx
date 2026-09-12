@@ -61,7 +61,62 @@ const PUBLISH_CONFIRMATIONS: Array<{ key: string; label: string }> = [
 // image array (index 0 is still the cover). Not a hard per-slot requirement.
 // These are the instruction: they say what to shoot, so no paragraph above the
 // grid has to.
-const PHOTO_SLOT_LABELS = ['Front of item', 'Back of item', 'Brand label', 'Size tag', 'Close-up detail', 'Any flaws'];
+// MODEL.md §9: completeness, not beauty. The first four settle what the item
+// actually is, and we reject for a missing angle but never for bad lighting.
+// A phone photo in a bedroom is what a buyer wants to see on used clothing;
+// consistency comes from processing at upload, not from the vendor's camera.
+const PHOTO_SLOTS: Array<{ label: string; required: boolean; hint?: string }> = [
+  { label: 'Front of item', required: true },
+  { label: 'Back of item', required: true },
+  { label: 'Brand label', required: true, hint: 'The neck or inner tag' },
+  { label: 'Size tag', required: true, hint: 'Even if it is faded' },
+  { label: 'Close-up detail', required: false },
+  { label: 'Any flaws', required: false },
+];
+const REQUIRED_PHOTOS = PHOTO_SLOTS.filter((p) => p.required).length;
+
+// MODEL.md §8: "it didn't fit" is the biggest single cause of returns in used
+// clothing, and a tag size does not prevent it. A vintage L and a modern L are
+// different garments, so the listing carries the item measured flat instead.
+//
+// Required where fit is least predictable and optional elsewhere, because
+// making someone measure a belt to sell it is how you lose the listing.
+type Measure = { key: MeasureKey; label: string; how: string };
+type MeasureKey = 'pit_to_pit_cm' | 'length_cm' | 'sleeve_cm' | 'waist_cm' | 'inseam_cm';
+
+const MEASUREMENTS_BY_CATEGORY: Record<string, { required: Measure[]; optional: Measure[] }> = {
+  Tops: {
+    required: [
+      { key: 'pit_to_pit_cm', label: 'Pit to pit', how: 'Lay it flat and measure straight across from one armpit seam to the other.' },
+      { key: 'length_cm', label: 'Length', how: 'From the highest point of the shoulder straight down to the hem.' },
+    ],
+    optional: [
+      { key: 'sleeve_cm', label: 'Sleeve', how: 'From the shoulder seam to the end of the cuff.' },
+    ],
+  },
+  Outerwear: {
+    required: [
+      { key: 'pit_to_pit_cm', label: 'Pit to pit', how: 'Lay it flat and measure straight across from one armpit seam to the other.' },
+      { key: 'length_cm', label: 'Length', how: 'From the highest point of the shoulder straight down to the hem.' },
+    ],
+    optional: [
+      { key: 'sleeve_cm', label: 'Sleeve', how: 'From the shoulder seam to the end of the cuff.' },
+    ],
+  },
+  Bottoms: {
+    required: [],
+    optional: [
+      { key: 'waist_cm', label: 'Waist', how: 'Button them, lay flat, measure across the waistband and double it.' },
+      { key: 'inseam_cm', label: 'Inseam', how: 'From the crotch seam down to the bottom of the leg.' },
+    ],
+  },
+  Shoes: { required: [], optional: [] },
+  Accessories: { required: [], optional: [] },
+};
+
+const measurementsFor = (category: string) =>
+  MEASUREMENTS_BY_CATEGORY[category] ?? { required: [], optional: [] };
+const PHOTO_SLOT_LABELS = PHOTO_SLOTS.map((p) => p.label);
 
 // Highest-priority rule: one listing = one physical item. Checked
 // case-insensitively across title/brand/description.
@@ -150,6 +205,7 @@ function SellInner() {
   const [selectedCategory, setSelectedCategory] = React.useState('');
   const [sizeType, setSizeType] = React.useState('');
   const [sizeDetail, setSizeDetail] = React.useState('');
+  const [measurements, setMeasurements] = React.useState<Partial<Record<MeasureKey, string>>>({});
   const [description, setDescription] = React.useState('');
 
   const [condition, setCondition] = React.useState('');
@@ -313,7 +369,12 @@ function SellInner() {
   // to the first incomplete step and show what's needed there.
   const validateStep = (s: number): string | null => {
     if (s === 0) {
-      if (imageFiles.length === 0) return 'Add at least one photo.';
+      // Counted rather than checked slot by slot: the grid labels are a guide
+      // to what to shoot, and someone who uploads four good photos in a
+      // different order has done the thing we actually need.
+      if (imageFiles.length < REQUIRED_PHOTOS) {
+        return `Add ${REQUIRED_PHOTOS} photos: front, back, the brand label and the size tag. We cannot price an item we cannot identify.`;
+      }
     }
     if (s === 1) {
       if (!title.trim()) return 'Tell us what the item is.';
@@ -321,6 +382,11 @@ function SellInner() {
       if (!gender) return 'Choose who the item is for.';
       if (!selectedCategory) return 'Choose a category.';
       if (!sizeType) return 'Choose a size.';
+      const needed = measurementsFor(selectedCategory).required;
+      const missing = needed.find((m) => !(Number(measurements[m.key]) > 0));
+      if (missing) {
+        return `Add the ${missing.label.toLowerCase()} measurement in cm. ${missing.how}`;
+      }
       const banned = findBannedPhrase(`${title} ${brand} ${description}`);
       if (banned) return `Remove "${banned}" - each listing is one item, not a batch or store catalogue.`;
     }
@@ -420,6 +486,13 @@ function SellInner() {
         gender,
         size_type: sizeType,
         size: sizeDetail.trim() || null,
+        // Numbers, not a sentence in the description, so they can drive a size
+        // filter later instead of being re-parsed out of prose.
+        pit_to_pit_cm: Number(measurements.pit_to_pit_cm) || null,
+        length_cm: Number(measurements.length_cm) || null,
+        sleeve_cm: Number(measurements.sleeve_cm) || null,
+        waist_cm: Number(measurements.waist_cm) || null,
+        inseam_cm: Number(measurements.inseam_cm) || null,
         condition,
         description: description.trim() || null,
         image_url: uploadedUrls[0],
@@ -511,7 +584,7 @@ function SellInner() {
     scrollToTop();
     setImageFiles([]); setImagePreviews([]);
     setTitle(''); setBrand(''); setDescription('');
-    setSelectedCategory(''); setSizeType(''); setSizeDetail('');
+    setSelectedCategory(''); setSizeType(''); setSizeDetail(''); setMeasurements({});
     setCondition(''); setHasFlaws(null); setFlawsDescription('');
     setDeclarations(noDeclarations());
   };
@@ -669,6 +742,7 @@ function SellInner() {
                 sizeType={sizeType} setSizeType={setSizeType}
                 sizeDetail={sizeDetail} setSizeDetail={setSizeDetail}
                 description={description} setDescription={setDescription}
+                measurements={measurements} setMeasurements={setMeasurements}
               />
             )}
 
@@ -819,8 +893,9 @@ function PhotosStep({ imagePreviews, onAdd, onRemove, originals, cleaning, onUse
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         {slots.map((i) => {
-          const label = PHOTO_SLOT_LABELS[i] ?? `Photo ${i + 1}`;
-          const required = i < 2;
+          const slot = PHOTO_SLOTS[i];
+          const label = slot?.label ?? `Photo ${i + 1}`;
+          const required = slot?.required ?? false;
           const preview = imagePreviews[i];
           return preview ? (
             <div key={i} className="relative aspect-[3/4] w-full overflow-hidden bg-zinc-50 border border-black/5 group">
@@ -852,7 +927,12 @@ function PhotosStep({ imagePreviews, onAdd, onRemove, originals, cleaning, onUse
                 <Plus className="h-4 w-4 text-black/30 group-hover:text-black" />
               </div>
               <span className="text-[11px] font-black uppercase tracking-widest text-black">{label}</span>
-              {!required && <span className="text-[9px] font-bold uppercase tracking-widest text-black/30">Optional</span>}
+              {slot?.hint && (
+                <span className="text-[9px] font-bold uppercase tracking-widest text-black/30">{slot.hint}</span>
+              )}
+              {required
+                ? <span className="text-[9px] font-bold uppercase tracking-widest text-black/50">Required</span>
+                : <span className="text-[9px] font-bold uppercase tracking-widest text-black/30">Optional</span>}
               <input type="file" accept="image/*" className="hidden" onChange={onAdd} multiple />
             </label>
           );
@@ -863,7 +943,14 @@ function PhotosStep({ imagePreviews, onAdd, onRemove, originals, cleaning, onUse
           are useful, but not worth sending someone out of a half-finished form. */}
       <p className="text-xs text-black font-black uppercase tracking-widest">
         {imagePreviews.length}/{MAX_IMAGES} photos uploaded.
+        {imagePreviews.length < REQUIRED_PHOTOS && ` ${REQUIRED_PHOTOS - imagePreviews.length} more needed.`}
       </p>
+      {/* Says the quiet part out loud, because vendors otherwise assume their
+          phone photos are the problem and give up. They are not the problem. */}
+      <TrustNote>
+        Shoot on a bed or a floor in daylight. We are not judging the photography,
+        and we will never turn something down for lighting. We do need all four angles.
+      </TrustNote>
     </div>
   );
 }
@@ -879,12 +966,15 @@ function DetailsStep(props: {
   sizeType: string; setSizeType: (v: string) => void;
   sizeDetail: string; setSizeDetail: (v: string) => void;
   description: string; setDescription: (v: string) => void;
+  measurements: Partial<Record<MeasureKey, string>>;
+  setMeasurements: React.Dispatch<React.SetStateAction<Partial<Record<MeasureKey, string>>>>;
 }) {
   const {
     title, setTitle, brand, setBrand, gender, setGender,
     selectedCategory, setSelectedCategory, sizeType, setSizeType, sizeDetail, setSizeDetail,
-    description, setDescription,
+    description, setDescription, measurements, setMeasurements,
   } = props;
+  const measures = measurementsFor(selectedCategory);
 
   return (
     <div className="flex flex-col gap-12">
@@ -944,6 +1034,43 @@ function DetailsStep(props: {
               className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20" />
           </div>
         </div>
+
+        {/* Measurements. Placed with the item details rather than hidden behind
+            a toggle, because a listing without them is the one most likely to
+            come back. The "how" line under each field is there because most
+            people have genuinely never measured a garment before. */}
+        {(measures.required.length > 0 || measures.optional.length > 0) && (
+          <div className="flex flex-col gap-4">
+            <SectionHeading note="Lay the item flat and use a tape. This is the single best thing you can do to stop it coming back.">
+              Measurements in cm
+            </SectionHeading>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-8">
+              {[...measures.required, ...measures.optional].map((m) => {
+                const isRequired = measures.required.some((r) => r.key === m.key);
+                return (
+                  <div key={m.key} className="flex flex-col gap-3">
+                    <FieldLabel optional={!isRequired}>{m.label}</FieldLabel>
+                    <div className="flex items-baseline gap-2">
+                      <input
+                        type="number" inputMode="decimal" min="1"
+                        value={measurements[m.key] ?? ''}
+                        onChange={(e) => setMeasurements((prev) => ({ ...prev, [m.key]: e.target.value }))}
+                        placeholder="52"
+                        className="w-full border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20"
+                      />
+                      <span className="text-xs font-black uppercase tracking-widest text-black/40">cm</span>
+                    </div>
+                    <span className="text-[13px] font-normal leading-relaxed text-black/45">{m.how}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <TrustNote>
+              Tag sizes lie, especially on vintage. Measurements are what stop someone
+              buying the wrong thing and sending it back.
+            </TrustNote>
+          </div>
+        )}
 
         <div className="flex flex-col gap-3">
           <FieldLabel optional>Anything a photo cannot show</FieldLabel>
