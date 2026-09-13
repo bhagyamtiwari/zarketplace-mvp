@@ -605,11 +605,21 @@ function SellInner() {
         <p className="text-black font-medium uppercase tracking-widest text-xs mb-3 max-w-md">
           Someone is looking at your item now.
         </p>
-        <p className="text-black/70 font-medium uppercase tracking-widest text-[11px] leading-[1.9] mb-10 max-w-md">
+        <p className="text-black/70 font-medium uppercase tracking-widest text-[11px] leading-[1.9] mb-6 max-w-md">
           You will hear either an offer, or what would need to change before we
           can make one. Nothing is listed until you have seen a number and
           agreed to it, and the item stays with you either way.
         </p>
+        <div className="mb-10 max-w-md border-l-2 border-black pl-5 text-left">
+          <p className="text-black font-medium uppercase tracking-widest text-[11px] leading-[1.9]">
+            Everything from here comes by email
+          </p>
+          <p className="text-black/70 font-medium uppercase tracking-widest text-[11px] leading-[1.9]">
+            Your offer, the day it sells, your label. Check your spam folder now
+            and mark us as not spam, so the one that matters does not sit in there
+            unread.
+          </p>
+        </div>
         {/* The vendor has just finished a form and is at their most willing to
             read one more thing. Said here, in three lines, so the PAN request
             that arrives later is expected rather than alarming. */}
@@ -627,9 +637,9 @@ function SellInner() {
             Sell another
           </button>
         </div>
-        <button onClick={() => navigate('/')}
+        <button onClick={() => navigate('/browse')}
           className="mt-6 text-[11px] font-black uppercase tracking-[0.25em] text-black/40 hover:text-black">
-          Back to zarketplace
+          Back to browse
         </button>
 
         <a

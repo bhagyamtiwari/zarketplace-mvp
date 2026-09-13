@@ -1,4 +1,9 @@
-// My Profile - lets a signed-in user edit their name, phone, and saved UPI ID.
+// My Profile - lets a signed-in user edit their name and saved UPI ID.
+//
+// Email and phone are shown but not editable here. Both are how we reach
+// someone about an order in flight, and the phone is the number a courier
+// already holds, so changing either mid-delivery loses parcels. They are also
+// the two fields an account takeover would want to move first.
 // Email is shown but never editable here (it's tied to the auth identity).
 
 import * as React from 'react';
@@ -25,7 +30,6 @@ export function Account() {
 function AccountInner() {
   const { user, profile, refreshProfile } = useAuth();
   const [fullName, setFullName] = React.useState('');
-  const [phone, setPhone] = React.useState('');
   const [upiVpa, setUpiVpa] = React.useState('');
   const [saving, setSaving] = React.useState(false);
   const [saved, setSaved] = React.useState(false);
@@ -33,7 +37,6 @@ function AccountInner() {
 
   React.useEffect(() => {
     setFullName(profile?.full_name ?? '');
-    setPhone(profile?.phone ?? '');
     setUpiVpa(profile?.default_upi_vpa ?? '');
   }, [profile]);
 
@@ -56,7 +59,6 @@ function AccountInner() {
         .from('profiles')
         .update({
           full_name: fullName.trim() || null,
-          phone: phone.trim() || null,
           ...(upiLocked ? {} : { default_upi_vpa: upiVpa.trim() || null }),
         })
         .eq('id', user.id);
@@ -90,22 +92,23 @@ function AccountInner() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-[9px] font-black uppercase tracking-widest text-black/40">Email (Read-Only)</label>
+          <label className="text-[9px] font-black uppercase tracking-widest text-black/40">Email</label>
           <div className="border-b border-black/10 py-3 text-sm font-bold text-black/50">
             {user?.email}
           </div>
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-[9px] font-black uppercase tracking-widest text-black">Phone Number</label>
-          <input
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            placeholder="+91 98765 43210"
-            className="border-b border-black/10 py-3 text-sm font-bold focus:border-black focus:outline-none transition-all"
-          />
+          <label className="text-[9px] font-black uppercase tracking-widest text-black/40">Phone</label>
+          <div className="border-b border-black/10 py-3 text-sm font-bold text-black/50">
+            {profile?.phone || 'Not on file'}
+          </div>
         </div>
+
+        <p className="text-[13px] font-normal leading-relaxed text-black/45 -mt-2">
+          Your email and phone are how we reach you about an order, and the number
+          a courier already has. To change either, write to us and we will do it.
+        </p>
 
         <div className="flex flex-col gap-2">
           <label className="text-[9px] font-black uppercase tracking-widest text-black">UPI ID</label>

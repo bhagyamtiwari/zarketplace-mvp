@@ -85,6 +85,13 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing, priority = fa
         ) : null}
 
         <div className="absolute bottom-2 left-2 flex flex-wrap gap-1.5">
+          {/* Ours, in hand, shot by us. The one chip on the card that is about
+              who is holding the item rather than about the garment. */}
+          {listing.is_verified && (
+            <span className="bg-black px-2.5 py-1 text-[9px] font-black text-white uppercase tracking-[0.15em]">
+              Verified
+            </span>
+          )}
           {listing.condition && (
             <span className="bg-white/90 px-2.5 py-1 text-[9px] font-black text-black uppercase tracking-[0.15em]">
               {listing.condition}

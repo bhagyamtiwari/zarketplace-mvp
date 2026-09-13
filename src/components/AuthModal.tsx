@@ -46,7 +46,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
     if (redirectTo) navigate(redirectTo);
   }, [onClose, onSuccess, redirectTo, navigate]);
 
-  const [mode, setMode] = React.useState<Mode>('signin');
+  const [mode, setMode] = React.useState<Mode>('signup');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [confirmPassword, setConfirmPassword] = React.useState('');
@@ -70,7 +70,10 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
       setError(null);
       setNotice(null);
       setLoading(false);
-      setMode('signin');
+      // Reopens on Create account, which is what most people arriving here
+      // actually need. Switching to Sign in after a successful signup is
+      // handled separately and deliberately.
+      setMode('signup');
     }
   }, [open]);
 
@@ -174,15 +177,6 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                 <div className="grid grid-cols-2 gap-0 border border-black/10">
                   <button
                     type="button"
-                    onClick={() => switchMode('signin')}
-                    className={`py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${
-                      mode === 'signin' ? 'bg-black text-white' : 'bg-white text-black/60 hover:text-black'
-                    }`}
-                  >
-                    Sign In
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => switchMode('signup')}
                     className={`py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${
                       mode === 'signup' ? 'bg-black text-white' : 'bg-white text-black/60 hover:text-black'
@@ -190,26 +184,41 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                   >
                     Create Account
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => switchMode('signin')}
+                    className={`py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${
+                      mode === 'signin' ? 'bg-black text-white' : 'bg-white text-black/60 hover:text-black'
+                    }`}
+                  >
+                    Sign In
+                  </button>
                 </div>
               )}
 
               <div className="flex flex-col gap-3">
-                <label className="text-[10px] font-black uppercase tracking-widest">Email</label>
+                <label className="text-[10px] font-black uppercase tracking-widest">
+                  {mode === 'signin' ? 'Email or phone' : 'Email'}
+                </label>
                 <div className="flex items-center border-b border-black/10 focus-within:border-black transition-colors">
                   <Mail className="h-4 w-4 text-black/30 mr-3" />
                   <input
-                    type="email"
+                    type={mode === 'signin' ? 'text' : 'email'}
                     autoFocus
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    autoComplete="email"
+                    placeholder={mode === 'signin' ? 'you@example.com or 98765 43210' : 'you@example.com'}
+                    autoComplete={mode === 'signin' ? 'username' : 'email'}
                     className="flex-1 py-4 text-sm font-bold focus:outline-none placeholder:text-xs placeholder:font-medium placeholder:tracking-widest placeholder:uppercase placeholder:text-black/25"
                   />
                 </div>
                 {email && !emailValid && (
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-red-600">Enter a valid email.</p>
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-red-600">
+                    {mode === 'signin' && /^[+\d][\d\s-]{6,}$/.test(email.trim())
+                      ? 'We cannot sign you in by phone yet. Use the email you signed up with.'
+                      : 'Enter a valid email.'}
+                  </p>
                 )}
               </div>
 
@@ -246,8 +255,8 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                   {phoneDigits && !phoneValid && (
                     <p className="text-[9px] font-bold uppercase tracking-widest text-red-600">Enter a valid phone number.</p>
                   )}
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-black/60">
-                    For delivery updates and order problems. We do not send marketing texts.
+                  <p className="text-center text-[9px] font-bold uppercase tracking-widest text-black/60 leading-relaxed">
+                    For delivery updates and order problems. Never marketing.
                   </p>
                 </div>
               )}

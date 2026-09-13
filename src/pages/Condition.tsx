@@ -10,8 +10,8 @@ export function Condition() {
 
   return (
     <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
-      <Link to="/" className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-black/60 hover:text-black mb-8 lg:mb-12">
-        <ArrowLeft className="h-3 w-3" /> Back to zarketplace
+      <Link to="/browse" className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-black/60 hover:text-black mb-8 lg:mb-12">
+        <ArrowLeft className="h-3 w-3" /> Back to browse
       </Link>
 
       <div className="flex flex-col">
@@ -28,7 +28,7 @@ export function Condition() {
           </p>
         </div>
 
-        <section className="p-6 sm:p-10 bg-black text-white flex flex-col gap-4 w-fit">
+        <section className="w-full p-6 sm:p-10 bg-black text-white flex flex-col gap-4">
           <h3 className="text-sm font-black uppercase tracking-widest">Please note</h3>
           <p className="body-longform max-w-[64ch]">
             Condition is a judgement, and an honest one can still be a close call between two tiers. We check every item against its listing before it ships, and anything that does not match does not go out.
@@ -40,10 +40,15 @@ export function Condition() {
             <div
               key={c.name}
               className={cn(
-                'flex flex-col gap-2 p-6 bg-zinc-50 border border-black/5',
+                'relative flex flex-col gap-2 p-6 pl-7 bg-zinc-50 border border-black/5 overflow-hidden',
                 idx === CONDITIONS.length - 1 && CONDITIONS.length % 2 === 1 && 'sm:col-span-2'
               )}
             >
+              <span
+                aria-hidden
+                className="absolute left-0 top-0 h-full w-1.5"
+                style={{ backgroundColor: c.accent }}
+              />
               <h2 className="flex items-baseline gap-2.5 text-lg font-black uppercase tracking-tight text-black">
                 {c.name}
                 <span className="text-xs tracking-[0.2em] text-black/60">{c.grade}</span>
@@ -53,7 +58,7 @@ export function Condition() {
           ))}
         </div>
 
-        <section className="p-6 sm:p-10 bg-black text-white flex flex-col gap-4 w-fit">
+        <section className="w-full p-6 sm:p-10 bg-black text-white flex flex-col gap-4">
           <h3 className="text-sm font-black uppercase tracking-widest">A note on pre-owned items</h3>
           <p className="body-longform max-w-[64ch]">
             As pre-owned pieces, items may carry light odors or signs of storage. We recommend following care labels and washing, or dry cleaning, garments before first wear.

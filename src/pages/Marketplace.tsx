@@ -58,7 +58,13 @@ const ALL_SIZES = ['XXS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '28', '30', '
 
 // Discovery chips. These are shortcuts into the same filter surface, not
 // marketing sections - each one is a query anyone could have built by hand.
+// Remembered per browser, so dismissing the floating CTA sticks.
+const OFFER_CTA_KEY = 'zk.offerCta.hidden';
+
 const QUICK_CHIPS: Array<{ value: string; label: string; tag?: string }> = [
+  // MODEL.md §3. Stock we own and photographed ourselves, on our shelf, so it
+  // goes out the day it is bought rather than waiting on anyone.
+  { value: 'verified', label: 'Ships in 48 hours', tag: 'Verified' },
   { value: 'new_today', label: 'New today' },
   { value: 'under_999', label: 'Under ₹999', tag: 'New' },
   { value: 'free_shipping', label: 'Free shipping' },
@@ -86,6 +92,7 @@ function applyDevFilters(
     if (f.gender && l.gender !== f.gender) return false;
     if (f.sizeType && l.size_type !== f.sizeType) return false;
     if (f.condition && l.condition !== f.condition) return false;
+    if (f.quick === 'verified') return !!l.is_verified;
     if (f.quick === 'new_today') return Date.now() - Date.parse(l.created_at) < 24 * 60 * 60 * 1000;
     if (f.quick === 'under_999') return l.price <= 999;
     if (f.quick === 'free_shipping') return l.free_shipping;
@@ -108,6 +115,9 @@ export function Marketplace() {
   const sizeType = searchParams.get('size_type');
   const condition = searchParams.get('condition');
   const quick = searchParams.get('q');
+  const [offerCtaHidden, setOfferCtaHidden] = React.useState(() => {
+    try { return localStorage.getItem(OFFER_CTA_KEY) === '1'; } catch { return false; }
+  });
   const searchQuery = searchParams.get('search') ?? '';
   // Relevance, not recency. Newest-first made the homepage a function of
   // upload order, so the last thing listed led - which put a Rs 50 jersey
@@ -173,7 +183,9 @@ export function Marketplace() {
         if (sizeType) query = query.eq('size_type', sizeType);
         if (condition) query = query.eq('condition', condition);
 
-        if (quick === 'new_today') {
+        if (quick === 'verified') {
+          query = query.eq('is_verified', true);
+        } else if (quick === 'new_today') {
           const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
           query = query.gte('created_at', since);
         } else if (quick === 'under_999') {
@@ -547,22 +559,43 @@ export function Marketplace() {
           the same idea said three times, and BrandKit's own rule is one idea
           per section. The other two live on /about, where an argument belongs. */}
       <CampaignBand
-        image="/images/resale-web.jpg"
+        image="/images/red2-web.jpg"
         heading="Good clothes deserve"
         script="another life."
+        emphasis="script"
         body="Every piece bought, checked and repacked by us before it ships."
-        cta={{ label: 'Sell us something', to: '/sell' }}
+        cta={{ label: 'Get an offer', to: '/sell' }}
       />
 
       {/* Getting an offer is one tap from anywhere in the feed, without ever
-          occupying space the inventory could have used. */}
-      <Link
-        to="/sell"
-        aria-label="Get an offer for your item"
-        className="lg:hidden fixed bottom-6 right-5 z-40 flex h-14 items-center gap-2 rounded-full bg-black pl-4 pr-5 text-[11px] font-black uppercase tracking-[0.2em] text-white shadow-[0_8px_30px_rgba(0,0,0,0.35)] active:scale-95 transition-transform"
-      >
-        <Plus className="h-5 w-5" /> Offer
-      </Link>
+          occupying space the inventory could have used.
+          
+          Dismissable, and it stays dismissed. Someone browsing to buy is not
+          selling today, and a button that sits over the feed forever with no
+          way to close it is the kind of thing you stop seeing and start
+          resenting. The choice is remembered per browser. */}
+      {!offerCtaHidden && (
+        <div className="lg:hidden fixed bottom-6 right-5 z-40 flex items-center gap-2">
+          <Link
+            to="/sell"
+            aria-label="Get an offer for your item"
+            className="flex h-14 items-center gap-2 rounded-full bg-black pl-4 pr-5 text-[11px] font-black uppercase tracking-[0.2em] text-white shadow-[0_8px_30px_rgba(0,0,0,0.35)] active:scale-95 transition-transform"
+          >
+            <Plus className="h-5 w-5" /> Offer
+          </Link>
+          <button
+            type="button"
+            aria-label="Hide the offer button"
+            onClick={() => {
+              setOfferCtaHidden(true);
+              try { localStorage.setItem(OFFER_CTA_KEY, '1'); } catch { /* private mode */ }
+            }}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/80 text-white shadow-[0_8px_30px_rgba(0,0,0,0.35)] active:scale-95 transition-transform"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -16,10 +16,22 @@ interface Props {
   cta?: { label: string; to: string };
   /** 'right' flips the copy to the right and the button to the left. */
   align?: 'left' | 'right';
+  /**
+   * Which of the two lines carries the weight.
+   *
+   * 'heading' is the house default and follows BrandKit: the serif is a single
+   * italic breath at roughly two thirds the size of the shout above it.
+   * 'script' inverts that and lets the serif be the payoff, which only works
+   * when the phrase is short and the heading reads as its setup.
+   */
+  emphasis?: 'heading' | 'script';
   className?: string;
 }
 
-export function CampaignBand({ image, heading, script, body, cta, align = 'left', className }: Props) {
+export function CampaignBand({
+  image, heading, script, body, cta, align = 'left', emphasis = 'heading', className,
+}: Props) {
+  const scriptLed = emphasis === 'script';
   return (
     <section className={cn('relative isolate overflow-hidden bg-black text-white', className)}>
       <img
@@ -51,11 +63,22 @@ export function CampaignBand({ image, heading, script, body, cta, align = 'left'
       >
         <div className={cn('flex flex-col items-start gap-3', align === 'right' && 'md:text-right md:items-end')}>
           <div className="flex flex-col gap-1">
-            <h2 className="text-3xl sm:text-5xl font-black uppercase tracking-tighter leading-[0.88]">
+            <h2 className={cn(
+              'font-black uppercase tracking-tighter leading-[0.88]',
+              scriptLed ? 'text-xl sm:text-2xl lg:text-3xl text-white/75' : 'text-3xl sm:text-5xl',
+            )}>
               {heading}
             </h2>
             {script && (
-              <p className="text-2xl sm:text-4xl font-serif italic tracking-tight lowercase leading-tight">
+              <p className={cn(
+                'font-serif italic tracking-tight lowercase',
+                scriptLed
+                  // Steps up hard at each breakpoint: on a wide screen the
+                  // phrase is the thing you see from across the room, and on a
+                  // phone it still has to sit on one line at 375px.
+                  ? 'text-[2.75rem] leading-[0.95] sm:text-7xl lg:text-8xl sm:leading-[0.9] -mt-1'
+                  : 'text-2xl sm:text-4xl leading-tight',
+              )}>
                 {script}
               </p>
             )}

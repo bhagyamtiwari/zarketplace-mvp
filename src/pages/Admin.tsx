@@ -1153,6 +1153,33 @@ function ListingDrawer({ listing, acq, orders, payouts, audit, onClose, onDone, 
               )}
             </div>
           )}
+          {/* The Verified shelf. Only ever set here: it says we own the item,
+              shot it, and can put it in a box today, which is a claim only an
+              operator is in a position to make. */}
+          <ActBtn
+            label={listing.is_verified ? 'Remove Verified badge' : 'Mark Verified (ours, in hand)'}
+            busy={busy}
+            onClick={async () => {
+              const next = !listing.is_verified;
+              if (next && !confirm('Mark this as Verified? It tells buyers we own it, photographed it, and can ship it within 48 hours.')) return;
+              setBusy(true);
+              try {
+                const { error } = await supabase
+                  .from('listings')
+                  .update({ is_verified: next })
+                  .eq('id', listing.id);
+                if (error) throw error;
+                await writeAudit({
+                  entity: 'listing', entity_id: listing.id,
+                  action: next ? 'listing.verified.on' : 'listing.verified.off',
+                  old_state: { is_verified: !!listing.is_verified },
+                  new_state: { is_verified: next },
+                  reason: listing.title,
+                });
+                await onDone(); onClose();
+              } catch (err: any) { alert(err?.message ?? 'Failed.'); } finally { setBusy(false); }
+            }}
+          />
           {listing.status !== 'rejected' && <ActBtn label="Reject" onClick={() => setStatus('rejected', 'Reject')} busy={busy} />}
           {listing.status === 'approved' && <ActBtn label="Suspend" onClick={() => setStatus('suspended', 'Suspend')} busy={busy} />}
           {listing.status !== 'archived' && <ActBtn label="Archive" onClick={() => setStatus('archived', 'Archive')} busy={busy} />}
@@ -1344,7 +1371,11 @@ function AcquisitionPanel({ listingId, listingTitle, vendorEmail, askingPriceFal
 
   return (
     <Sec title="Acquisition">
-      <Row k="Vendor asked" v={formatCurrency(Number(acq.asking_price ?? askingPriceFallback ?? 0))} />
+      {/* Only on rows from when the form still asked. A vendor names no price
+          now, so on anything recent this is absent rather than Rs. 0. */}
+      {(acq.asking_price ?? askingPriceFallback) != null && (
+        <Row k="Vendor asked (legacy)" v={formatCurrency(Number(acq.asking_price ?? askingPriceFallback))} />
+      )}
       <Row k="Status" v={acq.offer_status} />
       {acq.offer_round > 1 && <Row k="Round" v={String(acq.offer_round)} />}
       {acq.intake_status && <Row k="Intake" v={acq.intake_status} />}

@@ -1,7 +1,7 @@
 // Site footer. Desktop: 4 equal columns in one row, social icons under the
 // Company column, then a bottom bar (brand block left, legal block right).
 // Mobile: each column collapses into an accordion (one section open at a
-// time), social icons live inside the Company accordion, and the bottom
+// time), social icons sit under the brand mark at the foot, and the bottom
 // block is just logo + wordmark + copyright (legal links and social folded
 // into the Company accordion instead of repeated separately).
 import * as React from 'react';
@@ -149,11 +149,6 @@ export function Footer() {
                         {link.label}
                       </Link>
                     ))}
-                    {column.title === 'Company' && (
-                      <div className="pt-2">
-                        <SocialIcons />
-                      </div>
-                    )}
                   </div>
                 )}
               </div>
@@ -176,8 +171,10 @@ export function Footer() {
           </div>
         </div>
 
-        {/* Mobile bottom block: logo + wordmark, then all rights reserved */}
-        <div className="md:hidden mt-10 pt-8 flex flex-col items-center gap-4 text-center">
+        {/* Mobile bottom block: mark, socials under it, then the legal line.
+            Centred as one stack, so the brand and the places to find it read
+            together rather than the icons hiding in an accordion above. */}
+        <div className="md:hidden mt-10 pt-8 flex flex-col items-center gap-5 text-center">
           <Link to="/" className="flex min-h-[44px] items-center">
             <img
               src="/images/registered-wordmark/zark-reg-tp.png"
@@ -186,6 +183,7 @@ export function Footer() {
               className="h-8 w-auto aspect-[1083/202] object-contain"
             />
           </Link>
+          <SocialIcons />
           <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">All Rights Reserved.</span>
         </div>
       </div>
