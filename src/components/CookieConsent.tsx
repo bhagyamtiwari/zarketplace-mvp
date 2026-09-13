@@ -75,14 +75,14 @@ export function CookieConsent() {
           <button
             type="button"
             onClick={() => setConsent('accepted')}
-            className="bg-white px-4 sm:px-5 min-h-[44px] py-3 text-[10px] font-black uppercase tracking-widest text-black hover:bg-white/90 transition-colors"
+            className="bg-white px-6 sm:px-8 min-h-[44px] py-3 text-[10px] font-black uppercase tracking-widest text-black hover:bg-white/90 transition-colors"
           >
             Accept<span className="hidden sm:inline"> all cookies</span>
           </button>
           <button
             type="button"
             onClick={() => setConsent('rejected')}
-            className="border border-white/30 px-4 sm:px-5 min-h-[44px] py-3 text-[10px] font-black uppercase tracking-widest text-white hover:border-white transition-colors"
+            className="px-1 min-h-[44px] py-3 text-[10px] font-black uppercase tracking-widest text-white/45 underline underline-offset-4 hover:text-white transition-colors"
           >
             Essential only
           </button>

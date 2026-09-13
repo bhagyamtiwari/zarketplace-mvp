@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
+import { Wordmark } from '../components/Wordmark';
 import { ArrowLeft, ShieldCheck, Truck, IndianRupee, BadgeCheck, PackageCheck, EyeOff } from 'lucide-react';
 import { usePageMeta, META } from '../lib/pageMeta';
 
@@ -21,8 +22,8 @@ export function About() {
   return (
     <div className="pt-20 pb-16 sm:pb-20 flex flex-col">
       <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8 py-5">
-        <Link to="/" className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-black hover:text-black/80">
-          <ArrowLeft className="h-3 w-3" /> Back to zarketplace
+        <Link to="/browse" className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-black hover:text-black/80">
+          <ArrowLeft className="h-3 w-3" /> Back to browse
         </Link>
       </div>
 
@@ -35,11 +36,15 @@ export function About() {
         >
           <header className="flex flex-col gap-5">
             <div className="flex flex-col gap-3">
-              <h1 className="text-4xl sm:text-6xl font-black tracking-tighter uppercase">What Is zarketplace</h1>
+              <h1 className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-4xl sm:text-6xl font-black tracking-tighter uppercase">
+                <span>WTF is</span>
+                <Wordmark on="light" heightClassName="h-8 sm:h-12" className="translate-y-[0.12em]" />
+                <span>?</span>
+              </h1>
             </div>
             {/* Copy fills its box rather than stopping short of the right edge:
                 inside a bounded panel the panel is the measure. */}
-            <div className="bg-black text-white p-6 sm:p-10 w-fit">
+            <div className="w-full bg-black text-white p-6 sm:p-10">
               <p className="body-longform max-w-[64ch]">
                 India's resale market existed but was fragmented. Buying meant Instagram DMs and
                 WhatsApp groups, hidden prices, and no way to know what would arrive. zarketplace
@@ -125,7 +130,7 @@ export function About() {
       </div>
 
       <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 pb-20 sm:pb-24 flex flex-col gap-6 sm:gap-8">
-        <section className="flex flex-col gap-4 bg-zinc-50 p-6 sm:p-10 border border-black/5 w-fit">
+        <section className="flex flex-col gap-4 w-full bg-zinc-50 p-6 sm:p-10 border border-black/5">
           <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight">The market exists</h2>
           <p className="body-longform max-w-[64ch]">
             India's secondhand apparel market is worth roughly $3.5 billion and growing at double-digit rates a year.
@@ -143,7 +148,7 @@ export function About() {
           </p>
         </section>
 
-        <section className="flex flex-col gap-4 bg-black text-white p-6 sm:p-10 w-fit">
+        <section className="flex flex-col gap-4 w-full bg-black text-white p-6 sm:p-10">
           <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight">Why it matters</h2>
           <p className="body-longform max-w-[64ch]">
             Fashion is one of the dirtiest industries on the planet, and most of what it makes ends up

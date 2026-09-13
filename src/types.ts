@@ -14,6 +14,18 @@ export interface Listing {
   seller_instagram?: string; // full URL
   seller_upi_vpa?: string;
   is_mine?: boolean | null;
+  /**
+   * Stock we own, photographed ourselves, and hold on our shelf, so it can go
+   * out the day it is bought. Operator-set and buyer-facing: MODEL.md §3's
+   * "Verified" filter. Never offered to or settable by a vendor.
+   */
+  is_verified?: boolean | null;
+  /** Measured flat, in centimetres. Null on categories that do not take one. */
+  pit_to_pit_cm?: number | null;
+  length_cm?: number | null;
+  sleeve_cm?: number | null;
+  waist_cm?: number | null;
+  inseam_cm?: number | null;
   title: string;
   brand: string | null;
   description: string | null;

@@ -128,13 +128,17 @@ function SellerInner() {
 
   const NAV: Array<{ key: Tab; label: string; count: number; needsAction: boolean }> = [
     { key: 'listings', label: 'My Items', count: listings.length, needsAction: needsVendor.length > 0 },
-    { key: 'tools', label: 'Share Tools', count: listings.length, needsAction: false },
     { key: 'payouts', label: 'Payouts', count: listings.length, needsAction: unpaid.length > 0 },
+  ];
+
+  // Everything that is not the two things above.
+  const EXTRAS: Array<{ key: Tab; label: string }> = [
+    { key: 'tools', label: 'Share tools' },
   ];
 
   const TAB_META: Record<Tab, { title: string; description: string }> = {
     listings: { title: 'My Items', description: 'Anything listed is still in your home. We will tell you the day it sells, send a prepaid label, and book a courier to your door.' },
-    tools: { title: 'Share Tools', description: 'Generate a branded Instagram post or story image for any of your items in one click.' },
+    tools: { title: 'Share tools', description: 'Make a branded Instagram post or story for anything you have listed. Optional, and it will not change how fast something sells.' },
     payouts: { title: 'Payouts', description: 'What we have agreed to pay you, and what we have already sent. Each amount was fixed when you accepted it and does not change.' },
   };
 
@@ -163,6 +167,22 @@ function SellerInner() {
               </button>
             ))}
           </nav>
+
+          <div className="flex flex-col">
+            <span className="text-[9px] font-black uppercase tracking-[0.25em] text-black/30 pb-2">Other</span>
+            {EXTRAS.map((item) => (
+              <button
+                key={item.key}
+                onClick={() => setTab(item.key)}
+                className={cn(
+                  'py-3 text-[11px] font-black uppercase tracking-widest border-b border-black/5 text-left transition-colors',
+                  tab === item.key ? 'text-black' : 'text-black/40 hover:text-black',
+                )}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
 
           <div className="flex flex-col gap-2.5">
             <span className="text-[9px] font-black uppercase tracking-[0.25em] text-black/30">Items</span>

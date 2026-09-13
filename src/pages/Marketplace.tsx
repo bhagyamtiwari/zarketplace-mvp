@@ -59,6 +59,9 @@ const ALL_SIZES = ['XXS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '28', '30', '
 // Discovery chips. These are shortcuts into the same filter surface, not
 // marketing sections - each one is a query anyone could have built by hand.
 const QUICK_CHIPS: Array<{ value: string; label: string; tag?: string }> = [
+  // MODEL.md §3. Stock we own and photographed ourselves, on our shelf, so it
+  // goes out the day it is bought rather than waiting on anyone.
+  { value: 'verified', label: 'Ships in 48 hours', tag: 'Verified' },
   { value: 'new_today', label: 'New today' },
   { value: 'under_999', label: 'Under ₹999', tag: 'New' },
   { value: 'free_shipping', label: 'Free shipping' },
@@ -86,6 +89,7 @@ function applyDevFilters(
     if (f.gender && l.gender !== f.gender) return false;
     if (f.sizeType && l.size_type !== f.sizeType) return false;
     if (f.condition && l.condition !== f.condition) return false;
+    if (f.quick === 'verified') return !!l.is_verified;
     if (f.quick === 'new_today') return Date.now() - Date.parse(l.created_at) < 24 * 60 * 60 * 1000;
     if (f.quick === 'under_999') return l.price <= 999;
     if (f.quick === 'free_shipping') return l.free_shipping;
@@ -173,7 +177,9 @@ export function Marketplace() {
         if (sizeType) query = query.eq('size_type', sizeType);
         if (condition) query = query.eq('condition', condition);
 
-        if (quick === 'new_today') {
+        if (quick === 'verified') {
+          query = query.eq('is_verified', true);
+        } else if (quick === 'new_today') {
           const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
           query = query.gte('created_at', since);
         } else if (quick === 'under_999') {
@@ -547,11 +553,12 @@ export function Marketplace() {
           the same idea said three times, and BrandKit's own rule is one idea
           per section. The other two live on /about, where an argument belongs. */}
       <CampaignBand
-        image="/images/resale-web.jpg"
+        image="/images/red2-web.jpg"
         heading="Good clothes deserve"
         script="another life."
+        emphasis="script"
         body="Every piece bought, checked and repacked by us before it ships."
-        cta={{ label: 'Sell us something', to: '/sell' }}
+        cta={{ label: 'Get an offer', to: '/sell' }}
       />
 
       {/* Getting an offer is one tap from anywhere in the feed, without ever
