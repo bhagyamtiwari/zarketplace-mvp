@@ -28,7 +28,8 @@ export type IntakeStatus =
 /** Exactly the columns public.vendor_offers exposes. */
 export interface VendorOffer {
   listing_id: string;
-  asking_price: number;
+  /** Null on anything listed since the form stopped asking. Kept for old rows. */
+  asking_price: number | null;
   offer_amount: number | null;
   offer_status: OfferStatus;
   intake_status: IntakeStatus | null;
@@ -45,12 +46,26 @@ export interface VendorOffer {
   offer_expires_at: string | null;
   accepted_at: string | null;
   paid_at: string | null;
+  /** Set when the item sells: when it has to be with the courier. Null until
+   *  then, because nothing is expected to move before somebody buys it. */
+  ship_by_deadline: string | null;
+  /** MODEL.md fulfilment lane. Always 'patient' today. */
+  lane: 'patient' | 'instant';
+  /** End of the 45-day listing window, set at acceptance. */
+  listing_expires_at: string | null;
+  /** Set when the listing came down, whether it lapsed or was pulled. */
+  listing_expired_at: string | null;
+  delisted_reason: string | null;
+  /** Last time the vendor confirmed they still have the item. */
+  possession_confirmed_at: string | null;
 }
 
 const OFFER_COLUMNS =
   'listing_id, asking_price, offer_amount, offer_status, intake_status, ' +
   'review_note, review_reasons, reviewed_at, offer_round, ' +
-  'not_accepted_reason, not_accepted_at, offered_at, offer_expires_at, accepted_at, paid_at';
+  'not_accepted_reason, not_accepted_at, offered_at, offer_expires_at, accepted_at, paid_at, ' +
+  'ship_by_deadline, lane, listing_expires_at, listing_expired_at, ' +
+  'delisted_reason, possession_confirmed_at';
 
 export async function getVendorOffers(): Promise<VendorOffer[]> {
   const { data, error } = await supabase.from('vendor_offers').select(OFFER_COLUMNS);
@@ -154,8 +169,8 @@ export function canResubmit(offer: VendorOffer | null | undefined): boolean {
 // ---------------------------------------------------------------------------
 export type VendorStatus =
   | 'awaiting_offer' | 'offer_ready' | 'declined' | 'offer_rejected' | 'offer_expired'
-  | 'live' | 'sold' | 'awaiting_pickup' | 'in_transit'
-  | 'received' | 'paid' | 'not_accepted';
+  | 'live' | 'live_check_due' | 'sold' | 'awaiting_pickup' | 'in_transit'
+  | 'received' | 'paid' | 'not_accepted' | 'expired' | 'delisted';
 
 export interface VendorStatusView {
   key: VendorStatus;
@@ -171,13 +186,19 @@ const STATUS_COPY: Record<VendorStatus, { label: string; detail: string; needsAc
   declined:        { label: 'Needs a change',    detail: 'Fix what we have asked for and send it back to us.', needsAction: true },
   offer_rejected:  { label: 'Offer turned down', detail: 'You can improve this item and send it back to us.', needsAction: true },
   offer_expired:   { label: 'Offer expired',     detail: 'Send it back to us and we will look again.', needsAction: true },
-  live:            { label: 'Live',           detail: 'Listed and available to buy.', needsAction: false },
-  sold:            { label: 'Sold',           detail: 'Bought. We will send you a prepaid label to post it to us.', needsAction: false },
-  awaiting_pickup: { label: 'Awaiting pickup', detail: 'Pack it and hand it to the courier within 72 hours.', needsAction: true },
+  // "Live" means the item is sitting in the vendor's home, listed. Saying so
+  // outright is the single most useful thing this dashboard does: the most
+  // common patient-lane mistake is assuming the item has already been sent.
+  live:            { label: 'Live, with you',  detail: 'Listed on zarketplace. Keep it safe and stay reachable.', needsAction: false },
+  live_check_due:  { label: 'Answer needed',   detail: 'We asked whether you still have this. Two unanswered and it comes down.', needsAction: true },
+  sold:            { label: 'Sold',           detail: 'Bought. We are sending a prepaid label and booking a pickup.', needsAction: false },
+  awaiting_pickup: { label: 'Post it now',     detail: 'Pack it and hand it to the courier by the date we sent you.', needsAction: true },
   in_transit:      { label: 'In transit',     detail: 'On its way to us.', needsAction: false },
   received:        { label: 'Received',       detail: 'With us and being checked.', needsAction: false },
   paid:            { label: 'Paid',           detail: 'Your payout has been sent.', needsAction: false },
   not_accepted:    { label: 'Not accepted',   detail: 'This item did not match its listing. Get in touch about returning it.', needsAction: true },
+  expired:         { label: 'Came off the site', detail: 'It did not sell this time. It is yours, and you owe us nothing.', needsAction: false },
+  delisted:        { label: 'Taken down',     detail: 'We could not confirm you still had it. List it again any time.', needsAction: false },
 };
 
 /**
@@ -189,6 +210,8 @@ export function vendorStatus(
   listingStatus: string,
   isSold: boolean,
   offer: VendorOffer | null | undefined,
+  /** An unanswered possession check on this item, if there is one. */
+  checkDue = false,
 ): VendorStatusView {
   // Where the physical item is outranks everything else: once an item is
   // moving, that is the only thing the vendor is actually waiting on.
@@ -213,8 +236,20 @@ export function vendorStatus(
     case 'expired':         return { key: 'offer_expired', ...STATUS_COPY.offer_expired };
   }
 
-  // Accepted, so it is on the shelf: sold, or waiting to be.
+  // A listing that has come down, and why. Distinguished because "it did not
+  // sell" and "we could not reach you" call for different things from the
+  // vendor, and lumping them together makes the second look like the first.
+  if (offer?.listing_expired_at) {
+    const key: VendorStatus =
+      offer.delisted_reason === 'listing_window_elapsed' ? 'expired' : 'delisted';
+    return { key, ...STATUS_COPY[key] };
+  }
+
+  // Accepted, so it is listed - and still in the vendor's home.
   if (isSold) return { key: 'sold', ...STATUS_COPY.sold };
-  if (listingStatus === 'approved') return { key: 'live', ...STATUS_COPY.live };
+  if (listingStatus === 'approved') {
+    if (checkDue) return { key: 'live_check_due', ...STATUS_COPY.live_check_due };
+    return { key: 'live', ...STATUS_COPY.live };
+  }
   return { key: 'awaiting_offer', ...STATUS_COPY.awaiting_offer };
 }

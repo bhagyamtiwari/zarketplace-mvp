@@ -111,7 +111,14 @@ function SellerInner() {
     [offers],
   );
 
-  const activeListings = listings.filter((l) => !l.is_sold);
+  // The patient lane's defining fact, given its own shelf: these are the items
+  // physically in the vendor's home right now, listed, waiting for a buyer.
+  // Everything else on this page is history or admin.
+  const withYou = listings.filter((l) => {
+    const k = statusOf(l).key;
+    return k === 'live' || k === 'live_check_due';
+  });
+  const activeListings = listings.filter((l) => !l.is_sold && !withYou.includes(l));
   const soldListings = listings.filter((l) => l.is_sold);
   const needsVendor = listings.filter((l) => statusOf(l).needsAction);
   const unpaid = listings.filter((l) => {
@@ -126,7 +133,7 @@ function SellerInner() {
   ];
 
   const TAB_META: Record<Tab, { title: string; description: string }> = {
-    listings: { title: 'My Items', description: 'Everything you have sent us. An item goes live only once you have seen what we will pay and accepted it.' },
+    listings: { title: 'My Items', description: 'Anything listed is still in your home. We will tell you the day it sells, send a prepaid label, and book a courier to your door.' },
     tools: { title: 'Share Tools', description: 'Generate a branded Instagram post or story image for any of your items in one click.' },
     payouts: { title: 'Payouts', description: 'What we have agreed to pay you, and what we have already sent. Each amount was fixed when you accepted it and does not change.' },
   };
@@ -160,8 +167,8 @@ function SellerInner() {
           <div className="flex flex-col gap-2.5">
             <span className="text-[9px] font-black uppercase tracking-[0.25em] text-black/30">Items</span>
             <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-widest">
-              <span className="text-black/60">Active</span>
-              <span>{activeListings.length}</span>
+              <span className="text-black/60">With you</span>
+              <span>{withYou.length}</span>
             </div>
             <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-widest">
               <span className="text-black/60">Sold</span>
@@ -173,7 +180,7 @@ function SellerInner() {
             to="/sell"
             className="border border-black py-3 text-center text-[10px] font-black uppercase tracking-[0.3em] hover:bg-black hover:text-white transition-colors"
           >
-            Sell an item
+            Get an offer
           </Link>
         </aside>
 
@@ -195,7 +202,8 @@ function SellerInner() {
           ) : tab === 'listings' ? (
             <div className="flex flex-col gap-14">
               {needsVendor.length > 0 && <ActionCallout rows={needsVendor} offers={offers} statusOf={statusOf} />}
-              <ListingsTable title="Active" rows={activeListings} offers={offers} statusOf={statusOf} onDelete={deleteListing} deletingId={deletingId} />
+              {withYou.length > 0 && <WithYouPanel rows={withYou} offers={offers} statusOf={statusOf} />}
+              <ListingsTable title="Everything else" rows={activeListings} offers={offers} statusOf={statusOf} onDelete={deleteListing} deletingId={deletingId} />
               <ListingsTable title="Sold" rows={soldListings} offers={offers} statusOf={statusOf} onDelete={deleteListing} deletingId={deletingId} />
             </div>
           ) : tab === 'tools' ? (
@@ -353,6 +361,73 @@ function payoutLabel(offer: VendorOffer | undefined): string {
  * Sits above the table when anything is waiting on the vendor: an open offer,
  * a request for better photos, or a number they turned down and could rework.
  */
+// The items physically in the vendor's home. Given a shelf of its own, ahead
+// of everything else, because the patient lane only works if the seller
+// remembers they are holding stock and can be reached when it sells.
+//
+// Shows days left rather than a date: "31 days left" is a fact about now, and
+// a date makes someone do arithmetic to find out whether it matters.
+function WithYouPanel({ rows, offers, statusOf }: {
+  rows: Listing[];
+  offers: Map<string, VendorOffer>;
+  statusOf: (l: Listing) => ReturnType<typeof vendorStatus>;
+}) {
+  const daysLeft = (iso: string | null | undefined) => {
+    if (!iso) return null;
+    const ms = new Date(iso).getTime() - Date.now();
+    return Math.max(0, Math.ceil(ms / 86400000));
+  };
+
+  return (
+    <section className="flex flex-col gap-5">
+      <div className="flex flex-col gap-1">
+        <h2 className="text-xl font-black uppercase tracking-tight">In your home right now</h2>
+        <p className="text-sm font-normal leading-relaxed text-black/55 max-w-[60ch]">
+          Listed and waiting for a buyer. Keep {rows.length === 1 ? 'it' : 'them'} safe, do not
+          sell {rows.length === 1 ? 'it' : 'them'} anywhere else, and make sure we can reach you.
+          The day {rows.length === 1 ? 'it sells' : 'one sells'} we send a prepaid label and a
+          courier comes to your door.
+        </p>
+      </div>
+
+      <div className="flex flex-col">
+        {rows.map((l) => {
+          const offer = offers.get(l.id);
+          const status = statusOf(l);
+          const left = daysLeft(offer?.listing_expires_at);
+          return (
+            <div key={l.id} className="flex items-start justify-between gap-4 border-t border-black/10 py-5 last:border-b">
+              <div className="flex flex-col gap-1 min-w-0">
+                <span className="text-sm font-black uppercase tracking-tight truncate">{l.title}</span>
+                <span className="text-[11px] font-bold uppercase tracking-widest text-black/40">
+                  {status.label}
+                </span>
+                {status.key === 'live_check_due' && (
+                  <span className="text-[13px] font-normal leading-relaxed text-black/60 max-w-[46ch]">
+                    Check your email for our message and tap yes or no. It takes a second.
+                  </span>
+                )}
+              </div>
+              <div className="shrink-0 text-right flex flex-col gap-1">
+                {offer?.offer_amount != null && (
+                  <span className="text-lg font-black tracking-tighter tabular-nums">
+                    {formatCurrency(Number(offer.offer_amount))}
+                  </span>
+                )}
+                {left != null && (
+                  <span className="text-[10px] font-black uppercase tracking-widest text-black/35">
+                    {left === 0 ? 'Last day' : `${left} day${left === 1 ? '' : 's'} left`}
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function ActionCallout({ rows, offers, statusOf }: {
   rows: Listing[];
   offers: Map<string, VendorOffer>;
@@ -389,8 +464,9 @@ function ActionCallout({ rows, offers, statusOf }: {
               )}
 
               <p className="text-sm font-normal leading-relaxed text-black/70 max-w-[52ch]">
-                Accept it and your item goes on sale on zarketplace straight away. We will send
-                you a prepaid label to post it to us. Nothing is listed until you accept.
+                Accept it and the amount is locked. The item stays with you and goes live at
+                our price. When it sells we send a prepaid label, collect from your door, and
+                pay you once we have checked it in.
               </p>
 
               <Link

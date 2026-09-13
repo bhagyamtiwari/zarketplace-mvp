@@ -39,7 +39,7 @@ export function About() {
             </div>
             {/* Copy fills its box rather than stopping short of the right edge:
                 inside a bounded panel the panel is the measure. */}
-            <div className="bg-black text-white p-6 sm:p-10">
+            <div className="bg-black text-white p-6 sm:p-10 w-fit">
               <p className="body-longform max-w-[64ch]">
                 India's resale market existed but was fragmented. Buying meant Instagram DMs and
                 WhatsApp groups, hidden prices, and no way to know what would arrive. zarketplace
@@ -77,10 +77,10 @@ export function About() {
               <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight">How selling to us works</h2>
               <ol className="flex flex-col gap-4">
                 {[
-                  'Add the item with photos, size, honest condition and your asking price.',
-                  'We come back with what we will pay. Accept it and the item goes live.',
-                  'It sells. We send a prepaid label and the courier collects from your door.',
-                  'We check it in, accept it, and pay you the amount you agreed to.',
+                  'Send us photos, the size and an honest condition. It takes a few minutes.',
+                  'Within 24 hours we come back with what we will pay. You decide.',
+                  'Accept, and the item is ours. Post it to us, or we send a prepaid label.',
+                  'We check it in and pay you the same day. What it sells for is our problem.',
                 ].map((step, i) => (
                   <li key={i} className="flex gap-4">
                     <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.3em] text-white/70 pt-1">0{i + 1}</span>
@@ -99,9 +99,9 @@ export function About() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {[
                 { icon: ShieldCheck, title: 'Buyer protection', body: 'You buy from zarketplace, not from a stranger. If an item is not as described, you are covered.', to: '/buyer-protection' },
-                { icon: IndianRupee, title: 'A fixed offer, upfront', body: 'We tell you what we will pay before your item goes live. Accept it and that number never moves.', to: '/vendor-policy' },
-                { icon: Truck, title: 'Doorstep pickup', body: 'The courier collects from the door, brings the item to us, and we ship it on. Tracking on both legs.', to: '/shipping-policy' },
-                { icon: BadgeCheck, title: 'Reviewed listings', body: 'Every listing is reviewed before it goes live, and every item is checked at our hub before it ships.', to: '/conditions-guide' },
+                { icon: IndianRupee, title: 'A fixed offer, upfront', body: 'We tell you what we will pay before you part with anything. Accept it and that number never moves.', to: '/vendor-policy' },
+                { icon: Truck, title: 'Doorstep pickup', body: 'A courier collects from your door and brings the item to us, or you post it yourself for a higher offer.', to: '/shipping-policy' },
+                { icon: BadgeCheck, title: 'Nothing listed sight unseen', body: 'Every item is in our hands and checked against its description before it ever reaches the feed.', to: '/conditions-guide' },
                 { icon: PackageCheck, title: 'Returns that exist', body: 'A stated returns and refunds process, in writing, for the cases where something goes wrong.', to: '/returns' },
                 { icon: EyeOff, title: 'No sold-out clutter', body: 'The moment an item sells it leaves the feed. Scrolling past things you cannot buy is annoying, so we do not show them.', to: '/faq' },
               ].map(({ icon: Icon, title, body, to }) => (
@@ -125,7 +125,7 @@ export function About() {
       </div>
 
       <div className="mx-auto w-full max-w-5xl px-4 sm:px-6 lg:px-8 pt-12 sm:pt-16 pb-20 sm:pb-24 flex flex-col gap-6 sm:gap-8">
-        <section className="flex flex-col gap-4 bg-zinc-50 p-6 sm:p-10 border border-black/5">
+        <section className="flex flex-col gap-4 bg-zinc-50 p-6 sm:p-10 border border-black/5 w-fit">
           <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight">The market exists</h2>
           <p className="body-longform max-w-[64ch]">
             India's secondhand apparel market is worth roughly $3.5 billion and growing at double-digit rates a year.
@@ -143,7 +143,7 @@ export function About() {
           </p>
         </section>
 
-        <section className="flex flex-col gap-4 bg-black text-white p-6 sm:p-10">
+        <section className="flex flex-col gap-4 bg-black text-white p-6 sm:p-10 w-fit">
           <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight">Why it matters</h2>
           <p className="body-longform max-w-[64ch]">
             Fashion is one of the dirtiest industries on the planet, and most of what it makes ends up

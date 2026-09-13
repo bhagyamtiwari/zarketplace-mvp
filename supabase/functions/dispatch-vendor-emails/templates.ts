@@ -84,6 +84,25 @@ function button(href: string, label: string): string {
     </td></tr></table>`;
 }
 
+// Two buttons side by side. Only the possession check needs this: it is the
+// one email that asks a question, and the answer has to be one tap from the
+// inbox or it does not get answered at all.
+function buttonPair(
+  primaryHref: string, primaryLabel: string,
+  secondaryHref: string, secondaryLabel: string,
+): string {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0;">
+    <tr>
+      <td bgcolor="${INK}" style="background-color:${INK}; padding:14px 24px;">
+        <a href="${primaryHref}" style="color:${PAPER}; text-decoration:none; font-weight:900; text-transform:uppercase; letter-spacing:2px; font-size:11px; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display:inline-block;">${primaryLabel}</a>
+      </td>
+      <td width="12" style="width:12px;">&nbsp;</td>
+      <td style="border:1px solid ${INK}; padding:13px 23px;">
+        <a href="${secondaryHref}" style="color:${INK}; text-decoration:none; font-weight:900; text-transform:uppercase; letter-spacing:2px; font-size:11px; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display:inline-block;">${secondaryLabel}</a>
+      </td>
+    </tr></table>`;
+}
+
 function h1(text: string): string {
   return `<h1 style="color:${INK}; font-weight:900; text-transform:uppercase; letter-spacing:-1px; font-size:26px; margin:0 0 16px;">${text}</h1>`;
 }
@@ -100,16 +119,108 @@ export function renderVendorEmail(
   const top = header(site);
 
   switch (kind) {
+    // The amount is deliberately absent. A number in an inbox is a number to
+    // think about for a week; the offer page puts it in front of someone who
+    // can accept it in the same breath. It is also the only page that can show
+    // what accepting actually commits them to.
     case "offer_made":
       return {
-        subject: `Your offer: ${rupees(payload.offer_amount)} · ${payload.item_title ?? "your item"}`,
+        subject: `Your offer is ready · ${payload.item_title ?? "your item"}`,
         html: shell(`<div style="${WRAP}">${top}
-          ${h1(`We will pay you ${rupees(payload.offer_amount)}.`)}
-          <p style="color:#111111; margin:0 0 14px;">That is our offer for your ${title}, and it is what we pay you in full when it sells.</p>
-          <p style="color:#111111; margin:0 0 14px;">The amount is fixed now, before your item is listed, and it does not change afterwards for any reason.</p>
-          <p style="color:#111111; margin:0 0 14px;">Accept it and we list the item. When it sells we send you a prepaid label, you post it to us, and we pay you as soon as we have checked it in.</p>
-          ${button(offerUrl, "Review your offer")}
-          <p style="color:#5a5a5a; font-size:13px;">Not for you? You can turn it down, improve the item, and send it back to us for another look.</p>
+          ${h1("We want to buy it.")}
+          <p style="color:#111111; margin:0 0 14px;">We have made you an offer on your ${title}. It is waiting on your offer page.</p>
+          <p style="color:#111111; margin:0 0 14px;">Whatever the amount is, it is fixed from the moment you accept and it does not change afterwards for any reason. Not if it takes us months to sell it, and not if it never sells at all. That risk is ours, not yours.</p>
+          <p style="color:#111111; margin:0 0 14px;">Accepting does not mean posting anything today. The item stays with you until somebody buys it, and then we send a prepaid label and a courier comes to your door.</p>
+          ${button(offerUrl, "See your offer")}
+          <p style="color:#5a5a5a; font-size:13px;">Not for you? Turn it down and nothing happens. You can improve the item and send it to us again.</p>
+        </div>`),
+      };
+
+    // Sent the moment an item is submitted. Someone who has just handed over
+    // photographs of something they own should not be left wondering whether
+    // the form worked.
+    case "item_submitted":
+      return {
+        subject: `We have your ${payload.item_title ?? "item"}`,
+        html: shell(`<div style="${WRAP}">${top}
+          ${h1("Got it.")}
+          <p style="color:#111111; margin:0 0 14px;">Your ${title} is with us and someone is looking at it properly. You will hear back <strong>within 24 hours</strong>.</p>
+          <p style="color:#111111; margin:0 0 14px;">There are three ways that can go: an offer, a request for a better photo or two, or a no. We tell you which either way.</p>
+          <p style="color:#111111; margin:0 0 14px;">Keep hold of the item. Nothing needs posting unless and until it sells.</p>
+          <p style="color:#5a5a5a; font-size:13px;">Nothing is needed from you until then.</p>
+        </div>`),
+      };
+
+    // The patient lane's one moment of urgency. Until this arrives the vendor
+    // has done nothing since accepting, so it has to carry the whole
+    // instruction, not a reminder of one.
+    case "item_sold":
+      return {
+        subject: `Sold · post your ${payload.item_title ?? "item"} by ${shortDate(payload.ship_by)}`,
+        html: shell(`<div style="${WRAP}">${top}
+          ${h1("It sold. Time to send it.")}
+          <p style="color:#111111; margin:0 0 14px;">Your ${title} has been bought. Pack it and have it ready for the courier <strong>by ${esc(longDate(payload.ship_by))}</strong>.</p>
+          <p style="color:#111111; margin:0 0 14px;">We have paid for the label and booked the pickup. You do not arrange a courier, you do not go anywhere, and you do not pay for postage.</p>
+          <p style="color:#111111; margin:0 0 14px;">Once it reaches us and we have checked it, your ${rupees(payload.offer_amount)} is sent.</p>
+          ${button(portalUrl, "See what to do")}
+          <p style="color:#5a5a5a; font-size:13px;">Cannot send it? Tell us before the date above rather than letting it pass.</p>
+        </div>`),
+      };
+
+    // MODEL.md §5. The patient lane's one real risk is that an item we have
+    // promised a buyer is no longer where we think it is, and this is the only
+    // thing standing between us and finding that out at the doorstep.
+    case "possession_check": {
+      const token = String(payload.token ?? "");
+      const yes = `${site}/possession/${token}?a=yes`;
+      const no  = `${site}/possession/${token}?a=no`;
+      return {
+        subject: `Still have your ${payload.item_title ?? "item"}?`,
+        html: shell(`<div style="${WRAP}">${top}
+          ${h1("Quick check.")}
+          <p style="color:#111111; margin:0 0 14px;">Your ${title} is still listed on zarketplace. Do you still have it, ready to send if somebody buys it?</p>
+          ${buttonPair(yes, "Yes, still have it", no, "No, it is gone")}
+          <p style="color:#5a5a5a; font-size:13px;">One tap, nothing to fill in. If we do not hear back by ${esc(shortDate(payload.due_at))} we will ask once more, and after that we take the listing down.</p>
+          <p style="color:#5a5a5a; font-size:13px;">Saying no costs you nothing. Telling us now is far better than a courier arriving for something you no longer have.</p>
+        </div>`),
+      };
+    }
+
+    // MODEL.md §5. The amount is deliberately absent for the same reason it is
+    // absent from the first offer: the number belongs on the offer page, next
+    // to what accepting it commits them to.
+    case "reoffer_made":
+      return {
+        subject: `A second go at your ${payload.item_title ?? "item"}?`,
+        html: shell(`<div style="${WRAP}">${top}
+          ${h1("Want to try again, lower?")}
+          <p style="color:#111111; margin:0 0 14px;">Your ${title} did not sell at the price we listed it at. That is on us, not on you: we set that price.</p>
+          <p style="color:#111111; margin:0 0 14px;">We would like to try again at a lower one. There is a new offer waiting on your offer page, fixed the same way as the last one, for a shorter run this time.</p>
+          ${button(offerUrl, "See the new offer")}
+          <p style="color:#5a5a5a; font-size:13px;">Or say no and keep it. The item has been yours the whole time, and you owe us nothing either way.</p>
+        </div>`),
+      };
+
+    case "listing_expired":
+      return {
+        subject: `Your ${payload.item_title ?? "item"} has come off the site`,
+        html: shell(`<div style="${WRAP}">${top}
+          ${h1("It did not sell this time.")}
+          <p style="color:#111111; margin:0 0 14px;">Your ${title} was listed for 45 days and has now come off the site. It is yours, it always was, and you owe us nothing.</p>
+          <p style="color:#111111; margin:0 0 14px;">Not everything sells at the first price. If you would like us to take another look, send it to us again and we will.</p>
+          ${button(`${site}/sell`, "Send it to us again")}
+        </div>`),
+      };
+
+    case "delisted_no_response":
+      return {
+        subject: `We have taken your ${payload.item_title ?? "item"} off the site`,
+        html: shell(`<div style="${WRAP}">${top}
+          ${h1("We could not reach you.")}
+          <p style="color:#111111; margin:0 0 14px;">We asked twice whether you still had your ${title} and did not hear back, so we have taken it off the site.</p>
+          <p style="color:#111111; margin:0 0 14px;">Nothing has gone wrong and you owe us nothing. We only do this because an item we cannot actually send should not stay on sale.</p>
+          <p style="color:#111111; margin:0 0 14px;">Still have it? List it again and it goes straight back up.</p>
+          ${button(`${site}/sell`, "List it again")}
         </div>`),
       };
 
@@ -132,25 +243,12 @@ export function renderVendorEmail(
       };
     }
 
-    case "item_sold":
-      return {
-        subject: `Time to post your ${payload.item_title ?? "item"} · by ${shortDate(payload.ship_by)}`,
-        html: shell(`<div style="${WRAP}">${top}
-          ${h1("Your item is bought.")}
-          <p style="color:#111111; margin:0 0 14px;">Pack your ${title} and hand it to the courier <strong>by ${esc(longDate(payload.ship_by))}</strong>.</p>
-          <p style="color:#111111; margin:0 0 14px;">We have paid for the label. You do not arrange a pickup and you do not pay for the postage.</p>
-          <p style="color:#111111; margin:0 0 14px;">Once it reaches us we check it in and send your ${rupees(payload.offer_amount)}.</p>
-          ${button(portalUrl, "See what to do")}
-          <p style="color:#5a5a5a; font-size:13px;">Cannot send it? Tell us before the date above and we will sort it out.</p>
-        </div>`),
-      };
-
     case "label_issued":
       return {
         subject: `Your label is ready · ${payload.item_title ?? "your item"}`,
         html: shell(`<div style="${WRAP}">${top}
           ${h1("Your label is ready.")}
-          <p style="color:#111111; margin:0 0 14px;">Print it, tape it to the parcel, and hand it over by <strong>${esc(longDate(payload.ship_by))}</strong>.
+          <p style="color:#111111; margin:0 0 14px;">Print it, tape it to the parcel, and hand it over by <strong>${esc(longDate(payload.ship_by))}</strong>. The postage is ours.
              Courier: ${esc(payload.courier ?? "—")}. Tracking: ${esc(payload.awb ?? "—")}.</p>
           ${button(portalUrl, "Get your label")}
         </div>`),

@@ -1,6 +1,13 @@
-// Sell page. Guided multi-step listing flow (Photos -> Details ->
-// Condition -> Price -> Review) optimized for mobile and for sellers listing
-// several similar items in one sitting.
+// Sell page. Three steps: Photos -> Details -> Condition.
+//
+// The form asks for what we need in order to price the item, and nothing else.
+// That line moved when we started taking physical possession: anything we can
+// see for ourselves when the parcel is opened is not worth a field here. Tags,
+// packaging, alterations and how often something was worn were all questions a
+// vendor answered about an object we were about to hold in our hands, so they
+// are gone. What survives is what a photograph cannot settle and an operator
+// needs before quoting: what it is, whose it is for, what size, what condition,
+// and what is wrong with it.
 //
 // No payout data is collected here. UPI, Instagram and the pickup address are
 // asked for once, at the seller's first sale, in PayoutDetailsForm - see the
@@ -50,18 +57,66 @@ const PUBLISH_CONFIRMATIONS: Array<{ key: string; label: string }> = [
   { key: 'accurate', label: 'It is genuine, the photos are of this item, and I have described its condition and any flaws accurately.' },
 ];
 
-const WEAR_OPTIONS: Array<{ key: string; label: string }> = [
-  { key: 'never', label: 'Never' },
-  { key: '1_2_times', label: '1-2 Times' },
-  { key: 'occasionally', label: 'Occasionally' },
-  { key: 'frequently', label: 'Frequently' },
-];
-
 // Recommended photo order - purely a labeling/placeholder aid over the same
 // image array (index 0 is still the cover). Not a hard per-slot requirement.
 // These are the instruction: they say what to shoot, so no paragraph above the
 // grid has to.
-const PHOTO_SLOT_LABELS = ['Front of item', 'Back of item', 'Brand label', 'Size tag', 'Close-up detail', 'Any flaws'];
+// MODEL.md §9: completeness, not beauty. The first four settle what the item
+// actually is, and we reject for a missing angle but never for bad lighting.
+// A phone photo in a bedroom is what a buyer wants to see on used clothing;
+// consistency comes from processing at upload, not from the vendor's camera.
+const PHOTO_SLOTS: Array<{ label: string; required: boolean; hint?: string }> = [
+  { label: 'Front of item', required: true },
+  { label: 'Back of item', required: true },
+  { label: 'Brand label', required: true, hint: 'The neck or inner tag' },
+  { label: 'Size tag', required: true, hint: 'Even if it is faded' },
+  { label: 'Close-up detail', required: false },
+  { label: 'Any flaws', required: false },
+];
+const REQUIRED_PHOTOS = PHOTO_SLOTS.filter((p) => p.required).length;
+
+// MODEL.md §8: "it didn't fit" is the biggest single cause of returns in used
+// clothing, and a tag size does not prevent it. A vintage L and a modern L are
+// different garments, so the listing carries the item measured flat instead.
+//
+// Required where fit is least predictable and optional elsewhere, because
+// making someone measure a belt to sell it is how you lose the listing.
+type Measure = { key: MeasureKey; label: string; how: string };
+type MeasureKey = 'pit_to_pit_cm' | 'length_cm' | 'sleeve_cm' | 'waist_cm' | 'inseam_cm';
+
+const MEASUREMENTS_BY_CATEGORY: Record<string, { required: Measure[]; optional: Measure[] }> = {
+  Tops: {
+    required: [
+      { key: 'pit_to_pit_cm', label: 'Pit to pit', how: 'Lay it flat and measure straight across from one armpit seam to the other.' },
+      { key: 'length_cm', label: 'Length', how: 'From the highest point of the shoulder straight down to the hem.' },
+    ],
+    optional: [
+      { key: 'sleeve_cm', label: 'Sleeve', how: 'From the shoulder seam to the end of the cuff.' },
+    ],
+  },
+  Outerwear: {
+    required: [
+      { key: 'pit_to_pit_cm', label: 'Pit to pit', how: 'Lay it flat and measure straight across from one armpit seam to the other.' },
+      { key: 'length_cm', label: 'Length', how: 'From the highest point of the shoulder straight down to the hem.' },
+    ],
+    optional: [
+      { key: 'sleeve_cm', label: 'Sleeve', how: 'From the shoulder seam to the end of the cuff.' },
+    ],
+  },
+  Bottoms: {
+    required: [],
+    optional: [
+      { key: 'waist_cm', label: 'Waist', how: 'Button them, lay flat, measure across the waistband and double it.' },
+      { key: 'inseam_cm', label: 'Inseam', how: 'From the crotch seam down to the bottom of the leg.' },
+    ],
+  },
+  Shoes: { required: [], optional: [] },
+  Accessories: { required: [], optional: [] },
+};
+
+const measurementsFor = (category: string) =>
+  MEASUREMENTS_BY_CATEGORY[category] ?? { required: [], optional: [] };
+const PHOTO_SLOT_LABELS = PHOTO_SLOTS.map((p) => p.label);
 
 // Highest-priority rule: one listing = one physical item. Checked
 // case-insensitively across title/brand/description.
@@ -105,11 +160,10 @@ const CATEGORY_TO_SHIPPING: Record<string, string> = {
 
 const MAX_IMAGES = 8;
 
-// Three steps, not five. Condition belonged with price (they are the two
-// judgements a vendor makes about the same object) and Review was five
-// checkboxes restating what the form already said. The binding consent is the
-// agreement at offer acceptance, where money is actually promised.
-const STEP_LABELS = ['Photos', 'Details', 'Condition & price'];
+// Three steps. The last one used to be "Condition & price" and no longer holds
+// a price: a vendor names no number at all now, so the step carries condition,
+// how the item reaches us, and the two confirmations.
+const STEP_LABELS = ['Photos', 'Details', 'Condition'];
 
 type Declarations = Record<string, boolean>;
 
@@ -121,7 +175,7 @@ export function Sell() {
   usePageMeta(META.sell);
 
   return (
-    <RequireAuth message="Sign in to list an item.">
+    <RequireAuth message="Sign in to get an offer.">
       <SellInner />
     </RequireAuth>
   );
@@ -151,17 +205,13 @@ function SellInner() {
   const [selectedCategory, setSelectedCategory] = React.useState('');
   const [sizeType, setSizeType] = React.useState('');
   const [sizeDetail, setSizeDetail] = React.useState('');
+  const [measurements, setMeasurements] = React.useState<Partial<Record<MeasureKey, string>>>({});
   const [description, setDescription] = React.useState('');
-  const [originalTags, setOriginalTags] = React.useState<boolean | null>(null);
-  const [originalPackaging, setOriginalPackaging] = React.useState<boolean | null>(null);
-  const [itemAltered, setItemAltered] = React.useState<boolean | null>(null);
-  const [wearFrequency, setWearFrequency] = React.useState<string | null>(null);
 
   const [condition, setCondition] = React.useState('');
   const [hasFlaws, setHasFlaws] = React.useState<boolean | null>(null);
   const [flawsDescription, setFlawsDescription] = React.useState('');
 
-  const [priceVal, setPriceVal] = React.useState('');
   const [shippingCategories, setShippingCategories] = React.useState<ShippingCategory[]>([]);
   const [shippingCategory, setShippingCategory] = React.useState('');
   // Seller-funded free shipping: buyer pays no shipping line, and the real
@@ -177,7 +227,7 @@ function SellInner() {
   // Set once the vendor picks a shipping category themselves, so a later
   // category change stops overwriting their deliberate choice.
   const shippingCategoryTouched = React.useRef(false);
-  // PriceStep is a separate component, so the override flag is set here and
+  // LastStep is a separate component, so the override flag is set here and
   // handed down as the setter rather than reaching into a ref from outside.
   const pickShippingCategory = React.useCallback((key: string) => {
     shippingCategoryTouched.current = true;
@@ -319,7 +369,12 @@ function SellInner() {
   // to the first incomplete step and show what's needed there.
   const validateStep = (s: number): string | null => {
     if (s === 0) {
-      if (imageFiles.length === 0) return 'Add at least one photo.';
+      // Counted rather than checked slot by slot: the grid labels are a guide
+      // to what to shoot, and someone who uploads four good photos in a
+      // different order has done the thing we actually need.
+      if (imageFiles.length < REQUIRED_PHOTOS) {
+        return `Add ${REQUIRED_PHOTOS} photos: front, back, the brand label and the size tag. We cannot price an item we cannot identify.`;
+      }
     }
     if (s === 1) {
       if (!title.trim()) return 'Tell us what the item is.';
@@ -327,6 +382,11 @@ function SellInner() {
       if (!gender) return 'Choose who the item is for.';
       if (!selectedCategory) return 'Choose a category.';
       if (!sizeType) return 'Choose a size.';
+      const needed = measurementsFor(selectedCategory).required;
+      const missing = needed.find((m) => !(Number(measurements[m.key]) > 0));
+      if (missing) {
+        return `Add the ${missing.label.toLowerCase()} measurement in cm. ${missing.how}`;
+      }
       const banned = findBannedPhrase(`${title} ${brand} ${description}`);
       if (banned) return `Remove "${banned}" - each listing is one item, not a batch or store catalogue.`;
     }
@@ -335,7 +395,6 @@ function SellInner() {
       if (hasFlaws === null) return 'Say whether this item has any flaws.';
       if (hasFlaws && !flawsDescription.trim()) return 'Describe the flaw, or answer No.';
       if (hasFlaws && imageFiles.length < 2) return 'Add a close-up of the flaw to your photos.';
-      if (!priceVal || Number(priceVal) <= 0) return 'Enter what you want for it.';
     }
     return null;
   };
@@ -353,12 +412,12 @@ function SellInner() {
   const canPublish = allDeclared && !loading;
   // A disabled button that does not say why reads as a broken one.
   const blockedReason = loading ? null
-    : undeclared === PUBLISH_CONFIRMATIONS.length ? 'Tick both lines above to send it to us.'
+    : undeclared === PUBLISH_CONFIRMATIONS.length ? 'Tick both lines above to get your offer.'
     : undeclared > 0 ? 'One line above is still unticked.'
     : null;
 
-  // Review is the only step without its own validator: it is complete when the
-  // two things it asks for are answered.
+  // The last step needs both its validator and the two confirmations: unlike
+  // the others it carries something the vendor agrees to, not just fills in.
   const stepComplete = (s: number) =>
     s === STEP_LABELS.length - 1 ? allDeclared && validateStep(s) === null : validateStep(s) === null;
 
@@ -370,7 +429,7 @@ function SellInner() {
       const err = validateStep(s);
       if (err) { setStep(s); setStepError(err); scrollToTop(); return; }
     }
-    if (!allDeclared) { setStepError('Tick both lines above before sending it to us.'); scrollToTop(); return; }
+    if (!allDeclared) { setStepError('Tick both lines above before we can price this.'); scrollToTop(); return; }
 
     setLoading(true);
     const tFull = slog.time('full submit');
@@ -411,13 +470,11 @@ function SellInner() {
       }
       setUploadProgress(null);
 
-      // The database contract is unchanged - price is the struck-through
-      // number and sale_price is what is charged - so the form's friendlier
-      // wording is mapped back onto it here rather than migrating data.
-      // A placeholder only. listings.price is replaced with our own figure
-      // the moment an operator prices the item, and a trigger stops a vendor
-      // changing it afterwards. Nothing goes live before that happens.
-      const price = Number(priceVal);
+      // Zero, and deliberately so. A vendor no longer names a number at all:
+      // the one that matters is the amount we offer them, and the one a buyer
+      // sees is set by an operator when the item is priced. Nothing goes live
+      // before that happens, so the placeholder is never shown to anyone.
+      const price = 0;
       const sale_price = null;
 
       const { data: created, error } = await supabase.from('listings').insert({
@@ -429,6 +486,13 @@ function SellInner() {
         gender,
         size_type: sizeType,
         size: sizeDetail.trim() || null,
+        // Numbers, not a sentence in the description, so they can drive a size
+        // filter later instead of being re-parsed out of prose.
+        pit_to_pit_cm: Number(measurements.pit_to_pit_cm) || null,
+        length_cm: Number(measurements.length_cm) || null,
+        sleeve_cm: Number(measurements.sleeve_cm) || null,
+        waist_cm: Number(measurements.waist_cm) || null,
+        inseam_cm: Number(measurements.inseam_cm) || null,
         condition,
         description: description.trim() || null,
         image_url: uploadedUrls[0],
@@ -462,10 +526,14 @@ function SellInner() {
         free_shipping: freeShipping,
         has_flaws: !!hasFlaws,
         flaws_description: hasFlaws ? flawsDescription.trim() : null,
-        original_tags_attached: originalTags,
-        original_packaging: originalPackaging,
-        item_altered: itemAltered,
-        wear_frequency: wearFrequency,
+        // Left unanswered on purpose. We open the parcel before any of this
+        // reaches a buyer, so these are ours to record at check-in rather than
+        // four more questions asked of someone who is still deciding whether to
+        // bother. The columns stay for the rows that already carry answers.
+        original_tags_attached: null,
+        original_packaging: null,
+        item_altered: null,
+        wear_frequency: null,
         // Carried by the accuracy line the vendor ticks, which says the item
         // is genuine. Restated in full at the agreement screen.
         authenticity_confirmed: !!declarations.accurate,
@@ -474,9 +542,11 @@ function SellInner() {
       }).select('id').single();
       if (error) throw error;
 
-      // The acquisition record. Carries the vendor's asking price and nothing
-      // else: the offer, the expected resale and every part of the spread are
+      // The acquisition record, carrying nothing but the link to the vendor.
+      // The offer, the expected resale and every part of the spread are
       // server-set, and the insert policy refuses a row that names any of them.
+      // The lane and the shipping method are defaulted by the database, since
+      // neither is the vendor's to choose.
       //
       // Not fire-and-forget. Without this row the item can never be priced and
       // can never go live, so a failure here has to surface as one.
@@ -484,7 +554,6 @@ function SellInner() {
       const { error: acqError } = await supabase.from('listing_acquisitions').insert({
         listing_id: listingId,
         vendor_id: user.id,
-        asking_price: Number(priceVal),
       });
       if (acqError) throw acqError;
 
@@ -495,7 +564,6 @@ function SellInner() {
         category: selectedCategory,
         shipping_category: shippingCategory,
         free_shipping: freeShipping,
-        price: Number(priceVal) || 0,
         photo_count: imageFiles.length,
       });
       setSubmitted(true);
@@ -516,10 +584,8 @@ function SellInner() {
     scrollToTop();
     setImageFiles([]); setImagePreviews([]);
     setTitle(''); setBrand(''); setDescription('');
-    setSelectedCategory(''); setSizeType(''); setSizeDetail('');
-    setOriginalTags(null); setOriginalPackaging(null); setItemAltered(null); setWearFrequency(null);
+    setSelectedCategory(''); setSizeType(''); setSizeDetail(''); setMeasurements({});
     setCondition(''); setHasFlaws(null); setFlawsDescription('');
-    setPriceVal('');
     setDeclarations(noDeclarations());
   };
 
@@ -542,7 +608,7 @@ function SellInner() {
         <p className="text-black/70 font-medium uppercase tracking-widest text-[11px] leading-[1.9] mb-10 max-w-md">
           You will hear either an offer, or what would need to change before we
           can make one. Nothing is listed until you have seen a number and
-          agreed to it.
+          agreed to it, and the item stays with you either way.
         </p>
         {/* The vendor has just finished a form and is at their most willing to
             read one more thing. Said here, in three lines, so the PAN request
@@ -588,13 +654,14 @@ function SellInner() {
         {step === 0 ? (
           <div className="mb-10 sm:mb-12 flex flex-col gap-5 max-w-2xl">
             <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase leading-[0.95]">
-              Tell us what you want for it.
-              <span className="block text-black/55">We'll tell you what we'll pay.</span>
+              Show us what you have.
+              <span className="block text-black/55">We will tell you what we will pay.</span>
             </h1>
             <p className="body-longform max-w-[52ch]">
-              You name your price. We come back with what we'll pay, and you decide before
-              anything goes live. Accept, and that number is locked — we collect the item,
-              check it, and pay you.
+              Photos and a few details, and you hear back within 24 hours. If we want it, we
+              name a price. Accept and that number is fixed. The item stays with you until
+              somebody buys it, then we send a prepaid label and a courier comes to your door.
+              What it sells for, and how long that takes, is our problem.
             </p>
           </div>
         ) : (
@@ -675,19 +742,15 @@ function SellInner() {
                 sizeType={sizeType} setSizeType={setSizeType}
                 sizeDetail={sizeDetail} setSizeDetail={setSizeDetail}
                 description={description} setDescription={setDescription}
-                originalTags={originalTags} setOriginalTags={setOriginalTags}
-                originalPackaging={originalPackaging} setOriginalPackaging={setOriginalPackaging}
-                itemAltered={itemAltered} setItemAltered={setItemAltered}
-                wearFrequency={wearFrequency} setWearFrequency={setWearFrequency}
+                measurements={measurements} setMeasurements={setMeasurements}
               />
             )}
 
             {step === 2 && (
-              <PriceStep
+              <LastStep
                 condition={condition} setCondition={setCondition}
                 hasFlaws={hasFlaws} setHasFlaws={setHasFlaws}
                 flawsDescription={flawsDescription} setFlawsDescription={setFlawsDescription}
-                priceVal={priceVal} setPriceVal={setPriceVal}
                 declarations={declarations} setDeclarations={setDeclarations}
               />
             )}
@@ -720,7 +783,7 @@ function SellInner() {
               <button type="button" onClick={handlePublish} disabled={!canPublish}
                 className="inline-flex items-center gap-3 bg-black px-12 py-5 text-xs font-black uppercase tracking-[0.3em] text-white hover:bg-zinc-800 disabled:opacity-40">
                 {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                {loading ? 'Sending' : 'Send it to us'}
+                {loading ? 'Sending' : 'Get my offer'}
               </button>
               {blockedReason && (
                 <p className="text-[11px] font-normal text-black/50">{blockedReason}</p>
@@ -765,7 +828,7 @@ function SellInner() {
             <button type="button" onClick={handlePublish} disabled={!canPublish}
               className="w-full bg-black py-4 text-xs font-black uppercase tracking-[0.3em] text-white disabled:opacity-40 flex items-center justify-center gap-2">
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {loading ? 'Sending' : 'Send it to us'}
+              {loading ? 'Sending' : 'Get my offer'}
             </button>
             {blockedReason && (
               <p className="text-center text-[11px] font-normal text-black/50">{blockedReason}</p>
@@ -800,23 +863,6 @@ function SectionHeading({ children, note }: { children: React.ReactNode; note?: 
   );
 }
 
-function YesNoToggle({ value, onChange }: { value: boolean | null; onChange: (v: boolean) => void }) {
-  return (
-    <div className="grid grid-cols-2 gap-2">
-      <button type="button" onClick={() => onChange(true)}
-        className={cn('border py-3 text-xs font-black uppercase tracking-widest transition-all',
-          value === true ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
-        Yes
-      </button>
-      <button type="button" onClick={() => onChange(false)}
-        className={cn('border py-3 text-xs font-black uppercase tracking-widest transition-all',
-          value === false ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
-        No
-      </button>
-    </div>
-  );
-}
-
 // Short one-line trust cue - uppercase micro-label, matches the site's
 // system-voice register.
 function TrustNote({ children }: { children: React.ReactNode }) {
@@ -847,8 +893,9 @@ function PhotosStep({ imagePreviews, onAdd, onRemove, originals, cleaning, onUse
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         {slots.map((i) => {
-          const label = PHOTO_SLOT_LABELS[i] ?? `Photo ${i + 1}`;
-          const required = i < 2;
+          const slot = PHOTO_SLOTS[i];
+          const label = slot?.label ?? `Photo ${i + 1}`;
+          const required = slot?.required ?? false;
           const preview = imagePreviews[i];
           return preview ? (
             <div key={i} className="relative aspect-[3/4] w-full overflow-hidden bg-zinc-50 border border-black/5 group">
@@ -880,7 +927,12 @@ function PhotosStep({ imagePreviews, onAdd, onRemove, originals, cleaning, onUse
                 <Plus className="h-4 w-4 text-black/30 group-hover:text-black" />
               </div>
               <span className="text-[11px] font-black uppercase tracking-widest text-black">{label}</span>
-              {!required && <span className="text-[9px] font-bold uppercase tracking-widest text-black/30">Optional</span>}
+              {slot?.hint && (
+                <span className="text-[9px] font-bold uppercase tracking-widest text-black/30">{slot.hint}</span>
+              )}
+              {required
+                ? <span className="text-[9px] font-bold uppercase tracking-widest text-black/50">Required</span>
+                : <span className="text-[9px] font-bold uppercase tracking-widest text-black/30">Optional</span>}
               <input type="file" accept="image/*" className="hidden" onChange={onAdd} multiple />
             </label>
           );
@@ -891,7 +943,14 @@ function PhotosStep({ imagePreviews, onAdd, onRemove, originals, cleaning, onUse
           are useful, but not worth sending someone out of a half-finished form. */}
       <p className="text-xs text-black font-black uppercase tracking-widest">
         {imagePreviews.length}/{MAX_IMAGES} photos uploaded.
+        {imagePreviews.length < REQUIRED_PHOTOS && ` ${REQUIRED_PHOTOS - imagePreviews.length} more needed.`}
       </p>
+      {/* Says the quiet part out loud, because vendors otherwise assume their
+          phone photos are the problem and give up. They are not the problem. */}
+      <TrustNote>
+        Shoot on a bed or a floor in daylight. We are not judging the photography,
+        and we will never turn something down for lighting. We do need all four angles.
+      </TrustNote>
     </div>
   );
 }
@@ -907,25 +966,22 @@ function DetailsStep(props: {
   sizeType: string; setSizeType: (v: string) => void;
   sizeDetail: string; setSizeDetail: (v: string) => void;
   description: string; setDescription: (v: string) => void;
-  originalTags: boolean | null; setOriginalTags: (v: boolean) => void;
-  originalPackaging: boolean | null; setOriginalPackaging: (v: boolean) => void;
-  itemAltered: boolean | null; setItemAltered: (v: boolean) => void;
-  wearFrequency: string | null; setWearFrequency: (v: string) => void;
+  measurements: Partial<Record<MeasureKey, string>>;
+  setMeasurements: React.Dispatch<React.SetStateAction<Partial<Record<MeasureKey, string>>>>;
 }) {
   const {
     title, setTitle, brand, setBrand, gender, setGender,
     selectedCategory, setSelectedCategory, sizeType, setSizeType, sizeDetail, setSizeDetail,
-    description, setDescription,
-    originalTags, setOriginalTags, originalPackaging, setOriginalPackaging,
-    itemAltered, setItemAltered, wearFrequency, setWearFrequency,
+    description, setDescription, measurements, setMeasurements,
   } = props;
+  const measures = measurementsFor(selectedCategory);
 
   return (
     <div className="flex flex-col gap-12">
       <div className="flex items-start gap-3 border-l-2 border-black pl-4">
         <AlertTriangle className="h-4 w-4 text-black mt-0.5 shrink-0" />
         <p className="text-xs font-bold uppercase tracking-widest text-black/60 leading-relaxed">
-          One listing, one item. Five of the same thing means five listings.
+          One item at a time. Five of the same thing means five of these.
         </p>
       </div>
 
@@ -979,45 +1035,49 @@ function DetailsStep(props: {
           </div>
         </div>
 
+        {/* Measurements. Placed with the item details rather than hidden behind
+            a toggle, because a listing without them is the one most likely to
+            come back. The "how" line under each field is there because most
+            people have genuinely never measured a garment before. */}
+        {(measures.required.length > 0 || measures.optional.length > 0) && (
+          <div className="flex flex-col gap-4">
+            <SectionHeading note="Lay the item flat and use a tape. This is the single best thing you can do to stop it coming back.">
+              Measurements in cm
+            </SectionHeading>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-8">
+              {[...measures.required, ...measures.optional].map((m) => {
+                const isRequired = measures.required.some((r) => r.key === m.key);
+                return (
+                  <div key={m.key} className="flex flex-col gap-3">
+                    <FieldLabel optional={!isRequired}>{m.label}</FieldLabel>
+                    <div className="flex items-baseline gap-2">
+                      <input
+                        type="number" inputMode="decimal" min="1"
+                        value={measurements[m.key] ?? ''}
+                        onChange={(e) => setMeasurements((prev) => ({ ...prev, [m.key]: e.target.value }))}
+                        placeholder="52"
+                        className="w-full border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20"
+                      />
+                      <span className="text-xs font-black uppercase tracking-widest text-black/40">cm</span>
+                    </div>
+                    <span className="text-[13px] font-normal leading-relaxed text-black/45">{m.how}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <TrustNote>
+              Tag sizes lie, especially on vintage. Measurements are what stop someone
+              buying the wrong thing and sending it back.
+            </TrustNote>
+          </div>
+        )}
+
         <div className="flex flex-col gap-3">
           <FieldLabel optional>Anything a photo cannot show</FieldLabel>
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4}
             placeholder="Fit, material, how it runs, anything a photo can't show."
             className="border border-black/10 p-6 text-sm font-medium focus:border-black focus:outline-none resize-none transition-all placeholder:text-black/20" />
-          <TrustNote>Optional, but items with one sell faster. You own what it says.</TrustNote>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-6">
-        <SectionHeading>Worth mentioning</SectionHeading>
-        {/* Yes/No rather than switches: an unset switch would publish "no
-            packaging" as a claim the seller never made. Three states matter
-            here (yes, no, unanswered) and a switch only has two. */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-6">
-          <div className="flex flex-col gap-3">
-            <FieldLabel optional>Tags still attached</FieldLabel>
-            <YesNoToggle value={originalTags} onChange={setOriginalTags} />
-          </div>
-          <div className="flex flex-col gap-3">
-            <FieldLabel optional>Original packaging</FieldLabel>
-            <YesNoToggle value={originalPackaging} onChange={setOriginalPackaging} />
-          </div>
-          <div className="flex flex-col gap-3">
-            <FieldLabel optional>Altered or tailored</FieldLabel>
-            <YesNoToggle value={itemAltered} onChange={setItemAltered} />
-          </div>
-          <div className="flex flex-col gap-3">
-            <FieldLabel optional>Times worn</FieldLabel>
-            <div className="grid grid-cols-2 gap-2">
-              {WEAR_OPTIONS.map((w) => (
-                <button key={w.key} type="button" onClick={() => setWearFrequency(w.key)}
-                  className={cn('border py-3 text-[11px] font-black uppercase tracking-widest transition-all',
-                    wearFrequency === w.key ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
-                  {w.label}
-                </button>
-              ))}
-            </div>
-          </div>
+          <TrustNote>Optional. The more we know, the better we can price it.</TrustNote>
         </div>
       </div>
     </div>
@@ -1090,22 +1150,21 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
 }
 
 
-// Condition and price, together. They are the two judgements a vendor makes
-// about the same object, and splitting them across two screens made the flow
-// feel longer than it is.
+// The last step: condition, how the item reaches us, and the two lines a
+// vendor confirms. It was called PriceStep when it held an asking price, and
+// holds none now - a vendor names no number anywhere in this form.
 //
-// The publish confirmations live here rather than on a Review screen of their
-// own. Review restated what the form already showed and asked for six ticks;
-// the consent that binds anyone is the agreement at offer acceptance, which is
+// The confirmations live here rather than on a Review screen of their own.
+// Review restated what the form already showed and asked for six ticks; the
+// consent that binds anyone is the agreement at offer acceptance, which is
 // where money is promised. Two lines here, three clauses there.
-function PriceStep({
+function LastStep({
   condition, setCondition, hasFlaws, setHasFlaws, flawsDescription, setFlawsDescription,
-  priceVal, setPriceVal, declarations, setDeclarations,
+  declarations, setDeclarations,
 }: {
   condition: string; setCondition: (v: string) => void;
   hasFlaws: boolean | null; setHasFlaws: (v: boolean) => void;
   flawsDescription: string; setFlawsDescription: (v: string) => void;
-  priceVal: string; setPriceVal: (v: string) => void;
   declarations: Record<string, boolean>;
   setDeclarations: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
 }) {
@@ -1117,18 +1176,27 @@ function PriceStep({
         flawsDescription={flawsDescription} setFlawsDescription={setFlawsDescription}
       />
 
+      {/* Not a question. There is one shipping method and we pay for it, so
+          this states what will happen rather than asking the vendor to choose
+          between options that differ only in who absorbs a cost they never
+          see. The two facts here are the ones vendors most often get wrong:
+          the item stays with them, and they have to be there when it goes. */}
       <div className="flex flex-col gap-4">
-        <SectionHeading note="Your ask, not the price we list it at. We come back with what we will pay.">What do you want for it?</SectionHeading>
-        <div className="flex items-baseline gap-3">
-          <span className="text-2xl font-black tracking-tighter">Rs.</span>
-          <input
-            type="number" inputMode="numeric" value={priceVal}
-            onChange={(e) => setPriceVal(e.target.value)}
-            placeholder="3500"
-            className="w-full border-b border-black/10 py-3 text-3xl font-black tracking-tighter focus:border-black focus:outline-none placeholder:text-black/15"
-          />
+        <SectionHeading note="The part people miss, so it is worth reading twice.">What happens after you accept</SectionHeading>
+        <div className="border-l-2 border-black pl-6 py-1 flex flex-col gap-3">
+          <p className="text-sm font-medium leading-relaxed text-black">
+            <strong>The item stays with you.</strong> It goes live on zarketplace, but it does
+            not leave your home until somebody buys it. That might be next week or next month.
+          </p>
+          <p className="text-sm font-medium leading-relaxed text-black">
+            <strong>When it sells, we come to you.</strong> We send a prepaid label and book a
+            courier to your door the next working day. You do not pay for postage and you do
+            not go to a courier office.
+          </p>
+          <p className="text-sm leading-relaxed text-black/60">
+            All we need from you in between is that you still have it and we can reach you.
+          </p>
         </div>
-        <TrustNote>This is your ask. We come back with what we will pay.</TrustNote>
       </div>
 
       {/* Two lines, both load-bearing. The first is the one rule that makes a

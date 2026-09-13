@@ -241,9 +241,13 @@ function OfferScreen({
           listed, and it does not change afterwards for any reason.
         </p>
         <p>
-          Once you accept, we list the item, and it is sold and shipped by zarketplace.
-          When it sells we send you a prepaid label, you post it to us, and we pay you as
-          soon as we have checked it in.
+          This is what we will pay you. We cover shipping both ways, payment fees and
+          handling, and we carry the risk if it does not sell.
+        </p>
+        <p>
+          Accepting does not mean posting anything today. The item stays with you and goes
+          live on zarketplace at our price. When somebody buys it we send a prepaid label
+          and a courier comes to your door.
         </p>
         {expiresAt && (
           <p className="text-black/40">
@@ -282,7 +286,8 @@ function AgreementScreen({
   pickupAddress, setPickupAddress, pickupCity, setPickupCity, pickupPincode, setPickupPincode, addressReady,
   submitting, onBack, onAccept,
 }: {
-  amount: number; checked: Record<string, boolean>; onToggle: (k: string) => void;
+  amount: number;
+  checked: Record<string, boolean>; onToggle: (k: string) => void;
   allChecked: boolean;
   pickupAddress: string; setPickupAddress: (v: string) => void;
   pickupCity: string; setPickupCity: (v: string) => void;
@@ -368,13 +373,26 @@ function AgreementScreen({
         </div>
       </div>
 
-      {/* The ship-by deadline is a commitment made here, so it is disclosed
-          here. It previously appeared only in an email after an item sold. */}
-      <div className="border-l-2 border-black pl-6 py-1 flex flex-col gap-2">
+      {/* The two things vendors get wrong, stated at the moment they commit
+          rather than in an email weeks later when the item has already sold. */}
+      <div className="border-l-2 border-black pl-6 py-1 flex flex-col gap-3">
         <p className="body-copy text-black normal-case tracking-normal text-sm font-normal leading-relaxed">
-          When it sells you will have <strong>5 days</strong> to hand it to the courier.
-          We send the label and pay for it. If it does not go in that time the
-          order is cancelled and the buyer refunded.
+          <strong>Keep the item safe.</strong> It stays with you while it is listed. Do not
+          sell it anywhere else, and do not wear it out.
+        </p>
+        <p className="body-copy text-black normal-case tracking-normal text-sm font-normal leading-relaxed">
+          <strong>Be reachable when it sells.</strong> We will message you, send a prepaid
+          label, and book a courier to your door. You then have <strong>5 days</strong> to
+          have it packed and hand it over.
+        </p>
+        <p className="body-copy text-black normal-case tracking-normal text-sm font-normal leading-relaxed">
+          If it cannot go in that time we have to cancel the order, so tell us before the date
+          rather than letting it pass.
+        </p>
+        <p className="body-copy text-black normal-case tracking-normal text-sm font-normal leading-relaxed">
+          <strong>It runs for 45 days.</strong> If nobody buys it by then the listing comes off
+          the site and nothing is owed either way. Every couple of weeks we will email to ask
+          whether you still have it, which is two buttons and takes a second.
         </p>
       </div>
 
@@ -414,9 +432,9 @@ function Accepted({ amount }: { amount: number | null }) {
           Agreed. It goes live shortly.
         </h1>
         <p className="body-copy text-black/70 max-w-prose">
-          {amount != null && <>We will pay you {formatCurrency(amount)} when this item sells. </>}
-          You do not need to do anything until then. When it sells we will send you a prepaid
-          label and let you know.
+          {amount != null && <>Your {formatCurrency(amount)} is locked in and does not change. </>}
+          Nothing to do now: keep the item safe and leave it with you. The moment somebody
+          buys it we will message you with a prepaid label and a pickup date.
         </p>
       </div>
       <Link

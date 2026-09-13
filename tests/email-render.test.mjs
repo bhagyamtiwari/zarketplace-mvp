@@ -45,7 +45,8 @@ const order = {
 const vendorPayloads = {
   offer_made: { offer_amount: 1200, expires_at: new Date().toISOString(), item_title: 'Test item' },
   offer_rejected: { reasons: ['Photos are too dark.'], note: null, item_title: 'Test item' },
-  item_sold: { item_title: 'Test item', offer_amount: 1200 },
+  item_submitted: { item_title: 'Test item' },
+  item_sold: { item_title: 'Test item', ship_by: new Date().toISOString(), offer_amount: 1200 },
   label_issued: { item_title: 'Test item', ship_by: new Date().toISOString(), tracking_number: 'TRK1' },
   ship_by_reminder: { item_title: 'Test item', ship_by: new Date().toISOString() },
   received_at_hub: { item_title: 'Test item' },
@@ -55,6 +56,10 @@ const vendorPayloads = {
   abandonment_30: { item_title: 'Test item' },
   abandonment_7: { item_title: 'Test item' },
   vendor_cancelled: { item_title: 'Test item' },
+  possession_check: { item_title: 'Test item', token: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', due_at: new Date().toISOString() },
+  listing_expired: { item_title: 'Test item' },
+  delisted_no_response: { item_title: 'Test item' },
+  reoffer_made: { item_title: 'Test item' },
 };
 
 const { buildEmail } = await import(pathToFileURL(`${STAGE}/index.ts`).href);

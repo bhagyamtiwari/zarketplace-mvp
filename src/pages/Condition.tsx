@@ -28,7 +28,7 @@ export function Condition() {
           </p>
         </div>
 
-        <section className="p-6 sm:p-10 bg-black text-white flex flex-col gap-4">
+        <section className="p-6 sm:p-10 bg-black text-white flex flex-col gap-4 w-fit">
           <h3 className="text-sm font-black uppercase tracking-widest">Please note</h3>
           <p className="body-longform max-w-[64ch]">
             Condition is a judgement, and an honest one can still be a close call between two tiers. We check every item against its listing before it ships, and anything that does not match does not go out.
@@ -53,7 +53,7 @@ export function Condition() {
           ))}
         </div>
 
-        <section className="p-6 sm:p-10 bg-black text-white flex flex-col gap-4">
+        <section className="p-6 sm:p-10 bg-black text-white flex flex-col gap-4 w-fit">
           <h3 className="text-sm font-black uppercase tracking-widest">A note on pre-owned items</h3>
           <p className="body-longform max-w-[64ch]">
             As pre-owned pieces, items may carry light odors or signs of storage. We recommend following care labels and washing, or dry cleaning, garments before first wear.

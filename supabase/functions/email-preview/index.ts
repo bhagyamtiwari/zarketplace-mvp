@@ -38,7 +38,8 @@ const BUYER_TEMPLATES = [
 const VENDOR_PAYLOADS: Record<string, Record<string, unknown>> = {
   offer_made: { offer_amount: 1200, expires_at: new Date(Date.now() + 5 * 864e5).toISOString() },
   offer_rejected: { reasons: ["The photos are too dark. Please reshoot in daylight."], note: null },
-  item_sold: { offer_amount: 1200 },
+  item_submitted: {},
+  item_sold: { ship_by: new Date(Date.now() + 5 * 864e5).toISOString(), offer_amount: 1200 },
   label_issued: { ship_by: new Date(Date.now() + 5 * 864e5).toISOString(), tracking_number: "TRKPREVIEW" },
   ship_by_reminder: { ship_by: new Date(Date.now() + 2 * 864e5).toISOString() },
   received_at_hub: {},
@@ -48,6 +49,10 @@ const VENDOR_PAYLOADS: Record<string, Record<string, unknown>> = {
   abandonment_30: {},
   abandonment_7: {},
   vendor_cancelled: {},
+  possession_check: { token: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", due_at: new Date(Date.now() + 5 * 864e5).toISOString() },
+  listing_expired: {},
+  delisted_no_response: {},
+  reoffer_made: {},
 };
 
 serve(async (req) => {

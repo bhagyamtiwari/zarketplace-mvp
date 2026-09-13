@@ -12,9 +12,20 @@ import { assert } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { renderVendorEmail } from "./templates.ts";
 
 const KINDS = [
-  "offer_made", "offer_rejected", "item_sold", "label_issued",
-  "ship_by_reminder", "received_at_hub", "accepted", "payout_sent",
-  "refused", "abandonment_30", "abandonment_7", "vendor_cancelled",
+  "offer_made", "item_submitted", "item_sold", "offer_rejected",
+  "label_issued", "ship_by_reminder", "received_at_hub", "accepted",
+  "payout_sent", "refused", "abandonment_30", "abandonment_7",
+  "vendor_cancelled", "possession_check", "listing_expired",
+  "delisted_no_response", "reoffer_made",
+];
+
+// The offer amount reaches a vendor on the offer page and nowhere else, so
+// these two must never carry it. The emails sent after acceptance may, and do:
+// by then the number is something we are confirming, not something we are
+// asking someone to decide on from their inbox.
+const KINDS_WITHOUT_THE_AMOUNT = [
+  "offer_made", "item_submitted", "possession_check", "listing_expired",
+  "delisted_no_response", "reoffer_made",
 ];
 
 // Every field a vendor must never receive, stuffed into the payload under both
@@ -31,6 +42,8 @@ const POISON = {
   reasons: ["The photos are too dark. Please reshoot in daylight."],
   note: "Also a shot of the label please.",
   reason_detail: "The tag stitching does not match the brand's.",
+  token: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+  due_at: "2026-09-20T00:00:00Z",
 
   // None of the following may ever appear in a rendered vendor email.
   expected_resale: 9999,
@@ -106,4 +119,17 @@ Deno.test("no vendor email leaks the resale price, the spread, or a buyer", () =
 
 Deno.test("an unknown kind renders nothing rather than something wrong", () => {
   assert(renderVendorEmail("not_a_kind", POISON, "https://x") === null);
+});
+
+Deno.test("the offer amount never appears before it has been accepted", () => {
+  for (const kind of KINDS_WITHOUT_THE_AMOUNT) {
+    const email = renderVendorEmail(kind, POISON, "https://www.zarketplace.com")!;
+    const haystack = `${email.subject}\n${email.html}`;
+    for (const needle of ["3200", "3,200"]) {
+      assert(
+        !haystack.includes(needle),
+        `${kind} put the offer amount in an email that must drive to the site`,
+      );
+    }
+  }
 });

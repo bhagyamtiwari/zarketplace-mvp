@@ -22,7 +22,15 @@ export function Returns() {
         </div>
 
         <div className="flex flex-col gap-14 text-black body-longform">
-          <p>Since most items sold on zarketplace are pre-owned, one-of-a-kind pieces, there is generally no physical return process: returns are not accepted simply because of a change of mind.</p>
+          <p>Every item here is pre-owned and one of a kind. We are the seller, so this is our responsibility and there is nobody else for you to chase. What we will and will not refund is set out below, and we apply it the same way every time.</p>
+
+          <section className="flex flex-col gap-4">
+            <h2 className="text-xl font-black uppercase tracking-tight text-black">What we refund</h2>
+            <p><strong>Not as described, the wrong item, or a flaw we did not disclose.</strong> Full refund, and we pay the return postage. This is our mistake and it costs you nothing.</p>
+            <p><strong>It did not fit, or you changed your mind.</strong> No refund. These are single pieces we have already taken off the site for you, and we cannot restock them like a shop can. This is why we put the measurements in centimetres on every listing: measure something you already own and compare before you buy.</p>
+            <p>Where we have got something genuinely wrong in spirit if not in letter, we may offer store credit instead. That is us choosing to, not something you can insist on.</p>
+            <p>Anything else, write to us and we will look at it properly and tell you where we land.</p>
+          </section>
 
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Cancelling Before Shipment</h2>
