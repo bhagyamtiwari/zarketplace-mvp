@@ -29,11 +29,11 @@ function CartInner() {
   if (count === 0) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-20 sm:py-32 text-center flex flex-col items-center gap-8">
-        <div className="flex h-24 w-24 items-center justify-center rounded-full bg-zinc-100 text-black/40">
+        <div className="flex h-24 w-24 items-center justify-center rounded-full bg-zinc-100 ink-low">
           <ShoppingBag className="h-10 w-10" />
         </div>
         <h1 className="text-5xl font-black tracking-tighter uppercase">Nothing in your bag yet</h1>
-        <p className="text-xs font-bold uppercase tracking-widest text-black/60 max-w-md">
+        <p className="text-xs font-bold uppercase tracking-widest ink-mid max-w-md">
           Find something you love and add it here.
         </p>
         <Link
@@ -78,15 +78,15 @@ function CartInner() {
                 >
                   {item.title}
                 </Link>
-                <span className="text-[9px] font-black uppercase tracking-widest text-black/40">{item.brand}</span>
-                {item.size && <span className="text-[9px] font-black uppercase tracking-widest text-black/40">Size {item.size}</span>}
+                <span className="text-[9px] font-black uppercase tracking-widest ink-low">{item.brand}</span>
+                {item.size && <span className="text-[9px] font-black uppercase tracking-widest ink-low">Size {item.size}</span>}
               </div>
               <div className="flex flex-col items-end gap-1 shrink-0">
                 <span className="text-sm font-black">{formatCurrency(item.sale_price ?? item.price ?? 0)}</span>
                 <button
                   type="button"
                   onClick={() => remove(item.listing_id)}
-                  className="text-black/30 hover:text-red-600 transition-colors"
+                  className="ink-low hover:text-red-600 transition-colors"
                   aria-label="Remove item"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -123,7 +123,7 @@ function CartInner() {
         <button
           type="button"
           onClick={() => clear()}
-          className="self-center text-[10px] font-black uppercase tracking-widest text-black/40 hover:text-black underline"
+          className="self-center text-[10px] font-black uppercase tracking-widest ink-low hover:text-black underline"
         >
           Clear cart
         </button>

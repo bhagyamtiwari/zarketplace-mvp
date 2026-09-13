@@ -25,10 +25,10 @@ export function EmptyState({ children, detail, action, className }: {
           <h2 className="max-w-[18ch] text-2xl sm:text-3xl font-black uppercase tracking-tighter leading-[0.95]">
             {children}
           </h2>
-          <p className="max-w-[48ch] text-sm font-normal leading-relaxed text-black/55">{detail}</p>
+          <p className="max-w-[48ch] text-sm font-normal leading-relaxed ink-mid">{detail}</p>
         </>
       ) : (
-        <p className="text-xs font-bold uppercase tracking-[0.2em] text-black/30">{children}</p>
+        <p className="text-xs font-bold uppercase tracking-[0.2em] ink-low">{children}</p>
       )}
       {action}
     </div>

@@ -25,6 +25,13 @@
   }
 }
 
+/* The surface an element sits on, as an inheritable value, so the ink scale
+   can be absolute. Black by default; dark surfaces flip it. Keyed off the
+   background utilities themselves rather than a class every panel has to
+   remember to add, because the one that forgets is the bug. */
+:root { --ink: 0 0 0; }
+.bg-black, .bg-gradient-dark, .bg-zinc-900 { --ink: 255 255 255; }
+
 @layer utilities {
   /* The label register: 12px, medium, uppercase, wide tracking. For short
      panels, captions and standing labels. Paragraphs belong in
@@ -39,16 +46,93 @@
      Inter 500 for long-form legal/support text" - .body-copy is the uppercase
      tracked register for labels and short panels, and setting several hundred
      words of policy in it is both off-spec and genuinely hard to read.
-     Sentence case, a step larger, normal tracking, generous leading. */
-  /* Colour is derived from whatever the section already sets rather than
-     hardcoded black: this class was setting black-at-80% inside the black
-     panels on /about and /condition, which rendered as invisible text on
-     three live paragraphs. currentColor here resolves to the inherited
-     colour, so a white-on-black section softens white and a normal page
-     softens black. */
+     Sentence case, a step larger, normal tracking, generous leading.
+
+     Sets no colour of its own. It used to soften to 80%, which was a fourth
+     ink step nobody had named and which compounded with .ink-mid on anything
+     nested. Long-form prose is content, and content is full ink; where a
+     paragraph is genuinely secondary it says so with .ink-mid. */
   .body-longform {
     @apply text-sm font-normal normal-case tracking-normal leading-[1.75];
-    color: color-mix(in srgb, currentColor 80%, transparent);
+  }
+
+  /* ---------------------------------------------------------------------
+     SHELLS. Two, named for the content they hold rather than for a width.
+     ---------------------------------------------------------------------
+     Six raw max-w classes had accumulated across the pages, each one
+     individually plausible, which is exactly how you end up with six. A named
+     token makes a seventh look wrong.
+
+     Which shell a page gets is mechanical, decided by its PRIMARY content:
+
+       grid, accordion or cards  ->  .shell-wide   (conditions, FAQ, the form)
+       continuous prose          ->  .shell-read   (terms, privacy, policies)
+
+     Not "which page is this", which is a judgement and drifts. The storefront
+     feed is neither: it is a product grid with its own column logic and keeps
+     its own width. */
+  .shell-wide {
+    @apply mx-auto w-full px-4 sm:px-6 lg:px-8;
+    max-width: 64rem; /* 1024px */
+  }
+
+  /* Derived, once, and this is the only place a ch value belongs.
+     Inter at the body size measures 6.8px per glyph in running prose, so 72
+     characters is 490px of text. Plus the 32px page padding either side, the
+     shell is 554px; 35rem is the nearest round number and lands at 73
+     characters. Capping a paragraph INSIDE a panel is the bug this replaces,
+     not a smaller version of this rule. */
+  .shell-read {
+    @apply mx-auto w-full px-4 sm:px-6 lg:px-8;
+    max-width: 35rem; /* 560px -> ~73 characters at body size */
+  }
+
+  /* Prose sitting directly on a WIDE shell still needs a measure: 1024px of
+     unbroken line is not readable. Same derivation as .shell-read, minus the
+     page padding, because here the cap is on the text itself.
+
+     This does NOT apply inside a panel. A panel is already bounded, so the
+     panel is the measure and its padding is the margin. Capping text inside
+     one is what left 443px of dead black space on the conditions guide. */
+  .measure {
+    max-width: 30.5rem; /* 488px -> ~72 characters at body size */
+  }
+
+  /* ---------------------------------------------------------------------
+     INK. Three steps per surface, each with a job.
+     ---------------------------------------------------------------------
+     Twelve opacities were in use, including white at 60, 70 and 80 all doing
+     the same job on one page. Going from twelve to six is only stable if each
+     step is defined by what it is FOR, so:
+
+       full ink   (no class)  Content. Anything read for information, and
+                              anything interactive. The default.
+       .ink-mid              Secondary and metadata. Supporting sentences,
+                              captions, counts, timestamps, labels naming a
+                              thing already visible.
+       .ink-low              Disabled and decorative ONLY. Placeholders,
+                              disabled controls, rules drawn as text. Never
+                              for anything that has to be read.
+
+     The low step deliberately fails WCAG AA on both surfaces (2.9:1 on white,
+     3.7:1 on black). That is the guardrail, not an oversight: if text needs to
+     be legible it is not low ink, and reaching for .ink-low to soften
+     something readable is the mistake this mapping exists to prevent.
+
+     Absolute, not relative to whatever colour was inherited. Deriving these
+     from currentColor looked tidier and was wrong: an ink class inside an
+     already-softened parent multiplied the two alphas together, so .ink-mid
+     nested in .ink-mid rendered at 0.42 rather than 0.65 and quietly failed
+     contrast. The step a class produces must not depend on where it sits.
+
+     --ink carries the surface instead. It is black by default and flips to
+     white on any dark surface, and because custom properties inherit, every
+     descendant of a black panel picks it up without being told. */
+  .ink-mid {
+    color: rgb(var(--ink) / 0.65);
+  }
+  .ink-low {
+    color: rgb(var(--ink) / 0.40);
   }
 
   .bg-gradient-dark {

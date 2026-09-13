@@ -433,7 +433,7 @@ function CheckoutInner() {
   if (loadingBuyNow) {
     return (
       <div className="flex h-[80vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-black/20" />
+        <Loader2 className="h-8 w-8 animate-spin ink-low" />
       </div>
     );
   }
@@ -442,7 +442,7 @@ function CheckoutInner() {
     return (
       <div className="mx-auto max-w-2xl px-4 pt-24 sm:pt-32 pb-20 sm:pb-32 text-center flex flex-col items-center gap-8">
         <h1 className="text-5xl font-black tracking-tighter uppercase">Nothing to check out</h1>
-        <p className="text-xs font-bold uppercase tracking-widest text-black/60 max-w-md">
+        <p className="text-xs font-bold uppercase tracking-widest ink-mid max-w-md">
           Your cart is empty.
         </p>
         <Link to="/browse" className="bg-black px-12 py-5 text-xs font-black uppercase tracking-[0.4em] text-white hover:bg-zinc-800">
@@ -460,7 +460,7 @@ function CheckoutInner() {
           <CheckCircle2 className="h-12 w-12" />
         </motion.div>
         <h1 className="text-5xl font-black tracking-tighter uppercase">You bought it.</h1>
-        <p className="text-[11px] font-bold uppercase tracking-widest text-black/60 max-w-md leading-relaxed">
+        <p className="text-[11px] font-bold uppercase tracking-widest ink-mid max-w-md leading-relaxed">
           Your payment has been received. We are bringing your item in, checking it and repacking it, then it ships to you. Track everything in My Orders.
         </p>
 
@@ -475,22 +475,22 @@ function CheckoutInner() {
                     </div>
                   )}
                   <div className="flex flex-col gap-1 min-w-0">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-black/40">#{o.order_number}</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest ink-low">#{o.order_number}</span>
                     <h2 className="text-sm font-black uppercase tracking-tight truncate">{o.listing_title}</h2>
                   </div>
                 </div>
                 <div className="border-t border-black/5 pt-3 flex flex-col gap-1.5 text-[11px] font-bold uppercase tracking-widest">
-                  <div className="flex justify-between"><span className="text-black/40">Item</span><span>{formatCurrency(Number(o.amount))}</span></div>
+                  <div className="flex justify-between"><span className="ink-low">Item</span><span>{formatCurrency(Number(o.amount))}</span></div>
                   <div className="flex justify-between">
-                    <span className="text-black/40">Shipping</span>
+                    <span className="ink-low">Shipping</span>
                     <span>{o.free_shipping ? 'Free' : formatCurrency(Number(o.shipping_cost))}</span>
                   </div>
-                  <div className="flex justify-between"><span className="text-black/40">Buyer protection</span><span>{formatCurrency(Number(o.buyer_protection_fee))}</span></div>
+                  <div className="flex justify-between"><span className="ink-low">Buyer protection</span><span>{formatCurrency(Number(o.buyer_protection_fee))}</span></div>
                   <div className="flex justify-between border-t border-black/10 pt-1.5 mt-1"><span>Total paid</span><span>{formatCurrency(Number(o.total_amount))}</span></div>
                 </div>
                 {o.shipping_address && (
-                  <div className="border-t border-black/5 pt-3 text-[10px] font-bold uppercase tracking-widest text-black/40">
-                    Shipping to: <span className="text-black/70 normal-case font-medium">
+                  <div className="border-t border-black/5 pt-3 text-[10px] font-bold uppercase tracking-widest ink-low">
+                    Shipping to: <span className="normal-case font-medium">
                       {[o.shipping_address.address, o.shipping_address.city, o.shipping_address.state, o.shipping_address.pincode].filter(Boolean).join(', ')}
                     </span>
                   </div>
@@ -499,7 +499,7 @@ function CheckoutInner() {
             ))}
           </div>
         )}
-        <p className="text-[11px] font-bold uppercase tracking-widest text-black/60 max-w-md leading-relaxed">
+        <p className="text-[11px] font-bold uppercase tracking-widest ink-mid max-w-md leading-relaxed">
           For any questions or concerns, email{' '}
           <a href="mailto:contact@zarketplace.com" className="text-black underline">contact@zarketplace.com</a>.
         </p>
@@ -514,9 +514,9 @@ function CheckoutInner() {
   if (step === 'confirming') {
     return (
       <div className="mx-auto max-w-3xl px-4 pt-24 sm:pt-32 pb-20 sm:pb-32 text-center flex flex-col items-center gap-8">
-        <Loader2 className="h-16 w-16 animate-spin text-black/20" />
+        <Loader2 className="h-16 w-16 animate-spin ink-low" />
         <h1 className="text-3xl font-black tracking-tighter uppercase">Confirming your payment…</h1>
-        <p className="text-[11px] font-bold uppercase tracking-widest text-black/60 max-w-md leading-relaxed">
+        <p className="text-[11px] font-bold uppercase tracking-widest ink-mid max-w-md leading-relaxed">
           This usually takes a few seconds. Please don't close this tab.
         </p>
       </div>
@@ -530,7 +530,7 @@ function CheckoutInner() {
           <XCircle className="h-12 w-12" />
         </div>
         <h1 className="text-4xl font-black tracking-tighter uppercase">Payment not confirmed</h1>
-        <p className="text-[11px] font-bold uppercase tracking-widest text-black/60 max-w-md leading-relaxed">
+        <p className="text-[11px] font-bold uppercase tracking-widest ink-mid max-w-md leading-relaxed">
           {errorMsg || 'We could not confirm your payment. No charge was completed for a failed attempt.'}
         </p>
         <div className="flex gap-3">
@@ -627,13 +627,13 @@ function StepHeader({ step, onGoToAddress, onGoToPay }: {
                 'px-6 py-3 text-xs font-black uppercase tracking-widest border transition-colors',
                 i === idx ? 'bg-black border-black text-white' :
                 s.onClick ? 'border-black/20 text-black hover:border-black cursor-pointer' :
-                'border-black/10 text-black/30',
+                'border-black/10 ink-low',
               )}
             >
               {s.label}
             </button>
             {i < steps.length - 1 && (
-              <ArrowRight className={cn('h-5 w-5', idx > i ? 'text-black' : 'text-black/20')} />
+              <ArrowRight className={cn('h-5 w-5', idx > i ? 'text-black' : 'ink-low')} />
             )}
           </React.Fragment>
         ))}
@@ -689,13 +689,13 @@ function AddressStep({
             expected to notice - Gurgaon is Haryana, and one metro is three
             states to GST. Removing the question removes the contradiction. */}
         <div className="flex flex-col gap-3">
-          <label className="text-[10px] font-black uppercase tracking-widest text-black/40">State</label>
+          <label className="text-[10px] font-black uppercase tracking-widest ink-low">State</label>
           <div className="border-b border-black/10 py-4 text-sm font-bold">
             {addr.pincode.length === 6
               ? (resolvePincode(addr.pincode).stateName ?? (
                   <span className="text-red-600">We cannot place this pincode yet</span>
                 ))
-              : <span className="text-black/25">From your pincode</span>}
+              : <span className="ink-low">From your pincode</span>}
           </div>
         </div>
       </div>
@@ -722,11 +722,11 @@ function AddressStep({
             <Field label="Pincode" inputMode="numeric" maxLength={6} value={billingAddr.pincode} onChange={(v) => onBillingChange({ ...billingAddr, pincode: v.replace(/\D/g, '') })} placeholder="400001" />
             <Field label="City" value={billingAddr.city} onChange={(v) => onBillingChange({ ...billingAddr, city: v })} placeholder="Mumbai" />
             <div className="flex flex-col gap-3">
-              <label className="text-[10px] font-black uppercase tracking-widest text-black/40">State</label>
+              <label className="text-[10px] font-black uppercase tracking-widest ink-low">State</label>
               <div className="border-b border-black/10 py-4 text-sm font-bold">
                 {billingAddr.pincode.length === 6
-                  ? (resolvePincode(billingAddr.pincode).stateName ?? <span className="text-black/40">Unrecognised pincode</span>)
-                  : <span className="text-black/25">From your pincode</span>}
+                  ? (resolvePincode(billingAddr.pincode).stateName ?? <span className="ink-low">Unrecognised pincode</span>)
+                  : <span className="ink-low">From your pincode</span>}
               </div>
             </div>
             <div className="md:col-span-2">
@@ -745,7 +745,7 @@ function AddressStep({
         {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
         <span>Continue to Payment</span>
       </button>
-      <div className="flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] text-black/30">
+      <div className="flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] ink-low">
         <ShieldCheck className="h-4 w-4" />
         <span>Your details are only used to deliver your order</span>
       </div>
@@ -803,7 +803,7 @@ function RazorpayPayStep({
     <section className="flex flex-col gap-8 p-10 bg-zinc-50 border border-black/5">
       <div className="flex flex-col gap-2 text-center">
         <h2 className="text-sm font-black uppercase tracking-widest">Order Summary</h2>
-        <p className="text-xs text-black/60 font-medium leading-relaxed">
+        <p className="text-xs ink-mid font-medium leading-relaxed">
           Pay securely. Cards, UPI, netbanking and wallets all supported.
         </p>
       </div>
@@ -823,7 +823,7 @@ function RazorpayPayStep({
             </div>
             <div className="flex flex-col justify-center gap-0.5 min-w-0 flex-1">
               <span className="text-xs font-bold uppercase tracking-widest truncate">{i.title}</span>
-              {i.size && <span className="text-[10px] font-black uppercase tracking-widest text-black/40">Size {i.size}</span>}
+              {i.size && <span className="text-[10px] font-black uppercase tracking-widest ink-low">Size {i.size}</span>}
             </div>
             <span className="text-sm font-black shrink-0">{formatCurrency(i.sale_price ?? i.price ?? 0)}</span>
           </div>
@@ -853,9 +853,9 @@ function RazorpayPayStep({
       </div>
 
       {buyerProtection > 0 && (
-        <p className="text-[9px] font-bold uppercase tracking-widest text-black/40 leading-relaxed -mt-2">
+        <p className="text-[9px] font-bold uppercase tracking-widest ink-low leading-relaxed -mt-2">
           Every item is received, checked and repacked by us before it ships, with a refund if it arrives significantly not as described.{' '}
-          <Link to="/buyer-protection" className="underline text-black/60">Learn more</Link>
+          <Link to="/buyer-protection" className="underline ink-mid">Learn more</Link>
         </p>
       )}
 
@@ -868,7 +868,7 @@ function RazorpayPayStep({
           refund and grievance policies. They are here because nobody reads a
           policy page before paying, and these are the commitments that matter. */}
       <div className="border border-black/10 bg-zinc-50 px-5 py-5 flex flex-col gap-2.5">
-        <span className="text-[9px] font-black uppercase tracking-[0.3em] text-black/40">
+        <span className="text-[9px] font-black uppercase tracking-[0.3em] ink-low">
           Buying from zarketplace
         </span>
         <ul className="flex flex-col gap-1.5">
@@ -877,13 +877,13 @@ function RazorpayPayStep({
             'Not as described? Tell us within 48 hours of delivery and we put it right.',
             "If we can't supply it, you're refunded in full to the account you paid from.",
           ].map((line) => (
-            <li key={line} className="flex gap-2 text-[11px] font-medium leading-relaxed text-black/70">
-              <span aria-hidden className="text-black/25">&mdash;</span>
+            <li key={line} className="flex gap-2 text-[11px] font-medium leading-relaxed">
+              <span aria-hidden className="ink-low">&mdash;</span>
               <span>{line}</span>
             </li>
           ))}
         </ul>
-        <Link to="/returns" className="self-start text-[10px] font-black uppercase tracking-[0.25em] underline text-black/50 hover:text-black">
+        <Link to="/returns" className="self-start text-[10px] font-black uppercase tracking-[0.25em] underline ink-mid hover:text-black">
           Returns &amp; refunds
         </Link>
       </div>
@@ -896,7 +896,7 @@ function RazorpayPayStep({
         {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
         <span>Place Secure Order</span>
       </button>
-      <div className="flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] text-black/30">
+      <div className="flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] ink-low">
         <ShieldCheck className="h-4 w-4" />
         <span>Payments secured by Razorpay</span>
       </div>
@@ -929,9 +929,9 @@ function Summary({ items, subtotal, shipping, shippingLoading, buyerProtection, 
               {i.image_url && <img src={variantUrl(i.image_url, 'thumb')} alt={i.title} className="h-full w-full object-cover" />}
             </div>
             <div className="flex flex-col justify-center gap-0.5 min-w-0">
-              <span className="text-[9px] font-black uppercase tracking-widest text-black/60">{i.brand}</span>
+              <span className="text-[9px] font-black uppercase tracking-widest ink-mid">{i.brand}</span>
               <span className="text-xs font-bold uppercase tracking-widest truncate">{i.title}</span>
-              <span className="text-[10px] font-black uppercase tracking-widest text-black/60">Size {i.size}</span>
+              <span className="text-[10px] font-black uppercase tracking-widest ink-mid">Size {i.size}</span>
               <span className="text-xs font-black mt-1">{formatCurrency(i.sale_price ?? i.price ?? 0)}</span>
             </div>
           </div>
@@ -960,7 +960,7 @@ function Summary({ items, subtotal, shipping, shippingLoading, buyerProtection, 
         <span className="text-3xl font-black tracking-tighter">{formatCurrency(total)}</span>
       </div>
 
-      <div className="flex items-center justify-center gap-3 text-[9px] font-black uppercase tracking-[0.2em] text-black/30">
+      <div className="flex items-center justify-center gap-3 text-[9px] font-black uppercase tracking-[0.2em] ink-low">
         <ShieldCheck className="h-4 w-4" />
         <span>{buyerProtection > 0 ? 'Protected payment' : 'Secure payment'}</span>
       </div>
@@ -970,7 +970,7 @@ function Summary({ items, subtotal, shipping, shippingLoading, buyerProtection, 
 
 function Row({ label, value, dim }: { label: string; value: string; dim?: boolean }) {
   return (
-    <div className={cn('flex justify-between text-xs font-bold uppercase tracking-widest', dim && 'text-black/40 text-[10px]')}>
+    <div className={cn('flex justify-between text-xs font-bold uppercase tracking-widest', dim && 'ink-low text-[10px]')}>
       <span>{label}</span>
       <span>{value}</span>
     </div>

@@ -7,7 +7,7 @@ export function Contact() {
   usePageMeta(META.contact);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
+    <div className="shell-read pt-24 sm:pt-32 pb-16 sm:pb-20">
       <Link to="/browse" className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-black hover:text-black/80 mb-8 lg:mb-12">
         <ArrowLeft className="h-3 w-3" /> Back to browse
       </Link>
@@ -29,7 +29,7 @@ export function Contact() {
                     <Mail className="h-4 w-4" />
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-black/60">Email</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest ink-mid">Email</span>
                     <span className="text-sm font-bold">contact@zarketplace.com</span>
                   </div>
                 </a>
@@ -38,7 +38,7 @@ export function Contact() {
                     <Instagram className="h-4 w-4" />
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-black/60">Instagram</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest ink-mid">Instagram</span>
                     <span className="text-sm font-bold">@zarketplace</span>
                   </div>
                 </a>
@@ -47,9 +47,9 @@ export function Contact() {
                     <MessageCircle className="h-4 w-4" />
                   </div>
                   <div className="flex flex-col">
-                    <span className="text-[9px] font-black uppercase tracking-widest text-black/60">WhatsApp</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest ink-mid">WhatsApp</span>
                     <span className="text-sm font-bold">+91 8505-ZARKET</span>
-                    <span className="text-sm font-bold text-black/60">or +91 8505-927538</span>
+                    <span className="text-sm font-bold ink-mid">or +91 8505-927538</span>
                   </div>
                 </a>
               </div>
@@ -96,8 +96,8 @@ export function Contact() {
               >
                 Form Temporarily Paused
               </button>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-black/60 text-center">
-                Please email <a href="mailto:contact@zarketplace.com" className="underline text-black/60 hover:text-black">contact@zarketplace.com</a> for now
+              <p className="text-[10px] font-bold uppercase tracking-widest ink-mid text-center">
+                Please email <a href="mailto:contact@zarketplace.com" className="underline">contact@zarketplace.com</a> for now
               </p>
             </div>
           </form>

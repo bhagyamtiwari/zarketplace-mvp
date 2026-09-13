@@ -61,8 +61,8 @@ export function PossessionCheck() {
     <div className="mx-auto max-w-xl px-4 pt-28 sm:pt-32 pb-24 flex flex-col items-center text-center">
       {state.kind === 'working' && (
         <>
-          <Loader2 className="h-8 w-8 animate-spin text-black/30" />
-          <p className="mt-6 text-xs font-black uppercase tracking-widest text-black/40">
+          <Loader2 className="h-8 w-8 animate-spin ink-low" />
+          <p className="mt-6 text-xs font-black uppercase tracking-widest ink-low">
             One moment
           </p>
         </>
@@ -76,7 +76,7 @@ export function PossessionCheck() {
           <h1 className="mt-8 text-3xl sm:text-4xl font-black tracking-tighter uppercase leading-[0.95]">
             {state.already ? 'Already noted.' : 'Thanks, noted.'}
           </h1>
-          <p className="mt-4 body-copy text-black/70 max-w-[46ch]">
+          <p className="mt-4 body-copy max-w-[46ch]">
             {state.title ? <>Your {state.title} stays listed. </> : <>Your item stays listed. </>}
             Nothing else to do. We will ask again in a few weeks, and we will be in touch the
             moment it sells.
@@ -92,11 +92,11 @@ export function PossessionCheck() {
           <h1 className="mt-8 text-3xl sm:text-4xl font-black tracking-tighter uppercase leading-[0.95]">
             Taken down.
           </h1>
-          <p className="mt-4 body-copy text-black/70 max-w-[46ch]">
+          <p className="mt-4 body-copy max-w-[46ch]">
             {state.title ? <>Your {state.title} is off the site. </> : <>Your item is off the site. </>}
             You owe us nothing and nothing else is needed from you.
           </p>
-          <p className="mt-3 body-copy text-black/50 max-w-[46ch]">
+          <p className="mt-3 body-copy ink-mid max-w-[46ch]">
             Thanks for telling us. It is much better to hear it now than to have a courier
             turn up for something that is no longer there.
           </p>
@@ -108,7 +108,7 @@ export function PossessionCheck() {
           <h1 className="text-3xl sm:text-4xl font-black tracking-tighter uppercase leading-[0.95]">
             That link has expired.
           </h1>
-          <p className="mt-4 body-copy text-black/70 max-w-[46ch]">
+          <p className="mt-4 body-copy max-w-[46ch]">
             It may have been replaced by a newer one. Check for a more recent email from us,
             or open your dashboard to see where your items stand.
           </p>
@@ -120,7 +120,7 @@ export function PossessionCheck() {
           <h1 className="text-3xl sm:text-4xl font-black tracking-tighter uppercase leading-[0.95]">
             Something went wrong.
           </h1>
-          <p className="mt-4 body-copy text-black/70 max-w-[46ch]">
+          <p className="mt-4 body-copy max-w-[46ch]">
             {state.message} Try the link again, or reply to the email and we will sort it out.
           </p>
         </>

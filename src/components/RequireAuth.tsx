@@ -30,7 +30,7 @@ export function RequireAuth({ children, requireAdmin = false, message }: Props) 
   if (loading) {
     return (
       <div className="flex h-[60vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-black/20" />
+        <Loader2 className="h-8 w-8 animate-spin ink-low" />
       </div>
     );
   }
@@ -41,10 +41,10 @@ export function RequireAuth({ children, requireAdmin = false, message }: Props) 
       <>
         <div className="mx-auto max-w-xl px-4 pt-24 sm:pt-32 pb-20 sm:pb-32 text-center flex flex-col items-center gap-6">
           <div className="h-16 w-16 bg-zinc-100 rounded-full flex items-center justify-center">
-            <Lock className="h-6 w-6 text-black/40" />
+            <Lock className="h-6 w-6 ink-low" />
           </div>
           <h1 className="text-4xl font-black tracking-tighter uppercase">Please sign in</h1>
-          <p className="text-[11px] font-bold uppercase tracking-widest text-black/60 max-w-md leading-relaxed">
+          <p className="text-[11px] font-bold uppercase tracking-widest ink-mid max-w-md leading-relaxed">
             {message ?? 'You need an account to continue. It only takes a moment.'}
           </p>
           <button
@@ -64,10 +64,10 @@ export function RequireAuth({ children, requireAdmin = false, message }: Props) 
     return (
       <div className="mx-auto max-w-xl px-4 pt-24 sm:pt-32 pb-20 sm:pb-32 text-center flex flex-col items-center gap-6">
         <div className="h-16 w-16 bg-zinc-100 rounded-full flex items-center justify-center">
-          <Lock className="h-6 w-6 text-black/40" />
+          <Lock className="h-6 w-6 ink-low" />
         </div>
         <h1 className="text-4xl font-black tracking-tighter uppercase">Admins only</h1>
-        <p className="text-[11px] font-bold uppercase tracking-widest text-black/60 max-w-md leading-relaxed">
+        <p className="text-[11px] font-bold uppercase tracking-widest ink-mid max-w-md leading-relaxed">
           You don't have access to this area.
         </p>
       </div>

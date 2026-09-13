@@ -65,7 +65,7 @@ export function CampaignBand({
           <div className="flex flex-col gap-1">
             <h2 className={cn(
               'font-black uppercase tracking-tighter leading-[0.88]',
-              scriptLed ? 'text-xl sm:text-2xl lg:text-3xl text-white/75' : 'text-3xl sm:text-5xl',
+              scriptLed ? 'text-xl sm:text-2xl lg:text-3xl ' : 'text-3xl sm:text-5xl',
             )}>
               {heading}
             </h2>
@@ -85,7 +85,7 @@ export function CampaignBand({
           </div>
 
           {body && (
-            <p className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.15em] leading-[1.8] text-white/70 max-w-[46ch]">
+            <p className="text-[11px] sm:text-xs font-bold uppercase tracking-[0.15em] leading-[1.8] max-w-[46ch]">
               {body}
             </p>
           )}

@@ -32,12 +32,12 @@ export function BuyerJourney({ stage }: { stage: BuyerStage }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <span className="text-[9px] font-black uppercase tracking-[0.4em] text-black/40">
+      <span className="text-[9px] font-black uppercase tracking-[0.4em] ink-low">
         Your order
       </span>
 
       {stage === 'preparing' && (
-        <p className="body-copy text-black/60">
+        <p className="body-copy ink-mid">
           We are preparing your order. You will see it move here as it goes.
         </p>
       )}
@@ -57,11 +57,11 @@ export function BuyerJourney({ stage }: { stage: BuyerStage }) {
               <span className="flex flex-col gap-1 min-w-0">
                 <span className={cn(
                   'text-xs font-black uppercase tracking-widest',
-                  done ? 'text-black' : 'text-black/30',
+                  done ? 'text-black' : 'ink-low',
                 )}>
                   {step.label}
                 </span>
-                <span className="text-xs font-medium leading-relaxed text-black/50">
+                <span className="text-xs font-medium leading-relaxed ink-mid">
                   {current && stage === 'delivered' ? 'Delivered.' : step.detail}
                 </span>
               </span>

@@ -98,7 +98,7 @@ function HubInner() {
   React.useEffect(() => { void load(); }, [load]);
 
   if (profile && !profile.is_admin) {
-    return <Shell><p className="body-copy text-black/60">This is an operator screen.</p></Shell>;
+    return <Shell><p className="body-copy ink-mid">This is an operator screen.</p></Shell>;
   }
 
   const inTab = (r: HubRow) =>
@@ -138,13 +138,13 @@ function HubInner() {
       {error && <p className="mb-8 text-xs font-bold uppercase tracking-widest text-red-700">{error}</p>}
 
       {loading ? (
-        <div className="flex h-64 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-black/20" /></div>
+        <div className="flex h-64 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin ink-low" /></div>
       ) : tab === 'refunds' ? (
         <RefundQueue rows={refunds} onDone={load} />
       ) : tab === 'holding' ? (
         <HoldingQueue rows={abandoned} onDone={load} />
       ) : visible.length === 0 ? (
-        <p className="text-[11px] font-bold uppercase tracking-widest text-black/30">Nothing here.</p>
+        <p className="text-[11px] font-bold uppercase tracking-widest ink-low">Nothing here.</p>
       ) : (
         <ul className="flex flex-col gap-4">
           {visible.map((r) => <ItemCard key={r.listing_id} row={r} onDone={load} />)}
@@ -191,17 +191,17 @@ function ItemCard({ row, onDone }: { key?: string; row: HubRow; onDone: () => vo
         <div className="flex flex-1 min-w-0 flex-col gap-2">
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <span className="text-sm font-black uppercase tracking-tight">{row.title}</span>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-black/40">
+            <span className="text-[10px] font-bold uppercase tracking-widest ink-low">
               {row.brand} · {row.sku ?? '—'}
             </span>
           </div>
           <div className="flex flex-wrap gap-x-5 gap-y-1 text-[10px] font-black uppercase tracking-widest">
             <span>{s.replace(/_/g, ' ')}</span>
-            <span className="text-black/40">Condition: {row.condition ?? '—'}</span>
+            <span className="ink-low">Condition: {row.condition ?? '—'}</span>
             {row.offer_amount != null && (
-              <span className="text-black/40">Payout {formatCurrency(Number(row.offer_amount))}</span>
+              <span className="ink-low">Payout {formatCurrency(Number(row.offer_amount))}</span>
             )}
-            {row.awb && <span className="text-black/40">AWB {row.awb}</span>}
+            {row.awb && <span className="ink-low">AWB {row.awb}</span>}
             {row.ship_by_overdue && (
               <span className="text-red-600">Past ship-by</span>
             )}
@@ -212,7 +212,7 @@ function ItemCard({ row, onDone }: { key?: string; row: HubRow; onDone: () => vo
             </p>
           )}
           {row.hub_notes && (
-            <p className="text-[11px] text-black/50 leading-relaxed">Hub note: {row.hub_notes}</p>
+            <p className="text-[11px] ink-mid leading-relaxed">Hub note: {row.hub_notes}</p>
           )}
 
           {/* Actions, gated by where the item actually is. */}
@@ -352,7 +352,7 @@ function RejectPanel({ row, reason, setReason, busy, onCancel, onDone }: {
         placeholder="What did not match?"
         className="border border-black/15 px-3 py-2 text-xs font-medium leading-relaxed focus:border-black focus:outline-none"
       />
-      <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 leading-relaxed">
+      <p className="text-[10px] font-bold uppercase tracking-widest ink-low leading-relaxed">
         The buyer is told only that the item is no longer available and refunded in full.
       </p>
       <div className="flex gap-2">
@@ -361,7 +361,7 @@ function RejectPanel({ row, reason, setReason, busy, onCancel, onDone }: {
           {working ? 'Refusing…' : 'Refuse and refund'}
         </button>
         <button type="button" onClick={onCancel} disabled={working}
-          className="px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-black/40 hover:text-black">
+          className="px-5 py-2.5 text-[10px] font-black uppercase tracking-widest ink-low hover:text-black">
           Cancel
         </button>
       </div>
@@ -377,7 +377,7 @@ function RefundQueue({ rows, onDone }: { rows: RefundRow[]; onDone: () => void }
   const [err, setErr] = React.useState<string | null>(null);
 
   if (rows.length === 0) {
-    return <p className="text-[11px] font-bold uppercase tracking-widest text-black/30">No refunds outstanding.</p>;
+    return <p className="text-[11px] font-bold uppercase tracking-widest ink-low">No refunds outstanding.</p>;
   }
 
   // A buyer who paid and got nothing is the worst state this system has. Past
@@ -422,7 +422,7 @@ function RefundQueue({ rows, onDone }: { rows: RefundRow[]; onDone: () => void }
         )}>
           <div className="flex flex-col gap-1.5 min-w-0">
             <span className="text-sm font-black uppercase tracking-tight">{r.order_number}</span>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-black/40">
+            <span className="text-[10px] font-bold uppercase tracking-widest ink-low">
               {r.reason.replace(/_/g, ' ')} · waiting {r.hours_pending}h
               {!r.razorpay_payment_id && ' · no captured payment'}
             </span>
@@ -448,7 +448,7 @@ function HoldingQueue({ rows, onDone }: { rows: AbandonedRow[]; onDone: () => vo
 
   if (rows.length === 0) {
     return (
-      <p className="text-[11px] font-bold uppercase tracking-widest text-black/30">
+      <p className="text-[11px] font-bold uppercase tracking-widest ink-low">
         Nothing past its 60-day window.
       </p>
     );
@@ -474,7 +474,7 @@ function HoldingQueue({ rows, onDone }: { rows: AbandonedRow[]; onDone: () => vo
         <div key={r.failure_id} className="flex flex-wrap items-center justify-between gap-4 border border-black/10 p-5">
           <div className="flex flex-col gap-1.5 min-w-0">
             <span className="text-sm font-black uppercase tracking-tight">{r.title}</span>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-black/40">
+            <span className="text-[10px] font-bold uppercase tracking-widest ink-low">
               {r.reason.replace(/_/g, ' ')} · window closed {new Date(r.abandonment_deadline).toLocaleDateString()}
               {r.return_requested && ' · return requested'}
             </span>

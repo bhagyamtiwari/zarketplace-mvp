@@ -30,7 +30,7 @@ export function PromiseBanner({ variant, className }: Props) {
         <div className="grid grid-cols-1 sm:grid-cols-[auto_1fr] divide-y sm:divide-y-0 sm:divide-x divide-black">
           {/* Left: the headline value */}
           <div className="px-8 py-6 flex flex-col gap-3 sm:min-w-[260px]">
-            <span className="text-[9px] font-black uppercase tracking-[0.4em] text-black/50">
+            <span className="text-[9px] font-black uppercase tracking-[0.4em] ink-mid">
               Your payout
             </span>
             <div className="flex items-baseline gap-3">
@@ -38,7 +38,7 @@ export function PromiseBanner({ variant, className }: Props) {
                 Locked
               </span>
             </div>
-            <span className="text-[9px] font-black uppercase tracking-[0.3em] text-black/50">
+            <span className="text-[9px] font-black uppercase tracking-[0.3em] ink-mid">
               Agreed before your item goes live
             </span>
           </div>
@@ -48,7 +48,7 @@ export function PromiseBanner({ variant, className }: Props) {
             <span className="text-[9px] font-black uppercase tracking-[0.4em] text-black">
               Show us the item
             </span>
-            <p className="text-[11px] font-bold uppercase tracking-widest text-black/60 leading-relaxed">
+            <p className="text-[11px] font-bold uppercase tracking-widest ink-mid leading-relaxed">
               We'll make you an offer within 24 hours. You decide before
               anything goes live, and that number never moves.
             </p>
@@ -69,7 +69,7 @@ export function PromiseBanner({ variant, className }: Props) {
           <span className="flex items-center px-8 py-3 text-[11px] sm:text-xs font-black uppercase tracking-[0.3em] whitespace-nowrap">
             {phrase}
           </span>
-          <span aria-hidden className="text-white/30 select-none">|</span>
+          <span aria-hidden className="ink-low select-none">|</span>
         </React.Fragment>
       ))}
     </div>

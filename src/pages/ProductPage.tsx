@@ -164,7 +164,7 @@ export function ProductPage() {
     return (
       <div className="mx-auto max-w-7xl min-h-[220vh] px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32" aria-busy="true">
         <div className="flex justify-center pt-24">
-          <Loader2 className="h-8 w-8 animate-spin text-black/20" />
+          <Loader2 className="h-8 w-8 animate-spin ink-low" />
         </div>
       </div>
     );
@@ -224,7 +224,7 @@ export function ProductPage() {
               {listing.sale_price ? (
                 <>
                   <span className="text-3xl font-black text-red-600">{formatCurrency(listing.sale_price)}</span>
-                  <span className="text-xl text-black/30 line-through font-bold">{formatCurrency(listing.price)}</span>
+                  <span className="text-xl ink-low line-through font-bold">{formatCurrency(listing.price)}</span>
                 </>
               ) : (
                 <span className="text-3xl font-black">{formatCurrency(listing.price)}</span>
@@ -245,8 +245,8 @@ export function ProductPage() {
                 'Checked against this listing before it ships',
                 'Dispatched from our own hub, in our own packaging',
               ].map((line) => (
-                <li key={line} className="flex gap-3 text-xs font-medium leading-relaxed text-black/60">
-                  <span aria-hidden className="text-black/25">&mdash;</span>
+                <li key={line} className="flex gap-3 text-xs font-medium leading-relaxed ink-mid">
+                  <span aria-hidden className="ink-low">&mdash;</span>
                   <span>{line}</span>
                 </li>
               ))}
@@ -286,10 +286,10 @@ export function ProductPage() {
                       />
                     ))}
                   </div>
-                  <div className="flex justify-between text-[7px] font-black uppercase tracking-widest text-black/40">
+                  <div className="flex justify-between text-[7px] font-black uppercase tracking-widest ink-low">
                     {CONDITION_TIERS.map((tier) => <span key={tier.name}>{tier.name}</span>)}
                   </div>
-                  <p className="text-[10px] font-medium leading-relaxed text-black/70">
+                  <p className="text-[10px] font-medium leading-relaxed">
                     {CONDITION_TIERS[currentConditionIdx]?.desc}
                   </p>
                 </div>
@@ -324,7 +324,7 @@ export function ProductPage() {
                 </p>
               </div>
             ) : listing.is_sold ? (
-              <div className="w-full bg-zinc-100 py-6 text-center text-xs font-black uppercase tracking-[0.3em] text-black/40 cursor-not-allowed border border-black/5">
+              <div className="w-full bg-zinc-100 py-6 text-center text-xs font-black uppercase tracking-[0.3em] ink-low cursor-not-allowed border border-black/5">
                 Sold Out
               </div>
             ) : (
@@ -373,7 +373,7 @@ export function ProductPage() {
             <div className="flex flex-col gap-4">
               <h3 className="text-xs font-black uppercase tracking-widest">About this piece</h3>
               <div className="flex flex-col gap-4">
-                <p className="text-black/70 text-xs font-medium uppercase tracking-widest leading-relaxed whitespace-pre-line">{listing.description}</p>
+                <p className="text-xs font-medium uppercase tracking-widest leading-relaxed whitespace-pre-line">{listing.description}</p>
               </div>
             </div>
 
@@ -416,12 +416,12 @@ export function ProductPage() {
                     .filter(([, v]) => v != null)
                     .map(([label, v]) => (
                       <div key={label} className="flex flex-col gap-1">
-                        <dt className="text-[10px] font-black uppercase tracking-[0.2em] text-black/40">{label}</dt>
+                        <dt className="text-[10px] font-black uppercase tracking-[0.2em] ink-low">{label}</dt>
                         <dd className="text-lg font-black tracking-tight tabular-nums">{v} cm</dd>
                       </div>
                     ))}
                 </dl>
-                <p className="text-[13px] font-normal leading-relaxed text-black/45">
+                <p className="text-[13px] font-normal leading-relaxed ink-mid">
                   Measured flat, by hand. Sizing on pre-owned pieces is not consistent between
                   brands or decades, so compare these against something you already own rather
                   than going by the tag.
@@ -436,10 +436,10 @@ export function ProductPage() {
             {listing.has_flaws && (
               <div className="flex flex-col gap-3 border-l-2 border-black pl-5">
                 <h3 className="text-xs font-black uppercase tracking-widest">Flaws, stated plainly</h3>
-                <p className="text-sm font-normal normal-case tracking-normal leading-relaxed text-black/75">
+                <p className="text-sm font-normal normal-case tracking-normal leading-relaxed">
                   {listing.flaws_description}
                 </p>
-                <p className="text-[13px] font-normal leading-relaxed text-black/45">
+                <p className="text-[13px] font-normal leading-relaxed ink-mid">
                   This is a used item and we would rather tell you than have you find out.
                   The flaw is in the photos too.
                 </p>
@@ -450,7 +450,7 @@ export function ProductPage() {
               <h3 className="text-xs font-black uppercase tracking-widest">Condition & Authenticity</h3>
               <div className="flex flex-col gap-4">
                 {conditionByName(listing.condition ?? '') && (
-                  <p className="text-sm font-normal normal-case tracking-normal leading-relaxed text-black/70">
+                  <p className="text-sm font-normal normal-case tracking-normal leading-relaxed">
                     <span className="font-black text-black">{conditionByName(listing.condition ?? '')?.name}.</span>
                     {' '}
                     {conditionByName(listing.condition ?? '')?.desc}
@@ -477,8 +477,8 @@ export function ProductPage() {
                     </>
                   ) : (
                     <>
-                      <AlertTriangle className="h-4 w-4 text-black/40 shrink-0" />
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-black/40">Authenticity not confirmed</span>
+                      <AlertTriangle className="h-4 w-4 ink-low shrink-0" />
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] ink-low">Authenticity not confirmed</span>
                     </>
                   )}
                 </div>
@@ -505,7 +505,7 @@ export function ProductPage() {
                 <ShieldCheck className="h-4 w-4 text-black shrink-0 mt-0.5" />
                 <div className="flex flex-col gap-1">
                   <Link to="/buyer-protection" className="underline">Buyer Protection</Link>
-                  <span className="text-[9px] font-bold tracking-widest text-black/40 leading-relaxed uppercase">
+                  <span className="text-[9px] font-bold tracking-widest ink-low leading-relaxed uppercase">
                     Your payment is held until you confirm delivery. Refund if the item is significantly not as described.
                   </span>
                 </div>
@@ -518,7 +518,7 @@ export function ProductPage() {
 
             {listing.is_mine === true && (
               <div className="mt-4 pt-6 border-t border-black/5 flex flex-col gap-3">
-                <span className="text-[9px] font-black uppercase tracking-[0.4em] text-black/40">Your listing</span>
+                <span className="text-[9px] font-black uppercase tracking-[0.4em] ink-low">Your listing</span>
                 <button
                   type="button"
                   onClick={() => setShareOpen(true)}
@@ -526,7 +526,7 @@ export function ProductPage() {
                 >
                   <Share2 className="h-3.5 w-3.5" /> Generate Instagram image
                 </button>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 leading-relaxed max-w-md">
+                <p className="text-[10px] font-bold uppercase tracking-widest ink-low leading-relaxed max-w-md">
                   Download a branded post or story image of your listing in one click.
                 </p>
               </div>
@@ -554,7 +554,7 @@ export function ProductPage() {
       {purchasable && stickyBarVisible && (
         <div className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-black/10 px-4 py-3 flex items-center gap-4 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
           <div className="min-w-0 flex-1">
-            <p className="text-[8px] font-black uppercase tracking-widest text-black/40 truncate">{listing.title}</p>
+            <p className="text-[8px] font-black uppercase tracking-widest ink-low truncate">{listing.title}</p>
             <p className="text-lg font-black tracking-tight">
               {formatCurrency(listing.sale_price ?? listing.price)}
             </p>
@@ -588,7 +588,7 @@ export function ProductPage() {
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-[9px] font-black uppercase tracking-widest text-black/40">{label}</span>
+      <span className="text-[9px] font-black uppercase tracking-widest ink-low">{label}</span>
       <span className="text-[11px] font-bold uppercase tracking-widest">{value}</span>
     </div>
   );

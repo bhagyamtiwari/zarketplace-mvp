@@ -7,7 +7,7 @@ export function Privacy() {
   usePageMeta(META.privacy);
 
   return (
-    <div className="mx-auto max-w-[64ch] px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
+    <div className="shell-read pt-24 sm:pt-32 pb-16 sm:pb-20">
       <Link to="/browse" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-12">
         <ArrowLeft className="h-3 w-3" /> Back to browse
       </Link>
@@ -19,7 +19,7 @@ export function Privacy() {
       >
         <div className="flex flex-col gap-4">
           <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Privacy Policy</h1>
-          <p className="text-[11px] font-medium tracking-normal text-black/60">Last updated 29 July 2026</p>
+          <p className="text-[11px] font-medium tracking-normal ink-mid">Last updated 29 July 2026</p>
         </div>
 
         <div className="flex flex-col gap-14 text-black body-longform">

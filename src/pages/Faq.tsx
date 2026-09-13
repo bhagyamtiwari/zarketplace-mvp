@@ -109,14 +109,17 @@ export function Faq() {
   usePageMeta(META.faq);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
+    <div className="shell-wide pt-24 sm:pt-32 pb-16 sm:pb-20">
       <Link to="/browse" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-12">
         <ArrowLeft className="h-3 w-3" /> Back to browse
       </Link>
 
       <div className="flex flex-col">
 
-        <div className="flex-1 min-w-0 max-w-3xl">
+        {/* The accordion spans the shell. It was capped at max-w-3xl inside a
+            max-w-6xl page, so every row stopped two thirds of the way across
+            and the heading above it did not. */}
+        <div className="flex-1 min-w-0">
           <div className="flex flex-col gap-4 mb-12">
             <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Frequently Asked Questions</h1>
           </div>
@@ -124,7 +127,7 @@ export function Faq() {
           <div className="flex flex-col gap-12">
             {SECTIONS.map((section) => (
               <div key={section.title} className="flex flex-col gap-3">
-                <h2 className="text-xs font-black uppercase tracking-[0.3em] text-black/60 border-b border-black pb-3 mb-2">
+                <h2 className="text-xs font-black uppercase tracking-[0.3em] ink-mid border-b border-black pb-3 mb-2">
                   {section.title}
                 </h2>
                 {section.items.map((item) => (
@@ -149,10 +152,10 @@ function FaqItem({ item }: { item: QA }) {
         className="w-full flex items-center justify-between gap-4 text-left"
       >
         <span className="text-lg font-black uppercase tracking-tight text-black">{item.q}</span>
-        <ChevronDown className={cn('h-4 w-4 shrink-0 transition-transform text-black/40', open && 'rotate-180')} />
+        <ChevronDown className={cn('h-4 w-4 shrink-0 transition-transform ink-low', open && 'rotate-180')} />
       </button>
       {open && (
-        <p className="text-[10px] font-medium uppercase tracking-widest leading-relaxed text-black/60">
+        <p className="text-[10px] font-medium uppercase tracking-widest leading-relaxed ink-mid">
           {item.a}
         </p>
       )}

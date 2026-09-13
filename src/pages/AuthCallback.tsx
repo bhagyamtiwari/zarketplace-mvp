@@ -32,8 +32,8 @@ export function AuthCallback() {
 
   return (
     <div className="mx-auto max-w-md px-4 pt-24 sm:pt-32 pb-20 sm:pb-32 flex flex-col items-center gap-6 text-center">
-      <Loader2 className="h-8 w-8 animate-spin text-black/40" />
-      <p className="text-[10px] font-black uppercase tracking-widest text-black/60">Signing you in…</p>
+      <Loader2 className="h-8 w-8 animate-spin ink-low" />
+      <p className="text-[10px] font-black uppercase tracking-widest ink-mid">Signing you in…</p>
     </div>
   );
 }

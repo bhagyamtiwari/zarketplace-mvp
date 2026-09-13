@@ -605,7 +605,7 @@ function SellInner() {
         <p className="text-black font-medium uppercase tracking-widest text-xs mb-3 max-w-md">
           Someone is looking at your item now.
         </p>
-        <p className="text-black/70 font-medium uppercase tracking-widest text-[11px] leading-[1.9] mb-6 max-w-md">
+        <p className="font-medium uppercase tracking-widest text-[11px] leading-[1.9] mb-6 max-w-md">
           You will hear either an offer, or what would need to change before we
           can make one. Nothing is listed until you have seen a number and
           agreed to it, and the item stays with you either way.
@@ -614,7 +614,7 @@ function SellInner() {
           <p className="text-black font-medium uppercase tracking-widest text-[11px] leading-[1.9]">
             Everything from here comes by email
           </p>
-          <p className="text-black/70 font-medium uppercase tracking-widest text-[11px] leading-[1.9]">
+          <p className="font-medium uppercase tracking-widest text-[11px] leading-[1.9]">
             Your offer, the day it sells, your label. Check your spam folder now
             and mark us as not spam, so the one that matters does not sit in there
             unread.
@@ -623,9 +623,9 @@ function SellInner() {
         {/* The vendor has just finished a form and is at their most willing to
             read one more thing. Said here, in three lines, so the PAN request
             that arrives later is expected rather than alarming. */}
-        <p className="text-black/50 font-medium uppercase tracking-widest text-[10px] leading-[1.9] mb-10 max-w-md">
+        <p className="ink-mid font-medium uppercase tracking-widest text-[10px] leading-[1.9] mb-10 max-w-md">
           You don't need a GSTIN. We buy your item and resell it under ours.{' '}
-          <Link to="/vendor-policy" className="underline text-black/70 hover:text-black">How this works</Link>
+          <Link to="/vendor-policy" className="underline hover:text-black">How this works</Link>
         </p>
         <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
           <button onClick={() => navigate('/vendor-portal')}
@@ -638,7 +638,7 @@ function SellInner() {
           </button>
         </div>
         <button onClick={() => navigate('/browse')}
-          className="mt-6 text-[11px] font-black uppercase tracking-[0.25em] text-black/40 hover:text-black">
+          className="mt-6 text-[11px] font-black uppercase tracking-[0.25em] ink-low hover:text-black">
           Back to browse
         </button>
 
@@ -646,7 +646,7 @@ function SellInner() {
           href="https://wa.me/918505927538"
           target="_blank"
           rel="noreferrer"
-          className="mt-8 text-[10px] font-bold uppercase tracking-widest text-black/40 hover:text-black underline"
+          className="mt-8 text-[10px] font-bold uppercase tracking-widest ink-low hover:text-black underline"
         >
           Something off, or an idea to make this better? WhatsApp us
         </a>
@@ -656,72 +656,66 @@ function SellInner() {
 
   return (
     <div className="flex flex-col">
-      <div className="mx-auto w-full max-w-3xl px-4 sm:px-6 lg:px-8 pt-28 sm:pt-32 pb-20 sm:pb-24">
-        {/* The page opens as an offer, not as a form. The proposition is the
-            first thing read and the fields start well below it, so the work
-            reads as the consequence of the offer rather than the price of
-            finding out what it is. */}
-        {step === 0 ? (
-          <div className="mb-10 sm:mb-12 flex flex-col gap-5 max-w-2xl">
+      <div className="shell-wide pt-28 sm:pt-32 pb-20 sm:pb-24">
+        {/* Someone on this page has already decided to list something. The
+            hero only has to confirm they are in the right place, so it is a
+            headline and one sentence. Everything else that used to sit here
+            either attaches to a specific field further down or is gone.
+
+            On later steps there is no heading at all: the stepper below names
+            the step, and naming it twice is what made this feel long. */}
+        {step === 0 && (
+          <div className="mb-10 sm:mb-12 flex flex-col gap-4">
             <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase leading-[0.95]">
               Show us what you have.
-              <span className="block text-black/55">We will tell you what we will pay.</span>
+              <span className="block ink-mid">We will tell you what we will pay.</span>
             </h1>
-            <p className="body-longform max-w-[52ch]">
-              Photos and a few details, and you hear back within 24 hours. If we want it, we
-              name a price. Accept and that number is fixed. The item stays with you until
-              somebody buys it, then we send a prepaid label and a courier comes to your door.
-              What it sells for, and how long that takes, is our problem.
+            <p className="body-longform measure">
+              Photos and a few details, and you hear back within 24 hours.
             </p>
           </div>
-        ) : (
-          <h1 className="mb-8 text-2xl sm:text-3xl font-black tracking-tighter uppercase leading-none">
-            {STEP_LABELS[step]}
-          </h1>
         )}
 
-        {/* Progress. Every step is reachable directly and only Publish is gated,
-            so the names carry a tick once their step validates: seeing what is
-            already done is what makes the flow feel shorter. */}
-        {/* One grid, so each label sits under its own segment instead of the
-            two rows drifting apart. The percentage is gone: "Step 4 of 5"
-            alongside "75%" was two counts of the same thing that disagreed,
-            because the bar measured gaps between steps while the text counted
-            steps. The step name carries the answer on a phone, where five
-            labels cannot fit across 375px, and the labels appear from sm up. */}
+        {/* One track, not three bars.
+        
+            Three separate rounded segments with a label under each read as
+            three unrelated things rather than as one journey, and they carried
+            the step name a second time next to the heading that already said
+            it. This is a single rule that fills, with the count and the current
+            step named once, on one line. The steps stay individually reachable
+            for anyone going back to fix something. */}
         <div className="mb-10 flex flex-col gap-3">
-          <div className="flex items-baseline justify-between text-[11px] font-black uppercase tracking-[0.2em]">
-            <span className="text-black/40">Step {step + 1} of {STEP_LABELS.length}</span>
-            <span className="text-black sm:hidden">{STEP_LABELS[step]}</span>
+          <div className="flex items-baseline gap-2 text-[11px] font-black uppercase tracking-[0.2em]">
+            <span className="ink-low">Step {step + 1} of {STEP_LABELS.length}</span>
+            <span className="ink-low" aria-hidden>/</span>
+            <span>{STEP_LABELS[step]}</span>
           </div>
 
-          {/* Columns follow the steps. This was hardcoded to five and kept
-              that way when the flow became three, so the bars filled
-              three-fifths of the width and stopped. */}
-          <div className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${STEP_LABELS.length}, minmax(0, 1fr))` }}>
-            {STEP_LABELS.map((label, i) => {
-              const complete = stepComplete(i);
-              return (
+          <div
+            className="relative h-1 w-full bg-black/10"
+            role="progressbar"
+            aria-valuenow={step + 1}
+            aria-valuemin={1}
+            aria-valuemax={STEP_LABELS.length}
+            aria-label={`Step ${step + 1} of ${STEP_LABELS.length}, ${STEP_LABELS[step]}`}
+          >
+            <span
+              className="absolute inset-y-0 left-0 bg-black transition-[width] duration-300"
+              style={{ width: `${((step + 1) / STEP_LABELS.length) * 100}%` }}
+            />
+            {/* Invisible hit areas over the track, so a completed step is still
+                one tap away without drawing three competing shapes. */}
+            <div className="absolute inset-0 grid" style={{ gridTemplateColumns: `repeat(${STEP_LABELS.length}, minmax(0, 1fr))` }}>
+              {STEP_LABELS.map((label, i) => (
                 <button
                   key={label}
                   type="button"
                   onClick={() => goToStep(i)}
-                  aria-current={i === step ? 'step' : undefined}
-                  aria-label={`Step ${i + 1}, ${label}${complete ? ', done' : ''}`}
-                  className="group flex flex-col gap-2 text-left"
-                >
-                  <span className={cn('h-1.5 w-full rounded-full transition-colors',
-                    i === step ? 'bg-black' : complete ? 'bg-black/40' : 'bg-black/10')} />
-                  <span className={cn(
-                    'hidden sm:flex items-center gap-1 text-[10px] font-black uppercase tracking-[0.12em] transition-colors',
-                    i === step ? 'text-black' : complete ? 'text-black/50 group-hover:text-black' : 'text-black/25 group-hover:text-black/50',
-                  )}>
-                    <span className="truncate">{label}</span>
-                    {complete && <Check className="h-3 w-3 shrink-0" strokeWidth={3} />}
-                  </span>
-                </button>
-              );
-            })}
+                  aria-label={`Go to step ${i + 1}, ${label}${stepComplete(i) ? ', done' : ''}`}
+                  className="h-full w-full -my-3 py-3"
+                />
+              ))}
+            </div>
           </div>
         </div>
 
@@ -772,7 +766,7 @@ function SellInner() {
         )}
 
         {uploadProgress && (
-          <p className="mt-6 text-xs font-bold uppercase tracking-widest text-black/50">
+          <p className="mt-6 text-xs font-bold uppercase tracking-widest ink-mid">
             Optimising photo {uploadProgress.done + 1} of {uploadProgress.total}...
           </p>
         )}
@@ -796,7 +790,7 @@ function SellInner() {
                 {loading ? 'Sending' : 'Get my offer'}
               </button>
               {blockedReason && (
-                <p className="text-[11px] font-normal text-black/50">{blockedReason}</p>
+                <p className="text-[11px] font-normal ink-mid">{blockedReason}</p>
               )}
             </div>
           )}
@@ -804,12 +798,12 @@ function SellInner() {
 
         <div className="mt-8 flex flex-col items-center gap-3 text-center">
           {step === STEP_LABELS.length - 1 && (
-            <p className="text-xs font-normal leading-relaxed text-black/50 max-w-[46ch]">
+            <p className="text-xs font-normal leading-relaxed ink-mid max-w-[46ch]">
               Nothing is listed yet. We'll look at it and come back within 24 hours
               with either an offer or what needs changing first.
             </p>
           )}
-          <p className="hidden sm:block text-[10px] font-bold uppercase tracking-widest text-black/25">
+          <p className="hidden sm:block text-[10px] font-bold uppercase tracking-widest ink-low">
             Something not working?{' '}
             <Link to="/contact" className="underline hover:text-black">Tell us</Link>
             {' · '}
@@ -841,7 +835,7 @@ function SellInner() {
               {loading ? 'Sending' : 'Get my offer'}
             </button>
             {blockedReason && (
-              <p className="text-center text-[11px] font-normal text-black/50">{blockedReason}</p>
+              <p className="text-center text-[11px] font-normal ink-mid">{blockedReason}</p>
             )}
           </div>
         )}
@@ -855,7 +849,7 @@ function FieldLabel({ children, optional }: { children: React.ReactNode; optiona
     <label className="flex items-baseline gap-2 text-sm font-semibold tracking-tight text-black">
       {children}
       {optional && (
-        <span className="text-[11px] font-medium tracking-normal text-black/35">Optional</span>
+        <span className="text-[11px] font-medium tracking-normal ink-low">Optional</span>
       )}
     </label>
   );
@@ -868,7 +862,7 @@ function SectionHeading({ children, note }: { children: React.ReactNode; note?: 
   return (
     <div className="flex flex-col gap-1.5">
       <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tighter leading-none">{children}</h3>
-      {note && <p className="text-sm font-normal leading-relaxed text-black/50 max-w-[52ch]">{note}</p>}
+      {note && <p className="text-sm font-normal leading-relaxed ink-mid measure">{note}</p>}
     </div>
   );
 }
@@ -876,7 +870,7 @@ function SectionHeading({ children, note }: { children: React.ReactNode; note?: 
 // Short one-line trust cue - uppercase micro-label, matches the site's
 // system-voice register.
 function TrustNote({ children }: { children: React.ReactNode }) {
-  return <p className="text-[13px] font-normal leading-relaxed text-black/45">{children}</p>;
+  return <p className="text-[13px] font-normal leading-relaxed ink-mid measure">{children}</p>;
 }
 
 function PhotosStep({ imagePreviews, onAdd, onRemove, originals, cleaning, onUseOriginal }: {
@@ -897,10 +891,9 @@ function PhotosStep({ imagePreviews, onAdd, onRemove, originals, cleaning, onUse
           remover - six pieces of chrome to say "lay it flat in daylight". The
           rule that matters, that we never turn an item down over its photos,
           stays; the scaffolding does not, and we strip backgrounds ourselves. */}
-      <SectionHeading note="Daylight, flat, no mirror. The first photo is the cover.">
-        Photos
-      </SectionHeading>
-
+      {/* No heading. This step contains one thing, and the stepper directly
+          above already calls it Photos. Steps 2 and 3 hold several sections
+          each, so those keep their headings. */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         {slots.map((i) => {
           const slot = PHOTO_SLOTS[i];
@@ -934,15 +927,15 @@ function PhotosStep({ imagePreviews, onAdd, onRemove, originals, cleaning, onUse
           ) : (
             <label key={i} className="flex aspect-[3/4] w-full cursor-pointer flex-col items-center justify-center gap-2 bg-zinc-50 border border-dashed border-black/15 hover:border-black/40 transition-all group p-3 text-center">
               <div className="h-10 w-10 rounded-full border border-black/10 flex items-center justify-center group-hover:border-black/30 transition-all shrink-0">
-                <Plus className="h-4 w-4 text-black/30 group-hover:text-black" />
+                <Plus className="h-4 w-4 ink-low group-hover:text-black" />
               </div>
               <span className="text-[11px] font-black uppercase tracking-widest text-black">{label}</span>
               {slot?.hint && (
-                <span className="text-[9px] font-bold uppercase tracking-widest text-black/30">{slot.hint}</span>
+                <span className="text-[9px] font-bold uppercase tracking-widest ink-low">{slot.hint}</span>
               )}
               {required
-                ? <span className="text-[9px] font-bold uppercase tracking-widest text-black/50">Required</span>
-                : <span className="text-[9px] font-bold uppercase tracking-widest text-black/30">Optional</span>}
+                ? <span className="text-[9px] font-bold uppercase tracking-widest ink-mid">Required</span>
+                : <span className="text-[9px] font-bold uppercase tracking-widest ink-low">Optional</span>}
               <input type="file" accept="image/*" className="hidden" onChange={onAdd} multiple />
             </label>
           );
@@ -990,7 +983,7 @@ function DetailsStep(props: {
     <div className="flex flex-col gap-12">
       <div className="flex items-start gap-3 border-l-2 border-black pl-4">
         <AlertTriangle className="h-4 w-4 text-black mt-0.5 shrink-0" />
-        <p className="text-xs font-bold uppercase tracking-widest text-black/60 leading-relaxed">
+        <p className="text-xs font-bold uppercase tracking-widest ink-mid leading-relaxed">
           One item at a time. Five of the same thing means five of these.
         </p>
       </div>
@@ -1068,9 +1061,9 @@ function DetailsStep(props: {
                         placeholder="52"
                         className="w-full border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20"
                       />
-                      <span className="text-xs font-black uppercase tracking-widest text-black/40">cm</span>
+                      <span className="text-xs font-black uppercase tracking-widest ink-low">cm</span>
                     </div>
-                    <span className="text-[13px] font-normal leading-relaxed text-black/45">{m.how}</span>
+                    <span className="text-[13px] font-normal leading-relaxed ink-mid">{m.how}</span>
                   </div>
                 );
               })}
@@ -1114,9 +1107,9 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
                 condition === c.name ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
               <span className="flex items-baseline gap-2 text-xs font-black uppercase tracking-widest">
                 {c.name}
-                <span className={cn('text-[10px] tracking-[0.2em]', condition === c.name ? 'text-white/60' : 'text-black/40')}>{c.grade}</span>
+                <span className={cn('text-[10px] tracking-[0.2em]', condition === c.name ? 'ink-mid' : 'ink-low')}>{c.grade}</span>
               </span>
-              <span className={cn('text-[13px] font-normal normal-case tracking-normal leading-relaxed', condition === c.name ? 'text-white/85' : 'text-black/70')}>{c.desc}</span>
+              <span className={cn('text-[13px] font-normal normal-case tracking-normal leading-relaxed', condition === c.name ? '' : '')}>{c.desc}</span>
             </button>
           ))}
         </div>
@@ -1203,7 +1196,7 @@ function LastStep({
             courier to your door the next working day. You do not pay for postage and you do
             not go to a courier office.
           </p>
-          <p className="text-sm leading-relaxed text-black/60">
+          <p className="text-sm leading-relaxed ink-mid">
             All we need from you in between is that you still have it and we can reach you.
           </p>
         </div>

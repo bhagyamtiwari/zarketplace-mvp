@@ -120,7 +120,7 @@ function VendorOfferInner() {
   if (loading) {
     return (
       <Shell>
-        <div className="flex items-center gap-3 text-black/40">
+        <div className="flex items-center gap-3 ink-low">
           <Loader2 className="h-4 w-4 animate-spin" />
           <span className="text-[11px] font-black uppercase tracking-[0.3em]">Loading</span>
         </div>
@@ -204,7 +204,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 }
 
 function Notice({ children }: { children: React.ReactNode }) {
-  return <p className="body-copy text-black/70 max-w-prose">{children}</p>;
+  return <p className="body-copy max-w-prose">{children}</p>;
 }
 
 /**
@@ -230,12 +230,12 @@ function OfferScreen({
         <span className="text-[3.5rem] sm:text-[5.5rem] font-black tracking-tighter leading-[0.85]">
           {formatCurrency(amount)}
         </span>
-        <span className="text-[11px] font-black uppercase tracking-[0.3em] text-black/50">
+        <span className="text-[11px] font-black uppercase tracking-[0.3em] ink-mid">
           when {title} sells
         </span>
       </div>
 
-      <div className="flex flex-col gap-5 body-copy text-black/70 max-w-prose">
+      <div className="flex flex-col gap-5 body-copy max-w-prose">
         <p>
           This is the amount we pay you, in full. It is fixed now, before your item is
           listed, and it does not change afterwards for any reason.
@@ -250,7 +250,7 @@ function OfferScreen({
           and a courier comes to your door.
         </p>
         {expiresAt && (
-          <p className="text-black/40">
+          <p className="ink-low">
             This offer is open until {new Date(expiresAt).toLocaleDateString('en-IN', {
               day: 'numeric', month: 'long', year: 'numeric',
             })}.
@@ -267,7 +267,7 @@ function OfferScreen({
         </button>
         <button
           type="button" onClick={onDecline} disabled={submitting}
-          className="px-7 py-5 text-[11px] font-black uppercase tracking-widest text-black/40 transition-colors hover:text-black disabled:opacity-50"
+          className="px-7 py-5 text-[11px] font-black uppercase tracking-widest ink-low transition-colors hover:text-black disabled:opacity-50"
         >
           No thanks
         </button>
@@ -301,7 +301,7 @@ function AgreementScreen({
         <h1 className="text-3xl sm:text-4xl font-black tracking-tighter uppercase leading-[0.95]">
           Three things to agree to
         </h1>
-        <p className="body-copy text-black/70 max-w-prose mt-2">
+        <p className="body-copy max-w-prose mt-2">
           You are accepting {formatCurrency(amount)} for this item. Please read each of these
           and tick it. We keep a record of what you agreed to and when.
         </p>
@@ -327,7 +327,7 @@ function AgreementScreen({
                   {on && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
                 </span>
                 <span className="flex flex-col gap-2 min-w-0">
-                  <span className="text-[9px] font-black uppercase tracking-[0.4em] text-black/30">
+                  <span className="text-[9px] font-black uppercase tracking-[0.4em] ink-low">
                     0{i + 1}
                   </span>
                   <span className="body-copy text-black">{clause.text}</span>
@@ -347,7 +347,7 @@ function AgreementScreen({
           <span className="text-sm font-semibold tracking-tight text-black">
             Where should the courier collect it?
           </span>
-          <p className="text-xs font-medium leading-relaxed text-black/50">
+          <p className="text-xs font-medium leading-relaxed ink-mid">
             We only use this when the item sells.
           </p>
         </div>
@@ -406,14 +406,14 @@ function AgreementScreen({
         </button>
         <button
           type="button" onClick={onBack} disabled={submitting}
-          className="px-7 py-5 text-[11px] font-black uppercase tracking-widest text-black/40 transition-colors hover:text-black disabled:opacity-50"
+          className="px-7 py-5 text-[11px] font-black uppercase tracking-widest ink-low transition-colors hover:text-black disabled:opacity-50"
         >
           Back
         </button>
       </div>
 
       {(!allChecked || !addressReady) && (
-        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-black/30 -mt-8">
+        <p className="text-[10px] font-black uppercase tracking-[0.3em] ink-low -mt-8">
           {!allChecked ? 'Tick all three to continue' : 'Add the collection address'}
         </p>
       )}
@@ -431,7 +431,7 @@ function Accepted({ amount }: { amount: number | null }) {
         <h1 className="text-3xl sm:text-4xl font-black tracking-tighter uppercase leading-[0.95]">
           Agreed. It goes live shortly.
         </h1>
-        <p className="body-copy text-black/70 max-w-prose">
+        <p className="body-copy max-w-prose">
           {amount != null && <>Your {formatCurrency(amount)} is locked in and does not change. </>}
           Nothing to do now: keep the item safe and leave it with you. The moment somebody
           buys it we will message you with a prepaid label and a pickup date.
@@ -465,7 +465,7 @@ function Waiting({ title, round }: { title: string; round: number }) {
           We will come back within 24 hours
         </h1>
       </div>
-      <p className="body-copy text-black/70 max-w-prose">
+      <p className="body-copy max-w-prose">
         Someone is looking at {title} now. You will hear either an offer, or what would
         need to change before we can make one. Nothing is listed until you have seen a
         number and agreed to it.
@@ -518,7 +518,7 @@ function Verdict({ status, reasons, note, listingId, canSendBack, submitting, on
             <ul className="flex flex-col gap-2.5">
               {reasons.map((r) => (
                 <li key={r} className="body-copy text-black flex gap-3">
-                  <span aria-hidden className="text-black/25">&mdash;</span>
+                  <span aria-hidden className="ink-low">&mdash;</span>
                   <span>{r}</span>
                 </li>
               ))}
@@ -528,7 +528,7 @@ function Verdict({ status, reasons, note, listingId, canSendBack, submitting, on
         </div>
       )}
 
-      <p className="body-copy text-black/70 max-w-prose">{copy.body}</p>
+      <p className="body-copy max-w-prose">{copy.body}</p>
 
       {canSendBack && (
         <ImprovePanel listingId={listingId} submitting={submitting} onResubmit={onResubmit} />
@@ -617,7 +617,7 @@ function ImprovePanel({ listingId, submitting, onResubmit }: {
         </button>
         <button
           type="button" onClick={onResubmit} disabled={submitting}
-          className="px-7 py-5 text-[11px] font-black uppercase tracking-widest text-black/40 transition-colors hover:text-black disabled:opacity-50"
+          className="px-7 py-5 text-[11px] font-black uppercase tracking-widest ink-low transition-colors hover:text-black disabled:opacity-50"
         >
           {submitting ? 'Sending...' : 'Send back as is'}
         </button>
@@ -630,7 +630,7 @@ function ImprovePanel({ listingId, submitting, onResubmit }: {
   return (
     <div className="flex flex-col gap-10 border-t border-black/10 pt-12">
       <div className="flex flex-col gap-3">
-        <label className="text-[9px] font-black uppercase tracking-[0.4em] text-black/40">
+        <label className="text-[9px] font-black uppercase tracking-[0.4em] ink-low">
           Add photos
         </label>
         <input
@@ -638,7 +638,7 @@ function ImprovePanel({ listingId, submitting, onResubmit }: {
           onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
           className="text-xs font-bold file:mr-4 file:border file:border-black file:bg-white file:px-5 file:py-3 file:text-[10px] file:font-black file:uppercase file:tracking-widest hover:file:bg-black hover:file:text-white file:transition-colors"
         />
-        <p className="text-[10px] font-bold uppercase tracking-widest text-black/30 leading-[1.9]">
+        <p className="text-[10px] font-bold uppercase tracking-widest ink-low leading-[1.9]">
           {files.length > 0
             ? `${files.length} ${files.length === 1 ? 'photo' : 'photos'} will be added`
             : 'These are added to your existing photos, not swapped for them.'}
@@ -646,7 +646,7 @@ function ImprovePanel({ listingId, submitting, onResubmit }: {
       </div>
 
       <div className="flex flex-col gap-3">
-        <label className="text-[9px] font-black uppercase tracking-[0.4em] text-black/40">
+        <label className="text-[9px] font-black uppercase tracking-[0.4em] ink-low">
           Description
         </label>
         <textarea
@@ -672,7 +672,7 @@ function ImprovePanel({ listingId, submitting, onResubmit }: {
         </button>
         <button
           type="button" onClick={() => setOpen(false)} disabled={busy}
-          className="px-7 py-5 text-[11px] font-black uppercase tracking-widest text-black/40 transition-colors hover:text-black disabled:opacity-50"
+          className="px-7 py-5 text-[11px] font-black uppercase tracking-widest ink-low transition-colors hover:text-black disabled:opacity-50"
         >
           Cancel
         </button>

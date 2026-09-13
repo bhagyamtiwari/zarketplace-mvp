@@ -134,7 +134,7 @@ export function ShareInstagramModal({ open, onClose, listing }: Props) {
           <div className="p-6 sm:p-8 flex flex-col gap-6">
             <div className="flex flex-col gap-1">
               <h2 className="text-2xl font-black tracking-tighter uppercase">Generate post image</h2>
-              <p className="text-[11px] font-bold uppercase tracking-widest text-black/40 leading-relaxed max-w-xl">
+              <p className="text-[11px] font-bold uppercase tracking-widest ink-low leading-relaxed max-w-xl">
                 Download a branded post or story image of your listing in one click.
               </p>
             </div>
@@ -155,7 +155,7 @@ export function ShareInstagramModal({ open, onClose, listing }: Props) {
             {/* Image picker (only if multiple photos) */}
             {allImages.length > 1 && (
               <div className="flex flex-col gap-3">
-                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-black/60">
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] ink-mid">
                   Hero photo  ({imageIdx + 1}/{allImages.length})
                 </span>
                 <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
@@ -215,7 +215,7 @@ export function ShareInstagramModal({ open, onClose, listing }: Props) {
               )}
             </div>
 
-            <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 leading-relaxed">
+            <p className="text-[10px] font-bold uppercase tracking-widest ink-low leading-relaxed">
               Caption tip: <span className="text-black">Just listed on @zarketplace - link in bio. Scan the QR to shop direct.</span>
             </p>
           </div>
