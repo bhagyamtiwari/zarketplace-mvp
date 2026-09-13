@@ -21,12 +21,18 @@ Vendor  ->  zarketplace  ->  Buyer
 
 Two separate transactions. Never one facilitated sale.
 
-A vendor sets an asking price. We come back with a locked acquisition offer in
-rupees, which they accept before the listing goes live. That number is fixed
-before any resale price exists, and it never changes. The buyer pays
-zarketplace in full. We collect the item on our own prepaid label, check it at
-our hub, accept it into inventory, pay the vendor their locked price, repack it
-and ship it to the buyer from our own address.
+**A vendor never sets a price.** They send us the item and we come back with a
+locked acquisition offer in rupees, which they accept or decline. That number is
+fixed before any resale price exists, and it never changes.
+
+A vendor naming a price is the single behaviour that makes us look like an agent
+rather than a principal, so "asking price" is banned outright: not on the form,
+not in copy, not in a variable name. See MODEL.md §2, hard rule 1.
+
+The item stays with the vendor while it is listed. The buyer pays zarketplace in
+full; we then send a prepaid label, collect from the vendor's door, check the
+item at our hub, accept it into inventory, pay the vendor their locked price,
+repack it and ship it to the buyer from our own address.
 
 ---
 
@@ -46,6 +52,8 @@ documents.
 | "your buyer" | "your item" |
 | "connect buyers and sellers" | "zarketplace buys and resells" |
 | seller (in new code) | vendor |
+| asking price, "what you want for it" | the offer, the acquisition price |
+| "name your price", "set your price" | "we make you an offer" |
 
 **Vendor economics are expressed only as rupee amounts.** Never as a
 percentage, not even internally in code a user could see.

@@ -58,6 +58,9 @@ const ALL_SIZES = ['XXS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '28', '30', '
 
 // Discovery chips. These are shortcuts into the same filter surface, not
 // marketing sections - each one is a query anyone could have built by hand.
+// Remembered per browser, so dismissing the floating CTA sticks.
+const OFFER_CTA_KEY = 'zk.offerCta.hidden';
+
 const QUICK_CHIPS: Array<{ value: string; label: string; tag?: string }> = [
   // MODEL.md §3. Stock we own and photographed ourselves, on our shelf, so it
   // goes out the day it is bought rather than waiting on anyone.
@@ -112,6 +115,9 @@ export function Marketplace() {
   const sizeType = searchParams.get('size_type');
   const condition = searchParams.get('condition');
   const quick = searchParams.get('q');
+  const [offerCtaHidden, setOfferCtaHidden] = React.useState(() => {
+    try { return localStorage.getItem(OFFER_CTA_KEY) === '1'; } catch { return false; }
+  });
   const searchQuery = searchParams.get('search') ?? '';
   // Relevance, not recency. Newest-first made the homepage a function of
   // upload order, so the last thing listed led - which put a Rs 50 jersey
@@ -562,14 +568,34 @@ export function Marketplace() {
       />
 
       {/* Getting an offer is one tap from anywhere in the feed, without ever
-          occupying space the inventory could have used. */}
-      <Link
-        to="/sell"
-        aria-label="Get an offer for your item"
-        className="lg:hidden fixed bottom-6 right-5 z-40 flex h-14 items-center gap-2 rounded-full bg-black pl-4 pr-5 text-[11px] font-black uppercase tracking-[0.2em] text-white shadow-[0_8px_30px_rgba(0,0,0,0.35)] active:scale-95 transition-transform"
-      >
-        <Plus className="h-5 w-5" /> Offer
-      </Link>
+          occupying space the inventory could have used.
+          
+          Dismissable, and it stays dismissed. Someone browsing to buy is not
+          selling today, and a button that sits over the feed forever with no
+          way to close it is the kind of thing you stop seeing and start
+          resenting. The choice is remembered per browser. */}
+      {!offerCtaHidden && (
+        <div className="lg:hidden fixed bottom-6 right-5 z-40 flex items-center gap-2">
+          <Link
+            to="/sell"
+            aria-label="Get an offer for your item"
+            className="flex h-14 items-center gap-2 rounded-full bg-black pl-4 pr-5 text-[11px] font-black uppercase tracking-[0.2em] text-white shadow-[0_8px_30px_rgba(0,0,0,0.35)] active:scale-95 transition-transform"
+          >
+            <Plus className="h-5 w-5" /> Offer
+          </Link>
+          <button
+            type="button"
+            aria-label="Hide the offer button"
+            onClick={() => {
+              setOfferCtaHidden(true);
+              try { localStorage.setItem(OFFER_CTA_KEY, '1'); } catch { /* private mode */ }
+            }}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/80 text-white shadow-[0_8px_30px_rgba(0,0,0,0.35)] active:scale-95 transition-transform"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

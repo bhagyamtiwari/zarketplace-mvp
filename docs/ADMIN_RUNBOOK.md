@@ -122,7 +122,7 @@ Mark Paid only records that you sent it. It does not move money. Never click it 
 The seller is emailed the exact amount.
 
 **If the seller offered free shipping**
-Their payout is the asking price minus the real shipping cost. The console and their email both show this breakdown. This is intended: they chose to cover shipping.
+Their payout is the locked acquisition amount. It is not reduced by shipping, and no breakdown is shown to a vendor: we carry both freight legs, and MODEL.md forbids showing them any component of the spread.
 
 **If a payout looks wrong**
 Payout amount is set at delivery from the order's amount, minus shipping only when the seller offered free shipping. zarketplace takes no fee. If it still looks wrong, do not pay; check the order drawer's Payment and Payout sections first.

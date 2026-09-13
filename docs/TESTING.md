@@ -101,7 +101,7 @@ missing signal. It looks like a working feature that does nothing.
 
 | File | What it asserts | Needs |
 |---|---|---|
-| `tests/isolation.test.ts` | No live endpoint serves vendor identity, location, asking price, spread, or buyer identity | `TEST_VENDOR_EMAIL`, `TEST_VENDOR_PASSWORD` for the vendor role |
+| `tests/isolation.test.ts` | No live endpoint serves vendor identity, location, the expected resale, the spread, or buyer identity | `TEST_VENDOR_EMAIL`, `TEST_VENDOR_PASSWORD` for the vendor role |
 | `tests/contrast.test.mjs` | Nothing user-facing renders below WCAG AA, at 375 and 1440 | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` at build time |
 | `tests/intra-state.test.ts` | Pincode to GST state resolution | - |
 | `supabase/functions/dispatch-vendor-emails/templates.test.ts` | No vendor email leaks the resale price or the spread, on a poisoned payload | - |

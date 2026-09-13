@@ -46,7 +46,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
     if (redirectTo) navigate(redirectTo);
   }, [onClose, onSuccess, redirectTo, navigate]);
 
-  const [mode, setMode] = React.useState<Mode>('signin');
+  const [mode, setMode] = React.useState<Mode>('signup');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [confirmPassword, setConfirmPassword] = React.useState('');
@@ -70,7 +70,10 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
       setError(null);
       setNotice(null);
       setLoading(false);
-      setMode('signin');
+      // Reopens on Create account, which is what most people arriving here
+      // actually need. Switching to Sign in after a successful signup is
+      // handled separately and deliberately.
+      setMode('signup');
     }
   }, [open]);
 
@@ -174,21 +177,21 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                 <div className="grid grid-cols-2 gap-0 border border-black/10">
                   <button
                     type="button"
-                    onClick={() => switchMode('signin')}
-                    className={`py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${
-                      mode === 'signin' ? 'bg-black text-white' : 'bg-white text-black/60 hover:text-black'
-                    }`}
-                  >
-                    Sign In
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => switchMode('signup')}
                     className={`py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${
                       mode === 'signup' ? 'bg-black text-white' : 'bg-white text-black/60 hover:text-black'
                     }`}
                   >
                     Create Account
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => switchMode('signin')}
+                    className={`py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${
+                      mode === 'signin' ? 'bg-black text-white' : 'bg-white text-black/60 hover:text-black'
+                    }`}
+                  >
+                    Sign In
                   </button>
                 </div>
               )}

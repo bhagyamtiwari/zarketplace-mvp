@@ -98,7 +98,7 @@ On the phone, signed in as the non-admin account, at `/sell`.
 - [ ] Photo guidance shows before the camera: lay flat, natural light, no
       mirror shots
 - [ ] Upload 2–3 real photos. They upload unchanged (background removal off)
-- [ ] Fill in details, set an asking price
+- [ ] Fill in details, including measurements in cm for a top or outerwear
 - [ ] Submit
 
 **Expect:** "We will come back within 24 hours". No listing is live.

@@ -1371,7 +1371,11 @@ function AcquisitionPanel({ listingId, listingTitle, vendorEmail, askingPriceFal
 
   return (
     <Sec title="Acquisition">
-      <Row k="Vendor asked" v={formatCurrency(Number(acq.asking_price ?? askingPriceFallback ?? 0))} />
+      {/* Only on rows from when the form still asked. A vendor names no price
+          now, so on anything recent this is absent rather than Rs. 0. */}
+      {(acq.asking_price ?? askingPriceFallback) != null && (
+        <Row k="Vendor asked (legacy)" v={formatCurrency(Number(acq.asking_price ?? askingPriceFallback))} />
+      )}
       <Row k="Status" v={acq.offer_status} />
       {acq.offer_round > 1 && <Row k="Round" v={String(acq.offer_round)} />}
       {acq.intake_status && <Row k="Intake" v={acq.intake_status} />}
