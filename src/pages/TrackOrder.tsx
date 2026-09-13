@@ -58,7 +58,7 @@ function TrackInner() {
     <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-28 pb-14 sm:pb-20">
       <div className="flex flex-col gap-4 mb-12">
         <h1 className="text-5xl font-black tracking-tighter uppercase">My Orders</h1>
-        <p className="text-xs font-bold uppercase tracking-widest text-black/40 max-w-xl leading-relaxed">
+        <p className="text-xs font-bold uppercase tracking-widest ink-low max-w-xl leading-relaxed">
           Items you've bought. Track payment and shipping.
           <br />
           For items you've sold us, open your vendor portal.
@@ -66,7 +66,7 @@ function TrackInner() {
       </div>
 
       {loading ? (
-        <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-black/20" /></div>
+        <div className="flex h-64 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin ink-low" /></div>
       ) : err ? (
         <div className="border border-red-200 bg-red-50 p-6 text-xs font-bold uppercase tracking-widest text-red-700">{err}</div>
       ) : orders.length === 0 ? (
@@ -98,9 +98,9 @@ function OrderCard({ order }: { order: Order }) {
           </div>
         )}
         <div className="flex flex-col gap-1 flex-1 min-w-0">
-          <span className="text-[9px] font-black uppercase tracking-widest text-black/50">#{order.order_number}</span>
+          <span className="text-[9px] font-black uppercase tracking-widest ink-mid">#{order.order_number}</span>
           <h2 className="text-base font-black uppercase tracking-tight truncate">{order.listing_title}</h2>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-black/40">
+          <span className="text-[10px] font-bold uppercase tracking-widest ink-low">
             {new Date(order.created_at).toLocaleDateString()} · {formatCurrency(Number(order.total_amount))}
           </span>
         </div>
@@ -108,7 +108,7 @@ function OrderCard({ order }: { order: Order }) {
           <StatusBadge status={order.status} audience="buyer" />
           {/* Live courier sub-state once shipped, if Shiprocket has synced one. */}
           {order.status === 'shipped' && shipmentStatusLabel(order.shipment_status) && (
-            <span className="text-[9px] font-black uppercase tracking-widest text-black/40 whitespace-nowrap">
+            <span className="text-[9px] font-black uppercase tracking-widest ink-low whitespace-nowrap">
               {shipmentStatusLabel(order.shipment_status)}
             </span>
           )}
@@ -137,7 +137,7 @@ function Tracking({ order }: { order: Order }) {
 
   return (
     <div className="border-t border-black/5 pt-4 flex flex-col gap-2">
-      <span className="text-[10px] font-black uppercase tracking-widest text-black/40">Tracking</span>
+      <span className="text-[10px] font-black uppercase tracking-widest ink-low">Tracking</span>
       {order.tracking_url ? (
         <div className="flex flex-col gap-2">
           <a href={order.tracking_url} target="_blank" rel="noreferrer"
@@ -145,7 +145,7 @@ function Tracking({ order }: { order: Order }) {
             <ExternalLink className="h-3 w-3" /> Track package
           </a>
           {(order.courier || order.tracking_number) && (
-            <span className="text-[10px] font-bold uppercase tracking-widest text-black/60">
+            <span className="text-[10px] font-bold uppercase tracking-widest ink-mid">
               {order.courier ?? ''} {order.tracking_number ? `· ${order.tracking_number}` : ''}
             </span>
           )}
@@ -153,13 +153,13 @@ function Tracking({ order }: { order: Order }) {
         </div>
       ) : order.status === 'paid' ? (
         <div className="bg-zinc-50 border border-black/5 p-4">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 leading-relaxed">
+          <p className="text-[10px] font-bold uppercase tracking-widest ink-low leading-relaxed">
             No tracking yet. We're getting your item ready to send. You'll get an email the moment it's on its way.
           </p>
         </div>
       ) : (
         <div className="bg-zinc-50 border border-black/5 p-4">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-black/40 leading-relaxed">
+          <p className="text-[10px] font-bold uppercase tracking-widest ink-low leading-relaxed">
             No tracking yet. We're still confirming your payment. Once it clears, the item is packed for pickup and tracking is added. We'll email you the moment it is.
           </p>
         </div>

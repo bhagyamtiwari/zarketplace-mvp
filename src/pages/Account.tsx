@@ -92,20 +92,20 @@ function AccountInner() {
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-[9px] font-black uppercase tracking-widest text-black/40">Email</label>
-          <div className="border-b border-black/10 py-3 text-sm font-bold text-black/50">
+          <label className="text-[9px] font-black uppercase tracking-widest ink-low">Email</label>
+          <div className="border-b border-black/10 py-3 text-sm font-bold ink-mid">
             {user?.email}
           </div>
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-[9px] font-black uppercase tracking-widest text-black/40">Phone</label>
-          <div className="border-b border-black/10 py-3 text-sm font-bold text-black/50">
+          <label className="text-[9px] font-black uppercase tracking-widest ink-low">Phone</label>
+          <div className="border-b border-black/10 py-3 text-sm font-bold ink-mid">
             {profile?.phone || 'Not on file'}
           </div>
         </div>
 
-        <p className="text-[13px] font-normal leading-relaxed text-black/45 -mt-2">
+        <p className="text-[13px] font-normal leading-relaxed ink-mid -mt-2">
           Your email and phone are how we reach you about an order, and the number
           a courier already has. To change either, write to us and we will do it.
         </p>
@@ -123,7 +123,7 @@ function AccountInner() {
             className="border-b border-black/10 py-3 text-sm font-bold focus:border-black focus:outline-none transition-all tracking-wider disabled:text-black/50"
           />
           {upiLocked && (
-            <p className="text-[9px] font-bold uppercase tracking-widest text-black/40">Locked since your first sale. Contact support to change it.</p>
+            <p className="text-[9px] font-bold uppercase tracking-widest ink-low">Locked since your first sale. Contact support to change it.</p>
           )}
           {upiVpa && !upiValid && (
             <p className="text-[9px] font-bold uppercase tracking-widest text-red-600">Enter a valid VPA like name@upi.</p>

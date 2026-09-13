@@ -75,14 +75,14 @@ export function PhoneCapturePrompt() {
           type="button"
           onClick={close}
           aria-label="Not now"
-          className="absolute right-2 top-2 flex h-11 w-11 items-center justify-center text-black/40 hover:text-black"
+          className="absolute right-2 top-2 flex h-11 w-11 items-center justify-center ink-low hover:text-black"
         >
           <X className="h-4 w-4" />
         </button>
 
         <div className="flex flex-col gap-1.5 pr-8">
           <h2 className="text-sm font-black uppercase tracking-[0.2em]">Add your number</h2>
-          <p className="text-[10px] font-bold uppercase tracking-widest leading-[1.9] text-black/60">
+          <p className="text-[10px] font-bold uppercase tracking-widest leading-[1.9] ink-mid">
             Your account has no phone number on file. We need one for delivery
             updates and order problems, and it will be how you sign in once we
             move to one-time passcodes. We do not send marketing texts.
@@ -90,7 +90,7 @@ export function PhoneCapturePrompt() {
         </div>
 
         <div className="flex items-center border-b border-black/10 focus-within:border-black transition-colors">
-          <Phone className="mr-3 h-4 w-4 text-black/30" />
+          <Phone className="mr-3 h-4 w-4 ink-low" />
           <input
             type="tel"
             value={dialCode}
@@ -135,7 +135,7 @@ export function PhoneCapturePrompt() {
           <button
             type="button"
             onClick={close}
-            className="border border-black/15 px-5 py-4 text-[10px] font-black uppercase tracking-[0.25em] text-black/50 hover:border-black hover:text-black"
+            className="border border-black/15 px-5 py-4 text-[10px] font-black uppercase tracking-[0.25em] ink-mid hover:border-black hover:text-black"
           >
             Not now
           </button>

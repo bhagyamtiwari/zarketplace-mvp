@@ -280,14 +280,14 @@ function Console() {
       <aside className="w-60 shrink-0 border-r border-black/10 h-[calc(100vh-4rem)] sticky top-16 overflow-y-auto py-6 px-3 hidden md:block">
         <div className="px-3 pb-4 mb-2 border-b border-black/5">
           <p className="text-[11px] font-black uppercase tracking-widest">Ops Console</p>
-          <p className="text-[10px] text-black/40 truncate">{user?.email}</p>
+          <p className="text-[10px] ink-low truncate">{user?.email}</p>
         </div>
         <nav className="flex flex-col gap-4">
           {NAV.map((section) => (
             <div key={section.key}>
               <div className="flex items-center gap-2 px-3 mb-1">
-                <section.icon className="h-3 w-3 text-black/30" />
-                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-black/40">{section.label}</span>
+                <section.icon className="h-3 w-3 ink-low" />
+                <span className="text-[9px] font-black uppercase tracking-[0.2em] ink-low">{section.label}</span>
               </div>
               <div className="flex flex-col">
                 {section.leaves.filter((l) => l.kind !== 'overview' || section.key === 'overview').map((l) => {
@@ -296,9 +296,9 @@ function Console() {
                   return (
                     <button key={l.key} onClick={() => setActiveKey(l.key)}
                       className={cn('flex items-center justify-between pl-7 pr-3 py-1.5 text-left text-[11px] font-bold tracking-tight rounded transition-colors',
-                        active ? 'bg-black text-white' : 'text-black/60 hover:bg-black/[0.04] hover:text-black')}>
+                        active ? 'bg-black text-white' : 'ink-mid hover:bg-black/[0.04] hover:text-black')}>
                       <span>{l.label}</span>
-                      {count > 0 && <span className={cn('text-[9px] font-black tabular-nums', active ? 'text-white/70' : 'text-black/40')}>{count}</span>}
+                      {count > 0 && <span className={cn('text-[9px] font-black tabular-nums', active ? '' : 'ink-low')}>{count}</span>}
                     </button>
                   );
                 })}
@@ -315,7 +315,7 @@ function Console() {
             onOpenOrder={(id) => setDrawer({ type: 'order', id })}
             onOpenListing={(id) => setDrawer({ type: 'listing', id })} />
           <button onClick={() => void loadAll()} title="Refresh"
-            className="text-[10px] font-black uppercase tracking-widest text-black/40 hover:text-black">
+            className="text-[10px] font-black uppercase tracking-widest ink-low hover:text-black">
             {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Refresh'}
           </button>
         </div>
@@ -323,7 +323,7 @@ function Console() {
         <div className="p-6">
           <h1 className="text-2xl font-black tracking-tighter uppercase mb-6">{leaf.label}</h1>
           {loading ? (
-            <div className="flex h-64 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-black/20" /></div>
+            <div className="flex h-64 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin ink-low" /></div>
           ) : (
             <LeafView
               leaf={leaf} orders={orders} listings={listings} acqByListing={acqByListing} payouts={payouts} users={users}
@@ -379,7 +379,7 @@ function GlobalSearch({ orders, listings, users, onOpenOrder, onOpenListing }: {
 
   return (
     <div className="relative flex-1 max-w-xl">
-      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-black/30" />
+      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 ink-low" />
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search order #, email, phone, tracking, AWB, listing id…"
         className="w-full pl-9 pr-3 py-2 text-xs border border-black/10 rounded focus:outline-none focus:border-black" />
       {results.length > 0 && (
@@ -390,9 +390,9 @@ function GlobalSearch({ orders, listings, users, onOpenOrder, onOpenListing }: {
               className="flex items-center justify-between w-full px-3 py-2 text-left hover:bg-black/[0.04] border-b border-black/5 last:border-0">
               <div className="min-w-0">
                 <p className="text-xs font-bold truncate">{r.label}</p>
-                <p className="text-[10px] text-black/40 truncate">{r.sub}</p>
+                <p className="text-[10px] ink-low truncate">{r.sub}</p>
               </div>
-              <span className="text-[9px] font-black uppercase tracking-widest text-black/30">{r.type}</span>
+              <span className="text-[9px] font-black uppercase tracking-widest ink-low">{r.type}</span>
             </button>
           ))}
         </div>
@@ -424,11 +424,11 @@ function LeafView({ leaf, orders, listings, acqByListing, payouts, users, vendor
 }
 
 function Empty({ label }: { label: string }) {
-  return <p className="text-[11px] font-bold uppercase tracking-widest text-black/30 py-6">{label}</p>;
+  return <p className="text-[11px] font-bold uppercase tracking-widest ink-low py-6">{label}</p>;
 }
 
 function Th({ children, right }: { children: React.ReactNode; right?: boolean }) {
-  return <th className={cn('py-3 px-3 text-[10px] font-black uppercase tracking-widest text-black/40', right && 'text-right')}>{children}</th>;
+  return <th className={cn('py-3 px-3 text-[10px] font-black uppercase tracking-widest ink-low', right && 'text-right')}>{children}</th>;
 }
 
 function OverviewView({ orders, listings, acqByListing, payouts, refundsOverdue }: {
@@ -437,7 +437,7 @@ function OverviewView({ orders, listings, acqByListing, payouts, refundsOverdue 
 }) {
   const stat = (label: string, value: number | string) => (
     <div className="border border-black/10 px-4 py-3">
-      <p className="text-[10px] font-black uppercase tracking-widest text-black/40">{label}</p>
+      <p className="text-[10px] font-black uppercase tracking-widest ink-low">{label}</p>
       <p className="text-xl font-black tabular-nums mt-1">{value}</p>
     </div>
   );
@@ -482,7 +482,7 @@ function OverviewView({ orders, listings, acqByListing, payouts, refundsOverdue 
         </div>
       )}
       <div>
-        <p className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-2">Needs attention</p>
+        <p className="text-[10px] font-black uppercase tracking-widest ink-low mb-2">Needs attention</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {stat('Pending listings', pendingListings)}
           {stat('Overdue triage', triageOverdue)}
@@ -514,9 +514,9 @@ function OrdersView({ rows, onOpen }: { rows: Order[]; onOpen: (id: string) => v
               <td className="py-3 px-3 text-[11px]">{o.buyer_email}</td>
               <td className="py-3 px-3 text-[11px]">{o.seller_email}</td>
               <td className="py-3 px-3 text-xs font-black text-right tabular-nums">{formatCurrency(Number(o.total_amount))}</td>
-              <td className="py-3 px-3 text-[10px] text-black/50 whitespace-nowrap">{new Date(o.created_at).toLocaleDateString()}</td>
+              <td className="py-3 px-3 text-[10px] ink-mid whitespace-nowrap">{new Date(o.created_at).toLocaleDateString()}</td>
               <td className="py-3 px-3"><StatusBadge status={o.status} audience="admin" />{o.claim_open && <span className="ml-1 text-[9px] font-black uppercase text-red-600">Claim</span>}</td>
-              <td className="py-3 px-3 text-right"><ChevronRight className="h-4 w-4 text-black/30 inline" /></td>
+              <td className="py-3 px-3 text-right"><ChevronRight className="h-4 w-4 ink-low inline" /></td>
             </tr>
           ))}
         </tbody>
@@ -539,11 +539,11 @@ function StateBadge({ listing, acq }: { listing: Listing; acq?: AcqRow }) {
   const [label, tone] =
     listing.is_sold ? ['Sold', 'text-red-600']
     : listing.status === 'approved' ? ['Live', 'text-emerald-700']
-    : listing.status === 'archived' || listing.status === 'suspended' ? [listing.status, 'text-black/40']
+    : listing.status === 'archived' || listing.status === 'suspended' ? [listing.status, 'ink-low']
     : acq?.offer_status === 'accepted' ? ['Accepted, not live', 'text-emerald-700']
     : acq?.offer_status === 'offered' ? ['Offer with vendor', 'text-amber-700']
-    : acq?.offer_status === 'declined' ? ['Declined', 'text-black/50']
-    : acq?.offer_status === 'expired' ? ['Offer expired', 'text-black/50']
+    : acq?.offer_status === 'declined' ? ['Declined', 'ink-mid']
+    : acq?.offer_status === 'expired' ? ['Offer expired', 'ink-mid']
     : ['Needs an offer', 'text-black'];
   return <span className={cn('text-[9px] font-black uppercase tracking-widest', tone)}>{label}</span>;
 }
@@ -552,14 +552,14 @@ function WaitingCell({ listing, acq }: { listing: Listing; acq?: AcqRow }) {
   // Only counts while the answer is ours to give. An item sitting with the
   // vendor used to accrue hours here against a promise we had already kept.
   if (listing.status !== 'pending' || turnFor(acq?.offer_status) !== 'ours') {
-    return <span className="text-[10px] text-black/25">—</span>;
+    return <span className="text-[10px] ink-low">—</span>;
   }
   const hours = Math.floor((Date.now() - new Date(acq?.updated_at ?? listing.created_at).getTime()) / 36e5);
   const overdue = hours >= 24;
   return (
     <span className={cn(
       'text-[10px] font-black uppercase tracking-widest tabular-nums',
-      overdue ? 'text-red-600' : 'text-black/50',
+      overdue ? 'text-red-600' : 'ink-mid',
     )}>
       {hours < 1 ? '<1h' : `${hours}h`}{overdue && ' · overdue'}
     </span>
@@ -587,7 +587,7 @@ function ListingsView({ rows, acqByListing, orders, onOpen }: { rows: Listing[];
                       <img src={variantUrl(l.image_url, 'thumb')} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                     </div>
                     <div className="min-w-0"><p className="text-xs font-bold truncate max-w-[200px]">{l.title}</p>
-                      <p className="text-[10px] text-black/40 uppercase tracking-widest">{l.brand}{l.free_shipping && <span className="ml-2 text-black/60">Free shipping</span>}</p></div>
+                      <p className="text-[10px] ink-low uppercase tracking-widest">{l.brand}{l.free_shipping && <span className="ml-2 ink-mid">Free shipping</span>}</p></div>
                   </div>
                 </td>
                 <td className="py-3 px-3 text-[11px]">{l.seller_email}</td>
@@ -596,8 +596,8 @@ function ListingsView({ rows, acqByListing, orders, onOpen }: { rows: Listing[];
                   <StateBadge listing={l} acq={acqByListing.get(l.id)} />
                 </td>
                 <td className="py-3 px-3"><WaitingCell listing={l} acq={acqByListing.get(l.id)} /></td>
-                <td className="py-3 px-3 text-[10px] font-bold uppercase tracking-widest text-black/50">{ord ? ord.order_number : '—'}</td>
-                <td className="py-3 px-3 text-right"><ChevronRight className="h-4 w-4 text-black/30 inline" /></td>
+                <td className="py-3 px-3 text-[10px] font-bold uppercase tracking-widest ink-mid">{ord ? ord.order_number : '—'}</td>
+                <td className="py-3 px-3 text-right"><ChevronRight className="h-4 w-4 ink-low inline" /></td>
               </tr>
             );
           })}
@@ -646,7 +646,7 @@ function PayoutsView({ rows, listings, vendorUpi }: {
               </td>
               <td className="py-3 px-3 text-[11px] font-mono">{vendorUpi.get(p.vendor_id) ?? '—'}</td>
               <td className="py-3 px-3 text-xs font-black text-right tabular-nums">{formatCurrency(Number(p.amount))}</td>
-              <td className="py-3 px-3 text-[10px] text-black/50">{new Date(p.due_at).toLocaleDateString()}</td>
+              <td className="py-3 px-3 text-[10px] ink-mid">{new Date(p.due_at).toLocaleDateString()}</td>
               <td className="py-3 px-3 text-[10px] font-black uppercase tracking-widest">
                 {p.status === 'sent' ? 'Sent' : p.status === 'failed' ? 'Failed' : 'Due'}
               </td>
@@ -694,14 +694,14 @@ function UsersView({ rows }: { rows: AdminUser[] }) {
               <td className="py-3 px-3 text-[11px] font-bold">{u.email}{u.is_admin && <span className="ml-2 text-[8px] font-black uppercase bg-black text-white px-1 py-0.5">Admin</span>}</td>
               <td className="py-3 px-3 text-[11px]">{u.full_name ?? '—'}</td>
               <td className="py-3 px-3 text-[11px]">{u.phone ?? '—'}</td>
-              <td className="py-3 px-3 text-[10px] text-black/50">{new Date(u.created_at).toLocaleDateString()}</td>
+              <td className="py-3 px-3 text-[10px] ink-mid">{new Date(u.created_at).toLocaleDateString()}</td>
               <td className="py-3 px-3 text-right whitespace-nowrap">
                 <button onClick={() => toggle(u, 'is_flagged')} disabled={busy === u.id}
-                  className={cn('text-[9px] font-black uppercase tracking-widest mr-3', u.is_flagged ? 'text-amber-700 underline' : 'text-black/30 hover:text-black')}>Flag</button>
+                  className={cn('text-[9px] font-black uppercase tracking-widest mr-3', u.is_flagged ? 'text-amber-700 underline' : 'ink-low hover:text-black')}>Flag</button>
                 <button onClick={() => toggle(u, 'is_banned')} disabled={busy === u.id}
-                  className={cn('text-[9px] font-black uppercase tracking-widest mr-3', u.is_banned ? 'text-red-600 underline' : 'text-black/30 hover:text-black')}>Ban</button>
+                  className={cn('text-[9px] font-black uppercase tracking-widest mr-3', u.is_banned ? 'text-red-600 underline' : 'ink-low hover:text-black')}>Ban</button>
                 <button onClick={() => toggle(u, 'is_admin')} disabled={busy === u.id}
-                  className="text-[9px] font-black uppercase tracking-widest text-black/30 hover:text-black">{u.is_admin ? 'Unadmin' : 'Admin'}</button>
+                  className="text-[9px] font-black uppercase tracking-widest ink-low hover:text-black">{u.is_admin ? 'Unadmin' : 'Admin'}</button>
               </td>
             </tr>
           ))}
@@ -722,13 +722,13 @@ function EmailsView({ rows }: { rows: EmailLogRow[] }) {
         <tbody>
           {rows.map((e) => (
             <tr key={e.id} className="border-b border-black/5 last:border-0">
-              <td className="py-3 px-3 text-[10px] text-black/50 whitespace-nowrap">{new Date(e.created_at).toLocaleString()}</td>
+              <td className="py-3 px-3 text-[10px] ink-mid whitespace-nowrap">{new Date(e.created_at).toLocaleString()}</td>
               <td className="py-3 px-3 text-[11px]">{e.to_email}</td>
               <td className="py-3 px-3 text-[10px] font-mono">{e.template}</td>
               <td className="py-3 px-3 text-[11px] max-w-[280px] truncate">{e.subject}</td>
               <td className="py-3 px-3 text-right text-[9px] font-black uppercase tracking-widest"
                 title={e.error_message ?? ''}>
-                <span className={e.status === 'sent' ? 'text-emerald-700' : e.status === 'failed' ? 'text-red-600' : 'text-black/40'}>{e.status}</span>
+                <span className={e.status === 'sent' ? 'text-emerald-700' : e.status === 'failed' ? 'text-red-600' : 'ink-low'}>{e.status}</span>
               </td>
             </tr>
           ))}
@@ -749,14 +749,14 @@ function AuditView({ rows }: { rows: AuditEntry[] }) {
         <tbody>
           {rows.map((a) => (
             <tr key={a.id} className="border-b border-black/5 last:border-0 align-top">
-              <td className="py-3 px-3 text-[10px] text-black/50 whitespace-nowrap">{new Date(a.created_at).toLocaleString()}</td>
+              <td className="py-3 px-3 text-[10px] ink-mid whitespace-nowrap">{new Date(a.created_at).toLocaleString()}</td>
               <td className="py-3 px-3 text-[11px]">{a.admin_email ?? '—'}</td>
               <td className="py-3 px-3 text-[10px] font-mono">{a.action}</td>
-              <td className="py-3 px-3 text-[10px] text-black/50">{a.entity}{a.entity_id ? ` · ${a.entity_id.slice(0, 8)}` : ''}</td>
-              <td className="py-3 px-3 text-[10px] font-mono text-black/60 max-w-[220px] truncate">
+              <td className="py-3 px-3 text-[10px] ink-mid">{a.entity}{a.entity_id ? ` · ${a.entity_id.slice(0, 8)}` : ''}</td>
+              <td className="py-3 px-3 text-[10px] font-mono ink-mid max-w-[220px] truncate">
                 {a.old_state ? JSON.stringify(a.old_state) : ''} {a.new_state ? `→ ${JSON.stringify(a.new_state)}` : ''}
               </td>
-              <td className="py-3 px-3 text-[10px] text-black/60 max-w-[200px] truncate">{a.reason ?? ''}</td>
+              <td className="py-3 px-3 text-[10px] ink-mid max-w-[200px] truncate">{a.reason ?? ''}</td>
             </tr>
           ))}
         </tbody>
@@ -779,18 +779,18 @@ function SettingsView() {
   return (
     <div className="flex flex-col gap-8 max-w-lg">
       <div>
-        <p className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-2">Buyer protection fee</p>
+        <p className="text-[10px] font-black uppercase tracking-widest ink-low mb-2">Buyer protection fee</p>
         {cfg ? (
           <div className="text-xs space-y-1 border border-black/10 p-4">
-            <p><span className="text-black/40">Percent:</span> {cfg.buyer_protection_percent}%</p>
-            <p><span className="text-black/40">Floor:</span> {formatCurrency(cfg.buyer_protection_floor)}</p>
-            <p><span className="text-black/40">Cap:</span> {cfg.buyer_protection_cap != null ? formatCurrency(cfg.buyer_protection_cap) : 'None'}</p>
-            <p className="text-[10px] text-black/40 pt-2">Fee = max(floor, percent × price), capped. Charged on every order server-side.</p>
+            <p><span className="ink-low">Percent:</span> {cfg.buyer_protection_percent}%</p>
+            <p><span className="ink-low">Floor:</span> {formatCurrency(cfg.buyer_protection_floor)}</p>
+            <p><span className="ink-low">Cap:</span> {cfg.buyer_protection_cap != null ? formatCurrency(cfg.buyer_protection_cap) : 'None'}</p>
+            <p className="text-[10px] ink-low pt-2">Fee = max(floor, percent × price), capped. Charged on every order server-side.</p>
           </div>
-        ) : <p className="text-[11px] text-black/40">No pricing config.</p>}
+        ) : <p className="text-[11px] ink-low">No pricing config.</p>}
       </div>
       <div>
-        <p className="text-[10px] font-black uppercase tracking-widest text-black/40 mb-2">Shipping rates</p>
+        <p className="text-[10px] font-black uppercase tracking-widest ink-low mb-2">Shipping rates</p>
         <div className="border border-black/10 divide-y divide-black/5">
           {cats.map((c) => (
             <div key={c.key} className="flex items-center justify-between px-4 py-2 text-xs">
@@ -798,7 +798,7 @@ function SettingsView() {
             </div>
           ))}
         </div>
-        <p className="text-[10px] text-black/40 pt-2">Edit rates directly in Supabase for now (they are the source of truth).</p>
+        <p className="text-[10px] ink-low pt-2">Edit rates directly in Supabase for now (they are the source of truth).</p>
       </div>
     </div>
   );
@@ -815,8 +815,8 @@ function DrawerShell({ title, subtitle, onClose, children }: { title: string; su
       <div className="relative w-full max-w-md bg-white h-full overflow-y-auto shadow-2xl">
         <div className="sticky top-0 bg-white border-b border-black/10 px-5 py-4 flex items-start justify-between">
           <div className="min-w-0"><p className="text-sm font-black uppercase tracking-tight truncate">{title}</p>
-            {subtitle && <p className="text-[10px] text-black/40 truncate">{subtitle}</p>}</div>
-          <button onClick={onClose} className="text-black/40 hover:text-black"><X className="h-4 w-4" /></button>
+            {subtitle && <p className="text-[10px] ink-low truncate">{subtitle}</p>}</div>
+          <button onClick={onClose} className="ink-low hover:text-black"><X className="h-4 w-4" /></button>
         </div>
         <div className="p-5 flex flex-col gap-6">{children}</div>
       </div>
@@ -827,14 +827,14 @@ function DrawerShell({ title, subtitle, onClose, children }: { title: string; su
 function Sec({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="text-[9px] font-black uppercase tracking-[0.2em] text-black/40 mb-2 border-b border-black/5 pb-1">{title}</p>
+      <p className="text-[9px] font-black uppercase tracking-[0.2em] ink-low mb-2 border-b border-black/5 pb-1">{title}</p>
       <div className="text-xs space-y-1">{children}</div>
     </div>
   );
 }
 
 function Row({ k, v }: { k: string; v: React.ReactNode }) {
-  return <p className="flex justify-between gap-3"><span className="text-black/40">{k}</span><span className="text-right font-medium">{v || '—'}</span></p>;
+  return <p className="flex justify-between gap-3"><span className="ink-low">{k}</span><span className="text-right font-medium">{v || '—'}</span></p>;
 }
 
 // ---------------------------------------------------------------------------
@@ -954,15 +954,15 @@ function OrderDrawer({ order, payouts, emails, audit, onClose, onDone }: {
       <div className="flex items-center gap-2"><StatusBadge status={order.status} audience="admin" />{order.claim_open && <span className="text-[9px] font-black uppercase text-red-600">Claim open</span>}</div>
 
       <Sec title="Timeline">
-        {timeline.length === 0 ? <p className="text-black/40">—</p> : timeline.map((t, i) => (
-          <p key={i} className="flex justify-between gap-3"><span>{t.label}</span><span className="text-black/40 text-[10px]">{t.at ? new Date(t.at).toLocaleString() : ''}</span></p>
+        {timeline.length === 0 ? <p className="ink-low">—</p> : timeline.map((t, i) => (
+          <p key={i} className="flex justify-between gap-3"><span>{t.label}</span><span className="ink-low text-[10px]">{t.at ? new Date(t.at).toLocaleString() : ''}</span></p>
         ))}
       </Sec>
 
       <Sec title="Buyer">
         <Row k="Name" v={order.buyer_name} /><Row k="Email" v={order.buyer_email} /><Row k="Phone" v={order.buyer_phone} />
         <Row k="Ship to" v={[addr.address, addr.city, addr.state, addr.pincode].filter(Boolean).join(', ')} />
-        {order.buyer_note && <p className="mt-1 border-l-2 border-black/20 pl-2 text-black/70">{order.buyer_note}</p>}
+        {order.buyer_note && <p className="mt-1 border-l-2 border-black/20 pl-2">{order.buyer_note}</p>}
       </Sec>
 
       <Sec title="Vendor">
@@ -987,14 +987,14 @@ function OrderDrawer({ order, payouts, emails, audit, onClose, onDone }: {
       </Sec>
 
       <Sec title={`Emails sent (${orderEmails.length})`}>
-        {orderEmails.length === 0 ? <p className="text-black/40">None.</p> : orderEmails.map((e) => (
+        {orderEmails.length === 0 ? <p className="ink-low">None.</p> : orderEmails.map((e) => (
           <p key={e.id} className="flex justify-between gap-3"><span className="truncate">{e.template}</span><span className={cn('text-[10px]', e.status === 'sent' ? 'text-emerald-700' : 'text-red-600')}>{e.status}</span></p>
         ))}
       </Sec>
 
       <Sec title="Internal notes">
         {orderAudit.filter((a) => a.action === 'order.note').map((a) => (
-          <p key={a.id} className="border-l-2 border-black/20 pl-2 text-black/70">{a.reason}<span className="block text-[9px] text-black/30">{a.admin_email} · {new Date(a.created_at).toLocaleString()}</span></p>
+          <p key={a.id} className="border-l-2 border-black/20 pl-2">{a.reason}<span className="block text-[9px] ink-low">{a.admin_email} · {new Date(a.created_at).toLocaleString()}</span></p>
         ))}
         <div className="flex gap-2 mt-2">
           <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Add a note…" className="flex-1 border border-black/10 px-2 py-1 text-xs focus:outline-none focus:border-black" />
@@ -1024,7 +1024,7 @@ function OrderDrawer({ order, payouts, emails, audit, onClose, onDone }: {
                 disabled={!!order.razorpay_payment_id}
               />
               {!!order.razorpay_payment_id && (
-                <p className="text-[10px] leading-relaxed text-black/50 max-w-[38ch]">
+                <p className="text-[10px] leading-relaxed ink-mid max-w-[38ch]">
                   This order has money in it. Use "Refund via Razorpay" instead, which returns the
                   payment and then closes the order. Cancelling would leave the buyer paid out of pocket.
                 </p>
@@ -1095,7 +1095,7 @@ function ListingDrawer({ listing, acq, orders, payouts, audit, onClose, onDone, 
       </div>
 
       <div className="flex items-center gap-2">
-        <span className={cn('text-[9px] font-black uppercase tracking-widest', listing.is_sold ? 'text-red-600' : listing.status === 'approved' ? 'text-emerald-700' : 'text-black/50')}>
+        <span className={cn('text-[9px] font-black uppercase tracking-widest', listing.is_sold ? 'text-red-600' : listing.status === 'approved' ? 'text-emerald-700' : 'ink-mid')}>
           {listing.is_sold ? 'Sold' : listing.status === 'approved' ? 'Live' : listing.status}
         </span>
       </div>
@@ -1108,7 +1108,7 @@ function ListingDrawer({ listing, acq, orders, payouts, audit, onClose, onDone, 
         <Row k="Free shipping" v={listing.free_shipping ? 'Yes (deducted from payout)' : 'No'} />
         <Row k="Flaws" v={listing.has_flaws ? 'Disclosed' : 'None'} />
         <Row k="Authenticity" v={listing.authenticity_confirmed ? 'Confirmed' : 'Not confirmed'} />
-        {listing.has_flaws && listing.flaws_description && <p className="text-black/60 mt-1">"{listing.flaws_description}"</p>}
+        {listing.has_flaws && listing.flaws_description && <p className="ink-mid mt-1">"{listing.flaws_description}"</p>}
       </Sec>
 
       <AcquisitionPanel listingId={listing.id} listingTitle={listing.title} vendorEmail={listing.seller_email ?? null} askingPriceFallback={listing.sale_price ?? listing.price} onDone={onDone} />
@@ -1127,8 +1127,8 @@ function ListingDrawer({ listing, acq, orders, payouts, audit, onClose, onDone, 
       )}
 
       <Sec title={`Moderation history (${modHistory.length})`}>
-        {modHistory.length === 0 ? <p className="text-black/40">None.</p> : modHistory.map((a) => (
-          <p key={a.id} className="flex justify-between gap-2"><span className="font-mono text-[10px]">{a.action}</span><span className="text-[9px] text-black/40">{new Date(a.created_at).toLocaleDateString()}</span></p>
+        {modHistory.length === 0 ? <p className="ink-low">None.</p> : modHistory.map((a) => (
+          <p key={a.id} className="flex justify-between gap-2"><span className="font-mono text-[10px]">{a.action}</span><span className="text-[9px] ink-low">{new Date(a.created_at).toLocaleDateString()}</span></p>
         ))}
       </Sec>
 
@@ -1143,7 +1143,7 @@ function ListingDrawer({ listing, acq, orders, payouts, audit, onClose, onDone, 
                 disabled={acq?.offer_status !== 'accepted'}
               />
               {acq?.offer_status !== 'accepted' && (
-                <p className="text-[10px] leading-relaxed text-black/50 max-w-[38ch]">
+                <p className="text-[10px] leading-relaxed ink-mid max-w-[38ch]">
                   {acq?.offer_status === 'offered'
                     ? 'The vendor has not accepted the offer yet. Nothing can go live until they do.'
                     : acq?.offer_status === 'declined'
@@ -1351,12 +1351,12 @@ function AcquisitionPanel({ listingId, listingTitle, vendorEmail, askingPriceFal
     finally { setBusy(false); }
   };
 
-  if (loading) return <Sec title="Acquisition"><p className="text-black/40">Loading.</p></Sec>;
+  if (loading) return <Sec title="Acquisition"><p className="ink-low">Loading.</p></Sec>;
 
   if (!acq) {
     return (
       <Sec title="Acquisition">
-        <p className="text-black/40">
+        <p className="ink-low">
           No acquisition record. This listing predates the vendor flow and cannot be priced.
         </p>
       </Sec>
@@ -1402,13 +1402,13 @@ function AcquisitionPanel({ listingId, listingTitle, vendorEmail, askingPriceFal
               placeholder={String(askingPriceFallback ?? '')}
               className="border border-black px-3 py-2 text-sm font-bold focus:outline-none"
             />
-            <p className="text-[9px] text-black/40 leading-relaxed">
+            <p className="text-[9px] ink-low leading-relaxed">
               This goes live as the price on the product page. Required.
             </p>
             {suggestion != null && (
               <button
                 type="button" onClick={() => setOffer(String(suggestion))}
-                className="self-start text-[9px] font-black uppercase tracking-widest text-black/50 underline hover:text-black"
+                className="self-start text-[9px] font-black uppercase tracking-widest ink-mid underline hover:text-black"
               >
                 Model says {formatCurrency(suggestion)} - use it
               </button>
@@ -1424,17 +1424,17 @@ function AcquisitionPanel({ listingId, listingTitle, vendorEmail, askingPriceFal
               onChange={(e) => setOffer(e.target.value)}
               className="border border-black px-3 py-2 text-sm font-black focus:outline-none"
             />
-            <p className="text-[9px] text-black/40 leading-relaxed">
+            <p className="text-[9px] ink-low leading-relaxed">
               The only number the vendor sees. They never see the resale figure or the spread.
             </p>
           </div>
           {problem && (
-            <p className="text-[9px] font-bold uppercase tracking-widest text-black/40">{problem}</p>
+            <p className="text-[9px] font-bold uppercase tracking-widest ink-low">{problem}</p>
           )}
           <ActBtn label="Send this offer" onClick={sendOffer} busy={busy} disabled={!!problem} />
 
           <div className="flex flex-col gap-2 border-t border-black/5 pt-4">
-            <span className="text-[9px] font-black uppercase tracking-widest text-black/40">
+            <span className="text-[9px] font-black uppercase tracking-widest ink-low">
               Or reject - pick what needs fixing
             </span>
             <div className="flex flex-col gap-1">
@@ -1459,7 +1459,7 @@ function AcquisitionPanel({ listingId, listingTitle, vendorEmail, askingPriceFal
               placeholder="Anything else (optional)"
               className="mt-1 border border-black/15 px-3 py-2 text-xs font-medium leading-relaxed focus:border-black focus:outline-none"
             />
-            <p className="text-[9px] text-black/40 leading-relaxed">
+            <p className="text-[9px] ink-low leading-relaxed">
               The vendor reads this word for word. Never mention what we expect to sell it for.
             </p>
           </div>
@@ -1467,7 +1467,7 @@ function AcquisitionPanel({ listingId, listingTitle, vendorEmail, askingPriceFal
         </div>
       ) : acq.offer_status === 'declined' || acq.offer_status === 'expired' ? (
         <div className="flex flex-col gap-3 pt-3">
-          <p className="text-[11px] leading-relaxed text-black/60 max-w-[44ch]">
+          <p className="text-[11px] leading-relaxed ink-mid max-w-[44ch]">
             {acq.offer_status === 'declined'
               ? 'Declined. The vendor can fix what was named and send it back. Nothing happens to this item until they do, or until you reopen it here.'
               : 'The offer lapsed unanswered. Reopening puts it back in the queue for a fresh offer.'}
@@ -1500,7 +1500,7 @@ function AcquisitionPanel({ listingId, listingTitle, vendorEmail, askingPriceFal
               carry the old keys, which is why both shapes are handled. */}
           {(b.contribution_tier || b.margin_tier) && (
             <div className="mt-2 border-t border-black/5 pt-2 flex flex-col gap-1">
-              <span className="text-[9px] font-black uppercase tracking-widest text-black/30">
+              <span className="text-[9px] font-black uppercase tracking-widest ink-low">
                 {b.contribution_tier ? 'Offer model' : 'Model spread (legacy)'}
               </span>
               {b.contribution_tier ? (

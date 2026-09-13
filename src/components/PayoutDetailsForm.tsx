@@ -155,15 +155,15 @@ export function PayoutDetailsForm({ onSaved, onCancel }: { onSaved: () => void; 
   };
 
   if (!ready) {
-    return <Loader2 className="h-4 w-4 animate-spin text-black/30" />;
+    return <Loader2 className="h-4 w-4 animate-spin ink-low" />;
   }
 
   return (
     <div className="flex flex-col gap-10">
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
-          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Your details</h3>
-          <p className="text-xs font-bold uppercase tracking-widest text-black/50 leading-relaxed">
+          <h3 className="text-xs font-black uppercase tracking-[0.3em] ink-mid border-b border-black/5 pb-3">Your details</h3>
+          <p className="text-xs font-bold uppercase tracking-widest ink-mid leading-relaxed">
             Asked once. Every sale after this one skips straight to shipping.
           </p>
         </div>
@@ -180,12 +180,12 @@ export function PayoutDetailsForm({ onSaved, onCancel }: { onSaved: () => void; 
           </div>
           <div className="flex flex-col gap-3">
             <FieldLabel>Vendor Email</FieldLabel>
-            <div className="border-b border-black/10 py-4 text-sm font-bold text-black/60">{user?.email}</div>
+            <div className="border-b border-black/10 py-4 text-sm font-bold ink-mid">{user?.email}</div>
           </div>
           <div className="flex flex-col gap-3">
             <FieldLabel>Instagram *</FieldLabel>
             <div className="flex items-center border-b border-black/10 focus-within:border-black transition-all">
-              <span className="text-sm font-bold text-black/40 select-none">https://www.instagram.com/</span>
+              <span className="text-sm font-bold ink-low select-none">https://www.instagram.com/</span>
               <input type="text" value={igHandle} disabled={locked}
                 onChange={(e) => setIgHandle(e.target.value.replace(/^@/, '').trim())}
                 placeholder="username" autoComplete="off"
@@ -210,8 +210,8 @@ export function PayoutDetailsForm({ onSaved, onCancel }: { onSaved: () => void; 
 
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
-          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Pickup address</h3>
-          <p className="text-xs font-bold uppercase tracking-widest text-black/50 leading-relaxed">Where the courier collects this order.</p>
+          <h3 className="text-xs font-black uppercase tracking-[0.3em] ink-mid border-b border-black/5 pb-3">Pickup address</h3>
+          <p className="text-xs font-bold uppercase tracking-widest ink-mid leading-relaxed">Where the courier collects this order.</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-8">
           <div className="flex flex-col gap-3 sm:col-span-2">
@@ -247,8 +247,8 @@ export function PayoutDetailsForm({ onSaved, onCancel }: { onSaved: () => void; 
 
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
-          <h3 className="text-xs font-black uppercase tracking-[0.3em] text-black/50 border-b border-black/5 pb-3">Payout</h3>
-          <p className="text-xs font-bold uppercase tracking-widest text-black/50 leading-relaxed">
+          <h3 className="text-xs font-black uppercase tracking-[0.3em] ink-mid border-b border-black/5 pb-3">Payout</h3>
+          <p className="text-xs font-bold uppercase tracking-widest ink-mid leading-relaxed">
             Paid here once the buyer&apos;s 48-hour review window closes. Same ID as GPay, PhonePe or Paytm.
           </p>
         </div>
@@ -265,7 +265,7 @@ export function PayoutDetailsForm({ onSaved, onCancel }: { onSaved: () => void; 
         </button>
         {onCancel && (
           <button type="button" onClick={onCancel}
-            className="px-6 py-4 text-xs font-black uppercase tracking-[0.3em] text-black/40 hover:text-black">
+            className="px-6 py-4 text-xs font-black uppercase tracking-[0.3em] ink-low hover:text-black">
             Later
           </button>
         )}

@@ -7,7 +7,7 @@ export function GrievanceOfficer() {
   usePageMeta(META.grievance);
 
   return (
-    <div className="mx-auto max-w-[64ch] px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
+    <div className="shell-read pt-24 sm:pt-32 pb-16 sm:pb-20">
       <Link to="/browse" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-12">
         <ArrowLeft className="h-3 w-3" /> Back to browse
       </Link>
@@ -55,7 +55,7 @@ export function GrievanceOfficer() {
             </p>
             {/* Required of a seller under the Consumer Protection (E-Commerce)
                 Rules 2020. Filled in before launch - see the note below. */}
-            <p className="text-black/50">
+            <p className="ink-mid">
               Registered address and GSTIN are published on our{' '}
               <Link to="/terms" className="font-bold text-black underline">Terms</Link> page.
             </p>

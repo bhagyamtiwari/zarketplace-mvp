@@ -46,7 +46,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
       return (
         <div className="flex min-h-[70vh] flex-col items-center justify-center gap-8 px-4 text-center">
           <h1 className="text-3xl font-black uppercase tracking-tighter">Something went wrong</h1>
-          <p className="max-w-md text-xs font-bold uppercase tracking-widest text-black/60">
+          <p className="max-w-md text-xs font-bold uppercase tracking-widest ink-mid">
             This page hit an unexpected error. Refreshing usually fixes it.
           </p>
           <button

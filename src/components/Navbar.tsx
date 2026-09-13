@@ -183,7 +183,7 @@ export function Navbar() {
                       className="absolute right-0 top-full w-64 bg-white border border-black/5 shadow-2xl p-6 flex flex-col gap-4"
                     >
                       <div className="flex flex-col gap-2 pb-3 border-b border-black/5">
-                        <p className="text-[9px] font-black uppercase tracking-widest text-black/40">Signed in as</p>
+                        <p className="text-[9px] font-black uppercase tracking-widest ink-low">Signed in as</p>
                         <p className="text-xs font-bold truncate">{profile?.email ?? user.email}</p>
                         {emailVerified ? (
                           <span className="self-start text-[9px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1">
@@ -205,7 +205,7 @@ export function Navbar() {
                               Resend verification
                             </button>
                             {verifyNotice && (
-                              <p className="text-[9px] font-bold uppercase tracking-widest text-black/50">{verifyNotice}</p>
+                              <p className="text-[9px] font-bold uppercase tracking-widest ink-mid">{verifyNotice}</p>
                             )}
                           </div>
                         )}
@@ -214,13 +214,13 @@ export function Navbar() {
                         <span className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest">
                           <Package className="h-3.5 w-3.5" /> My Purchases
                         </span>
-                        <span className="text-[9px] font-bold uppercase tracking-widest text-black/40 ml-6">Items you bought</span>
+                        <span className="text-[9px] font-bold uppercase tracking-widest ink-low ml-6">Items you bought</span>
                       </Link>
                       <Link to="/vendor-portal" onClick={() => setIsAccountOpen(false)} className="flex flex-col gap-0.5 hover:text-black/60">
                         <span className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest">
                           <LayoutGrid className="h-3.5 w-3.5" /> Vendor Portal
                         </span>
-                        <span className="text-[9px] font-bold uppercase tracking-widest text-black/40 ml-6">Items you sold</span>
+                        <span className="text-[9px] font-bold uppercase tracking-widest ink-low ml-6">Items you sold</span>
                       </Link>
                       <Link to="/account" onClick={() => setIsAccountOpen(false)} className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest hover:text-black/60">
                         <User className="h-3.5 w-3.5" /> My Profile
@@ -345,7 +345,7 @@ export function Navbar() {
                       className={cn(DRAWER_ROW_CLASS, 'w-full')}
                     >
                       <span className="flex items-center gap-3">Sign in / Sign up</span>
-                      <ArrowRight className="h-3.5 w-3.5 text-black/30" />
+                      <ArrowRight className="h-3.5 w-3.5 ink-low" />
                     </button>
                   )}
                 </DrawerSection>
@@ -367,7 +367,7 @@ export function Navbar() {
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label={label}
-                      className="text-black/70 hover:text-black transition-colors"
+                      className="hover:text-black transition-colors"
                     >
                       <Icon className="h-[18px] w-[18px]" />
                     </a>
@@ -387,7 +387,7 @@ export function Navbar() {
 function DrawerSection({ title, children }: { title?: string; children: React.ReactNode }) {
   return (
     <div className="pb-3 mb-3 border-b border-black/5 last:border-0">
-      {title && <p className="text-[9px] font-black uppercase tracking-[0.3em] text-black/40 mb-1 mt-3">{title}</p>}
+      {title && <p className="text-[9px] font-black uppercase tracking-[0.3em] ink-low mb-1 mt-3">{title}</p>}
       {children}
     </div>
   );
@@ -416,7 +416,7 @@ function DrawerLink({ to, onClick, badge, Icon, children }: {
           </span>
         )}
       </span>
-      <ArrowRight className="h-3.5 w-3.5 text-black/30" />
+      <ArrowRight className="h-3.5 w-3.5 ink-low" />
     </Link>
   );
 }

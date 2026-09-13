@@ -275,16 +275,16 @@ function ZoomView({ images, alt, index, onIndex, onClose }: {
   return createPortal(
     <div className="fixed inset-0 z-[100] bg-black/95 flex flex-col" role="dialog" aria-modal="true" aria-label={alt}>
       <div className="flex items-center justify-between px-4 py-4 text-white">
-        <span className="text-[10px] font-black uppercase tracking-[0.3em] text-white/60">
+        <span className="text-[10px] font-black uppercase tracking-[0.3em] ink-mid">
           {index + 1} / {images.length}
         </span>
         <div className="flex items-center gap-1">
           <button type="button" aria-label="Zoom out" onClick={() => setZoom(scale - 0.75)}
-            className="p-3 text-white/70 hover:text-white disabled:opacity-30" disabled={scale <= MIN}>
+            className="p-3 hover:text-white disabled:opacity-30" disabled={scale <= MIN}>
             <Minus className="h-4 w-4" />
           </button>
           <button type="button" aria-label="Zoom in" onClick={() => setZoom(scale + 0.75)}
-            className="p-3 text-white/70 hover:text-white disabled:opacity-30" disabled={scale >= MAX}>
+            className="p-3 hover:text-white disabled:opacity-30" disabled={scale >= MAX}>
             <Plus className="h-4 w-4" />
           </button>
           <button type="button" aria-label="Close" onClick={onClose} className="p-3 text-white hover:text-white/70">

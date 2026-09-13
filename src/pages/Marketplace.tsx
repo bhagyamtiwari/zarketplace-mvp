@@ -326,7 +326,7 @@ export function Marketplace() {
           {/* Search keeps sentence case rather than the sitewide uppercase: the
               full hint has to fit a phone's width without truncating. */}
           <form onSubmit={onSearchSubmit} className="relative">
-            <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-black/40" />
+            <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 ink-low" />
             <input
               type="search"
               value={searchInput}
@@ -382,7 +382,7 @@ export function Marketplace() {
         <div className="min-w-0 flex-1 flex flex-col gap-4">
           {/* Result count and sort, as a single quiet line of text. */}
           <div className="flex items-center justify-between gap-4">
-            <p className="text-[11px] font-black uppercase tracking-[0.2em] text-black/40">
+            <p className="text-[11px] font-black uppercase tracking-[0.2em] ink-low">
               {state === 'loading'
                 ? 'Loading'
                 : (total ?? listings.length) > 0
@@ -394,7 +394,7 @@ export function Marketplace() {
           {state === 'error' && listings.length === 0 ? (
             /* A failed fetch must never look like an empty catalogue. */
             <div className="border border-black/10 bg-zinc-50 p-8 flex flex-col items-start gap-4">
-              <p className="text-xs font-bold uppercase tracking-widest text-black/60">
+              <p className="text-xs font-bold uppercase tracking-widest ink-mid">
                 We could not load listings just now.
               </p>
               <button
@@ -450,7 +450,7 @@ export function Marketplace() {
               <div ref={sentinelRef} className="h-10" />
               {state === 'paging' ? (
                 <div className="flex justify-center py-6">
-                  <Loader2 className="h-5 w-5 animate-spin text-black/20" />
+                  <Loader2 className="h-5 w-5 animate-spin ink-low" />
                 </div>
               ) : hasMore ? (
                 // Explicit fallback for the auto-loader. IntersectionObserver is
@@ -473,7 +473,7 @@ export function Marketplace() {
                 // broken. It now says plainly why the catalogue stops here, at
                 // a weight someone actually reads.
                 <div className="py-10 flex justify-center px-4">
-                  <p className="max-w-md border border-black/15 bg-zinc-50 px-6 py-5 text-center text-[11px] font-black uppercase tracking-[0.2em] leading-[1.9] text-black/60">
+                  <p className="max-w-md border border-black/15 bg-zinc-50 px-6 py-5 text-center text-[11px] font-black uppercase tracking-[0.2em] leading-[1.9] ink-mid">
                     New listings are paused while we clear the queue
                   </p>
                 </div>
@@ -666,12 +666,12 @@ function HeroBanner() {
           {PROMISES.map(({ label, body, to, Icon }) => (
             <li key={label} className="min-w-0 py-2.5 first:pt-0 last:pb-0 sm:p-0">
               <Link to={to} className="group flex min-h-[44px] items-start gap-2.5 py-1 sm:items-center sm:gap-3 sm:py-0">
-                <Icon className="mt-0.5 h-5 w-5 sm:mt-0 sm:h-6 sm:w-6 shrink-0 text-white/85" strokeWidth={1.5} />
+                <Icon className="mt-0.5 h-5 w-5 sm:mt-0 sm:h-6 sm:w-6 shrink-0" strokeWidth={1.5} />
                 <span className="flex min-w-0 flex-col gap-0.5">
                   <span className="text-[13px] sm:text-sm font-black tracking-tight group-hover:text-white/70">
                     {label}
                   </span>
-                  <span className="text-[11px] sm:text-xs font-bold text-white/60">{body}</span>
+                  <span className="text-[11px] sm:text-xs font-bold ink-mid">{body}</span>
                 </span>
               </Link>
             </li>
@@ -717,7 +717,7 @@ function SellTile() {
       <span className="relative text-xl sm:text-2xl font-black uppercase tracking-tighter leading-none">
         Got something<br />to sell?
       </span>
-      <span className="relative text-[10px] font-black uppercase tracking-[0.2em] text-white/70">
+      <span className="relative text-[10px] font-black uppercase tracking-[0.2em]">
         We'll make you an offer.
       </span>
       <span className="relative mt-1 border-b-2 border-white pb-1 text-[10px] font-black uppercase tracking-[0.2em]">
@@ -735,7 +735,7 @@ function SortChip({ value, onChange }: { value: string; onChange: (v: string) =>
   return (
     <label className="relative shrink-0 flex min-h-[44px] items-center gap-2 border border-black/10 bg-white px-4 py-3 sm:py-2.5 text-[11px] font-black uppercase tracking-widest hover:border-black transition-colors">
       {SORT_OPTIONS.find((o) => o.value === value)?.label ?? 'Newest'}
-      <ChevronDown className="h-3.5 w-3.5 text-black/40" />
+      <ChevronDown className="h-3.5 w-3.5 ink-low" />
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -790,12 +790,12 @@ function FilterGroup({ title, summary, defaultOpen = false, children }: {
         aria-expanded={open}
         className="flex items-center justify-between gap-2 text-left"
       >
-        <span className="text-[10px] font-black uppercase tracking-[0.25em] text-black/40">{title}</span>
+        <span className="text-[10px] font-black uppercase tracking-[0.25em] ink-low">{title}</span>
         <span className="flex items-center gap-2">
           {!open && summary && (
             <span className="text-[10px] font-black uppercase tracking-widest text-black truncate max-w-[6rem]">{summary}</span>
           )}
-          <ChevronDown className={cn('h-3.5 w-3.5 text-black/40 transition-transform', open && 'rotate-180')} />
+          <ChevronDown className={cn('h-3.5 w-3.5 ink-low transition-transform', open && 'rotate-180')} />
         </span>
       </button>
       {open && <div className="flex flex-col gap-1.5 pt-3 max-h-72 overflow-y-auto">{children}</div>}
@@ -811,7 +811,7 @@ const FilterOption: React.FC<ToggleProps> = ({ active, onClick, children }) => {
       aria-pressed={active}
       className={cn(
         'text-left text-xs font-bold uppercase tracking-widest transition-colors',
-        active ? 'text-black underline underline-offset-4' : 'text-black/50 hover:text-black',
+        active ? 'text-black underline underline-offset-4' : 'ink-mid hover:text-black',
       )}
     >
       {children}
@@ -837,16 +837,16 @@ function SheetGroup({ title, summary, collapsible = false, defaultOpen = true, c
           aria-expanded={open}
           className="flex items-center justify-between gap-2"
         >
-          <span className="text-[10px] font-black uppercase tracking-[0.25em] text-black/40">{title}</span>
+          <span className="text-[10px] font-black uppercase tracking-[0.25em] ink-low">{title}</span>
           <span className="flex items-center gap-2">
             {!open && summary && (
               <span className="text-[10px] font-black uppercase tracking-widest text-black">{summary}</span>
             )}
-            <ChevronDown className={cn('h-4 w-4 text-black/40 transition-transform', open && 'rotate-180')} />
+            <ChevronDown className={cn('h-4 w-4 ink-low transition-transform', open && 'rotate-180')} />
           </span>
         </button>
       ) : (
-        <h3 className="text-[10px] font-black uppercase tracking-[0.25em] text-black/40">{title}</h3>
+        <h3 className="text-[10px] font-black uppercase tracking-[0.25em] ink-low">{title}</h3>
       )}
       {open && <div className="flex flex-wrap gap-2">{children}</div>}
     </div>

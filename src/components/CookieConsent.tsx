@@ -20,9 +20,9 @@ export function CookieConsent() {
         <div className="border-b border-white/10 px-4 sm:px-6 lg:px-8 py-5 flex flex-col gap-4 max-w-3xl mx-auto sm:mx-0">
           <div className="flex items-center justify-between">
             <span className="text-xs font-black uppercase tracking-widest">Essential</span>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">Always on</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest ink-low">Always on</span>
           </div>
-          <p className="body-copy text-white/60 -mt-2">
+          <p className="body-copy ink-mid -mt-2">
             Your sign-in session, cart, saved items and checkout progress. Stored on this device, needed for the site to work at all.
           </p>
           <div className="flex items-center justify-between pt-2 border-t border-white/10">
@@ -41,7 +41,7 @@ export function CookieConsent() {
               />
             </button>
           </div>
-          <p className="body-copy text-white/60 -mt-2">
+          <p className="body-copy ink-mid -mt-2">
             Which pages get used and where people drop off, under a random ID. Reject and the script is never loaded.
           </p>
           <button
@@ -58,7 +58,7 @@ export function CookieConsent() {
         {/* Short form on a phone: five lines of consent copy over the fold is
             its own dark pattern. The full wording stays where there is room,
             and both link to the policy that spells it out. */}
-        <p className="text-white/70 flex-1 text-[13px] leading-snug sm:text-xs sm:leading-relaxed">
+        <p className="flex-1 text-[13px] leading-snug sm:text-xs sm:leading-relaxed">
           {/* Sentence case on a phone: the uppercase body voice needs six lines
               for the same sentence and pushes the buttons off the bar. */}
           <span className="sm:hidden text-[13px] font-bold leading-snug">
@@ -82,7 +82,7 @@ export function CookieConsent() {
           <button
             type="button"
             onClick={() => setConsent('rejected')}
-            className="px-1 min-h-[44px] py-3 text-[10px] font-black uppercase tracking-widest text-white/60 underline underline-offset-4 hover:text-white transition-colors"
+            className="px-1 min-h-[44px] py-3 text-[10px] font-black uppercase tracking-widest ink-mid underline underline-offset-4 hover:text-white transition-colors"
           >
             Essential only
           </button>
@@ -90,7 +90,7 @@ export function CookieConsent() {
             type="button"
             onClick={() => setSettingsOpen((v) => !v)}
             aria-label="Cookie settings"
-            className="hidden sm:block shrink-0 p-2 text-white/50 hover:text-white transition-colors"
+            className="hidden sm:block shrink-0 p-2 ink-mid hover:text-white transition-colors"
           >
             <SlidersHorizontal className="h-4 w-4" />
           </button>

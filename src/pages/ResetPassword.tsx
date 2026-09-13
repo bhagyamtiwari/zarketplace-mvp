@@ -50,8 +50,8 @@ export function ResetPassword() {
   if (authLoading) {
     return (
       <div className="mx-auto max-w-md px-4 pt-24 sm:pt-32 pb-20 sm:pb-32 flex flex-col items-center gap-6 text-center">
-        <Loader2 className="h-8 w-8 animate-spin text-black/40" />
-        <p className="text-[10px] font-black uppercase tracking-widest text-black/60">Verifying your link…</p>
+        <Loader2 className="h-8 w-8 animate-spin ink-low" />
+        <p className="text-[10px] font-black uppercase tracking-widest ink-mid">Verifying your link…</p>
       </div>
     );
   }
@@ -60,7 +60,7 @@ export function ResetPassword() {
     return (
       <div className="mx-auto max-w-md px-4 pt-24 sm:pt-32 pb-20 sm:pb-32 flex flex-col items-center gap-4 text-center">
         <h1 className="text-2xl font-black uppercase tracking-tighter">Link expired</h1>
-        <p className="text-[10px] font-bold uppercase tracking-widest text-black/50 leading-relaxed">
+        <p className="text-[10px] font-bold uppercase tracking-widest ink-mid leading-relaxed">
           This password reset link is invalid or has expired. Request a new one from the sign in screen.
         </p>
       </div>
@@ -71,7 +71,7 @@ export function ResetPassword() {
     return (
       <div className="mx-auto max-w-md px-4 pt-24 sm:pt-32 pb-20 sm:pb-32 flex flex-col items-center gap-4 text-center">
         <h1 className="text-2xl font-black uppercase tracking-tighter">Password updated</h1>
-        <p className="text-[10px] font-bold uppercase tracking-widest text-black/50 leading-relaxed">
+        <p className="text-[10px] font-bold uppercase tracking-widest ink-mid leading-relaxed">
           Taking you home now.
         </p>
       </div>
@@ -82,7 +82,7 @@ export function ResetPassword() {
     <div className="mx-auto max-w-md px-4 pt-24 sm:pt-32 pb-20 sm:pb-32 flex flex-col gap-6">
       <div className="flex flex-col items-center gap-2 text-center">
         <h1 className="text-2xl font-black uppercase tracking-tighter">Set a new password</h1>
-        <p className="text-[10px] font-bold uppercase tracking-widest text-black/50">
+        <p className="text-[10px] font-bold uppercase tracking-widest ink-mid">
           Choose a password to finish resetting your account.
         </p>
       </div>
@@ -91,7 +91,7 @@ export function ResetPassword() {
         <div className="flex flex-col gap-3">
           <label className="text-[10px] font-black uppercase tracking-widest">New Password</label>
           <div className="flex items-center border-b border-black/10 focus-within:border-black transition-colors">
-            <Lock className="h-4 w-4 text-black/30 mr-3" />
+            <Lock className="h-4 w-4 ink-low mr-3" />
             <input
               type="password"
               autoFocus
@@ -113,7 +113,7 @@ export function ResetPassword() {
         <div className="flex flex-col gap-3">
           <label className="text-[10px] font-black uppercase tracking-widest">Confirm Password</label>
           <div className="flex items-center border-b border-black/10 focus-within:border-black transition-colors">
-            <Lock className="h-4 w-4 text-black/30 mr-3" />
+            <Lock className="h-4 w-4 ink-low mr-3" />
             <input
               type="password"
               required

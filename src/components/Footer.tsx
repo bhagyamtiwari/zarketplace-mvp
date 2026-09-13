@@ -64,7 +64,7 @@ const COMPANY: FooterColumn = {
   ],
 };
 
-const LINK_CLASS = 'text-xs font-bold uppercase tracking-widest text-white/80 hover:text-white/60 transition-colors rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2';
+const LINK_CLASS = 'text-xs font-bold uppercase tracking-widest  hover:text-white/60 transition-colors rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2';
 const HEADER_CLASS = 'text-[10px] font-black uppercase tracking-[0.3em] text-white';
 
 function SocialIcons() {
@@ -75,7 +75,7 @@ function SocialIcons() {
         target="_blank"
         rel="noopener noreferrer"
         aria-label="zarketplace on Instagram"
-        className="text-white/80 hover:text-white transition-colors rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2"
+        className="hover:text-white transition-colors rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2"
       >
         <Instagram className="h-4 w-4" />
       </a>
@@ -84,7 +84,7 @@ function SocialIcons() {
         target="_blank"
         rel="noopener noreferrer"
         aria-label="zarketplace on X"
-        className="text-white/80 hover:text-white transition-colors rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2"
+        className="hover:text-white transition-colors rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2"
       >
         <Twitter className="h-4 w-4" />
       </a>
@@ -93,7 +93,7 @@ function SocialIcons() {
         target="_blank"
         rel="noopener noreferrer"
         aria-label="zarketplace on YouTube"
-        className="text-white/80 hover:text-white transition-colors rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2"
+        className="hover:text-white transition-colors rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2"
       >
         <Youtube className="h-4 w-4" />
       </a>
@@ -102,7 +102,7 @@ function SocialIcons() {
         target="_blank"
         rel="noopener noreferrer"
         aria-label="zarketplace on WhatsApp"
-        className="text-white/80 hover:text-white transition-colors rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2"
+        className="hover:text-white transition-colors rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2"
       >
         <MessageCircle className="h-4 w-4" />
       </a>
@@ -140,7 +140,7 @@ export function Footer() {
                   className="w-full flex items-center justify-between py-5 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2"
                 >
                   <span className={HEADER_CLASS}>{column.title}</span>
-                  {isOpen ? <ChevronUp className="h-4 w-4 text-white/60" /> : <ChevronDown className="h-4 w-4 text-white/60" />}
+                  {isOpen ? <ChevronUp className="h-4 w-4 ink-mid" /> : <ChevronDown className="h-4 w-4 ink-mid" />}
                 </button>
                 {isOpen && (
                   <div className="flex flex-col gap-4 pb-6">
@@ -167,7 +167,7 @@ export function Footer() {
             />
           </Link>
           <div className="flex flex-col items-end gap-1">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">© 2026 All rights reserved.</span>
+            <span className="text-[10px] font-bold uppercase tracking-widest ink-mid">© 2026 All rights reserved.</span>
           </div>
         </div>
 
@@ -184,7 +184,7 @@ export function Footer() {
             />
           </Link>
           <SocialIcons />
-          <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">All Rights Reserved.</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest ink-mid">All Rights Reserved.</span>
         </div>
       </div>
     </footer>

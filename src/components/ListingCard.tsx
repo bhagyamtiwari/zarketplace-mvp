@@ -71,7 +71,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing, priority = fa
             sold ? 'opacity-40 cursor-default' : 'hover:scale-110 active:scale-95',
           )}
         >
-          <Heart className={cn('h-4 w-4', favorited ? 'fill-black text-black' : 'text-black/60')} />
+          <Heart className={cn('h-4 w-4', favorited ? 'fill-black text-black' : 'ink-mid')} />
         </button>
 
         {sold ? (
@@ -112,14 +112,14 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing, priority = fa
           {listing.sale_price ? (
             <>
               <span className="text-base font-black text-black">{formatCurrency(listing.sale_price)}</span>
-              <span className="text-[10px] text-black/40 line-through font-bold">{formatCurrency(listing.price)}</span>
+              <span className="text-[10px] ink-low line-through font-bold">{formatCurrency(listing.price)}</span>
             </>
           ) : (
             <span className="text-base font-black text-black">{formatCurrency(listing.price)}</span>
           )}
         </div>
 
-        <div className="flex justify-between items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-black/40">
+        <div className="flex justify-between items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] ink-low">
           <span className="truncate max-w-[65%]">{listing.brand || 'Vintage'}</span>
           {(listing.size_type || listing.size) && <span className="shrink-0">{listing.size_type || listing.size}</span>}
         </div>

@@ -9,8 +9,8 @@ export function Condition() {
   usePageMeta(META.conditions);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-16 sm:pb-20">
-      <Link to="/browse" className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-black/60 hover:text-black mb-8 lg:mb-12">
+    <div className="shell-wide pt-24 sm:pt-32 pb-16 sm:pb-20">
+      <Link to="/browse" className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest ink-mid hover:text-black mb-8 lg:mb-12">
         <ArrowLeft className="h-3 w-3" /> Back to browse
       </Link>
 
@@ -23,14 +23,14 @@ export function Condition() {
         >
         <div className="flex flex-col gap-4">
           <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Conditions Guide</h1>
-          <p className="body-longform max-w-[64ch]">
+          <p className="body-longform measure">
             Every item is graded on the same four-tier scale, so the word on one listing means what it means on all of them.
           </p>
         </div>
 
         <section className="w-full p-6 sm:p-10 bg-black text-white flex flex-col gap-4">
           <h3 className="text-sm font-black uppercase tracking-widest">Please note</h3>
-          <p className="body-longform max-w-[64ch]">
+          <p className="body-longform">
             Condition is a judgement, and an honest one can still be a close call between two tiers. We check every item against its listing before it ships, and anything that does not match does not go out.
           </p>
         </section>
@@ -51,7 +51,7 @@ export function Condition() {
               />
               <h2 className="flex items-baseline gap-2.5 text-lg font-black uppercase tracking-tight text-black">
                 {c.name}
-                <span className="text-xs tracking-[0.2em] text-black/60">{c.grade}</span>
+                <span className="text-xs tracking-[0.2em] ink-mid">{c.grade}</span>
               </h2>
               <p className="body-longform">{c.desc}</p>
             </div>
@@ -60,7 +60,7 @@ export function Condition() {
 
         <section className="w-full p-6 sm:p-10 bg-black text-white flex flex-col gap-4">
           <h3 className="text-sm font-black uppercase tracking-widest">A note on pre-owned items</h3>
-          <p className="body-longform max-w-[64ch]">
+          <p className="body-longform">
             As pre-owned pieces, items may carry light odors or signs of storage. We recommend following care labels and washing, or dry cleaning, garments before first wear.
           </p>
         </section>

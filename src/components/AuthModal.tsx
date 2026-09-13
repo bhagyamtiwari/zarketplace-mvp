@@ -153,7 +153,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
           >
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 text-black/40 hover:text-black transition-colors"
+              className="absolute top-4 right-4 ink-low hover:text-black transition-colors"
               aria-label="Close"
             >
               <X className="h-5 w-5" />
@@ -164,7 +164,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                 <h2 className="text-2xl font-black uppercase tracking-tighter">
                   {mode === 'signup' ? 'Create Account' : mode === 'forgot' ? 'Reset Password' : 'Sign In'}
                 </h2>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-black/60">
+                <p className="text-[10px] font-bold uppercase tracking-widest ink-mid">
                   {message ?? (mode === 'signup'
                     ? 'Email and password.'
                     : mode === 'forgot'
@@ -179,7 +179,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                     type="button"
                     onClick={() => switchMode('signup')}
                     className={`py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${
-                      mode === 'signup' ? 'bg-black text-white' : 'bg-white text-black/60 hover:text-black'
+                      mode === 'signup' ? 'bg-black text-white' : 'bg-white ink-mid hover:text-black'
                     }`}
                   >
                     Create Account
@@ -188,7 +188,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                     type="button"
                     onClick={() => switchMode('signin')}
                     className={`py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${
-                      mode === 'signin' ? 'bg-black text-white' : 'bg-white text-black/60 hover:text-black'
+                      mode === 'signin' ? 'bg-black text-white' : 'bg-white ink-mid hover:text-black'
                     }`}
                   >
                     Sign In
@@ -201,7 +201,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                   {mode === 'signin' ? 'Email or phone' : 'Email'}
                 </label>
                 <div className="flex items-center border-b border-black/10 focus-within:border-black transition-colors">
-                  <Mail className="h-4 w-4 text-black/30 mr-3" />
+                  <Mail className="h-4 w-4 ink-low mr-3" />
                   <input
                     type={mode === 'signin' ? 'text' : 'email'}
                     autoFocus
@@ -226,7 +226,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                 <div className="flex flex-col gap-3">
                   <label className="text-[10px] font-black uppercase tracking-widest">Phone</label>
                   <div className="flex items-center border-b border-black/10 focus-within:border-black transition-colors">
-                    <Phone className="h-4 w-4 text-black/30 mr-3" />
+                    <Phone className="h-4 w-4 ink-low mr-3" />
                     {/* Country code is its own field so a non-Indian number is
                         still possible, but +91 is the answer for this market
                         and nobody should have to pick it. */}
@@ -255,7 +255,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                   {phoneDigits && !phoneValid && (
                     <p className="text-[9px] font-bold uppercase tracking-widest text-red-600">Enter a valid phone number.</p>
                   )}
-                  <p className="text-center text-[9px] font-bold uppercase tracking-widest text-black/60 leading-relaxed">
+                  <p className="text-center text-[9px] font-bold uppercase tracking-widest ink-mid leading-relaxed">
                     For delivery updates and order problems. Never marketing.
                   </p>
                 </div>
@@ -269,14 +269,14 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                       <button
                         type="button"
                         onClick={() => switchMode('forgot')}
-                        className="text-[9px] font-bold uppercase tracking-widest text-black/60 hover:text-black underline transition-colors"
+                        className="text-[9px] font-bold uppercase tracking-widest ink-mid hover:text-black underline transition-colors"
                       >
                         Forgot password?
                       </button>
                     )}
                   </div>
                   <div className="flex items-center border-b border-black/10 focus-within:border-black transition-colors">
-                    <Lock className="h-4 w-4 text-black/30 mr-3" />
+                    <Lock className="h-4 w-4 ink-low mr-3" />
                     <input
                       type="password"
                       required
@@ -299,7 +299,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                 <div className="flex flex-col gap-3">
                   <label className="text-[10px] font-black uppercase tracking-widest">Confirm Password</label>
                   <div className="flex items-center border-b border-black/10 focus-within:border-black transition-colors">
-                    <Lock className="h-4 w-4 text-black/30 mr-3" />
+                    <Lock className="h-4 w-4 ink-low mr-3" />
                     <input
                       type="password"
                       required
@@ -337,12 +337,12 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                 <button
                   type="button"
                   onClick={() => switchMode('signin')}
-                  className="text-[9px] font-bold uppercase tracking-widest text-black/60 hover:text-black text-center underline transition-colors"
+                  className="text-[9px] font-bold uppercase tracking-widest ink-mid hover:text-black text-center underline transition-colors"
                 >
                   Back to Sign In
                 </button>
               ) : (
-                <p className="text-[9px] font-bold uppercase tracking-widest text-black/60 text-center leading-relaxed">
+                <p className="text-[9px] font-bold uppercase tracking-widest ink-mid text-center leading-relaxed">
                   By continuing, you agree to the zarketplace Terms.<br />
                   One account for buying &amp; selling.
                 </p>
