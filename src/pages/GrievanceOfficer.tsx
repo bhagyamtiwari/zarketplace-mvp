@@ -27,14 +27,26 @@ export function GrievanceOfficer() {
             answer. This page exists so you always know who that is.
           </p>
 
-          <div className="flex flex-col gap-2 border border-black p-6">
-            <p><span className="font-black uppercase tracking-widest text-xs">Grievance officer</span><br />Bhagyam Tiwari</p>
-            <p><span className="font-black uppercase tracking-widest text-xs">Company</span><br />ADNIZ Private Limited</p>
-            <p>
-              <span className="font-black uppercase tracking-widest text-xs">Email</span><br />
-              <a href="mailto:grievance@zarketplace.com" className="font-bold text-black underline">grievance@zarketplace.com</a>
-            </p>
-          </div>
+          {/* Three facts, set as three facts. The bordered panel framed them as
+              a callout, which is a device for something you might otherwise
+              miss: on a page whose entire purpose is these three lines, the box
+              was adding emphasis to the only thing on the page. */}
+          <dl className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1">
+              <dt className="text-xs font-black uppercase tracking-[0.2em]">Grievance officer</dt>
+              <dd>Bhagyam Tiwari</dd>
+            </div>
+            <div className="flex flex-col gap-1">
+              <dt className="text-xs font-black uppercase tracking-[0.2em]">Company</dt>
+              <dd>ADNIZ Private Limited</dd>
+            </div>
+            <div className="flex flex-col gap-1">
+              <dt className="text-xs font-black uppercase tracking-[0.2em]">Email</dt>
+              <dd>
+                <a href="mailto:grievance@zarketplace.com" className="underline underline-offset-4">grievance@zarketplace.com</a>
+              </dd>
+            </div>
+          </dl>
 
           <div className="flex flex-col gap-3">
             <h2 className="text-xl font-black uppercase tracking-tight">What happens when you write</h2>

@@ -65,31 +65,31 @@ const PUBLISH_CONFIRMATIONS: Array<{ key: string; label: string }> = [
   },
 ];
 
-// What happens after acceptance, as separate thoughts rather than paragraphs.
-// Every line here is something a vendor has got wrong at least once.
+// What happens after acceptance. The lead line is the whole thing in one
+// sentence; the groups underneath are what that actually asks of someone,
+// split by when it applies to them.
+const AFTER_ACCEPT_LEAD = 'The item stays with you until it sells.';
+
 const AFTER_ACCEPT: Array<{ title: string; points: string[] }> = [
   {
-    title: 'The item stays with you',
+    title: 'Before it sells',
     points: [
-      'It goes live on zarketplace, but it does not leave your home until somebody buys it.',
-      'That might be next week. It might be next month.',
-      'Keep it aside and unworn, in the condition you described.',
+      'Keep it packed and in the condition listed.',
+      'We will email you every few weeks to confirm you still have it.',
     ],
   },
   {
-    title: 'When it sells, we come to you',
+    title: 'When it sells',
     points: [
-      'We message you the same day and send a prepaid label.',
-      'A courier collects from your door, usually the next working day.',
-      'You do not pay for postage and you do not go to a courier office.',
+      'We send you a prepaid shipping label.',
+      'A courier will pick it up from your door within 48 hours.',
+      'You pay nothing for shipping.',
     ],
   },
   {
-    title: 'What we need from you in between',
+    title: 'Changed your mind?',
     points: [
-      'That you still have it, and that we can reach you.',
-      'Every couple of weeks we send one email asking exactly that. Two buttons, yes or no.',
-      'If an item cannot be sent when it sells, the order is cancelled and it counts against your account.',
+      'You can withdraw the listing at any time from your vendor portal.',
     ],
   },
 ];
@@ -119,6 +119,27 @@ const REQUIRED_PHOTOS = PHOTO_SLOTS.filter((p) => p.required).length;
 // Required where fit is least predictable and optional elsewhere, because
 // making someone measure a belt to sell it is how you lose the listing.
 type Measure = { key: MeasureKey; label: string; how: string };
+
+// The same ceilings the database enforces, in centimetres. Duplicated here on
+// purpose: without them an inch typo converts to something over the limit and
+// the vendor meets a Postgres constraint error at submit instead of a sentence
+// telling them what is wrong.
+const MAX_CM: Record<MeasureKey, number> = {
+  pit_to_pit_cm: 200, length_cm: 250, sleeve_cm: 150, waist_cm: 200, inseam_cm: 150,
+};
+
+// What the vendor types in. Centimetres is what we store: the column names,
+// the sanity bounds and any future size filter are all in cm, so inches are a
+// front-of-house convenience converted once on the way out.
+type MeasureUnit = 'cm' | 'in';
+const CM_PER_INCH = 2.54;
+const toCm = (value: string, unit: MeasureUnit): number | null => {
+  const n = Number(value);
+  if (!(n > 0)) return null;
+  // Rounded to a millimetre. A tape is not more precise than that, and a
+  // listing reading 51.943 cm is false precision.
+  return Math.round((unit === 'in' ? n * CM_PER_INCH : n) * 10) / 10;
+};
 type MeasureKey = 'pit_to_pit_cm' | 'length_cm' | 'sleeve_cm' | 'waist_cm' | 'inseam_cm';
 
 const MEASUREMENTS_BY_CATEGORY: Record<string, { required: Measure[]; optional: Measure[] }> = {
@@ -245,6 +266,7 @@ function SellInner() {
   const [sizeType, setSizeType] = React.useState('');
   const [sizeDetail, setSizeDetail] = React.useState('');
   const [measurements, setMeasurements] = React.useState<Partial<Record<MeasureKey, string>>>({});
+  const [unit, setUnit] = React.useState<MeasureUnit>('cm');
   const [description, setDescription] = React.useState('');
 
   const [condition, setCondition] = React.useState('');
@@ -421,10 +443,20 @@ function SellInner() {
       if (!gender) return 'Choose who the item is for.';
       if (!selectedCategory) return 'Choose a category.';
       if (!sizeType) return 'Choose a size.';
-      const needed = measurementsFor(selectedCategory).required;
-      const missing = needed.find((m) => !(Number(measurements[m.key]) > 0));
+      const { required, optional } = measurementsFor(selectedCategory);
+      const missing = required.find((m) => !(Number(measurements[m.key]) > 0));
       if (missing) {
-        return `Add the ${missing.label.toLowerCase()} measurement in cm. ${missing.how}`;
+        return `Add the ${missing.label.toLowerCase()} measurement in ${unit}. ${missing.how}`;
+      }
+      const tooBig = [...required, ...optional].find((m) => {
+        const cm = toCm(measurements[m.key] ?? '', unit);
+        return cm != null && cm > MAX_CM[m.key];
+      });
+      if (tooBig) {
+        const limit = unit === 'cm'
+          ? `${MAX_CM[tooBig.key]} cm`
+          : `${Math.floor(MAX_CM[tooBig.key] / CM_PER_INCH)} in`;
+        return `That ${tooBig.label.toLowerCase()} measurement is over ${limit}. Check the number and the unit.`;
       }
       const banned = findBannedPhrase(`${title} ${brand} ${description}`);
       if (banned) return `Remove "${banned}" - each listing is one item, not a batch or store catalogue.`;
@@ -528,11 +560,11 @@ function SellInner() {
         size: sizeDetail.trim() || null,
         // Numbers, not a sentence in the description, so they can drive a size
         // filter later instead of being re-parsed out of prose.
-        pit_to_pit_cm: Number(measurements.pit_to_pit_cm) || null,
-        length_cm: Number(measurements.length_cm) || null,
-        sleeve_cm: Number(measurements.sleeve_cm) || null,
-        waist_cm: Number(measurements.waist_cm) || null,
-        inseam_cm: Number(measurements.inseam_cm) || null,
+        pit_to_pit_cm: toCm(measurements.pit_to_pit_cm ?? '', unit),
+        length_cm: toCm(measurements.length_cm ?? '', unit),
+        sleeve_cm: toCm(measurements.sleeve_cm ?? '', unit),
+        waist_cm: toCm(measurements.waist_cm ?? '', unit),
+        inseam_cm: toCm(measurements.inseam_cm ?? '', unit),
         condition,
         description: description.trim() || null,
         image_url: uploadedUrls[0],
@@ -624,7 +656,7 @@ function SellInner() {
     scrollToTop();
     setImageFiles([]); setImagePreviews([]);
     setTitle(''); setBrand(''); setDescription('');
-    setSelectedCategory(''); setSizeType(''); setSizeDetail(''); setMeasurements({});
+    setSelectedCategory(''); setSizeType(''); setSizeDetail(''); setMeasurements({}); setUnit('cm');
     setCondition(''); setHasFlaws(null); setFlawsDescription('');
     setDeclarations(noDeclarations());
   };
@@ -792,6 +824,7 @@ function SellInner() {
                 sizeDetail={sizeDetail} setSizeDetail={setSizeDetail}
                 description={description} setDescription={setDescription}
                 measurements={measurements} setMeasurements={setMeasurements}
+                unit={unit} setUnit={setUnit}
               />
             )}
 
@@ -912,8 +945,15 @@ function SectionHeading({ children, note }: { children: React.ReactNode; note?: 
 // ink doing the job of the one above it. Hierarchy here comes from weight and
 // position, not from fading the words out: guidance someone needs in order to
 // answer correctly is content, and content is full ink.
-function TrustNote({ children }: { children: React.ReactNode }) {
-  return <p className="text-sm font-normal leading-relaxed text-black measure">{children}</p>;
+function TrustNote({ children, full }: { children: React.ReactNode; full?: boolean }) {
+  // `full` drops the measure cap for a note that closes a section rather than
+  // sitting beside a field: at the foot of a full-width block, text stopping
+  // short of the edge reads as a mistake rather than as a line length.
+  return (
+    <p className={cn('text-sm font-normal leading-relaxed text-black', !full && 'measure')}>
+      {children}
+    </p>
+  );
 }
 
 function PhotosStep({ imagePreviews, onAdd, onRemove, originals, cleaning, onUseOriginal }: {
@@ -1024,11 +1064,13 @@ function DetailsStep(props: {
   description: string; setDescription: (v: string) => void;
   measurements: Partial<Record<MeasureKey, string>>;
   setMeasurements: React.Dispatch<React.SetStateAction<Partial<Record<MeasureKey, string>>>>;
+  unit: MeasureUnit;
+  setUnit: (u: MeasureUnit) => void;
 }) {
   const {
     title, setTitle, brand, setBrand, gender, setGender,
     selectedCategory, setSelectedCategory, sizeType, setSizeType, sizeDetail, setSizeDetail,
-    description, setDescription, measurements, setMeasurements,
+    description, setDescription, measurements, setMeasurements, unit, setUnit,
   } = props;
   const measures = measurementsFor(selectedCategory);
 
@@ -1098,9 +1140,30 @@ function DetailsStep(props: {
             people have genuinely never measured a garment before. */}
         {(measures.required.length > 0 || measures.optional.length > 0) && (
           <div className="flex flex-col gap-4">
-            <SectionHeading note="Lay the item flat and use a tape. This is the single best thing you can do to stop it coming back.">
-              Measurements in cm
-            </SectionHeading>
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <SectionHeading note="Lay the item flat and use a tape. This is the single best thing you can do to stop it coming back.">
+                Measurements
+              </SectionHeading>
+              {/* Whichever tape someone owns. Stored in centimetres either way,
+                  so a listing measured in inches and one measured in cm are the
+                  same number in the database and filter identically later. */}
+              <div className="flex shrink-0 border border-black/15" role="group" aria-label="Measurement unit">
+                {(['cm', 'in'] as MeasureUnit[]).map((u) => (
+                  <button
+                    key={u}
+                    type="button"
+                    onClick={() => setUnit(u)}
+                    aria-pressed={unit === u}
+                    className={cn(
+                      'px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] transition-colors',
+                      unit === u ? 'bg-black text-white' : 'text-black hover:bg-black/5',
+                    )}
+                  >
+                    {u}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-8">
               {[...measures.required, ...measures.optional].map((m) => {
                 const isRequired = measures.required.some((r) => r.key === m.key);
@@ -1109,22 +1172,22 @@ function DetailsStep(props: {
                     <FieldLabel optional={!isRequired}>{m.label}</FieldLabel>
                     <div className="flex items-baseline gap-2">
                       <input
-                        type="number" inputMode="decimal" min="1"
+                        type="number" inputMode="decimal" min="1" step="any"
                         value={measurements[m.key] ?? ''}
                         onChange={(e) => setMeasurements((prev) => ({ ...prev, [m.key]: e.target.value }))}
-                        placeholder="52"
+                        placeholder={unit === 'cm' ? '52' : '20.5'}
                         className="w-full border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20"
                       />
-                      <span className="text-xs font-black uppercase tracking-widest ink-mid">cm</span>
+                      <span className="text-xs font-black uppercase tracking-[0.2em] ink-mid">{unit}</span>
                     </div>
-                    <span className="text-[13px] font-normal leading-relaxed ink-mid">{m.how}</span>
+                    <span className="text-sm font-normal leading-relaxed ink-mid">{m.how}</span>
                   </div>
                 );
               })}
             </div>
-            <TrustNote>
-              Tag sizes lie, especially on vintage. Measurements are what stop someone
-              buying the wrong thing and sending it back.
+            <TrustNote full>
+              Tag sizes aren't always accurate, especially on vintage. Measurements are what
+              stop someone buying the wrong thing and sending it back.
             </TrustNote>
           </div>
         )}
@@ -1249,7 +1312,7 @@ function LastStep({
           see. The two facts here are the ones vendors most often get wrong:
           the item stays with them, and they have to be there when it goes. */}
       <div className="flex flex-col gap-5">
-        <SectionHeading note="The part people miss, so it is worth reading twice.">What happens after you accept</SectionHeading>
+        <SectionHeading note={AFTER_ACCEPT_LEAD}>What happens after you accept</SectionHeading>
         <div className="border-l-2 border-black pl-6 flex flex-col gap-6">
           {AFTER_ACCEPT.map((group) => (
             <div key={group.title} className="flex flex-col gap-2">
