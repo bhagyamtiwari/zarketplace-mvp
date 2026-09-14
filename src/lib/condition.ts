@@ -35,7 +35,7 @@ export const CONDITIONS: ConditionOption[] = [
   { name: 'Pristine', grade: '4/4', rank: '#000000', desc: 'Like new. Never worn, or worn once, with no visible wear.' },
   { name: 'Great',    grade: '3/4', rank: '#6B6B6B', desc: 'Lightly worn, well kept. No flaws. Ready to wear.' },
   { name: 'Good',     grade: '2/4', rank: '#A8A8A8', desc: 'Used, with light fading or small marks. Solid shape, plenty of life left.' },
-  { name: 'Worn',     grade: '1/4', rank: '#D4D4D4', desc: 'Clear wear: fading, marks, loose threads or damage. The specifics are described and photographed on the listing.' },
+  { name: 'Worn',     grade: '1/4', rank: '#D4D4D4', desc: 'Clear wear: fading, marks, loose threads or damage, shown in the listing.' },
 ];
 
 /** Retired tiers, mapped so an older listing still resolves to a live one. */

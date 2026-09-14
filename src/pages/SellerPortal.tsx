@@ -149,7 +149,7 @@ function SellerInner() {
         <aside className="md:w-[220px] md:shrink-0 md:border-r md:border-black/10 md:pr-10 flex flex-col gap-8">
           <div className="flex flex-col gap-0.5 min-w-0">
             <span className="text-sm font-black uppercase tracking-tight truncate">{user?.email?.split('@')[0]}</span>
-            <span className="text-[10px] font-bold ink-low truncate">{user?.email}</span>
+            <span className="text-[11px] font-normal ink-mid truncate">{user?.email}</span>
           </div>
 
           <nav className="flex flex-col">
@@ -159,7 +159,7 @@ function SellerInner() {
                 onClick={() => setTab(item.key)}
                 className={cn(
                   'flex items-center justify-between py-3 text-[11px] font-black uppercase tracking-widest border-b border-black/5 text-left transition-colors',
-                  tab === item.key ? 'text-black' : 'ink-low hover:text-black',
+                  tab === item.key ? 'text-black' : 'ink-mid hover:text-black',
                 )}
               >
                 <span>{item.label}</span>
@@ -169,14 +169,14 @@ function SellerInner() {
           </nav>
 
           <div className="flex flex-col">
-            <span className="text-[9px] font-black uppercase tracking-[0.25em] ink-low pb-2">Other</span>
+            <span className="text-[11px] font-black uppercase tracking-[0.2em] ink-mid pb-2">Other</span>
             {EXTRAS.map((item) => (
               <button
                 key={item.key}
                 onClick={() => setTab(item.key)}
                 className={cn(
                   'py-3 text-[11px] font-black uppercase tracking-widest border-b border-black/5 text-left transition-colors',
-                  tab === item.key ? 'text-black' : 'ink-low hover:text-black',
+                  tab === item.key ? 'text-black' : 'ink-mid hover:text-black',
                 )}
               >
                 {item.label}
@@ -185,7 +185,7 @@ function SellerInner() {
           </div>
 
           <div className="flex flex-col gap-2.5">
-            <span className="text-[9px] font-black uppercase tracking-[0.25em] ink-low">Items</span>
+            <span className="text-[11px] font-black uppercase tracking-[0.2em] ink-mid">Items</span>
             <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-widest">
               <span className="ink-mid">With you</span>
               <span>{withYou.length}</span>
@@ -198,7 +198,7 @@ function SellerInner() {
 
           <Link
             to="/sell"
-            className="border border-black py-3 text-center text-[10px] font-black uppercase tracking-[0.3em] hover:bg-black hover:text-white transition-colors"
+            className="border border-black py-3 text-center text-[11px] font-black uppercase tracking-[0.2em] hover:bg-black hover:text-white transition-colors"
           >
             Get an offer
           </Link>
@@ -208,7 +208,7 @@ function SellerInner() {
         <div className="flex-1 min-w-0">
           <div className="flex flex-col gap-1.5 mb-10">
             <h1 className="text-3xl font-black tracking-tighter uppercase">{TAB_META[tab].title}</h1>
-            <p className="text-[11px] font-bold uppercase tracking-widest ink-low max-w-xl leading-relaxed">
+            <p className="text-sm font-normal leading-relaxed text-black measure">
               {TAB_META[tab].description}
             </p>
           </div>
@@ -238,14 +238,14 @@ function SellerInner() {
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
-  return <h3 className="text-[10px] font-black uppercase tracking-[0.3em] ink-low mb-4">{children}</h3>;
+  return <h3 className="text-[11px] font-black uppercase tracking-[0.2em] ink-mid mb-4">{children}</h3>;
 }
 
 function SellerToolsPanel({ listings }: { listings: Listing[] }) {
   const [shareTarget, setShareTarget] = React.useState<Listing | null>(null);
 
   if (listings.length === 0) {
-    return <p className="text-[11px] font-bold uppercase tracking-widest ink-low">List an item first to generate Instagram images for it.</p>;
+    return <p className="text-[11px] font-bold uppercase tracking-widest ink-mid">List an item first to generate Instagram images for it.</p>;
   }
 
   return (
@@ -259,13 +259,13 @@ function SellerToolsPanel({ listings }: { listings: Listing[] }) {
               </div>
               <div className="flex-1 min-w-0 flex flex-col gap-1">
                 <span className="text-xs font-black uppercase tracking-tight truncate">{l.title}</span>
-                <span className="text-[9px] font-bold uppercase tracking-widest ink-low">{l.sku ?? '-'}</span>
+                <span className="text-[11px] font-bold uppercase tracking-widest ink-mid">{l.sku ?? '-'}</span>
               </div>
             </div>
             <button
               type="button"
               onClick={() => setShareTarget(l)}
-              className="inline-flex items-center justify-center gap-2 border border-black px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-black hover:text-white transition-colors"
+              className="inline-flex items-center justify-center gap-2 border border-black px-4 py-2.5 text-[11px] font-black uppercase tracking-[0.2em] hover:bg-black hover:text-white transition-colors"
             >
               <Share2 className="h-3.5 w-3.5" /> Generate Instagram image
             </button>
@@ -293,7 +293,7 @@ function ListingsTable({ title, rows, offers, statusOf, onDelete, deletingId }: 
     <div>
       <SectionLabel>{title}</SectionLabel>
       {rows.length === 0 ? (
-        <p className="text-[11px] font-bold uppercase tracking-widest ink-low pb-4">No items.</p>
+        <p className="text-[11px] font-bold uppercase tracking-widest ink-mid pb-4">No items.</p>
       ) : (
         <>
           {/* Mobile card layout */}
@@ -305,17 +305,17 @@ function ListingsTable({ title, rows, offers, statusOf, onDelete, deletingId }: 
                 </Link>
                 <div className="flex-1 min-w-0 flex flex-col gap-1">
                   <Link to={`/product/${l.id}`} className="text-xs font-black uppercase tracking-tight truncate hover:underline">{l.title}</Link>
-                  <span className="text-[9px] font-bold uppercase tracking-widest ink-low">SKU {l.sku ?? '-'} · {new Date(l.created_at).toLocaleDateString()}</span>
+                  <span className="text-[11px] font-bold uppercase tracking-widest ink-mid">SKU {l.sku ?? '-'} · {new Date(l.created_at).toLocaleDateString()}</span>
                   <div className="flex items-center justify-between mt-1">
                     <span className="text-sm font-black">{payoutLabel(offers.get(l.id))}</span>
-                    <span className="text-[9px] font-black uppercase tracking-widest ink-mid">{statusOf(l).label}</span>
+                    <span className="text-[11px] font-black uppercase tracking-widest ink-mid">{statusOf(l).label}</span>
                   </div>
                 </div>
                 <button
                   onClick={() => onDelete(l)}
                   disabled={deletingId === l.id}
                   title="Delete listing"
-                  className="self-start ink-low hover:text-black disabled:opacity-50 shrink-0"
+                  className="self-start ink-mid hover:text-black disabled:opacity-50 shrink-0"
                 >
                   {deletingId === l.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
                 </button>
@@ -327,12 +327,12 @@ function ListingsTable({ title, rows, offers, statusOf, onDelete, deletingId }: 
           <div className="hidden sm:block overflow-x-auto">
             <table className="w-full text-left">
               <thead><tr className="border-b border-black/10">
-                <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest ink-low">Item</th>
-                <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest ink-low">SKU</th>
-                <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest ink-low">Status</th>
-                <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest ink-low">Your payout</th>
-                <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest ink-low text-right">Added</th>
-                <th className="py-3 px-3 text-[10px] font-black uppercase tracking-widest ink-low text-right"></th>
+                <th className="py-3 px-3 text-[11px] font-black uppercase tracking-widest ink-mid">Item</th>
+                <th className="py-3 px-3 text-[11px] font-black uppercase tracking-widest ink-mid">SKU</th>
+                <th className="py-3 px-3 text-[11px] font-black uppercase tracking-widest ink-mid">Status</th>
+                <th className="py-3 px-3 text-[11px] font-black uppercase tracking-widest ink-mid">Your payout</th>
+                <th className="py-3 px-3 text-[11px] font-black uppercase tracking-widest ink-mid text-right">Added</th>
+                <th className="py-3 px-3 text-[11px] font-black uppercase tracking-widest ink-mid text-right"></th>
               </tr></thead>
               <tbody>
                 {rows.map((l) => (
@@ -341,10 +341,10 @@ function ListingsTable({ title, rows, offers, statusOf, onDelete, deletingId }: 
                       <div className="h-12 w-9 bg-zinc-100 overflow-hidden flex-shrink-0"><img src={variantUrl(l.image_url, 'thumb')} alt="" className="h-full w-full object-cover" /></div>
                       <span className="text-xs font-black uppercase tracking-tight">{l.title}</span>
                     </Link></td>
-                    <td className="py-3 px-3 text-[10px] font-bold uppercase tracking-widest ink-mid">{l.sku ?? '-'}</td>
-                    <td className="py-3 px-3 text-[10px] font-black uppercase tracking-widest">{statusOf(l).label}</td>
+                    <td className="py-3 px-3 text-[11px] font-bold uppercase tracking-widest ink-mid">{l.sku ?? '-'}</td>
+                    <td className="py-3 px-3 text-[11px] font-black uppercase tracking-widest">{statusOf(l).label}</td>
                     <td className="py-3 px-3 text-xs font-black">{payoutLabel(offers.get(l.id))}</td>
-                    <td className="py-3 px-3 text-[10px] font-bold uppercase tracking-widest ink-low text-right">
+                    <td className="py-3 px-3 text-[11px] font-bold uppercase tracking-widest ink-mid text-right">
                       {new Date(l.created_at).toLocaleDateString()}
                     </td>
                     <td className="py-3 px-3 text-right">
@@ -352,7 +352,7 @@ function ListingsTable({ title, rows, offers, statusOf, onDelete, deletingId }: 
                         onClick={() => onDelete(l)}
                         disabled={deletingId === l.id}
                         title="Delete listing"
-                        className="ink-low hover:text-black disabled:opacity-50"
+                        className="ink-mid hover:text-black disabled:opacity-50"
                       >
                         {deletingId === l.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                       </button>
@@ -419,11 +419,11 @@ function WithYouPanel({ rows, offers, statusOf }: {
             <div key={l.id} className="flex items-start justify-between gap-4 border-t border-black/10 py-5 last:border-b">
               <div className="flex flex-col gap-1 min-w-0">
                 <span className="text-sm font-black uppercase tracking-tight truncate">{l.title}</span>
-                <span className="text-[11px] font-bold uppercase tracking-widest ink-low">
+                <span className="text-[11px] font-bold uppercase tracking-widest ink-mid">
                   {status.label}
                 </span>
                 {status.key === 'live_check_due' && (
-                  <span className="text-[13px] font-normal leading-relaxed ink-mid max-w-[46ch]">
+                  <span className="text-sm font-normal leading-relaxed ink-mid measure">
                     Check your email for our message and tap yes or no. It takes a second.
                   </span>
                 )}
@@ -435,7 +435,7 @@ function WithYouPanel({ rows, offers, statusOf }: {
                   </span>
                 )}
                 {left != null && (
-                  <span className="text-[10px] font-black uppercase tracking-widest ink-low">
+                  <span className="text-[11px] font-black uppercase tracking-widest ink-mid">
                     {left === 0 ? 'Last day' : `${left} day${left === 1 ? '' : 's'} left`}
                   </span>
                 )}
@@ -478,7 +478,7 @@ function ActionCallout({ rows, offers, statusOf }: {
               </div>
 
               {amount != null && (
-                <p className="text-5xl sm:text-6xl font-black tracking-tighter leading-none tabular-nums">
+                <p className="text-4xl sm:text-5xl font-black tracking-tighter leading-none tabular-nums">
                   {formatCurrency(Number(amount))}
                 </p>
               )}
@@ -491,7 +491,7 @@ function ActionCallout({ rows, offers, statusOf }: {
 
               <Link
                 to={`/offer/${l.id}`}
-                className="self-start inline-flex items-center gap-3 bg-black px-10 py-5 text-xs font-black uppercase tracking-[0.3em] text-white hover:bg-zinc-800 transition-colors"
+                className="self-start inline-flex items-center gap-3 bg-black px-10 py-5 text-xs font-black uppercase tracking-[0.2em] text-white hover:bg-zinc-800 transition-colors"
               >
                 Review and accept <ChevronRight className="h-4 w-4" />
               </Link>
@@ -503,7 +503,7 @@ function ActionCallout({ rows, offers, statusOf }: {
       {others.length > 0 && (
         <div className="border border-black">
           <div className="border-b border-black px-6 py-4 sm:px-8">
-            <span className="text-[9px] font-black uppercase tracking-[0.4em]">
+            <span className="text-[11px] font-black uppercase tracking-[0.4em]">
               {others.length === 1 ? 'One item needs you' : `${others.length} items need you`}
             </span>
           </div>
@@ -522,7 +522,7 @@ function ActionCallout({ rows, offers, statusOf }: {
                         {status.detail}
                       </span>
                     </span>
-                    <span className="shrink-0 text-[10px] font-black uppercase tracking-[0.25em] border-b-2 border-black pb-1 group-hover:text-black/60">
+                    <span className="shrink-0 text-[11px] font-black uppercase tracking-[0.2em] border-b-2 border-black pb-1 group-hover:text-black/60">
                       Open
                     </span>
                   </Link>
@@ -552,7 +552,7 @@ function VendorPayouts({ listings, offers, statusOf }: {
 
   if (rows.length === 0) {
     return (
-      <p className="text-[11px] font-bold uppercase tracking-widest ink-low">
+      <p className="text-[11px] font-bold uppercase tracking-widest ink-mid">
         Nothing yet. A payout is agreed the moment you accept an offer.
       </p>
     );
@@ -578,7 +578,7 @@ function VendorPayouts({ listings, offers, statusOf }: {
 function Figure({ label, value }: { label: string; value: number }) {
   return (
     <div className="px-8 py-7 flex flex-col gap-3">
-      <span className="text-[9px] font-black uppercase tracking-[0.4em] ink-mid">{label}</span>
+      <span className="text-[11px] font-black uppercase tracking-[0.4em] ink-mid">{label}</span>
       <span className="text-3xl sm:text-4xl font-black tracking-tighter leading-none">{formatCurrency(value)}</span>
     </div>
   );
@@ -600,7 +600,7 @@ function PayoutRows({ title, rows, statusOf }: {
             <li key={listing.id} className="flex items-start justify-between gap-5 border-b border-black/5 py-5">
               <span className="flex flex-col gap-1.5 min-w-0">
                 <span className="text-xs font-black uppercase tracking-tight truncate">{listing.title}</span>
-                <span className="text-[10px] font-bold uppercase tracking-widest ink-low">
+                <span className="text-[11px] font-bold uppercase tracking-widest ink-mid">
                   {status.label} · {status.detail}
                 </span>
               </span>

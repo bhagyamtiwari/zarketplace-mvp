@@ -23,7 +23,10 @@ export function Condition() {
         >
         <div className="flex flex-col gap-4">
           <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Conditions Guide</h1>
-          <p className="body-longform measure">
+          {/* Full width of the section, like the panels below it. The measure
+              cap made this one line stop two thirds of the way across while
+              everything under it ran to the edge. */}
+          <p className="body-longform">
             Every item is graded on the same four-tier scale, so the word on one listing means what it means on all of them.
           </p>
         </div>
