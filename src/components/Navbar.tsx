@@ -78,7 +78,7 @@ export function Navbar() {
               />
             </Link>
             <div className="hidden md:block">
-              <div className="flex items-baseline space-x-10">
+              <div className="flex items-center space-x-10">
                 <div 
                   className="relative group"
                   onMouseEnter={() => setIsBrowseOpen(true)}
@@ -87,7 +87,7 @@ export function Navbar() {
                   <Link
                     to="/browse"
                     className={cn(
-                      "relative text-[10px] font-black uppercase tracking-[0.3em] transition-colors hover:text-black py-8",
+                      "relative inline-flex items-center text-[10px] font-black uppercase tracking-[0.2em] transition-colors hover:text-black py-8",
                       location.pathname === '/browse' ? "text-black" : "text-black hover:text-black/80"
                     )}
                   >
@@ -242,7 +242,7 @@ export function Navbar() {
               ) : (
                 <button
                   onClick={() => setShowAuth(true)}
-                  className="text-[10px] font-black uppercase tracking-[0.3em] text-black hover:text-black/80 transition-colors"
+                  className="text-[10px] font-black uppercase tracking-[0.2em] text-black hover:text-black/80 transition-colors"
                 >
                   Sign In
                 </button>

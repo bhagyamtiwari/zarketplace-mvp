@@ -65,7 +65,8 @@
 
      Which shell a page gets is mechanical, decided by its PRIMARY content:
 
-       grid, accordion or cards  ->  .shell-wide   (conditions, FAQ, the form)
+       a task flow               ->  .shell-form   (the listing form)
+       grid, accordion or cards  ->  .shell-wide   (conditions, FAQ)
        continuous prose          ->  .shell-read   (terms, privacy, policies)
 
      Not "which page is this", which is a judgement and drifts. The storefront
@@ -74,6 +75,23 @@
   .shell-wide {
     @apply mx-auto w-full px-4 sm:px-6 lg:px-8;
     max-width: 64rem; /* 1024px */
+  }
+
+  /* A single-column task flow: the listing form, and anything else that is a
+     sequence of decisions rather than a page to read or a grid to scan.
+
+     Narrower than shell-wide on purpose. A form is a column of one decision
+     after another, and at 1024px the eye has to travel across dead space
+     between a field and its label, and a primary action ends up floating a
+     third of a screen away from the thing it acts on. The internal grids
+     (photo slots, paired fields) are components inside the column, not a
+     reason to widen it.
+
+     Which shell a page gets, in order: a task flow gets this, continuous prose
+     gets shell-read, a grid or accordion gets shell-wide. */
+  .shell-form {
+    @apply mx-auto w-full px-4 sm:px-6 lg:px-8;
+    max-width: 40rem; /* 640px */
   }
 
   /* Derived, once, and this is the only place a ch value belongs.
