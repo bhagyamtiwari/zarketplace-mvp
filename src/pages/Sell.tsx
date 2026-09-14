@@ -444,6 +444,7 @@ function SellInner() {
     scrollToTop();
   };
   const goNext = () => goToStep(step + 1);
+  const isLastStep = step === STEP_LABELS.length - 1;
   const goBack = () => goToStep(step - 1);
 
   const undeclared = PUBLISH_CONFIRMATIONS.filter((c) => !declarations[c.key]).length;
@@ -636,12 +637,12 @@ function SellInner() {
     // register is for labels, not for three paragraphs somebody has to read
     // after filling in a form.
     return (
-      <div className="shell-read pt-24 sm:pt-32 pb-20 sm:pb-32 flex flex-col">
+      <div className="shell-form pt-24 sm:pt-32 pb-24 flex flex-col">
         <div className="flex h-16 w-16 items-center justify-center bg-black text-white mb-8">
           <CheckCircle2 className="h-8 w-8" />
         </div>
 
-        <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase leading-[0.95] mb-5">
+        <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase leading-[0.95] mb-6">
           We will come back within 24 hours
         </h1>
 
@@ -668,7 +669,7 @@ function SellInner() {
         {/* The vendor has just finished a form and is at their most willing to
             read one more thing. Said here so the PAN request that arrives later
             is expected rather than alarming. */}
-        <p className="text-sm font-normal leading-relaxed text-black mb-10">
+        <p className="text-sm font-normal leading-relaxed text-black mb-12">
           You do not need a GSTIN. We buy your item and resell it under ours.{' '}
           <Link to="/vendor-policy" className="underline underline-offset-4">How this works</Link>
         </p>
@@ -684,7 +685,7 @@ function SellInner() {
           </button>
         </div>
 
-        <div className="mt-10 pt-8 border-t border-black/10 flex flex-col gap-3">
+        <div className="mt-12 pt-8 border-t border-black/10 flex flex-col gap-3">
           <button onClick={() => navigate('/browse')}
             className="self-start text-sm font-normal text-black underline underline-offset-4">
             Back to browse
@@ -700,7 +701,7 @@ function SellInner() {
 
   return (
     <div className="flex flex-col">
-      <div className="shell-wide pt-28 sm:pt-32 pb-20 sm:pb-24">
+      <div className="shell-form pt-24 sm:pt-32 pb-24">
         {/* Someone on this page has already decided to list something. The
             hero only has to confirm they are in the right place, so it is a
             headline and one sentence. Everything else that used to sit here
@@ -709,7 +710,7 @@ function SellInner() {
             On later steps there is no heading at all: the stepper below names
             the step, and naming it twice is what made this feel long. */}
         {step === 0 && (
-          <div className="mb-10 sm:mb-12 flex flex-col gap-4">
+          <div className="mb-12 flex flex-col gap-4">
             <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase leading-[0.95]">
               Show us what you have.
               <span className="block ink-mid">We will tell you what we will pay.</span>
@@ -728,7 +729,7 @@ function SellInner() {
             it. This is a single rule that fills, with the count and the current
             step named once, on one line. The steps stay individually reachable
             for anyone going back to fix something. */}
-        <div className="mb-10 flex flex-col gap-3">
+        <div className="mb-12 flex flex-col gap-3">
           <div className="flex items-baseline gap-2 text-[11px] font-black uppercase tracking-[0.2em]">
             <span className="ink-mid">Step {step + 1} of {STEP_LABELS.length}</span>
             <span className="ink-low" aria-hidden>/</span>
@@ -815,78 +816,59 @@ function SellInner() {
           </p>
         )}
 
-        {/* Desktop nav */}
-        <div className="hidden sm:flex items-center justify-between mt-12 pt-8 border-t border-black/5">
-          <button type="button" onClick={goBack} disabled={step === 0}
-            className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-black disabled:opacity-20 hover:text-black/60">
-            <ChevronLeft className="h-4 w-4" /> Back
+        {/* One block, one width, one order.
+        
+            There used to be two: a desktop bar with justify-between that threw
+            the primary action to the far right of a 1024px page, and a separate
+            mobile bar at max-w-3xl, which is a width nothing else on the page
+            used. That is where the gulf between the checklist and the button
+            came from, and why the explanatory line ended up right-aligned under
+            a floating button rather than under the thing it explains.
+        
+            The action is now the full width of the column, directly under the
+            last thing you filled in, with everything that qualifies it stacked
+            beneath in the order you need it. */}
+        <div className="mt-12 flex flex-col gap-4">
+          <button
+            type="button"
+            onClick={isLastStep ? handlePublish : goNext}
+            disabled={isLastStep && !canPublish}
+            className="w-full bg-black py-5 text-xs font-black uppercase tracking-[0.2em] text-white transition-colors hover:bg-zinc-800 disabled:bg-black/25 disabled:hover:bg-black/25 flex items-center justify-center gap-3"
+          >
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+            {isLastStep ? (loading ? 'Sending' : 'Get my offer') : 'Continue'}
+            {!isLastStep && <ChevronRight className="h-4 w-4" />}
           </button>
-          {step < STEP_LABELS.length - 1 ? (
-            <button type="button" onClick={goNext}
-              className="inline-flex items-center gap-2 bg-black px-12 py-5 text-xs font-black uppercase tracking-[0.3em] text-white hover:bg-zinc-800">
-              Continue <ChevronRight className="h-4 w-4" />
+
+          {isLastStep && blockedReason && (
+            <p className="text-sm font-normal leading-relaxed text-black">{blockedReason}</p>
+          )}
+
+          {step > 0 && (
+            <button
+              type="button"
+              onClick={goBack}
+              className="self-start inline-flex items-center gap-1.5 text-sm font-normal text-black underline underline-offset-4"
+            >
+              <ChevronLeft className="h-4 w-4" /> Back
             </button>
-          ) : (
-            <div className="flex flex-col items-end gap-2">
-              <button type="button" onClick={handlePublish} disabled={!canPublish}
-                className="inline-flex items-center gap-3 bg-black px-12 py-5 text-xs font-black uppercase tracking-[0.3em] text-white hover:bg-zinc-800 disabled:opacity-40">
-                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-                {loading ? 'Sending' : 'Get my offer'}
-              </button>
-              {blockedReason && (
-                <p className="text-sm font-normal text-black">{blockedReason}</p>
-              )}
-            </div>
           )}
         </div>
 
-        {/* Left-aligned with the form and set at body size in black, like
-            everything else on the page. Centred grey micro-type in two
-            different sizes was three decisions where none was needed: this is
-            the last thing read before submitting and it is not a footnote. */}
-        <div className="mt-10 pt-8 border-t border-black/10 flex flex-col gap-3">
-          {step === STEP_LABELS.length - 1 && (
-            <p className="text-sm font-normal leading-relaxed text-black measure">
+        <div className="mt-12 pt-6 border-t border-black/10 flex flex-col gap-3">
+          {isLastStep && (
+            <p className="text-sm font-normal leading-relaxed text-black">
               Nothing is listed yet. We look at it and come back within 24 hours, with
               either an offer or what needs changing first.
             </p>
           )}
-          <p className="text-sm font-normal leading-relaxed text-black">
+          <p className="text-sm font-normal leading-relaxed ink-mid">
             Something not working?{' '}
-            <Link to="/contact" className="underline underline-offset-4">Tell us</Link>
+            <Link to="/contact" className="underline underline-offset-4 text-black">Tell us</Link>
             {' or '}
-            <a href="https://wa.me/918505927538" target="_blank" rel="noreferrer" className="underline underline-offset-4">WhatsApp us</a>.
+            <a href="https://wa.me/918505927538" target="_blank" rel="noreferrer" className="underline underline-offset-4 text-black">WhatsApp us</a>.
           </p>
         </div>
-      </div>
-
-      {/* Mobile step nav. Sits at the end of the step rather than riding the
-          scroll: a bar pinned over the form eats screen on a phone and covers
-          the field you are typing into. */}
-      <div className="sm:hidden mx-auto w-full max-w-3xl border-t border-black/10 px-4 py-6 flex items-center gap-3">
-        {step > 0 && (
-          <button type="button" onClick={goBack}
-            className="shrink-0 h-14 w-14 flex items-center justify-center border border-black/20 text-black">
-            <ChevronLeft className="h-5 w-5" />
-          </button>
-        )}
-        {step < STEP_LABELS.length - 1 ? (
-          <button type="button" onClick={goNext}
-            className="flex-1 bg-black py-4 text-xs font-black uppercase tracking-[0.3em] text-white flex items-center justify-center gap-2">
-            Continue <ChevronRight className="h-4 w-4" />
-          </button>
-        ) : (
-          <div className="flex-1 flex flex-col gap-2">
-            <button type="button" onClick={handlePublish} disabled={!canPublish}
-              className="w-full bg-black py-4 text-xs font-black uppercase tracking-[0.3em] text-white disabled:opacity-40 flex items-center justify-center gap-2">
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {loading ? 'Sending' : 'Get my offer'}
-            </button>
-            {blockedReason && (
-              <p className="text-center text-sm font-normal text-black">{blockedReason}</p>
-            )}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -959,9 +941,17 @@ function PhotosStep({ imagePreviews, onAdd, onRemove, originals, cleaning, onUse
           Says the quiet part out loud, because vendors otherwise assume their
           phone photos are the problem and give up. They are not the problem. */}
       <Note>
-        Shoot on a bed or the floor, in daylight. We are not judging the photography
-        and we will never turn an item down for lighting. We do need all four required
-        angles, because we cannot price what we cannot identify.
+        Daylight, plain background, item flat. Better photos get better offers, so it is
+        worth the ten minutes.{' '}
+        <a
+          href="https://www.photoroom.com/tools/background-remover"
+          target="_blank"
+          rel="noreferrer noopener"
+          className="underline underline-offset-4"
+        >
+          Photoroom
+        </a>{' '}
+        will clean up the background for free.
       </Note>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
