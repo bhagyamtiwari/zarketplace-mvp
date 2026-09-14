@@ -55,6 +55,43 @@ const CATEGORY_SIZES: Record<string, string[]> = {
 const PUBLISH_CONFIRMATIONS: Array<{ key: string; label: string }> = [
   { key: 'oneItem', label: 'This is one item, and it is mine to sell.' },
   { key: 'accurate', label: 'It is genuine, the photos are of this item, and I have described its condition and any flaws accurately.' },
+  // The one the patient lane actually runs on. A listing is a promise that the
+  // item is sitting somewhere, in the state described, ready to go: the two
+  // ways that breaks are selling it elsewhere and wearing it in the meantime,
+  // and both look identical to us until a courier arrives at an empty door.
+  {
+    key: 'heldReady',
+    label: 'If I accept an offer, I will keep this item aside, unworn and ready to pack, and will not sell it anywhere else while it is listed.',
+  },
+];
+
+// What happens after acceptance, as separate thoughts rather than paragraphs.
+// Every line here is something a vendor has got wrong at least once.
+const AFTER_ACCEPT: Array<{ title: string; points: string[] }> = [
+  {
+    title: 'The item stays with you',
+    points: [
+      'It goes live on zarketplace, but it does not leave your home until somebody buys it.',
+      'That might be next week. It might be next month.',
+      'Keep it aside and unworn, in the condition you described.',
+    ],
+  },
+  {
+    title: 'When it sells, we come to you',
+    points: [
+      'We message you the same day and send a prepaid label.',
+      'A courier collects from your door, usually the next working day.',
+      'You do not pay for postage and you do not go to a courier office.',
+    ],
+  },
+  {
+    title: 'What we need from you in between',
+    points: [
+      'That you still have it, and that we can reach you.',
+      'Every couple of weeks we send one email asking exactly that. Two buttons, yes or no.',
+      'If an item cannot be sent when it sells, the order is cancelled and it counts against your account.',
+    ],
+  },
 ];
 
 // Recommended photo order - purely a labeling/placeholder aid over the same
@@ -158,7 +195,9 @@ const CATEGORY_TO_SHIPPING: Record<string, string> = {
   Shoes: 'footwear',
 };
 
-const MAX_IMAGES = 8;
+// One per named angle. The cap used to be 8 while only 6 boxes were ever
+// drawn, so the counter read "0/8" against six slots.
+const MAX_IMAGES = PHOTO_SLOTS.length;
 
 // Three steps. The last one used to be "Condition & price" and no longer holds
 // a price: a vendor names no number at all now, so the step carries condition,
@@ -412,8 +451,8 @@ function SellInner() {
   const canPublish = allDeclared && !loading;
   // A disabled button that does not say why reads as a broken one.
   const blockedReason = loading ? null
-    : undeclared === PUBLISH_CONFIRMATIONS.length ? 'Tick both lines above to get your offer.'
-    : undeclared > 0 ? 'One line above is still unticked.'
+    : undeclared === PUBLISH_CONFIRMATIONS.length ? 'Tick all three lines above to get your offer.'
+    : undeclared > 0 ? `${undeclared === 1 ? 'One line' : `${undeclared} lines`} above still unticked.`
     : null;
 
   // The last step needs both its validator and the two confirmations: unlike
@@ -429,7 +468,7 @@ function SellInner() {
       const err = validateStep(s);
       if (err) { setStep(s); setStepError(err); scrollToTop(); return; }
     }
-    if (!allDeclared) { setStepError('Tick both lines above before we can price this.'); scrollToTop(); return; }
+    if (!allDeclared) { setStepError('Tick all three lines above before we can price this.'); scrollToTop(); return; }
 
     setLoading(true);
     const tFull = slog.time('full submit');
@@ -590,66 +629,71 @@ function SellInner() {
   };
 
   if (submitted) {
+    // Left-aligned, sentence case, one type size.
+    //
+    // This screen had four treatments for what is ordinary prose: 10px, 11px
+    // and 12px uppercase micro-type at three different greys, centred. That
+    // register is for labels, not for three paragraphs somebody has to read
+    // after filling in a form.
     return (
-      <div className="mx-auto max-w-2xl px-4 pt-24 sm:pt-32 pb-20 sm:pb-32 text-center flex flex-col items-center">
-        <div className="flex h-24 w-24 items-center justify-center rounded-full bg-black text-white mb-8">
-          <CheckCircle2 className="h-12 w-12" />
+      <div className="shell-read pt-24 sm:pt-32 pb-20 sm:pb-32 flex flex-col">
+        <div className="flex h-16 w-16 items-center justify-center bg-black text-white mb-8">
+          <CheckCircle2 className="h-8 w-8" />
         </div>
-        <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase mb-4 leading-[0.95]">
+
+        <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase leading-[0.95] mb-5">
           We will come back within 24 hours
         </h1>
+
         {/* The vendor has not listed anything yet and should not think they
             have. Nothing goes live until they have seen a number and agreed to
             it, and saying so here is the difference between someone waiting and
             someone who thinks the form silently failed. */}
-        <p className="text-black font-medium uppercase tracking-widest text-xs mb-3 max-w-md">
-          Someone is looking at your item now.
+        <p className="text-sm font-normal leading-relaxed text-black mb-4">
+          Someone is looking at your item now. You will hear either an offer, or what
+          would need to change before we can make one.
         </p>
-        <p className="font-medium uppercase tracking-widest text-[11px] leading-[1.9] mb-6 max-w-md">
-          You will hear either an offer, or what would need to change before we
-          can make one. Nothing is listed until you have seen a number and
-          agreed to it, and the item stays with you either way.
+        <p className="text-sm font-normal leading-relaxed text-black mb-8">
+          Nothing is listed yet, and the item stays with you either way.
         </p>
-        <div className="mb-10 max-w-md border-l-2 border-black pl-5 text-left">
-          <p className="text-black font-medium uppercase tracking-widest text-[11px] leading-[1.9]">
-            Everything from here comes by email
-          </p>
-          <p className="font-medium uppercase tracking-widest text-[11px] leading-[1.9]">
-            Your offer, the day it sells, your label. Check your spam folder now
-            and mark us as not spam, so the one that matters does not sit in there
-            unread.
+
+        <div className="border-l-2 border-black pl-5 flex flex-col gap-2 mb-8">
+          <h2 className="text-sm font-black text-black">Everything from here comes by email</h2>
+          <p className="text-sm font-normal leading-relaxed text-black">
+            Your offer, the day it sells, and your label. Check your spam folder now and
+            mark us as not spam, so the one that matters does not sit in there unread.
           </p>
         </div>
+
         {/* The vendor has just finished a form and is at their most willing to
-            read one more thing. Said here, in three lines, so the PAN request
-            that arrives later is expected rather than alarming. */}
-        <p className="ink-mid font-medium uppercase tracking-widest text-[10px] leading-[1.9] mb-10 max-w-md">
-          You don't need a GSTIN. We buy your item and resell it under ours.{' '}
-          <Link to="/vendor-policy" className="underline hover:text-black">How this works</Link>
+            read one more thing. Said here so the PAN request that arrives later
+            is expected rather than alarming. */}
+        <p className="text-sm font-normal leading-relaxed text-black mb-10">
+          You do not need a GSTIN. We buy your item and resell it under ours.{' '}
+          <Link to="/vendor-policy" className="underline underline-offset-4">How this works</Link>
         </p>
-        <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
+
+        <div className="flex flex-col sm:flex-row gap-3">
           <button onClick={() => navigate('/vendor-portal')}
             className="bg-black px-10 py-5 text-xs font-black uppercase tracking-widest text-white hover:bg-zinc-800">
             Your items
           </button>
           <button onClick={resetForm}
             className="border border-black px-10 py-5 text-xs font-black uppercase tracking-widest text-black hover:bg-black hover:text-white">
-            Sell another
+            Send us another
           </button>
         </div>
-        <button onClick={() => navigate('/browse')}
-          className="mt-6 text-[11px] font-black uppercase tracking-[0.25em] ink-low hover:text-black">
-          Back to browse
-        </button>
 
-        <a
-          href="https://wa.me/918505927538"
-          target="_blank"
-          rel="noreferrer"
-          className="mt-8 text-[10px] font-bold uppercase tracking-widest ink-low hover:text-black underline"
-        >
-          Something off, or an idea to make this better? WhatsApp us
-        </a>
+        <div className="mt-10 pt-8 border-t border-black/10 flex flex-col gap-3">
+          <button onClick={() => navigate('/browse')}
+            className="self-start text-sm font-normal text-black underline underline-offset-4">
+            Back to browse
+          </button>
+          <p className="text-sm font-normal leading-relaxed text-black">
+            Something off, or an idea to make this better?{' '}
+            <a href="https://wa.me/918505927538" target="_blank" rel="noreferrer" className="underline underline-offset-4">WhatsApp us</a>.
+          </p>
+        </div>
       </div>
     );
   }
@@ -686,7 +730,7 @@ function SellInner() {
             for anyone going back to fix something. */}
         <div className="mb-10 flex flex-col gap-3">
           <div className="flex items-baseline gap-2 text-[11px] font-black uppercase tracking-[0.2em]">
-            <span className="ink-low">Step {step + 1} of {STEP_LABELS.length}</span>
+            <span className="ink-mid">Step {step + 1} of {STEP_LABELS.length}</span>
             <span className="ink-low" aria-hidden>/</span>
             <span>{STEP_LABELS[step]}</span>
           </div>
@@ -790,24 +834,28 @@ function SellInner() {
                 {loading ? 'Sending' : 'Get my offer'}
               </button>
               {blockedReason && (
-                <p className="text-[11px] font-normal ink-mid">{blockedReason}</p>
+                <p className="text-sm font-normal text-black">{blockedReason}</p>
               )}
             </div>
           )}
         </div>
 
-        <div className="mt-8 flex flex-col items-center gap-3 text-center">
+        {/* Left-aligned with the form and set at body size in black, like
+            everything else on the page. Centred grey micro-type in two
+            different sizes was three decisions where none was needed: this is
+            the last thing read before submitting and it is not a footnote. */}
+        <div className="mt-10 pt-8 border-t border-black/10 flex flex-col gap-3">
           {step === STEP_LABELS.length - 1 && (
-            <p className="text-xs font-normal leading-relaxed ink-mid max-w-[46ch]">
-              Nothing is listed yet. We'll look at it and come back within 24 hours
-              with either an offer or what needs changing first.
+            <p className="text-sm font-normal leading-relaxed text-black measure">
+              Nothing is listed yet. We look at it and come back within 24 hours, with
+              either an offer or what needs changing first.
             </p>
           )}
-          <p className="hidden sm:block text-[10px] font-bold uppercase tracking-widest ink-low">
+          <p className="text-sm font-normal leading-relaxed text-black">
             Something not working?{' '}
-            <Link to="/contact" className="underline hover:text-black">Tell us</Link>
-            {' · '}
-            <a href="https://wa.me/918505927538" target="_blank" rel="noreferrer" className="underline hover:text-black">WhatsApp</a>
+            <Link to="/contact" className="underline underline-offset-4">Tell us</Link>
+            {' or '}
+            <a href="https://wa.me/918505927538" target="_blank" rel="noreferrer" className="underline underline-offset-4">WhatsApp us</a>.
           </p>
         </div>
       </div>
@@ -835,7 +883,7 @@ function SellInner() {
               {loading ? 'Sending' : 'Get my offer'}
             </button>
             {blockedReason && (
-              <p className="text-center text-[11px] font-normal ink-mid">{blockedReason}</p>
+              <p className="text-center text-sm font-normal text-black">{blockedReason}</p>
             )}
           </div>
         )}
@@ -849,7 +897,7 @@ function FieldLabel({ children, optional }: { children: React.ReactNode; optiona
     <label className="flex items-baseline gap-2 text-sm font-semibold tracking-tight text-black">
       {children}
       {optional && (
-        <span className="text-[11px] font-medium tracking-normal ink-low">Optional</span>
+        <span className="text-[11px] font-medium tracking-normal ink-mid">Optional</span>
       )}
     </label>
   );
@@ -858,19 +906,32 @@ function FieldLabel({ children, optional }: { children: React.ReactNode; optiona
 // One step above a field label and clearly not one of them. Every section used
 // to be set in the same register as the fields under it, so nothing told you
 // where one group ended and the next began.
+function Note({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="border-l-2 border-black pl-5 text-sm font-normal leading-relaxed text-black">
+      {children}
+    </p>
+  );
+}
+
 function SectionHeading({ children, note }: { children: React.ReactNode; note?: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
       <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tighter leading-none">{children}</h3>
-      {note && <p className="text-sm font-normal leading-relaxed ink-mid measure">{note}</p>}
+      {note && <p className="text-sm font-normal leading-relaxed text-black measure">{note}</p>}
     </div>
   );
 }
 
-// Short one-line trust cue - uppercase micro-label, matches the site's
-// system-voice register.
+// Guidance attached to a field. Body size, black, sitting directly under the
+// thing it describes.
+//
+// This and Note used to be 13px grey, which is a fourth type size and a second
+// ink doing the job of the one above it. Hierarchy here comes from weight and
+// position, not from fading the words out: guidance someone needs in order to
+// answer correctly is content, and content is full ink.
 function TrustNote({ children }: { children: React.ReactNode }) {
-  return <p className="text-[13px] font-normal leading-relaxed ink-mid measure">{children}</p>;
+  return <p className="text-sm font-normal leading-relaxed text-black measure">{children}</p>;
 }
 
 function PhotosStep({ imagePreviews, onAdd, onRemove, originals, cleaning, onUseOriginal }: {
@@ -893,7 +954,16 @@ function PhotosStep({ imagePreviews, onAdd, onRemove, originals, cleaning, onUse
           stays; the scaffolding does not, and we strip backgrounds ourselves. */}
       {/* No heading. This step contains one thing, and the stepper directly
           above already calls it Photos. Steps 2 and 3 hold several sections
-          each, so those keep their headings. */}
+          each, so those keep their headings.
+
+          Says the quiet part out loud, because vendors otherwise assume their
+          phone photos are the problem and give up. They are not the problem. */}
+      <Note>
+        Shoot on a bed or the floor, in daylight. We are not judging the photography
+        and we will never turn an item down for lighting. We do need all four required
+        angles, because we cannot price what we cannot identify.
+      </Note>
+
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         {slots.map((i) => {
           const slot = PHOTO_SLOTS[i];
@@ -929,31 +999,24 @@ function PhotosStep({ imagePreviews, onAdd, onRemove, originals, cleaning, onUse
               <div className="h-10 w-10 rounded-full border border-black/10 flex items-center justify-center group-hover:border-black/30 transition-all shrink-0">
                 <Plus className="h-4 w-4 ink-low group-hover:text-black" />
               </div>
+              {/* Two lines, one size. This box had three stacked texts at three
+                  sizes - name at 11px, hint at 10px, required/optional at 9px -
+                  which is three type decisions inside a thumbnail. The second
+                  line says whichever of the two is actually worth knowing. */}
               <span className="text-[11px] font-black uppercase tracking-widest text-black">{label}</span>
-              {slot?.hint && (
-                <span className="text-[9px] font-bold uppercase tracking-widest ink-low">{slot.hint}</span>
-              )}
-              {required
-                ? <span className="text-[9px] font-bold uppercase tracking-widest ink-mid">Required</span>
-                : <span className="text-[9px] font-bold uppercase tracking-widest ink-low">Optional</span>}
+              <span className="text-[11px] font-medium uppercase tracking-widest ink-mid">
+                {slot?.hint ?? (required ? 'Required' : 'Optional')}
+              </span>
               <input type="file" accept="image/*" className="hidden" onChange={onAdd} multiple />
             </label>
           );
         })}
       </div>
 
-      {/* Background-remover recommendations live in the Seller Policy now: they
-          are useful, but not worth sending someone out of a half-finished form. */}
-      <p className="text-xs text-black font-black uppercase tracking-widest">
-        {imagePreviews.length}/{MAX_IMAGES} photos uploaded.
+      <p className="text-sm font-bold text-black">
+        {imagePreviews.length}/{MAX_IMAGES} uploaded.
         {imagePreviews.length < REQUIRED_PHOTOS && ` ${REQUIRED_PHOTOS - imagePreviews.length} more needed.`}
       </p>
-      {/* Says the quiet part out loud, because vendors otherwise assume their
-          phone photos are the problem and give up. They are not the problem. */}
-      <TrustNote>
-        Shoot on a bed or a floor in daylight. We are not judging the photography,
-        and we will never turn something down for lighting. We do need all four angles.
-      </TrustNote>
     </div>
   );
 }
@@ -981,10 +1044,11 @@ function DetailsStep(props: {
 
   return (
     <div className="flex flex-col gap-12">
-      <div className="flex items-start gap-3 border-l-2 border-black pl-4">
+      <div className="flex items-start gap-3 border-l-2 border-black pl-5">
         <AlertTriangle className="h-4 w-4 text-black mt-0.5 shrink-0" />
-        <p className="text-xs font-bold uppercase tracking-widest ink-mid leading-relaxed">
-          One item at a time. Five of the same thing means five of these.
+        <p className="text-sm font-normal leading-relaxed text-black">
+          One item per form. If you have five of the same thing, send them as five
+          separate submissions, because we price and buy each one on its own.
         </p>
       </div>
 
@@ -1061,7 +1125,7 @@ function DetailsStep(props: {
                         placeholder="52"
                         className="w-full border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20"
                       />
-                      <span className="text-xs font-black uppercase tracking-widest ink-low">cm</span>
+                      <span className="text-xs font-black uppercase tracking-widest ink-mid">cm</span>
                     </div>
                     <span className="text-[13px] font-normal leading-relaxed ink-mid">{m.how}</span>
                   </div>
@@ -1080,7 +1144,7 @@ function DetailsStep(props: {
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4}
             placeholder="Fit, material, how it runs, anything a photo can't show."
             className="border border-black/10 p-6 text-sm font-medium focus:border-black focus:outline-none resize-none transition-all placeholder:text-black/20" />
-          <TrustNote>Optional. The more we know, the better we can price it.</TrustNote>
+          <TrustNote>The more we know, the closer our offer lands.</TrustNote>
         </div>
       </div>
     </div>
@@ -1116,7 +1180,7 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
                 />
                 <span className="flex items-baseline gap-2 text-xs font-black uppercase tracking-widest">
                   {c.name}
-                  <span className={cn('text-[10px] tracking-[0.2em]', chosen ? 'ink-mid' : 'ink-low')}>{c.grade}</span>
+                  <span className="text-[10px] tracking-[0.2em] ink-mid">{c.grade}</span>
                 </span>
                 <span className="text-[13px] font-normal normal-case tracking-normal leading-relaxed">{c.desc}</span>
               </button>
@@ -1194,29 +1258,30 @@ function LastStep({
           between options that differ only in who absorbs a cost they never
           see. The two facts here are the ones vendors most often get wrong:
           the item stays with them, and they have to be there when it goes. */}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-5">
         <SectionHeading note="The part people miss, so it is worth reading twice.">What happens after you accept</SectionHeading>
-        <div className="border-l-2 border-black pl-6 py-1 flex flex-col gap-3">
-          <p className="text-sm font-medium leading-relaxed text-black">
-            <strong>The item stays with you.</strong> It goes live on zarketplace, but it does
-            not leave your home until somebody buys it. That might be next week or next month.
-          </p>
-          <p className="text-sm font-medium leading-relaxed text-black">
-            <strong>When it sells, we come to you.</strong> We send a prepaid label and book a
-            courier to your door the next working day. You do not pay for postage and you do
-            not go to a courier office.
-          </p>
-          <p className="text-sm leading-relaxed ink-mid">
-            All we need from you in between is that you still have it and we can reach you.
-          </p>
+        <div className="border-l-2 border-black pl-6 flex flex-col gap-6">
+          {AFTER_ACCEPT.map((group) => (
+            <div key={group.title} className="flex flex-col gap-2">
+              <h4 className="text-sm font-black text-black">{group.title}</h4>
+              <ul className="flex flex-col gap-1.5">
+                {group.points.map((point) => (
+                  <li key={point} className="flex gap-3 text-sm font-normal leading-relaxed text-black">
+                    <span aria-hidden className="mt-[0.6em] h-1 w-1 shrink-0 bg-black" />
+                    <span>{point}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Two lines, both load-bearing. The first is the one rule that makes a
-          listing a listing; the second carries accuracy, flaws and
-          authenticity in one sentence a person will actually read. */}
+      {/* Three lines, all load-bearing. One item is the rule that makes a
+          listing a listing; accuracy carries flaws and authenticity; and the
+          third is the one the patient lane actually runs on. */}
       <div className="flex flex-col gap-1">
-        <SectionHeading>Two things to confirm</SectionHeading>
+        <SectionHeading>Three things to confirm</SectionHeading>
         {PUBLISH_CONFIRMATIONS.map((item) => {
           const on = !!declarations[item.key];
           return (
