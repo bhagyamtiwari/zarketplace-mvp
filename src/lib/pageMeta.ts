@@ -80,7 +80,7 @@ export const META = {
   },
   sell: {
     title: 'Sell us your clothes',
-    description: "Tell us what you want for it and we'll tell you what we'll pay. A fixed amount, agreed before your item is listed, that never changes.",
+    description: "Add your item and we'll make you an offer: a fixed amount we pay you, agreed before it is listed, that never changes.",
     path: '/sell',
   },
   buyerProtection: {
