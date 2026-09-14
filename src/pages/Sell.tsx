@@ -744,11 +744,10 @@ function SellInner() {
         {step === 0 && (
           <div className="mb-12 flex flex-col gap-4">
             <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase leading-[0.95]">
-              Show us what you have.
-              <span className="block ink-mid">We will tell you what we will pay.</span>
+              What are you selling?
             </h1>
             <p className="body-longform measure">
-              Photos and a few details, and you hear back within 24 hours.
+              Add your item. We'll make you an offer.
             </p>
           </div>
         )}
