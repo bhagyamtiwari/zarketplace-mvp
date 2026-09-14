@@ -36,10 +36,31 @@ export function About() {
         >
           <header className="flex flex-col gap-5">
             <div className="flex flex-col gap-3">
-              <h1 className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-4xl sm:text-6xl font-black tracking-tighter uppercase">
+              {/* Sized and aligned from the pixels rather than by eye.
+              
+                  In the cropped asset the ascenders are 77.5% of the band and
+                  the "p" hangs the remaining 22.5% below the baseline. Inter's
+                  cap height is 0.727em, so for "zarketplace" to stand as tall
+                  as "WTF IS" the image has to be 0.727 / 0.775 = 0.94em.
+              
+                  A baseline-aligned image sits with its BOTTOM on the text
+                  baseline, which would hang the whole wordmark a descender too
+                  high, so it is pushed back down by that same 22.5% of its
+                  height: 0.225 x 0.94 = 0.21em. Both are in em, so the mark
+                  tracks the heading at every breakpoint. */}
+              <h1 className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-4xl sm:text-6xl font-black tracking-tighter uppercase">
                 <span>WTF is</span>
-                <Wordmark on="light" heightClassName="h-8 sm:h-12" className="translate-y-[0.12em]" />
-                <span>?</span>
+                {/* The mark and the question mark travel together: on a phone
+                    the heading wraps, and a "?" alone on its own line reads as
+                    a typo rather than as punctuation. */}
+                <span className="inline-flex items-baseline whitespace-nowrap">
+                  <Wordmark
+                    on="light"
+                    heightClassName=""
+                    className="inline-block h-[0.94em] w-auto translate-y-[0.21em]"
+                  />
+                  <span>?</span>
+                </span>
               </h1>
             </div>
             {/* Copy fills its box rather than stopping short of the right edge:

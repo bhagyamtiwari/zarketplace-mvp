@@ -7,16 +7,16 @@ export interface ConditionOption {
   /** Grade out of four, shown alongside the name so the tiers rank at a glance. */
   grade: string;
   /**
-   * A rank colour, used on the Conditions Guide and nowhere else.
+   * The rank, drawn as a bar. Ink, not colour.
    *
-   * BrandKit keeps the palette monochrome and says colour is a signal, never a
-   * style. A four-step ladder is a signal, so it earns its place here: the
-   * guide's whole job is to make the tiers rank at a glance, and four cards of
-   * identical grey do not. It stays off product pages, where a coloured chip
-   * beside a price would be decoration, and would read as a rating of the
-   * listing rather than of the garment.
+   * Four hues ranked the tiers and read as decoration: arbitrary meaning
+   * attached to violet and teal that nobody can decode without a key, on a
+   * brand that is otherwise black and white. A ladder does not need four
+   * colours, it needs four weights, and weight is the thing that already means
+   * "more" here. BrandKit was right and so was the instinct that this looked
+   * generated.
    */
-  accent: string;
+  rank: string;
   /**
    * The definition, one or two short sentences. Deliberately short enough to
    * read on a card: the vendor form stacks all four while choosing, and the
@@ -32,10 +32,10 @@ export interface ConditionOption {
 // damage, and the form already requires that in writing and in a close-up
 // photograph before a flawed item can be submitted.
 export const CONDITIONS: ConditionOption[] = [
-  { name: 'Pristine', grade: '4/4', accent: '#6D28D9', desc: 'Like new. Never worn, or worn once, with no visible wear.' },
-  { name: 'Great',    grade: '3/4', accent: '#1D4ED8', desc: 'Lightly worn, well kept. No flaws. Ready to wear.' },
-  { name: 'Good',     grade: '2/4', accent: '#0F766E', desc: 'Used, with light fading or small marks. Solid shape, plenty of life left.' },
-  { name: 'Worn',     grade: '1/4', accent: '#A1A1AA', desc: 'Clear wear: fading, marks, loose threads or damage. The specifics are described and photographed on the listing.' },
+  { name: 'Pristine', grade: '4/4', rank: '#000000', desc: 'Like new. Never worn, or worn once, with no visible wear.' },
+  { name: 'Great',    grade: '3/4', rank: '#6B6B6B', desc: 'Lightly worn, well kept. No flaws. Ready to wear.' },
+  { name: 'Good',     grade: '2/4', rank: '#A8A8A8', desc: 'Used, with light fading or small marks. Solid shape, plenty of life left.' },
+  { name: 'Worn',     grade: '1/4', rank: '#D4D4D4', desc: 'Clear wear: fading, marks, loose threads or damage. The specifics are described and photographed on the listing.' },
 ];
 
 /** Retired tiers, mapped so an older listing still resolves to a live one. */

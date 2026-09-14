@@ -47,7 +47,7 @@ export function Condition() {
               <span
                 aria-hidden
                 className="absolute left-0 top-0 h-full w-1.5"
-                style={{ backgroundColor: c.accent }}
+                style={{ backgroundColor: c.rank }}
               />
               <h2 className="flex items-baseline gap-2.5 text-lg font-black uppercase tracking-tight text-black">
                 {c.name}
