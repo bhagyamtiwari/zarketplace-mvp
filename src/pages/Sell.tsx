@@ -1101,17 +1101,27 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
             one. The definitions are short enough to sit on the card, so nothing
             hides behind a tip here. */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {CONDITIONS.map((c) => (
-            <button key={c.name} type="button" onClick={() => setCondition(c.name)}
-              className={cn('border p-5 text-left transition-all flex flex-col gap-1.5',
-                condition === c.name ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
-              <span className="flex items-baseline gap-2 text-xs font-black uppercase tracking-widest">
-                {c.name}
-                <span className={cn('text-[10px] tracking-[0.2em]', condition === c.name ? 'ink-mid' : 'ink-low')}>{c.grade}</span>
-              </span>
-              <span className={cn('text-[13px] font-normal normal-case tracking-normal leading-relaxed', condition === c.name ? '' : '')}>{c.desc}</span>
-            </button>
-          ))}
+          {CONDITIONS.map((c) => {
+            const chosen = condition === c.name;
+            return (
+              <button key={c.name} type="button" onClick={() => setCondition(c.name)}
+                className={cn('relative overflow-hidden border p-5 pl-6 text-left transition-all flex flex-col gap-1.5',
+                  chosen ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
+                {/* The same rank bar as the guide, in the same ink. On a chosen
+                    card the ladder inverts to white so it stays visible. */}
+                <span
+                  aria-hidden
+                  className="absolute left-0 top-0 h-full w-1"
+                  style={{ backgroundColor: chosen ? '#FFFFFF' : c.rank }}
+                />
+                <span className="flex items-baseline gap-2 text-xs font-black uppercase tracking-widest">
+                  {c.name}
+                  <span className={cn('text-[10px] tracking-[0.2em]', chosen ? 'ink-mid' : 'ink-low')}>{c.grade}</span>
+                </span>
+                <span className="text-[13px] font-normal normal-case tracking-normal leading-relaxed">{c.desc}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 

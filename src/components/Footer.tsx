@@ -21,46 +21,51 @@ interface FooterColumn {
 
 // The footer is the only wayfinding for the info pages (the left sidebar that
 // used to link them was removed), so every public page must appear here.
-// Columns are kept close in length (5/4/5/4) so the desktop grid stays even.
+//
+// Grouped by what someone is here to do, which for this business is two
+// different things with two different vocabularies. A buyer buys; a seller is
+// not "selling on" zarketplace, they are selling TO us, and every label on that
+// side says so. "Sell" was the old marketplace word and promised the wrong
+// thing before anyone clicked.
 const MARKETPLACE: FooterColumn = {
-  title: 'Shop',
+  title: 'Buying',
   links: [
-    { label: 'What Is zarketplace', to: '/about' },
-    { label: 'Buy', to: '/browse' },
-    { label: 'Sell', to: '/sell' },
+    { label: 'Buy now', to: '/browse' },
+    { label: 'Conditions guide', to: '/conditions-guide' },
+    { label: 'Buyer protection', to: '/buyer-protection' },
+    { label: 'Shipping policy', to: '/shipping-policy' },
+    { label: 'Returns', to: '/returns' },
+    { label: 'Refund policy', to: '/refund-policy' },
+  ],
+};
+
+const SELLING: FooterColumn = {
+  title: 'Selling to us',
+  links: [
+    { label: 'Get an offer', to: '/sell' },
+    { label: 'How it works', to: '/vendor-policy' },
     { label: 'Your items', to: '/vendor-portal' },
-    { label: 'Conditions Guide', to: '/conditions-guide' },
   ],
 };
 
 const ACCOUNT: FooterColumn = {
   title: 'Account',
   links: [
-    { label: 'My Orders', to: '/track-order' },
-    { label: 'My Profile', to: '/account' },
-    { label: 'FAQ', to: '/faq' },
-    { label: 'Selling to us', to: '/vendor-policy' },
-  ],
-};
-
-const SUPPORT: FooterColumn = {
-  title: 'Support',
-  links: [
+    { label: 'My orders', to: '/track-order' },
+    { label: 'My profile', to: '/account' },
     { label: 'Contact', to: '/contact' },
-    { label: 'Buyer Protection', to: '/buyer-protection' },
-    { label: 'Shipping Policy', to: '/shipping-policy' },
-    { label: 'Returns', to: '/returns' },
-    { label: 'Refund Policy', to: '/refund-policy' },
+    { label: 'FAQ', to: '/faq' },
   ],
 };
 
 const COMPANY: FooterColumn = {
   title: 'Company',
   links: [
+    { label: 'What is zarketplace', to: '/about' },
     { label: 'Terms', to: '/terms' },
     { label: 'Privacy', to: '/privacy' },
-    { label: 'Trademark Notice', to: '/trademark-notice' },
-    { label: 'Grievance Officer', to: '/grievance-officer' },
+    { label: 'Trademark notice', to: '/trademark-notice' },
+    { label: 'Grievance officer', to: '/grievance-officer' },
   ],
 };
 
@@ -119,8 +124,8 @@ export function Footer() {
         {/* Desktop: 4 equal columns, one row */}
         <div className="hidden md:grid grid-cols-4 gap-x-12">
           <FooterColumnBlock column={MARKETPLACE} />
+          <FooterColumnBlock column={SELLING} />
           <FooterColumnBlock column={ACCOUNT} />
-          <FooterColumnBlock column={SUPPORT} />
           <div className="flex flex-col gap-6">
             <FooterColumnBlock column={COMPANY} bare />
             <SocialIcons />
@@ -129,7 +134,7 @@ export function Footer() {
 
         {/* Mobile: accordion sections, one open at a time */}
         <div className="md:hidden flex flex-col">
-          {[MARKETPLACE, ACCOUNT, SUPPORT, COMPANY].map((column) => {
+          {[MARKETPLACE, SELLING, ACCOUNT, COMPANY].map((column) => {
             const isOpen = openSection === column.title;
             return (
               <div key={column.title} className="border-b border-white/10">

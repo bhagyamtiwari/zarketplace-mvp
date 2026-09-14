@@ -148,18 +148,20 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
             initial={{ scale: 0.95, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.95, opacity: 0 }}
-            className="bg-white w-full max-w-md p-10 relative"
+            className="bg-white w-full max-w-md relative flex flex-col max-h-[calc(100dvh-2rem)]"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Sits on the panel, not inside the scroll area, so it is reachable
+                at any window height. */}
             <button
               onClick={onClose}
-              className="absolute top-4 right-4 ink-low hover:text-black transition-colors"
+              className="absolute top-4 right-4 z-10 ink-low hover:text-black transition-colors"
               aria-label="Close"
             >
               <X className="h-5 w-5" />
             </button>
 
-            <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+            <form onSubmit={handleSubmit} className="flex flex-col gap-5 overflow-y-auto px-8 pt-10 pb-8">
               <div className="flex flex-col items-center gap-2 text-center">
                 <h2 className="text-2xl font-black uppercase tracking-tighter">
                   {mode === 'signup' ? 'Create Account' : mode === 'forgot' ? 'Reset Password' : 'Sign In'}

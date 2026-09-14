@@ -95,16 +95,21 @@ export function button(href: string, label: string): string {
 // object-fit/aspect-ratio aren't reliable enough across mail clients
 // (Outlook desktop in particular) for this to be done with modern CSS.
 export function header(siteUrl: string): string {
-  // A dedicated asset with the background baked into the pixels. The site
-  // wordmark is pure black on transparency, so on a dark ground it composites
-  // to black-on-black and disappears, and no CSS recovers that because the
-  // pixels carry no light of their own. width and height are set as HTML
-  // attributes as well as CSS because Outlook will not infer them, and the
-  // cell carries bgcolor so the white around the glyphs matches the image.
-  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" bgcolor="${PAPER}" style="margin-bottom:28px; padding-bottom:20px; border-bottom:1px solid ${RULE}; width:100%; background-color:${PAPER};">
+  // White wordmark on a black band, and the black is in the pixels rather than
+  // in CSS. A transparent PNG with dark glyphs is the thing that breaks here:
+  // a client in dark mode composites it against its own dark ground and the
+  // logo disappears, and no CSS recovers that because those pixels carry no
+  // light of their own. Flattened onto black, it looks the same everywhere.
+  //
+  // The asset is pre-cropped to the glyphs and rendered at 2x for retina, so
+  // the transparent margin in the source file no longer decides the spacing.
+  // width and height are HTML attributes as well as CSS because Outlook will
+  // not infer them, and the cell carries bgcolor so the band runs the full
+  // width rather than stopping at the image edge.
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" bgcolor="#000000" style="margin-bottom:28px; width:100%; background-color:#000000;">
     <tr>
-      <td bgcolor="${PAPER}" style="background-color:${PAPER}; line-height:0;">
-        <img src="${siteUrl}/images/email-wordmark.png" alt="zarketplace" width="169" height="35" style="display:block; width:169px; height:35px; border:0; outline:none; text-decoration:none;" />
+      <td bgcolor="#000000" style="background-color:#000000; line-height:0; font-size:0;">
+        <img src="${siteUrl}/images/email-wordmark-dark.png" alt="zarketplace" width="216" height="57" style="display:block; width:216px; height:57px; border:0; outline:none; text-decoration:none;" />
       </td>
     </tr>
   </table>`;
