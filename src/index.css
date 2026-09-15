@@ -65,9 +65,14 @@
 
      Which shell a page gets is mechanical, decided by its PRIMARY content:
 
-       a task flow               ->  .shell-form   (the listing form)
-       grid, accordion or cards  ->  .shell-wide   (conditions, FAQ)
-       continuous prose          ->  .shell-read   (terms, privacy, policies)
+       a task flow  ->  .shell-form   (the listing form)
+       everything else  ->  .shell-wide   (every content page)
+
+     Two, not three. There was a narrower shell for continuous prose, which is
+     better typography in isolation and was worse in practice: a policy page at
+     560px next to an FAQ at 1024px reads as two different sites, and the
+     mismatch between pages was more noticeable than the line length within
+     one. Sections now align wherever you land.
 
      Not "which page is this", which is a judgement and drifts. The storefront
      feed is neither: it is a product grid with its own column logic and keeps
@@ -87,31 +92,19 @@
      (photo slots, paired fields) are components inside the column, not a
      reason to widen it.
 
-     Which shell a page gets, in order: a task flow gets this, continuous prose
-     gets shell-read, a grid or accordion gets shell-wide. */
+     A task flow gets this. Everything else gets shell-wide. */
   .shell-form {
     @apply mx-auto w-full px-4 sm:px-6 lg:px-8;
     max-width: 40rem; /* 640px */
   }
 
-  /* Derived, once, and this is the only place a ch value belongs.
-     Inter at the body size measures 6.8px per glyph in running prose, so 72
-     characters is 490px of text. Plus the 32px page padding either side, the
-     shell is 554px; 35rem is the nearest round number and lands at 73
-     characters. Capping a paragraph INSIDE a panel is the bug this replaces,
-     not a smaller version of this rule. */
-  .shell-read {
-    @apply mx-auto w-full px-4 sm:px-6 lg:px-8;
-    max-width: 35rem; /* 560px -> ~73 characters at body size */
-  }
+  /* A readable line for a short intro or a note: about 72 characters at body
+     size, derived from a measured 6.8px average glyph in Inter.
 
-  /* Prose sitting directly on a WIDE shell still needs a measure: 1024px of
-     unbroken line is not readable. Same derivation as .shell-read, minus the
-     page padding, because here the cap is on the text itself.
-
-     This does NOT apply inside a panel. A panel is already bounded, so the
-     panel is the measure and its padding is the margin. Capping text inside
-     one is what left 443px of dead black space on the conditions guide. */
+     Use it sparingly and never on the main body of a page. A paragraph that
+     stops short inside a block whose siblings run to the edge reads as a
+     mistake, which is what it looked like on the conditions guide. It is for
+     a line that is deliberately a caption. */
   .measure {
     max-width: 30.5rem; /* 488px -> ~72 characters at body size */
   }

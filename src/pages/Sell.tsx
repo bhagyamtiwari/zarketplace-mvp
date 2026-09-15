@@ -887,7 +887,7 @@ function SellInner() {
           )}
         </div>
 
-        <div className="mt-12 pt-6 border-t border-black/10 flex flex-col gap-3">
+        <div className="mt-12 pt-6 border-t border-black/10 flex flex-col items-center gap-3 text-center">
           {isLastStep && (
             <p className="text-sm font-normal leading-relaxed text-black">
               Nothing is listed yet. We look at it and come back within 24 hours, with

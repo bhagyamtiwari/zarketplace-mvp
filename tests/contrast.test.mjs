@@ -92,8 +92,16 @@ for (const width of WIDTHS) {
     // the app throws "supabaseUrl is required" without its env vars, every
     // page was blank, and a check with no elements to measure reports success.
     // A contrast run that examined almost nothing is a failure, not a pass.
-    if (checked < 20) {
-      console.error(`\n${path} at ${width}px rendered only ${checked} text nodes - the page did not boot.\n`);
+    //
+    // The signal is whether the app mounted, not how wordy the page is. A bare
+    // count of 20 flagged /contact the day it lost a form it could not submit:
+    // fewer elements was the point of that change, and a heuristic that punishes
+    // simplification teaches you to keep pages padded. A heading plus a handful
+    // of measurable nodes is what a rendered page looks like; a dead one has
+    // neither.
+    const booted = await page.evaluate(() => !!document.querySelector('h1, h2'));
+    if (!booted || checked < 8) {
+      console.error(`\n${path} at ${width}px rendered ${checked} text nodes and ${booted ? 'a' : 'no'} heading - the page did not boot.\n`);
       process.exit(1);
     }
     total += checked;
