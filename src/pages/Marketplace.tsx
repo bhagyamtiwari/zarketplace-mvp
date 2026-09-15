@@ -64,10 +64,8 @@ const OFFER_CTA_KEY = 'zk.offerCta.hidden';
 const QUICK_CHIPS: Array<{ value: string; label: string; tag?: string }> = [
   // MODEL.md §3. Stock we own and photographed ourselves, on our shelf, so it
   // goes out the day it is bought rather than waiting on anyone.
-  { value: 'verified', label: 'Ships in 48 hours', tag: 'Verified' },
-  { value: 'new_today', label: 'New today' },
-  { value: 'under_999', label: 'Under ₹999', tag: 'New' },
-  { value: 'free_shipping', label: 'Free shipping' },
+  { value: 'verified', label: 'Instant ship', tag: 'Verified' },
+  { value: 'under_999', label: 'Under ₹999' },
   { value: 'sale', label: 'On sale' },
 ];
 
@@ -93,9 +91,7 @@ function applyDevFilters(
     if (f.sizeType && l.size_type !== f.sizeType) return false;
     if (f.condition && l.condition !== f.condition) return false;
     if (f.quick === 'verified') return !!l.is_verified;
-    if (f.quick === 'new_today') return Date.now() - Date.parse(l.created_at) < 24 * 60 * 60 * 1000;
     if (f.quick === 'under_999') return l.price <= 999;
-    if (f.quick === 'free_shipping') return l.free_shipping;
     if (f.quick === 'sale') return l.sale_price !== null;
     return true;
   });
@@ -185,13 +181,8 @@ export function Marketplace() {
 
         if (quick === 'verified') {
           query = query.eq('is_verified', true);
-        } else if (quick === 'new_today') {
-          const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-          query = query.gte('created_at', since);
         } else if (quick === 'under_999') {
           query = query.lte('price', 999);
-        } else if (quick === 'free_shipping') {
-          query = query.eq('free_shipping', true);
         } else if (quick === 'sale') {
           query = query.not('sale_price', 'is', null);
         } else if (quick === 'saved') {

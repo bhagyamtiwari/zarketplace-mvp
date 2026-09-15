@@ -104,7 +104,7 @@ export const META = {
     path: '/faq',
   },
   about: {
-    title: 'What is zarketplace',
+    title: 'About zarketplace',
     description: 'We buy pre-owned fashion from individuals and resell it ourselves. One source, one standard, one company answerable for every order.',
     path: '/about',
   },
