@@ -217,7 +217,7 @@ export function renderVendorEmail(
         subject: `Your ${payload.item_title ?? "item"} has come off the site`,
         html: shell(`<div style="${WRAP}">${top}
           ${h1("It did not sell this time.")}
-          <p style="color:#111111; margin:0 0 14px;">Your ${title} was listed for 45 days and has now come off the site. It is yours, it always was, and you owe us nothing.</p>
+          <p style="color:#111111; margin:0 0 14px;">Your ${title} was listed for 30 days and has now come off the site. It is yours, it always was, and you owe us nothing.</p>
           <p style="color:#111111; margin:0 0 14px;">Not everything sells at the first price. If you would like us to take another look, send it to us again and we will.</p>
           ${button(`${site}/sell`, "Send it to us again")}
         </div>`),

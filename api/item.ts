@@ -100,6 +100,54 @@ async function checkoutTotal(l: PublicListing): Promise<number> {
   return item + fee + shipping;
 }
 
+// The machine-readable version of the one thing that matters about this
+// business: the seller on every Product is ADNIZ Private Limited, not the
+// person who owned the item. A marketplace cannot say that, and without it
+// there is nothing in the markup to tell the two apart.
+//
+// itemCondition is UsedCondition on every listing, because everything here is.
+// availability is InStock with an inventory of one: these are single pieces,
+// and a sold listing is not served by this route at all.
+function productJsonLd(
+  l: PublicListing,
+  total: number,
+  canonical: string,
+  image: string,
+  name: string,
+): string {
+  const data: Record<string, unknown> = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name,
+    image: [image],
+    url: canonical,
+    itemCondition: 'https://schema.org/UsedCondition',
+    ...(l.sku ? { sku: l.sku } : {}),
+    ...(l.brand?.trim() ? { brand: { '@type': 'Brand', name: l.brand.trim() } } : {}),
+    ...(l.size_type?.trim() || l.size?.trim()
+      ? { size: (l.size_type?.trim() || l.size?.trim()) as string }
+      : {}),
+    offers: {
+      '@type': 'Offer',
+      url: canonical,
+      price: total.toFixed(2),
+      priceCurrency: 'INR',
+      itemCondition: 'https://schema.org/UsedCondition',
+      availability: 'https://schema.org/InStock',
+      inventoryLevel: { '@type': 'QuantitativeValue', value: 1 },
+      seller: {
+        '@type': 'Organization',
+        '@id': 'https://www.zarketplace.com/#organisation',
+        name: 'zarketplace',
+        legalName: 'ADNIZ Private Limited',
+      },
+    },
+  };
+  // Escaped so a title containing "</script>" cannot break out of the block.
+  const json = JSON.stringify(data).replace(/</g, '\\u003c');
+  return `<script type="application/ld+json">${json}</script>`;
+}
+
 function buildTags(l: PublicListing, total: number, canonical: string): string {
   const name = l.title?.trim() || 'Item';
   const parts = [name];
@@ -146,6 +194,7 @@ function buildTags(l: PublicListing, total: number, canonical: string): string {
     `<meta name="twitter:description" content="${escapeHtml(description)}" />`,
     `<meta name="twitter:image" content="${escapeHtml(image)}" />`,
     `<link rel="canonical" href="${escapeHtml(canonical)}" />`,
+    productJsonLd(l, total, canonical, image, name),
   ].join('\n    ');
 }
 

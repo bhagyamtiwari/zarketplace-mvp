@@ -8,4 +8,4 @@ Disallow: /checkout
 Disallow: /track-order
 Disallow: /auth/callback
 
-Sitemap: https://zarketplace.com/sitemap.xml
+Sitemap: https://www.zarketplace.com/sitemap.xml

@@ -27,20 +27,19 @@ interface FooterColumn {
 // not "selling on" zarketplace, they are selling TO us, and every label on that
 // side says so. "Sell" was the old marketplace word and promised the wrong
 // thing before anyone clicked.
-const MARKETPLACE: FooterColumn = {
-  title: 'Buying',
+const BUY: FooterColumn = {
+  title: 'Buy',
   links: [
-    { label: 'Buy now', to: '/browse' },
+    { label: 'Shop all', to: '/browse' },
     { label: 'Conditions guide', to: '/conditions-guide' },
     { label: 'Buyer protection', to: '/buyer-protection' },
-    { label: 'Shipping policy', to: '/shipping-policy' },
-    { label: 'Returns', to: '/returns' },
-    { label: 'Refund policy', to: '/refund-policy' },
+    { label: 'My orders', to: '/track-order' },
+    { label: 'My profile', to: '/account' },
   ],
 };
 
 const SELLING: FooterColumn = {
-  title: 'Selling to us',
+  title: 'Sell to us',
   links: [
     { label: 'Get an offer', to: '/sell' },
     { label: 'How it works', to: '/vendor-policy' },
@@ -48,13 +47,18 @@ const SELLING: FooterColumn = {
   ],
 };
 
-const ACCOUNT: FooterColumn = {
-  title: 'Account',
+// Help, not "Account". Contact and FAQ are what someone looks for when
+// something has gone wrong, and they were filed under a heading that only
+// makes sense to people already signed in. Shipping and returns live here for
+// the same reason: they are read after an order, not before one. Buyer
+// protection stays under Buy, because that one is a reason to buy.
+const HELP: FooterColumn = {
+  title: 'Help',
   links: [
-    { label: 'My orders', to: '/track-order' },
-    { label: 'My profile', to: '/account' },
     { label: 'Contact', to: '/contact' },
     { label: 'FAQ', to: '/faq' },
+    { label: 'Shipping', to: '/shipping-policy' },
+    { label: 'Returns and refunds', to: '/returns' },
   ],
 };
 
@@ -69,7 +73,11 @@ const COMPANY: FooterColumn = {
   ],
 };
 
-const LINK_CLASS = 'text-xs font-bold uppercase tracking-widest  hover:text-white/60 transition-colors rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2';
+// A link is a thing you read, so it is set as text: sentence case, normal
+// tracking. The uppercase tracked register is kept for the four headings,
+// which is what that register is for. Two type styles in the footer, not one
+// used for both jobs.
+const LINK_CLASS = 'text-sm font-medium text-white/70 hover:text-white transition-colors rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2';
 const HEADER_CLASS = 'text-[10px] font-black uppercase tracking-[0.3em] text-white';
 
 function SocialIcons() {
@@ -120,12 +128,12 @@ export function Footer() {
 
   return (
     <footer className="bg-black text-white py-16 sm:py-20">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="shell-wide">
         {/* Desktop: 4 equal columns, one row */}
-        <div className="hidden md:grid grid-cols-4 gap-x-12">
-          <FooterColumnBlock column={MARKETPLACE} />
+        <div className="hidden md:grid grid-cols-[1fr_1fr_1fr_1.2fr] gap-x-10">
+          <FooterColumnBlock column={BUY} />
           <FooterColumnBlock column={SELLING} />
-          <FooterColumnBlock column={ACCOUNT} />
+          <FooterColumnBlock column={HELP} />
           <div className="flex flex-col gap-6">
             <FooterColumnBlock column={COMPANY} bare />
             <SocialIcons />
@@ -134,7 +142,7 @@ export function Footer() {
 
         {/* Mobile: accordion sections, one open at a time */}
         <div className="md:hidden flex flex-col">
-          {[MARKETPLACE, SELLING, ACCOUNT, COMPANY].map((column) => {
+          {[BUY, SELLING, HELP, COMPANY].map((column) => {
             const isOpen = openSection === column.title;
             return (
               <div key={column.title} className="border-b border-white/10">
@@ -200,7 +208,7 @@ function FooterColumnBlock({ column, bare }: { column: FooterColumn; bare?: bool
   return (
     <div className={cn('flex flex-col gap-6', bare && 'gap-6')}>
       <h4 className={HEADER_CLASS}>{column.title}</h4>
-      <ul className="flex flex-col gap-4">
+      <ul className="flex flex-col gap-3">
         {column.links.map((link) => (
           <li key={link.to}>
             <Link to={link.to} className={LINK_CLASS}>{link.label}</Link>

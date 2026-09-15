@@ -874,7 +874,7 @@ function RazorpayPayStep({
         <ul className="flex flex-col gap-1.5">
           {[
             'We check every item against its listing before it ships to you.',
-            'Not as described? Tell us within 48 hours of delivery and we put it right.',
+            'Not as described or the wrong item? Tell us within 7 days of delivery and we put it right. Change of mind and wrong fit are not refundable.',
             "If we can't supply it, you're refunded in full to the account you paid from.",
           ].map((line) => (
             <li key={line} className="flex gap-2 text-[11px] font-medium leading-relaxed">

@@ -181,7 +181,7 @@ There are **two separate clocks**. Do not conflate them.
 
 - **Offer acceptance window: 7 days.** From the moment we issue the offer. If the
   seller does not accept within 7 days, the offer lapses.
-- **Listing window: 45 days**, starting **from acceptance** — not from submission
+- **Listing window: 30 days**, starting **from acceptance**, not from submission
   and not from the offer being issued. (Start here, tune later.)
 
 Possession checks at 30 and 60 days, plus a lightweight

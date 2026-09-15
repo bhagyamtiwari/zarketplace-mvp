@@ -27,6 +27,38 @@ export function Terms() {
             <p>zarketplace buys pre-owned and one-of-one fashion from individuals and resells it under its own GST registration. When you buy from zarketplace you are buying from zarketplace: we are the seller of record for every listing, and every order is sold and shipped by us. When you sell to zarketplace you are selling us the item outright, for an amount agreed before the item is listed. These are two separate transactions.</p>
           </section>
 
+          {/* The Consumer Protection (E-Commerce) Rules 2020 apply to us: being a
+              principal rather than a marketplace keeps us out of the GST ECO and
+              TCS regime, it does not put us outside consumer law. Rule 4(2) wants
+              legal name, principal geographic address and customer care details
+              displayed, and the Grievance page tells people to look for them here.
+
+              TODO: REGISTERED_OFFICE is still missing and this page is not
+              compliant until it is filled in. GSTIN goes in the same block once
+              it is issued. */}
+          <section className="flex flex-col gap-4">
+            <h2 className="text-xl font-black uppercase tracking-tight text-black">Who you are contracting with</h2>
+            <p>zarketplace is a trading name of <strong>ADNIZ Private Limited</strong>, a company incorporated in India.</p>
+            <dl className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1">
+                <dt className="text-xs font-black uppercase tracking-[0.2em]">Legal name</dt>
+                <dd>ADNIZ Private Limited</dd>
+              </div>
+              <div className="flex flex-col gap-1">
+                <dt className="text-xs font-black uppercase tracking-[0.2em]">CIN</dt>
+                <dd>U47711DL2023PTC418107</dd>
+              </div>
+              <div className="flex flex-col gap-1">
+                <dt className="text-xs font-black uppercase tracking-[0.2em]">Customer care</dt>
+                <dd>
+                  <a href="mailto:contact@zarketplace.com" className="underline underline-offset-4">contact@zarketplace.com</a>
+                  {' '}&middot;{' '}
+                  <a href="tel:+918505927538" className="underline underline-offset-4">+91 85059 27538</a>
+                </dd>
+              </div>
+            </dl>
+          </section>
+
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Your Account</h2>
             <p>You're responsible for the accuracy of the information on your account and for any activity that happens under it. Keep your login credentials secure.</p>

@@ -390,9 +390,15 @@ function AgreementScreen({
           rather than letting it pass.
         </p>
         <p className="body-copy text-black normal-case tracking-normal text-sm font-normal leading-relaxed">
-          <strong>It runs for 45 days.</strong> If nobody buys it by then the listing comes off
+          <strong>It runs for 30 days.</strong> If nobody buys it by then the listing comes off
           the site and nothing is owed either way. Every couple of weeks we will email to ask
           whether you still have it, which is two buttons and takes a second.
+        </p>
+        <p className="body-copy text-black normal-case tracking-normal text-sm font-normal leading-relaxed">
+          <strong>Send the exact item you listed.</strong> We check it against your photos and
+          description when it reaches us. If it is a different item, or a different condition
+          from the one you described, we can refuse it, no payout is due, and getting it back
+          to you is <strong>at your expense</strong>.
         </p>
       </div>
 

@@ -53,6 +53,42 @@
       html { scrollbar-gutter: stable; }
       body { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     </style>
+
+    <!-- Structured data. There was none, which for this business is the single
+         biggest thing Google could not work out on its own: whether it is
+         looking at a marketplace or at a shop. OnlineStore, with one named
+         legal entity as the seller, says shop. The Product schema injected on
+         each item page in api/item.ts says the same thing per listing. -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "OnlineStore",
+      "@id": "https://www.zarketplace.com/#organisation",
+      "name": "zarketplace",
+      "legalName": "ADNIZ Private Limited",
+      "url": "https://www.zarketplace.com/",
+      "logo": "https://www.zarketplace.com/images/registered-wordmark/zark-reg-tp.png",
+      "image": "https://www.zarketplace.com/images/og-hero.jpg",
+      "description": "zarketplace buys pre-owned fashion from individuals and resells it under its own name. Every piece is received, checked and repacked by us before it ships.",
+      "identifier": [
+        { "@type": "PropertyValue", "name": "CIN", "value": "U47711DL2023PTC418107" }
+      ],
+      "address": { "@type": "PostalAddress", "addressCountry": "IN", "addressRegion": "Delhi" },
+      "areaServed": { "@type": "Country", "name": "India" },
+      "contactPoint": [{
+        "@type": "ContactPoint",
+        "contactType": "customer service",
+        "email": "contact@zarketplace.com",
+        "telephone": "+91-85059-27538",
+        "availableLanguage": ["en", "hi"]
+      }],
+      "sameAs": [
+        "https://www.instagram.com/zarketplace",
+        "https://x.com/zarketplace",
+        "https://www.youtube.com/@zarketplace"
+      ]
+    }
+    </script>
   </head>
   <body>
     <!-- Static hero. The app is client-rendered, so nothing painted until the
