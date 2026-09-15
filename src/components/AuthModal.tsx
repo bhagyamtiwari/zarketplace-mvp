@@ -14,7 +14,7 @@
 
 import * as React from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, X, Loader2, Lock, Phone } from 'lucide-react';
 import { useAuth, E164_RE } from '../lib/auth';
@@ -257,9 +257,6 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                   {phoneDigits && !phoneValid && (
                     <p className="text-[9px] font-bold uppercase tracking-widest text-red-600">Enter a valid phone number.</p>
                   )}
-                  <p className="text-center text-[9px] font-bold uppercase tracking-widest ink-mid leading-relaxed">
-                    For delivery updates and order problems. Never marketing.
-                  </p>
                 </div>
               )}
 
@@ -344,9 +341,9 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                   Back to Sign In
                 </button>
               ) : (
-                <p className="text-[9px] font-bold uppercase tracking-widest ink-mid text-center leading-relaxed">
-                  By continuing, you agree to the zarketplace Terms.<br />
-                  One account for buying &amp; selling.
+                <p className="text-center text-sm font-normal leading-relaxed ink-mid">
+                  By continuing you agree to the{' '}
+                  <Link to="/terms" className="underline underline-offset-4 text-black">zarketplace terms</Link>.
                 </p>
               )}
             </form>

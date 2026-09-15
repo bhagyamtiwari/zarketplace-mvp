@@ -154,8 +154,11 @@ function FaqItem({ item }: { item: QA }) {
         <span className="text-lg font-black uppercase tracking-tight text-black">{item.q}</span>
         <ChevronDown className={cn('h-4 w-4 shrink-0 transition-transform ink-low', open && 'rotate-180')} />
       </button>
+      {/* An answer is prose. At 10px uppercase and tracked it was a label shape
+          holding three sentences, which is something you decode rather than
+          read. */}
       {open && (
-        <p className="text-[10px] font-medium uppercase tracking-widest leading-relaxed ink-mid">
+        <p className="text-sm font-normal leading-relaxed text-black">
           {item.a}
         </p>
       )}
