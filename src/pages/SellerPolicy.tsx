@@ -18,7 +18,7 @@ export function SellerPolicy() {
         className="flex flex-col gap-14"
       >
         <div className="flex flex-col gap-4">
-          <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Vendor Policy</h1>
+          <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Selling to us</h1>
         </div>
 
         <div className="flex flex-col gap-14 text-black body-longform">
@@ -49,8 +49,8 @@ export function SellerPolicy() {
           </section>
 
           <section className="flex flex-col gap-4">
-            <h2 className="text-xl font-black uppercase tracking-tight text-black">45 days, and we check in</h2>
-            <p>A listing runs for <strong>45 days</strong> from the day you accept. If it has not sold by then it simply comes off the site. Nothing is owed either way, and you can send it to us again for a fresh look.</p>
+            <h2 className="text-xl font-black uppercase tracking-tight text-black">30 days, and we check in</h2>
+            <p>A listing runs for <strong>30 days</strong> from the day you accept. If it has not sold by then it simply comes off the site. Nothing is owed either way, and you can send it to us again for a fresh look.</p>
             <p>Every couple of weeks we email you one question: do you still have it? It is two buttons, yes or no, and it takes a second. Saying no costs you nothing and is far better than a courier arriving for something that has gone.</p>
             <p>If we ask twice and hear nothing back, we take the listing down. That is not a penalty. We just cannot leave something on sale when we are no longer sure we can send it.</p>
           </section>
@@ -79,8 +79,8 @@ export function SellerPolicy() {
 
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Your account standing</h2>
-            <p>Every account starts at 100 points. A missed dispatch costs 25, an item refused on condition costs 20, and one refused on authenticity costs 60. Cancelling before the deadline, which we would rather you did, costs 10.</p>
-            <p>Below 40 you cannot list until we lift it. Nothing here affects a payout you have already been promised.</p>
+            <p>We keep track of how listings go. Missing a dispatch, or sending something that is not what you described, counts against your account, and enough of it means we stop buying from you. Cancelling before the deadline, which we would much rather you did, barely counts at all.</p>
+            <p>None of this affects a payout you have already been promised.</p>
           </section>
 
           <section className="flex flex-col gap-4">

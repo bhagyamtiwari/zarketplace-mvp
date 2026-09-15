@@ -26,7 +26,7 @@ export function RefundPolicy() {
 
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">When a Refund Applies</h2>
-            <p>Items are sold as final sale. We don't refund a change of mind. We do refund when:</p>
+            <p>Every item here is one of a kind, so we do not refund a change of mind or a wrong fit. We do refund when:</p>
             <ul className="list-disc pl-6 flex flex-col gap-2">
               <li>An order is cancelled before we dispatch it</li>
               <li>The item is materially misrepresented compared to its listing</li>

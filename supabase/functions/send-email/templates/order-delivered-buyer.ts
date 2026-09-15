@@ -15,7 +15,7 @@ export function orderDeliveredBuyer(ctx: EmailContext): EmailContent {
       <p style="color:#111111; margin:0 0 14px;">Your order has been delivered. We hope it's everything you expected.</p>
       <h3 style="color:#111111; margin-top:24px;">${esc(o.listing_title)}</h3>
       <p style="color:#111111; margin:0 0 14px;"><strong>Order #:</strong> ${esc(o.order_number)}</p>
-      <p style="color:#111111; margin:0 0 14px;">If anything is wrong, you have <strong>48 hours</strong> to tell us. Reply to this email or write to <a href="mailto:contact@zarketplace.com">contact@zarketplace.com</a> with your order number, and we'll sort it out directly.</p>
+      <p style="color:#111111; margin:0 0 14px;">If anything is wrong, you have <strong>7 days</strong> to tell us. Reply to this email or write to <a href="mailto:contact@zarketplace.com">contact@zarketplace.com</a> with your order number, and we'll sort it out directly.</p>
       ${button(trackUrl(o, ctx.siteUrl), "View your order")}
     </div>`),
   };

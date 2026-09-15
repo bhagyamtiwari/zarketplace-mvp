@@ -36,14 +36,26 @@ export function GrievanceOfficer() {
               <dt className="text-xs font-black uppercase tracking-[0.2em]">Grievance officer</dt>
               <dd>Bhagyam Tiwari</dd>
             </div>
+            {/* Rule 4(5) asks for a designation and a contact number as well as a
+                name and an email. Both were missing. */}
+            <div className="flex flex-col gap-1">
+              <dt className="text-xs font-black uppercase tracking-[0.2em]">Designation</dt>
+              <dd>Director</dd>
+            </div>
             <div className="flex flex-col gap-1">
               <dt className="text-xs font-black uppercase tracking-[0.2em]">Company</dt>
-              <dd>ADNIZ Private Limited</dd>
+              <dd>ADNIZ Private Limited (CIN U47711DL2023PTC418107)</dd>
             </div>
             <div className="flex flex-col gap-1">
               <dt className="text-xs font-black uppercase tracking-[0.2em]">Email</dt>
               <dd>
                 <a href="mailto:grievance@zarketplace.com" className="underline underline-offset-4">grievance@zarketplace.com</a>
+              </dd>
+            </div>
+            <div className="flex flex-col gap-1">
+              <dt className="text-xs font-black uppercase tracking-[0.2em]">Phone</dt>
+              <dd>
+                <a href="tel:+918505927538" className="underline underline-offset-4">+91 85059 27538</a>
               </dd>
             </div>
           </dl>
@@ -68,7 +80,7 @@ export function GrievanceOfficer() {
             {/* Required of a seller under the Consumer Protection (E-Commerce)
                 Rules 2020. Filled in before launch - see the note below. */}
             <p className="ink-mid">
-              Registered address and GSTIN are published on our{' '}
+              Our full company details are on the{' '}
               <Link to="/terms" className="font-bold text-black underline">Terms</Link> page.
             </p>
           </div>

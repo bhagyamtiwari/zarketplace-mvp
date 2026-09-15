@@ -51,7 +51,7 @@ export interface VendorOffer {
   ship_by_deadline: string | null;
   /** MODEL.md fulfilment lane. Always 'patient' today. */
   lane: 'patient' | 'instant';
-  /** End of the 45-day listing window, set at acceptance. */
+  /** End of the 30-day listing window, set at acceptance. */
   listing_expires_at: string | null;
   /** Set when the listing came down, whether it lapsed or was pulled. */
   listing_expired_at: string | null;

@@ -61,7 +61,7 @@ const SECTIONS: FaqSection[] = [
       },
       {
         q: 'How long is my offer open, and how long does the listing run?',
-        a: 'Two different clocks. You have 7 days to accept an offer before it lapses. Once you accept, the listing runs for 45 days. If it has not sold by then it comes off the site, nothing is owed either way, and you are welcome to send it to us again.',
+        a: 'Two different clocks. You have 7 days to accept an offer before it lapses. Once you accept, the listing runs for 30 days. If it has not sold by then it comes off the site, nothing is owed either way, and you are welcome to send it to us again.',
       },
       {
         q: 'Why do you email asking if I still have it?',
@@ -78,7 +78,7 @@ const SECTIONS: FaqSection[] = [
     items: [
       {
         q: 'What if an item is not as described?',
-        a: 'Contact us within 48 hours of delivery at contact@zarketplace.com. We sold you the item, so you are dealing with us directly. Our support team reviews materially misrepresented items, undisclosed damage, and wrong-item cases individually.',
+        a: 'Contact us within 7 days of delivery at contact@zarketplace.com. We sold you the item, so you are dealing with us directly. Our support team reviews materially misrepresented items, undisclosed damage, and wrong-item cases individually.',
       },
       {
         q: 'Are payments secure?',

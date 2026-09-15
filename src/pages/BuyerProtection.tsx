@@ -41,7 +41,7 @@ export function BuyerProtection() {
 
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">If something is wrong</h2>
-            <p>If your item arrives significantly not as described, or it is the wrong item, contact us within 48 hours of delivery with your order number and photos. You are dealing with us directly, and we resolve it directly. For how refunds are processed and when, see our <Link to="/refund-policy" className="font-bold text-black underline">Refund Policy</Link>.</p>
+            <p>If your item arrives significantly not as described, or it is the wrong item, contact us within 7 days of delivery with your order number and photos. You are dealing with us directly, and we resolve it directly. For how refunds are processed and when, see our <Link to="/refund-policy" className="font-bold text-black underline">Refund Policy</Link>.</p>
           </section>
 
           <section className="flex flex-col gap-4">

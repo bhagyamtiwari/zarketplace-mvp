@@ -28,7 +28,7 @@ ALTER TABLE public.acquisition_config
   -- An item we cannot list for at least this much is not worth taking.
   ADD COLUMN IF NOT EXISTS min_resale numeric NOT NULL DEFAULT 750,
   -- How long a listing runs once the vendor has accepted.
-  ADD COLUMN IF NOT EXISTS listing_window_days int NOT NULL DEFAULT 45,
+  ADD COLUMN IF NOT EXISTS listing_window_days int NOT NULL DEFAULT 45, -- superseded by 20260915000001 (now 30)
   -- How often we ask a vendor whether they still have the item.
   ADD COLUMN IF NOT EXISTS possession_check_days int NOT NULL DEFAULT 18,
   -- Unanswered checks in a row before the listing comes down.

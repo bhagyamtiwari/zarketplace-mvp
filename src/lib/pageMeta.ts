@@ -90,12 +90,12 @@ export const META = {
   },
   shipping: {
     title: 'Shipping',
-    description: 'Every order ships from our own hub, in our packaging, under our name. Tracked, same-day dispatch once an item is checked in.',
+    description: 'Every order ships from our own hub, in our packaging, under our name. We collect the item, check it and repack it before it goes out to you, tracked.',
     path: '/shipping-policy',
   },
   vendorPolicy: {
-    title: 'Vendor policy',
-    description: 'What we expect from every item we buy, how the acquisition price works, and when you get paid.',
+    title: 'Selling to us',
+    description: 'What we expect from every item we buy, how your offer is worked out, and when you get paid. We buy your item outright, at a fixed amount agreed before it is listed.',
     path: '/vendor-policy',
   },
   faq: {
@@ -115,7 +115,7 @@ export const META = {
   },
   returns: {
     title: 'Returns',
-    description: 'How to return an order to zarketplace, and what happens when an item is not as described.',
+    description: 'What zarketplace refunds and what it does not. Wrong item or not as described, tell us within 7 days. Change of mind and wrong fit are not refundable.',
     path: '/returns',
   },
   refunds: {
