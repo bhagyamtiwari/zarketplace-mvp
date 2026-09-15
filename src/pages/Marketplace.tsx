@@ -558,13 +558,28 @@ export function Marketplace() {
       {/* One band, not three. Three full-bleed statements below the grid was
           the same idea said three times, and BrandKit's own rule is one idea
           per section. The other two live on /about, where an argument belongs. */}
+      {/* Two bands, one per side of the business, so the foot of the feed
+          speaks to whoever is reading it. The seller line first, because the
+          feed above it has already served the buyer.
+
+          No body copy under either. The heading and the serif line are the
+          whole statement; a third line explaining them was the band saying the
+          same thing twice at a smaller size. */}
       <CampaignBand
-        image="/images/red2-web.jpg"
+        image="/images/red-web.jpg"
         heading="Good clothes deserve"
         script="another life."
         emphasis="script"
-        body="Every piece bought, checked and repacked by us before it ships."
         cta={{ label: 'Get an offer', to: '/sell' }}
+      />
+
+      <CampaignBand
+        image="/images/boots-web.jpg"
+        heading="Reduce waste,"
+        script="buy pre-loved."
+        emphasis="script"
+        align="right"
+        cta={{ label: 'Browse everything', to: '/browse' }}
       />
 
       {/* Getting an offer is one tap from anywhere in the feed, without ever
