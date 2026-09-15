@@ -27,10 +27,27 @@ interface FooterColumn {
 // not "selling on" zarketplace, they are selling TO us, and every label on that
 // side says so. "Sell" was the old marketplace word and promised the wrong
 // thing before anyone clicked.
-const BUY: FooterColumn = {
-  title: 'Buy',
+// Grouped by WHO is looking and WHAT they came to do, which is the only
+// grouping that survives contact with a real visitor. Four questions:
+//
+//   Shop              I want to buy something, or check on something I bought.
+//   Sell to us        I want money for something I own.
+//   Help              Something is unclear or has gone wrong. I want an answer.
+//   About zarketplace Who are these people, and what am I agreeing to.
+//
+// The previous cut failed that test twice. "Account" collected two account
+// pages plus Contact and FAQ, so the two links a stuck person needs most were
+// filed under a heading that means nothing until you are already signed in.
+// And Shipping and Returns sat under "Buying" next to Browse, which is where
+// you look BEFORE you buy, not after.
+//
+// A buyer's own orders and profile belong with Shop: same person, same errand,
+// one step later. Shipping and Returns are things you read when you want an
+// answer, so they sit with Contact and FAQ.
+const SHOP: FooterColumn = {
+  title: 'Shop',
   links: [
-    { label: 'Shop all', to: '/browse' },
+    { label: 'Browse everything', to: '/browse' },
     { label: 'Conditions guide', to: '/conditions-guide' },
     { label: 'Buyer protection', to: '/buyer-protection' },
     { label: 'My orders', to: '/track-order' },
@@ -47,25 +64,23 @@ const SELLING: FooterColumn = {
   ],
 };
 
-// Help, not "Account". Contact and FAQ are what someone looks for when
-// something has gone wrong, and they were filed under a heading that only
-// makes sense to people already signed in. Shipping and returns live here for
-// the same reason: they are read after an order, not before one. Buyer
-// protection stays under Buy, because that one is a reason to buy.
 const HELP: FooterColumn = {
   title: 'Help',
   links: [
-    { label: 'Contact', to: '/contact' },
+    { label: 'Contact us', to: '/contact' },
     { label: 'FAQ', to: '/faq' },
     { label: 'Shipping', to: '/shipping-policy' },
     { label: 'Returns and refunds', to: '/returns' },
   ],
 };
 
+// "Company" is a filing-cabinet word: it tells you where something was put,
+// not what it answers. This column is the answer to "who are you", and now
+// says so, matching the page it leads with.
 const COMPANY: FooterColumn = {
-  title: 'Company',
+  title: 'About zarketplace',
   links: [
-    { label: 'What is zarketplace', to: '/about' },
+    { label: 'What we do', to: '/about' },
     { label: 'Terms', to: '/terms' },
     { label: 'Privacy', to: '/privacy' },
     { label: 'Trademark notice', to: '/trademark-notice' },
@@ -128,10 +143,10 @@ export function Footer() {
 
   return (
     <footer className="bg-black text-white py-16 sm:py-20">
-      <div className="shell-wide">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         {/* Desktop: 4 equal columns, one row */}
-        <div className="hidden md:grid grid-cols-[1fr_1fr_1fr_1.2fr] gap-x-10">
-          <FooterColumnBlock column={BUY} />
+        <div className="hidden md:grid grid-cols-[1fr_1fr_1fr_1.3fr] gap-x-12">
+          <FooterColumnBlock column={SHOP} />
           <FooterColumnBlock column={SELLING} />
           <FooterColumnBlock column={HELP} />
           <div className="flex flex-col gap-6">
@@ -142,7 +157,7 @@ export function Footer() {
 
         {/* Mobile: accordion sections, one open at a time */}
         <div className="md:hidden flex flex-col">
-          {[BUY, SELLING, HELP, COMPANY].map((column) => {
+          {[SHOP, SELLING, HELP, COMPANY].map((column) => {
             const isOpen = openSection === column.title;
             return (
               <div key={column.title} className="border-b border-white/10">

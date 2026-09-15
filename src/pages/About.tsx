@@ -49,17 +49,13 @@ export function About() {
                   height: 0.225 x 0.94 = 0.21em. Both are in em, so the mark
                   tracks the heading at every breakpoint. */}
               <h1 className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-4xl sm:text-6xl font-black tracking-tighter uppercase">
-                <span>WTF is</span>
-                {/* The mark and the question mark travel together: on a phone
-                    the heading wraps, and a "?" alone on its own line reads as
-                    a typo rather than as punctuation. */}
+                <span>About</span>
                 <span className="inline-flex items-baseline whitespace-nowrap">
                   <Wordmark
                     on="light"
                     heightClassName=""
                     className="inline-block h-[0.94em] w-auto translate-y-[0.21em]"
                   />
-                  <span>?</span>
                 </span>
               </h1>
             </div>

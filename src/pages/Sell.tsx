@@ -848,42 +848,44 @@ function SellInner() {
           </p>
         )}
 
-        {/* One block, one width, one order.
-        
-            There used to be two: a desktop bar with justify-between that threw
-            the primary action to the far right of a 1024px page, and a separate
-            mobile bar at max-w-3xl, which is a width nothing else on the page
-            used. That is where the gulf between the checklist and the button
-            came from, and why the explanatory line ended up right-aligned under
-            a floating button rather than under the thing it explains.
-        
-            The action is now the full width of the column, directly under the
-            last thing you filled in, with everything that qualifies it stacked
-            beneath in the order you need it. */}
+        {/* Back and Continue are a pair, so they sit as a pair: outlined Back
+            on the left, black Continue beside it, same height, one row.
+
+            They were stacked, with Continue full width and Back as an
+            underlined text link below it. That made Back look like a footnote
+            about the button rather than the other half of the same choice, and
+            it put the two controls you use most on every step in two different
+            registers. Back keeps the quieter treatment, an outline against a
+            fill, because it is the secondary action. It is not a different
+            KIND of thing.
+
+            Back holds its slot on step 0 rather than disappearing, so the
+            primary action does not jump sideways between the first step and
+            the second. */}
         <div className="mt-12 flex flex-col gap-4">
-          <button
-            type="button"
-            onClick={isLastStep ? handlePublish : goNext}
-            disabled={isLastStep && !canPublish}
-            className="w-full bg-black py-5 text-xs font-black uppercase tracking-[0.2em] text-white transition-colors hover:bg-zinc-800 disabled:bg-black/25 disabled:hover:bg-black/25 flex items-center justify-center gap-3"
-          >
-            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            {isLastStep ? (loading ? 'Sending' : 'Get my offer') : 'Continue'}
-            {!isLastStep && <ChevronRight className="h-4 w-4" />}
-          </button>
-
-          {isLastStep && blockedReason && (
-            <p className="text-sm font-normal leading-relaxed text-black">{blockedReason}</p>
-          )}
-
-          {step > 0 && (
+          <div className="flex items-stretch gap-3">
             <button
               type="button"
               onClick={goBack}
-              className="self-start inline-flex items-center gap-1.5 text-sm font-normal text-black underline underline-offset-4"
+              disabled={step === 0}
+              className="shrink-0 inline-flex items-center justify-center gap-1.5 border border-black/20 px-6 sm:px-10 text-xs font-black uppercase tracking-[0.2em] text-black transition-colors hover:border-black disabled:opacity-25 disabled:hover:border-black/20"
             >
               <ChevronLeft className="h-4 w-4" /> Back
             </button>
+            <button
+              type="button"
+              onClick={isLastStep ? handlePublish : goNext}
+              disabled={isLastStep && !canPublish}
+              className="flex-1 bg-black py-5 text-xs font-black uppercase tracking-[0.2em] text-white transition-colors hover:bg-zinc-800 disabled:bg-black/25 disabled:hover:bg-black/25 flex items-center justify-center gap-3"
+            >
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {isLastStep ? (loading ? 'Sending' : 'Get my offer') : 'Continue'}
+              {!isLastStep && <ChevronRight className="h-4 w-4" />}
+            </button>
+          </div>
+
+          {isLastStep && blockedReason && (
+            <p className="text-sm font-normal leading-relaxed text-black">{blockedReason}</p>
           )}
         </div>
 
