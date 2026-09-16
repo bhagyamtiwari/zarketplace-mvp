@@ -141,42 +141,31 @@ export function Footer() {
   return (
     <footer className="bg-black text-white py-16 sm:py-20">
       <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8">
-        {/* Desktop: a brand block, then the four link columns.
-        
-            Four equal columns across the full width did not read as a section,
-            it read as four lists that happened to be near each other. The
-            arithmetic: about 170px of link text in a 326px column leaves 156px
-            of nothing after every list, and another 156px hanging off the right
-            end of the row. Most of the block was gap.
-        
-            Filling the space beats shrinking it. The wordmark, the one line
-            that says what this company is, and the social accounts move up out
-            of the bottom bar into the left of the row, which is where the eye
-            lands first and where the hole was. The columns then share what is
-            left and tighten up. Same links, same order, and the left edge still
-            starts where the page does. */}
-        <div className="hidden md:flex gap-16 lg:gap-24">
-          <div className="flex w-[260px] shrink-0 flex-col gap-6">
-            <Link to="/" className="flex min-h-[44px] items-center">
-              <img
-                src="/images/registered-wordmark/zark-reg-tp.png"
-                alt="zarketplace®"
-                referrerPolicy="no-referrer"
-                className="h-8 w-auto aspect-[1083/202] object-contain"
-              />
-            </Link>
-            <p className="text-sm font-normal leading-relaxed text-white/70">
-              We buy pre-owned fashion and resell it. Every piece is sourced,
-              checked and dispatched by us.
-            </p>
-            <SocialIcons />
-          </div>
+        {/* Desktop: the four columns as one centred group, then the socials
+            under them.
 
-          <div className="grid flex-1 grid-cols-4 gap-x-10">
+            Stretched across the full 1448px they were not a footer section,
+            they were four lists a long way apart: 326px columns holding about
+            170px of text, so the eye had to cross 150px of black between the
+            end of one list and the start of the next, and the whole block hung
+            off the left edge with a void on the right.
+
+            Capping the group and centring it fixes both at once. The columns
+            close up, the block has a left and a right edge of its own, and it
+            sits under the page rather than being dragged to one side of it.
+            The page's own alignment is unaffected: the bottom bar still runs
+            the full width and still starts where everything else does. */}
+        <div className="hidden md:block">
+          <div className="mx-auto grid max-w-4xl grid-cols-4 gap-x-10">
             <FooterColumnBlock column={SHOP} />
             <FooterColumnBlock column={SELLING} />
             <FooterColumnBlock column={HELP} />
             <FooterColumnBlock column={COMPANY} />
+          </div>
+          {/* Centred on their own line rather than tucked under the fourth
+              column, where they read as a fifth item belonging to Company. */}
+          <div className="mt-12 flex justify-center">
+            <SocialIcons />
           </div>
         </div>
 
@@ -212,11 +201,21 @@ export function Footer() {
         {/* Desktop bottom bar: who we legally are on the left, the notice on
             the right. Both are the same small register, so the rule reads as a
             closing line rather than a second row of content. */}
-        <div className="hidden md:flex mt-16 pt-8 border-t border-white/10 items-center justify-between">
-          <span className="text-[10px] font-bold uppercase tracking-widest ink-mid">
-            zarketplace is a trading name of ADNIZ Private Limited
-          </span>
-          <span className="text-[10px] font-bold uppercase tracking-widest ink-mid">© 2026 All rights reserved.</span>
+        <div className="hidden md:flex mt-16 pt-8 border-t border-white/10 items-end justify-between">
+          <Link to="/" className="flex min-h-[44px] items-center">
+            <img
+              src="/images/registered-wordmark/zark-reg-tp.png"
+              alt="zarketplace®"
+              referrerPolicy="no-referrer"
+              className="h-9 w-auto aspect-[1083/202] object-contain"
+            />
+          </Link>
+          <div className="flex flex-col items-end gap-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest ink-mid">
+              zarketplace is a trading name of ADNIZ Private Limited
+            </span>
+            <span className="text-[10px] font-bold uppercase tracking-widest ink-mid">© 2026 All rights reserved.</span>
+          </div>
         </div>
 
         {/* Mobile bottom block: mark, socials under it, then the legal line.
