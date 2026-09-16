@@ -341,7 +341,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                   Back to Sign In
                 </button>
               ) : (
-                <p className="text-center text-sm font-normal leading-relaxed ink-mid">
+                <p className="text-center text-[10px] font-normal leading-relaxed ink-mid">
                   By continuing you agree to the{' '}
                   <Link to="/terms" className="underline underline-offset-4 text-black">zarketplace terms</Link>.
                 </p>

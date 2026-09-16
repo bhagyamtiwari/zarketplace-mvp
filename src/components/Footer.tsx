@@ -33,7 +33,7 @@ interface FooterColumn {
 //   Shop              I want to buy something, or check on something I bought.
 //   Sell to us        I want money for something I own.
 //   Help              Something is unclear or has gone wrong. I want an answer.
-//   About zarketplace Who are these people, and what am I agreeing to.
+//   Company           Who are these people, and what am I agreeing to.
 //
 // The previous cut failed that test twice. "Account" collected two account
 // pages plus Contact and FAQ, so the two links a stuck person needs most were
@@ -74,13 +74,10 @@ const HELP: FooterColumn = {
   ],
 };
 
-// "Company" is a filing-cabinet word: it tells you where something was put,
-// not what it answers. This column is the answer to "who are you", and now
-// says so, matching the page it leads with.
 const COMPANY: FooterColumn = {
-  title: 'About zarketplace',
+  title: 'Company',
   links: [
-    { label: 'What we do', to: '/about' },
+    { label: 'About us', to: '/about' },
     { label: 'Terms', to: '/terms' },
     { label: 'Privacy', to: '/privacy' },
     { label: 'Trademark notice', to: '/trademark-notice' },

@@ -12,8 +12,11 @@ interface Props {
 }
 
 // Headline phrases used by the news-ticker variant. Mix punchy + informative.
+// No "buy" here. The ticker runs across the top of the storefront, where the
+// reader is a BUYER, and "we buy it" read as an instruction to them rather than
+// a description of us. The three that remain already carry the whole claim:
+// who sold it, where it came from, what was done to it.
 const TICKER_PHRASES = [
-  'WE BUY IT. WE CHECK IT. WE SHIP IT.',
   'SOLD & SHIPPED BY ZARKETPLACE',
   'ONE SOURCE. EVERY PIECE CHECKED.',
   'PRE-LOVED, PROPERLY HANDLED.',

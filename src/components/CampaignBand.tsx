@@ -53,19 +53,21 @@ export function CampaignBand({
       <div
         className={cn(
           'relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-16 sm:py-24',
-          // Left-aligned at every width: the copy hangs off the same edge as
-          // the rest of the page, and on a phone the button lands directly
-          // under the line that earned it rather than centred below it.
-          'flex flex-col items-start text-left gap-6',
+          // Alignment applies at every width now, not just md and up. Both
+          // bands used to be left-aligned on a phone, so the pair lost the
+          // alternation that makes them read as two separate statements rather
+          // than one block repeated twice down the page.
+          'flex flex-col gap-6',
+          align === 'right' ? 'items-end text-right' : 'items-start text-left',
           'md:flex-row md:items-center md:justify-between md:gap-12',
           align === 'right' && 'md:flex-row-reverse',
         )}
       >
-        <div className={cn('flex flex-col items-start gap-3', align === 'right' && 'md:text-right md:items-end')}>
+        <div className={cn('flex flex-col gap-3', align === 'right' ? 'items-end text-right' : 'items-start text-left')}>
           <div className="flex flex-col gap-1">
             <h2 className={cn(
               'font-black uppercase tracking-tighter leading-[0.88]',
-              scriptLed ? 'text-xl sm:text-2xl lg:text-3xl ' : 'text-3xl sm:text-5xl',
+              scriptLed ? 'text-2xl sm:text-4xl lg:text-5xl' : 'text-3xl sm:text-5xl',
             )}>
               {heading}
             </h2>
