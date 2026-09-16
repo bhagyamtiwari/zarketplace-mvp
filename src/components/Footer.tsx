@@ -140,9 +140,9 @@ export function Footer() {
 
   return (
     <footer className="bg-black text-white py-16 sm:py-20">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8">
         {/* Desktop: 4 equal columns, one row */}
-        <div className="hidden md:grid grid-cols-[1fr_1fr_1fr_1.3fr] gap-x-12">
+        <div className="hidden md:grid grid-cols-4 gap-x-12">
           <FooterColumnBlock column={SHOP} />
           <FooterColumnBlock column={SELLING} />
           <FooterColumnBlock column={HELP} />
