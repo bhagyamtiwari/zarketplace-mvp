@@ -357,7 +357,7 @@ export function Navbar() {
                   className="flex w-full items-center justify-center gap-3 bg-black py-5 text-[11px] font-black uppercase tracking-[0.3em] text-white"
                   onClick={closeMenu}
                 >
-                  Get an offer
+                  Get offer
                 </Link>
                 <div className="flex items-center justify-center gap-8 pb-1">
                   {SOCIALS.map(({ label, href, Icon }) => (

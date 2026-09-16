@@ -5,7 +5,7 @@
 // it the page is search, filters and real inventory, and nothing else.
 import React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, SlidersHorizontal, X, Plus, Loader2, Heart, ChevronDown, PackageCheck, IndianRupee, Truck, ArrowRight } from 'lucide-react';
+import { Search, SlidersHorizontal, X, Plus, Loader2, Heart, ChevronDown, PackageCheck, MessageSquareOff, Truck, ArrowRight } from 'lucide-react';
 import { supabasePublic } from '../lib/supabase';
 import { Listing } from '../types';
 import { ListingCard } from '../components/ListingCard';
@@ -407,7 +407,7 @@ export function Marketplace() {
               detail={
                 activeFilterCount > 0 || searchQuery || quick === 'saved'
                   ? undefined
-                  : 'Every piece here is one we bought, checked and repacked ourselves, so the shelf fills one item at a time. Sell us something and it could be the next one.'
+                  : 'Every piece here is one we sourced, checked, and dispatch ourselves, so the shelf fills one item at a time. Sell us something and it could be the next one.'
               }
               action={
                 <Link to="/sell" className="bg-black px-8 py-3 text-[10px] font-black uppercase tracking-[0.3em] text-white">
@@ -587,7 +587,7 @@ export function Marketplace() {
             aria-label="Get an offer for your item"
             className="flex h-14 items-center gap-2 rounded-full bg-black pl-4 pr-5 text-[11px] font-black uppercase tracking-[0.2em] text-white shadow-[0_8px_30px_rgba(0,0,0,0.35)] active:scale-95 transition-transform"
           >
-            <Plus className="h-5 w-5" /> Offer
+            <Plus className="h-5 w-5" /> Get offer
           </Link>
           <button
             type="button"
@@ -614,14 +614,20 @@ function FeedGrid({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Trust claims, each one linking to the policy that backs it. They live on the
+// Trust claims, each one linking to the page that backs it. They live on the
 // banner rather than under the filters: a promise belongs next to the pitch, not
-// wedged between a buyer and the grid. All three describe what zarketplace
-// itself does, because zarketplace is the counterparty on every order.
+// wedged between a buyer and the grid.
+//
+// All three are addressed to a BUYER. One of them used to be "We buy your
+// item", which is the seller pitch, sitting between two buyer claims on the
+// front of a shop. A buyer reading three promises in a row has no reason to
+// notice the second one changed audience, so it read as though we were buying
+// from them. Sellers are served by the "Get an offer" button directly below,
+// which is unambiguous because it is a button and not a claim.
 const PROMISES: Array<{ label: string; body: string; to: string; Icon: typeof PackageCheck }> = [
   { label: 'Checked by us', body: 'Before it ships.', to: '/buyer-protection', Icon: PackageCheck },
-  { label: 'We buy your item', body: 'A fixed price, upfront.', to: '/sell', Icon: IndianRupee },
-  { label: 'Doorstep pickup', body: 'We collect it.', to: '/shipping-policy', Icon: Truck },
+  { label: 'No DMs to buy', body: 'One price, shown upfront.', to: '/browse', Icon: MessageSquareOff },
+  { label: 'Doorstep delivery', body: 'Tracked, to your door.', to: '/shipping-policy', Icon: Truck },
 ];
 
 const HERO_IMAGE = 'url(/images/new-banner3.jpg)';
@@ -697,7 +703,8 @@ function HeroBanner() {
             to="/sell"
             className="flex items-center justify-between gap-3 border border-white/40 bg-black sm:bg-transparent px-5 py-4 sm:min-w-[230px] sm:px-7 text-[11px] font-black uppercase tracking-widest text-white transition-colors hover:border-white hover:bg-white/10"
           >
-            Get an offer
+            <span className="sm:hidden">Get offer</span>
+            <span className="hidden sm:inline">Get an offer</span>
             <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
