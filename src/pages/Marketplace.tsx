@@ -407,7 +407,7 @@ export function Marketplace() {
               detail={
                 activeFilterCount > 0 || searchQuery || quick === 'saved'
                   ? undefined
-                  : 'Every piece here is one we sourced, checked, and dispatch ourselves, so the shelf fills one item at a time. Sell us something and it could be the next one.'
+                  : 'Every piece here is one we sourced, checked, and dispatched ourselves, so the shelf fills one item at a time. Sell us something and it could be the next one.'
               }
               action={
                 <Link to="/sell" className="bg-black px-8 py-3 text-[10px] font-black uppercase tracking-[0.3em] text-white">
