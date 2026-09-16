@@ -47,41 +47,41 @@ interface FooterColumn {
 const SHOP: FooterColumn = {
   title: 'Shop',
   links: [
-    { label: 'Browse everything', to: '/browse' },
-    { label: 'Conditions guide', to: '/conditions-guide' },
-    { label: 'Buyer protection', to: '/buyer-protection' },
-    { label: 'My orders', to: '/track-order' },
-    { label: 'My profile', to: '/account' },
+    { label: 'Available Now', to: '/browse' },
+    { label: 'Conditions Guide', to: '/conditions-guide' },
+    { label: 'Buyer Protection', to: '/buyer-protection' },
+    { label: 'My Orders', to: '/track-order' },
+    { label: 'My Profile', to: '/account' },
   ],
 };
 
 const SELLING: FooterColumn = {
-  title: 'Sell to us',
+  title: 'Sell to Us',
   links: [
-    { label: 'Get an offer', to: '/sell' },
-    { label: 'How it works', to: '/vendor-policy' },
-    { label: 'Your items', to: '/vendor-portal' },
+    { label: 'Get an Offer', to: '/sell' },
+    { label: 'How It Works', to: '/vendor-policy' },
+    { label: 'Your Items', to: '/vendor-portal' },
   ],
 };
 
 const HELP: FooterColumn = {
   title: 'Help',
   links: [
-    { label: 'Contact us', to: '/contact' },
+    { label: 'Contact Us', to: '/contact' },
     { label: 'FAQ', to: '/faq' },
     { label: 'Shipping', to: '/shipping-policy' },
-    { label: 'Returns and refunds', to: '/returns' },
+    { label: 'Returns and Refunds', to: '/returns' },
   ],
 };
 
 const COMPANY: FooterColumn = {
   title: 'Company',
   links: [
-    { label: 'About us', to: '/about' },
+    { label: 'About Us', to: '/about' },
     { label: 'Terms', to: '/terms' },
     { label: 'Privacy', to: '/privacy' },
-    { label: 'Trademark notice', to: '/trademark-notice' },
-    { label: 'Grievance officer', to: '/grievance-officer' },
+    { label: 'Trademark Notice', to: '/trademark-notice' },
+    { label: 'Grievance Officer', to: '/grievance-officer' },
   ],
 };
 
@@ -211,9 +211,6 @@ export function Footer() {
             />
           </Link>
           <div className="flex flex-col items-end gap-1">
-            <span className="text-[10px] font-bold uppercase tracking-widest ink-mid">
-              zarketplace is a trading name of ADNIZ Private Limited
-            </span>
             <span className="text-[10px] font-bold uppercase tracking-widest ink-mid">© 2026 All rights reserved.</span>
           </div>
         </div>
@@ -231,12 +228,6 @@ export function Footer() {
             />
           </Link>
           <SocialIcons />
-          {/* The entity line belongs on a phone too. It was desktop-only, which
-              meant the half of the audience most likely to be reading this on a
-              phone never saw who they were dealing with. */}
-          <span className="text-[10px] font-bold uppercase tracking-widest ink-mid">
-            zarketplace is a trading name of ADNIZ Private Limited
-          </span>
           <span className="text-[10px] font-bold uppercase tracking-widest ink-mid">© 2026 All rights reserved.</span>
         </div>
       </div>
