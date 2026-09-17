@@ -125,7 +125,7 @@ type Measure = { key: MeasureKey; label: string; how: string; step?: number };
 // the vendor meets a Postgres constraint error at submit instead of a sentence
 // telling them what is wrong.
 const MAX_CM: Record<MeasureKey, number> = {
-  pit_to_pit_cm: 200, length_cm: 250, sleeve_cm: 150, waist_cm: 200, inseam_cm: 150,
+  pit_to_pit_cm: 200, length_cm: 250, sleeve_cm: 150, waist_cm: 200, inseam_cm: 150, outseam_cm: 200,
 };
 
 // What the vendor types in. Centimetres is what we store: the column names,
@@ -140,7 +140,25 @@ const toCm = (value: string, unit: MeasureUnit): number | null => {
   // listing reading 51.943 cm is false precision.
   return Math.round((unit === 'in' ? n * CM_PER_INCH : n) * 10) / 10;
 };
-type MeasureKey = 'pit_to_pit_cm' | 'length_cm' | 'sleeve_cm' | 'waist_cm' | 'inseam_cm';
+// The drawing for each garment shape, keyed by category. The numbers printed on
+// each one match the step on the fields above, which is what lets the two be
+// read together.
+const MEASURE_GUIDES: Record<string, { src: string; alt: string }> = {
+  Tops: {
+    src: 'measure-tops',
+    alt: 'How to measure a top or outerwear: 1, pit to pit, straight across the chest from armpit to armpit. 2, length, from the top of the shoulder down to the hem. 3, sleeve, from the shoulder seam to the end of the cuff.',
+  },
+  Outerwear: {
+    src: 'measure-tops',
+    alt: 'How to measure a top or outerwear: 1, pit to pit, straight across the chest from armpit to armpit. 2, length, from the top of the shoulder down to the hem. 3, sleeve, from the shoulder seam to the end of the cuff.',
+  },
+  Bottoms: {
+    src: 'measure-bottoms',
+    alt: 'How to measure trousers: 1, waist, straight across the waistband. 2, inseam, from the crotch seam down to the hem. 3, outseam, from the top of the waistband down the outside of the leg to the hem.',
+  },
+};
+
+type MeasureKey = 'pit_to_pit_cm' | 'length_cm' | 'sleeve_cm' | 'waist_cm' | 'inseam_cm' | 'outseam_cm';
 
 const MEASUREMENTS_BY_CATEGORY: Record<string, { required: Measure[]; optional: Measure[] }> = {
   Tops: {
@@ -164,8 +182,9 @@ const MEASUREMENTS_BY_CATEGORY: Record<string, { required: Measure[]; optional: 
   Bottoms: {
     required: [],
     optional: [
-      { key: 'waist_cm', label: 'Waist', how: 'Button them, lay flat, measure across the waistband and double it.' },
-      { key: 'inseam_cm', label: 'Inseam', how: 'From the crotch seam down to the bottom of the leg.' },
+      { key: 'waist_cm', label: 'Waist', how: 'Button them, lay flat, measure across the waistband and double it.', step: 1 },
+      { key: 'inseam_cm', label: 'Inseam', how: 'From the crotch seam down to the bottom of the leg.', step: 2 },
+      { key: 'outseam_cm', label: 'Outseam', how: 'From the top of the waistband down the outside of the leg to the hem.', step: 3 },
     ],
   },
   Shoes: { required: [], optional: [] },
@@ -565,6 +584,7 @@ function SellInner() {
         sleeve_cm: toCm(measurements.sleeve_cm ?? '', unit),
         waist_cm: toCm(measurements.waist_cm ?? '', unit),
         inseam_cm: toCm(measurements.inseam_cm ?? '', unit),
+        outseam_cm: toCm(measurements.outseam_cm ?? '', unit),
         condition,
         description: description.trim() || null,
         image_url: uploadedUrls[0],
@@ -1074,6 +1094,7 @@ function DetailsStep(props: {
     description, setDescription, measurements, setMeasurements, unit, setUnit,
   } = props;
   const measures = measurementsFor(selectedCategory);
+  const guide = MEASURE_GUIDES[selectedCategory] ?? null;
 
   return (
     <div className="flex flex-col gap-12">
@@ -1165,69 +1186,75 @@ function DetailsStep(props: {
                 ))}
               </div>
             </div>
-            {/* The guide is its own block, full width of the column, above the
-                fields rather than beside or over them.
+            {/* Fields on the left, the drawing on the right. On a phone the two
+                stack, drawing first, so a seller sees what to measure before
+                they reach the box for it.
 
-                Beside the fields it would get half of a 640px column, about
-                290px, and the lettering on the drawing drops to around 4px:
-                decoration you cannot read. Floated over them it covers the
-                helper text, which is the other half of the instruction. At full
-                width the lettering is legible, and the numbers on the drawing
-                are repeated on the field labels below, so the mapping holds even
-                for someone who does not read the small print.
+                A real two-column grid rather than a floated image. A float lets
+                the drawing run down past the fields and over whatever follows,
+                which is what cut the "Tag sizes" note off mid-word. In a grid
+                each column owns its own space, and the note below spans both.
 
-                Only shown when every measurement being asked for is on the
-                drawing. It is a long-sleeve top: shown for trousers it would be
-                actively wrong, not merely unhelpful. */}
-            {[...measures.required, ...measures.optional].every((m) => m.step) && (
-              <figure className="border border-black/10 bg-white p-2 sm:p-3">
-                <picture>
-                  <source srcSet="/images/measurement-guide-web.webp" type="image/webp" />
-                  <img
-                    src="/images/measurement-guide-web.png"
-                    alt="How to measure a top: 1, pit to pit, straight across the chest from armpit to armpit. 2, length, from the top of the shoulder down to the hem. 3, sleeve, from the shoulder seam to the end of the cuff."
-                    width={1152}
-                    height={863}
-                    loading="lazy"
-                    decoding="async"
-                    className="block h-auto w-full"
-                  />
-                </picture>
-              </figure>
-            )}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-8">
-              {[...measures.required, ...measures.optional].map((m) => {
-                const isRequired = measures.required.some((r) => r.key === m.key);
-                return (
-                  <div key={m.key} className="flex flex-col gap-3">
-                    <FieldLabel optional={!isRequired}>
-                      {m.step != null && (
-                        // Same mark as the drawing: a filled black circle with
-                        // the number reversed out. Hidden from screen readers,
-                        // which get the whole mapping from the image's alt text.
-                        <span
-                          aria-hidden
-                          className="inline-flex h-5 w-5 shrink-0 items-center justify-center self-center rounded-full bg-black text-[11px] font-black leading-none text-white"
-                        >
-                          {m.step}
-                        </span>
-                      )}
-                      {m.label}
-                    </FieldLabel>
-                    <div className="flex items-baseline gap-2">
-                      <input
-                        type="number" inputMode="decimal" min="1" step="any"
-                        value={measurements[m.key] ?? ''}
-                        onChange={(e) => setMeasurements((prev) => ({ ...prev, [m.key]: e.target.value }))}
-                        placeholder={unit === 'cm' ? '52' : '20.5'}
-                        className="w-full border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20"
-                      />
-                      <span className="text-xs font-black uppercase tracking-[0.2em] ink-mid">{unit}</span>
+                Legibility, measured on the assets: the legend under each
+                drawing is 26px cap height at 1024px wide. In the 272px desktop
+                column that is about 7px with 18px number circles, and at the
+                280px phone cap about 7px with 19px circles. The words are
+                printed large on the card itself, so this reads at these sizes
+                where the previous single drawing did not. */}
+            <div className={cn(
+              'grid grid-cols-1 gap-8',
+              guide && 'sm:grid-cols-2 sm:items-start',
+            )}>
+              {guide && (
+                <figure className="mx-auto w-full max-w-[280px] sm:order-2 sm:mx-0 sm:max-w-none">
+                  <picture>
+                    <source srcSet={`/images/${guide.src}.webp`} type="image/webp" />
+                    <img
+                      src={`/images/${guide.src}.png`}
+                      alt={guide.alt}
+                      width={720}
+                      height={1080}
+                      loading="lazy"
+                      decoding="async"
+                      className="block h-auto w-full"
+                    />
+                  </picture>
+                </figure>
+              )}
+              <div className="flex flex-col gap-8 sm:order-1">
+                {[...measures.required, ...measures.optional].map((m) => {
+                  const isRequired = measures.required.some((r) => r.key === m.key);
+                  return (
+                    <div key={m.key} className="flex flex-col gap-3">
+                      <FieldLabel optional={!isRequired}>
+                        {m.step != null && guide && (
+                          // Same mark as the drawing: a filled black circle with
+                          // the number reversed out. Hidden from screen readers,
+                          // which get the whole mapping from the image's alt text.
+                          <span
+                            aria-hidden
+                            className="inline-flex h-5 w-5 shrink-0 items-center justify-center self-center rounded-full bg-black text-[11px] font-black leading-none text-white"
+                          >
+                            {m.step}
+                          </span>
+                        )}
+                        {m.label}
+                      </FieldLabel>
+                      <div className="flex items-baseline gap-2">
+                        <input
+                          type="number" inputMode="decimal" min="1" step="any"
+                          value={measurements[m.key] ?? ''}
+                          onChange={(e) => setMeasurements((prev) => ({ ...prev, [m.key]: e.target.value }))}
+                          placeholder={unit === 'cm' ? '52' : '20.5'}
+                          className="w-full border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20"
+                        />
+                        <span className="text-xs font-black uppercase tracking-[0.2em] ink-mid">{unit}</span>
+                      </div>
+                      <span className="text-sm font-normal leading-relaxed ink-mid">{m.how}</span>
                     </div>
-                    <span className="text-sm font-normal leading-relaxed ink-mid">{m.how}</span>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
             <TrustNote full>
               Tag sizes aren't always accurate, especially on vintage. Measurements are what

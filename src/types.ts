@@ -26,6 +26,7 @@ export interface Listing {
   sleeve_cm?: number | null;
   waist_cm?: number | null;
   inseam_cm?: number | null;
+  outseam_cm?: number | null;
   title: string;
   brand: string | null;
   description: string | null;
