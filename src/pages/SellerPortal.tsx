@@ -22,7 +22,7 @@ import { ShareInstagramModal } from '../components/ShareInstagramModal';
 import { log } from '../lib/log';
 import { usePageMeta, META } from '../lib/pageMeta';
 
-import { getVendorOffers, vendorStatus, type VendorOffer, type VendorStatusView } from '../lib/acquisition';
+import { getVendorOffers, vendorStatus, withdrawItem, canWithdraw, canDelete, type VendorOffer, type VendorStatusView } from '../lib/acquisition';
 
 const splog = log('seller');
 
@@ -68,7 +68,7 @@ function SellerInner() {
   const deleteListing = async (l: Listing) => {
     const warn = l.is_sold
       ? `"${l.title}" has already been sold. Deleting removes the listing from your portal but keeps the order record. Continue?`
-      : `Delete "${l.title}"? This permanently removes the listing and cannot be undone.`;
+      : `Delete "${l.title}"? This permanently removes it and cannot be undone.`;
     if (!window.confirm(warn)) return;
     setDeletingId(l.id);
     setError(null);
@@ -222,7 +222,7 @@ function SellerInner() {
           ) : tab === 'listings' ? (
             <div className="flex flex-col gap-14">
               {needsVendor.length > 0 && <ActionCallout rows={needsVendor} offers={offers} statusOf={statusOf} />}
-              {withYou.length > 0 && <WithYouPanel rows={withYou} offers={offers} statusOf={statusOf} />}
+              {withYou.length > 0 && <WithYouPanel rows={withYou} offers={offers} statusOf={statusOf} onChanged={fetchAll} />}
               <ListingsTable title="Everything else" rows={activeListings} offers={offers} statusOf={statusOf} onDelete={deleteListing} deletingId={deletingId} />
               <ListingsTable title="Sold" rows={soldListings} offers={offers} statusOf={statusOf} onDelete={deleteListing} deletingId={deletingId} />
             </div>
@@ -311,14 +311,17 @@ function ListingsTable({ title, rows, offers, statusOf, onDelete, deletingId }: 
                     <span className="text-[11px] font-black uppercase tracking-widest ink-mid">{statusOf(l).label}</span>
                   </div>
                 </div>
-                <button
-                  onClick={() => onDelete(l)}
-                  disabled={deletingId === l.id}
-                  title="Delete listing"
-                  className="self-start ink-mid hover:text-black disabled:opacity-50 shrink-0"
-                >
-                  {deletingId === l.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
-                </button>
+                {canDelete(offers.get(l.id), !!l.is_sold) && (
+                  <button
+                    onClick={() => onDelete(l)}
+                    disabled={deletingId === l.id}
+                    title="Delete item"
+                    aria-label={`Delete ${l.title}`}
+                    className="self-start ink-mid hover:text-black disabled:opacity-50 shrink-0"
+                  >
+                    {deletingId === l.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -348,14 +351,17 @@ function ListingsTable({ title, rows, offers, statusOf, onDelete, deletingId }: 
                       {new Date(l.created_at).toLocaleDateString()}
                     </td>
                     <td className="py-3 px-3 text-right">
-                      <button
-                        onClick={() => onDelete(l)}
-                        disabled={deletingId === l.id}
-                        title="Delete listing"
-                        className="ink-mid hover:text-black disabled:opacity-50"
-                      >
-                        {deletingId === l.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                      </button>
+                      {canDelete(offers.get(l.id), !!l.is_sold) && (
+                        <button
+                          onClick={() => onDelete(l)}
+                          disabled={deletingId === l.id}
+                          title="Delete item"
+                          aria-label={`Delete ${l.title}`}
+                          className="ink-mid hover:text-black disabled:opacity-50"
+                        >
+                          {deletingId === l.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -387,11 +393,35 @@ function payoutLabel(offer: VendorOffer | undefined): string {
 //
 // Shows days left rather than a date: "31 days left" is a fact about now, and
 // a date makes someone do arithmetic to find out whether it matters.
-function WithYouPanel({ rows, offers, statusOf }: {
+function WithYouPanel({ rows, offers, statusOf, onChanged }: {
   rows: Listing[];
   offers: Map<string, VendorOffer>;
   statusOf: (l: Listing) => ReturnType<typeof vendorStatus>;
+  onChanged: () => void;
 }) {
+  const [withdrawingId, setWithdrawingId] = React.useState<string | null>(null);
+  const [withdrawError, setWithdrawError] = React.useState<{ id: string; message: string } | null>(null);
+
+  // The form promises a vendor can change their mind until someone buys the
+  // item. This is where they do it. The server decides whether it is still
+  // allowed; if a buyer got there first, its sentence is shown as it is.
+  const withdraw = async (l: Listing) => {
+    if (!window.confirm(
+      `Withdraw "${l.title}"? It comes off the site straight away and this offer ends. You can send it to us again later for a fresh offer.`,
+    )) return;
+    setWithdrawingId(l.id);
+    setWithdrawError(null);
+    try {
+      await withdrawItem(l.id);
+      onChanged();
+    } catch (err: any) {
+      splog.error('withdraw', err);
+      setWithdrawError({ id: l.id, message: err?.message ?? 'That did not work. Try again, or get in touch.' });
+    } finally {
+      setWithdrawingId(null);
+    }
+  };
+
   const daysLeft = (iso: string | null | undefined) => {
     if (!iso) return null;
     const ms = new Date(iso).getTime() - Date.now();
@@ -403,10 +433,10 @@ function WithYouPanel({ rows, offers, statusOf }: {
       <div className="flex flex-col gap-1">
         <h2 className="text-xl font-black uppercase tracking-tight">In your home right now</h2>
         <p className="text-sm font-normal leading-relaxed ink-mid max-w-[60ch]">
-          Listed and waiting for a buyer. Keep {rows.length === 1 ? 'it' : 'them'} safe, do not
-          sell {rows.length === 1 ? 'it' : 'them'} anywhere else, and make sure we can reach you.
-          The day {rows.length === 1 ? 'it sells' : 'one sells'} we send a prepaid label and a
-          courier comes to your door.
+          On the site and waiting for a buyer. Keep {rows.length === 1 ? 'it' : 'them'} packed
+          and unworn, do not sell {rows.length === 1 ? 'it' : 'them'} anywhere else, and watch
+          your email. The day {rows.length === 1 ? 'it is' : 'one is'} bought we send a prepaid
+          label and a courier comes to your door.
         </p>
       </div>
 
@@ -425,6 +455,22 @@ function WithYouPanel({ rows, offers, statusOf }: {
                 {status.key === 'live_check_due' && (
                   <span className="text-sm font-normal leading-relaxed ink-mid measure">
                     Check your email for our message and tap yes or no. It takes a second.
+                  </span>
+                )}
+                {canWithdraw(offer, !!l.is_sold) && (
+                  <button
+                    type="button"
+                    onClick={() => withdraw(l)}
+                    disabled={withdrawingId === l.id}
+                    className="mt-2 inline-flex w-fit items-center gap-1.5 text-sm font-normal text-black underline underline-offset-4 hover:no-underline disabled:opacity-50"
+                  >
+                    {withdrawingId === l.id && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    {withdrawingId === l.id ? 'Withdrawing' : 'Withdraw this item'}
+                  </button>
+                )}
+                {withdrawError?.id === l.id && (
+                  <span role="alert" className="text-sm font-normal leading-relaxed text-red-700 measure">
+                    {withdrawError.message}
                   </span>
                 )}
               </div>

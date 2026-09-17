@@ -373,32 +373,35 @@ function AgreementScreen({
         </div>
       </div>
 
-      {/* The two things vendors get wrong, stated at the moment they commit
-          rather than in an email weeks later when the item has already sold. */}
+      {/* What accepting commits you to, at the moment you commit to it rather
+          than in an email weeks later. Same rules, same numbers and the same
+          words as "What happens next?" on the listing form and the How It
+          Works page, so nobody meets a different version of a rule twice. */}
       <div className="border-l-2 border-black pl-6 py-1 flex flex-col gap-3">
         <p className="body-copy text-black normal-case tracking-normal text-sm font-normal leading-relaxed">
-          <strong>Keep the item safe.</strong> It stays with you while it is listed. Do not
-          sell it anywhere else, and do not wear it out.
+          <strong>The item stays with you until someone buys it.</strong> Keep it packed, unworn,
+          and in the condition you described, and do not sell it anywhere else.
         </p>
         <p className="body-copy text-black normal-case tracking-normal text-sm font-normal leading-relaxed">
-          <strong>Be reachable when it sells.</strong> We will message you, send a prepaid
-          label, and book a courier to your door. You then have <strong>5 days</strong> to
-          have it packed and hand it over.
+          <strong>Watch your email for your shipping label.</strong> If we cannot reach you, we may
+          message you on WhatsApp too. When it arrives, print it and attach it to the parcel. A
+          courier will collect it from your door, usually within 48 hours, and it must be handed
+          over within <strong>5 days</strong>. You pay nothing for shipping.
         </p>
         <p className="body-copy text-black normal-case tracking-normal text-sm font-normal leading-relaxed">
-          If it cannot go in that time we have to cancel the order, so tell us before the date
-          rather than letting it pass.
+          <strong>Send the exact item in your photos.</strong> We check it against your photos and
+          description when it reaches us. If it is a different item, or a different condition from
+          the one you described, we can refuse it, no payout is due, and getting it back to you is{' '}
+          <strong>at your expense</strong>.
         </p>
         <p className="body-copy text-black normal-case tracking-normal text-sm font-normal leading-relaxed">
-          <strong>It runs for 30 days.</strong> If nobody buys it by then the listing comes off
-          the site and nothing is owed either way. Every couple of weeks we will email to ask
-          whether you still have it, which is two buttons and takes a second.
+          <strong>Changed your mind?</strong> Withdraw your item from your vendor portal any time
+          until someone buys it.
         </p>
         <p className="body-copy text-black normal-case tracking-normal text-sm font-normal leading-relaxed">
-          <strong>Send the exact item you listed.</strong> We check it against your photos and
-          description when it reaches us. If it is a different item, or a different condition
-          from the one you described, we can refuse it, no payout is due, and getting it back
-          to you is <strong>at your expense</strong>.
+          <strong>If we have not sold it within 30 days</strong>, or you withdraw it, this offer ends.
+          Nothing is owed either way. Every couple of weeks we will email to ask whether you still
+          have it, which is two buttons and takes a second.
         </p>
       </div>
 
@@ -407,7 +410,7 @@ function AgreementScreen({
           type="button" onClick={onAccept} disabled={!allChecked || !addressReady || submitting}
           className="flex items-center justify-between gap-3 bg-black px-7 py-5 text-[11px] font-black uppercase tracking-widest text-white transition-transform enabled:hover:scale-[1.02] enabled:active:scale-95 disabled:opacity-40 sm:min-w-[260px]"
         >
-          {submitting ? 'Recording...' : 'Agree and list it'}
+          {submitting ? 'Recording...' : 'Accept this offer'}
           {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
         </button>
         <button

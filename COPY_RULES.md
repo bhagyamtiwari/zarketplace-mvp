@@ -85,10 +85,22 @@ standard. Frame positively around what the buyer gets - every piece received,
 checked and repacked by us before it ships. Never disparage individuals or
 small sellers, and never imply the buyer is being protected *from* anyone.
 
-**To a vendor.** Lead with the payout proposition: *"Tell us what you want for
-it. We'll tell you what we'll pay."* They are not becoming a seller and they
-are not running a shop. They are selling us one item for a fixed rupee amount
-they agreed to in advance.
+**To a vendor.** Lead with the payout proposition: *"Tell us about your item.
+We'll make you an offer."* Never invite them to name a figure: "what you want
+for it" is in the banned list above, and it used to sit right here as the
+recommended line. They are not becoming a seller and they are not running a
+shop. They are selling us one item for a fixed rupee amount they agreed to in
+advance.
+
+**The vendor never "lists".** We list the item, because we sell it. So:
+
+| Not | But |
+| --- | --- |
+| "your listing", "withdraw the listing" | "your item", "withdraw your item" |
+| "when you listed it" | "when you accepted our offer" |
+| "List it again" | "Send it to us again" |
+| "Agree and list it" | "Accept this offer" |
+| "if it doesn't sell" | "if we haven't sold it" |
 
 ---
 

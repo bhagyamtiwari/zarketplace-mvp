@@ -61,36 +61,66 @@ const PUBLISH_CONFIRMATIONS: Array<{ key: string; label: string }> = [
   // and both look identical to us until a courier arrives at an empty door.
   {
     key: 'heldReady',
-    label: 'If I accept an offer, I will keep this item aside, unworn and ready to pack, and will not sell it anywhere else while it is listed.',
+    label: 'If I accept an offer, I will keep this item packed and unworn, in the condition I described, and will not sell it anywhere else until it is bought or I withdraw it.',
   },
 ];
 
-// What happens after acceptance. The lead line is the whole thing in one
-// sentence; the groups underneath are what that actually asks of someone,
-// split by when it applies to them.
-const AFTER_ACCEPT_LEAD = 'The item stays with you until it sells.';
-
-const AFTER_ACCEPT: Array<{ title: string; points: string[] }> = [
+// What happens next, in the order it happens. Numbered because it is a
+// sequence: the most common patient-lane mistake is doing step four at step
+// two, posting the item the day the offer is accepted.
+//
+// Written to keep the model straight (MODEL.md section 2, COPY_RULES.md). We
+// make the offer and it is a fixed amount; the vendor's number is a payout,
+// never a share of anything. We are the ones who sell the item, so it is "if
+// we have not sold it", never "if your listing does not sell". And the vendor
+// withdraws their item, not "their listing": they do not run a listing on
+// zarketplace, they have agreed to sell us one item.
+//
+// Every number here matches the database and the policy pages: 7 days to
+// accept (acquisition_config.offer_valid_days), 30 days on the site
+// (listing_window_days), 5 days to hand it over (fulfillment_config
+// .ship_by_days). The 48 hours is the courier's usual collection time, which
+// sits inside those 5 days rather than replacing them.
+const WHAT_HAPPENS_NEXT: Array<{ title: string; points: string[] }> = [
   {
-    title: 'Before it sells',
+    title: 'We make you an offer',
     points: [
-      'Keep it packed and in the condition listed.',
-      'We will email you every few weeks to confirm you still have it.',
+      'A fixed amount in rupees. This is your payout, and it does not change.',
     ],
   },
   {
-    title: 'When it sells',
+    title: 'You decide whether to accept it',
     points: [
-      'We send you a prepaid shipping label.',
-      'A courier will pick it up from your door within 48 hours.',
+      'You have 7 days. Saying no costs you nothing.',
+    ],
+  },
+  {
+    title: 'The item stays with you until someone buys it',
+    points: [
+      'Keep it packed, unworn, and in the condition you described.',
+      'Do not sell it anywhere else.',
+      'Watch your email for your shipping label. If we cannot reach you, we may message you on WhatsApp too.',
+    ],
+  },
+  {
+    title: 'When it is bought, we send you a prepaid label',
+    points: [
+      'Print it and attach it to the parcel.',
+      'A courier will collect it from your door, usually within 48 hours. It must be handed over within 5 days.',
+      'Send the exact item in your photos.',
       'You pay nothing for shipping.',
     ],
   },
+];
+
+const WHAT_HAPPENS_NOTES: Array<{ title: string; body: string }> = [
   {
     title: 'Changed your mind?',
-    points: [
-      'You can withdraw the listing at any time from your vendor portal.',
-    ],
+    body: 'Withdraw your item from your vendor portal any time until someone buys it.',
+  },
+  {
+    title: 'If it does not sell',
+    body: 'If we have not sold it within 30 days, or you withdraw it, your offer ends. Nothing is owed either way, and you can send it to us again.',
   },
 ];
 
@@ -285,7 +315,9 @@ function SellInner() {
   const [sizeType, setSizeType] = React.useState('');
   const [sizeDetail, setSizeDetail] = React.useState('');
   const [measurements, setMeasurements] = React.useState<Partial<Record<MeasureKey, string>>>({});
-  const [unit, setUnit] = React.useState<MeasureUnit>('cm');
+  // Inches by default: it is what most people's tape and most tag charts read
+  // in here. Stored in centimetres either way (see toCm).
+  const [unit, setUnit] = React.useState<MeasureUnit>('in');
   const [description, setDescription] = React.useState('');
 
   const [condition, setCondition] = React.useState('');
@@ -1170,7 +1202,7 @@ function DetailsStep(props: {
                   so a listing measured in inches and one measured in cm are the
                   same number in the database and filter identically later. */}
               <div className="flex shrink-0 border border-black/15" role="group" aria-label="Measurement unit">
-                {(['cm', 'in'] as MeasureUnit[]).map((u) => (
+                {(['in', 'cm'] as MeasureUnit[]).map((u) => (
                   <button
                     key={u}
                     type="button"
@@ -1383,19 +1415,36 @@ function LastStep({
           see. The two facts here are the ones vendors most often get wrong:
           the item stays with them, and they have to be there when it goes. */}
       <div className="flex flex-col gap-5">
-        <SectionHeading note={AFTER_ACCEPT_LEAD}>What happens after you accept</SectionHeading>
-        <div className="border-l-2 border-black pl-6 flex flex-col gap-6">
-          {AFTER_ACCEPT.map((group) => (
-            <div key={group.title} className="flex flex-col gap-2">
-              <h4 className="text-sm font-black text-black">{group.title}</h4>
-              <ul className="flex flex-col gap-1.5">
-                {group.points.map((point) => (
-                  <li key={point} className="flex gap-3 text-sm font-normal leading-relaxed text-black">
-                    <span aria-hidden className="mt-[0.6em] h-1 w-1 shrink-0 bg-black" />
-                    <span>{point}</span>
-                  </li>
-                ))}
-              </ul>
+        <SectionHeading>What happens next?</SectionHeading>
+        {/* The same numbered mark as the measurement guide, so a sequence reads
+            as a sequence everywhere on this form. */}
+        <ol className="flex flex-col gap-6">
+          {WHAT_HAPPENS_NEXT.map((step, i) => (
+            <li key={step.title} className="flex gap-4">
+              <span
+                aria-hidden
+                className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-black text-xs font-black leading-none text-white"
+              >
+                {i + 1}
+              </span>
+              <div className="flex min-w-0 flex-col gap-2">
+                <h4 className="text-sm font-black text-black">{step.title}</h4>
+                <ul className="flex flex-col gap-1.5">
+                  {step.points.map((point) => (
+                    <li key={point} className="text-sm font-normal leading-relaxed text-black">
+                      {point}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </li>
+          ))}
+        </ol>
+        <div className="flex flex-col gap-4 border-t border-black/10 pt-5">
+          {WHAT_HAPPENS_NOTES.map((note) => (
+            <div key={note.title} className="flex flex-col gap-1">
+              <h4 className="text-sm font-black text-black">{note.title}</h4>
+              <p className="text-sm font-normal leading-relaxed text-black">{note.body}</p>
             </div>
           ))}
         </div>

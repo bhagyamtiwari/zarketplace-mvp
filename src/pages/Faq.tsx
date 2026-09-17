@@ -45,11 +45,11 @@ const SECTIONS: FaqSection[] = [
       },
       {
         q: 'When do I get paid?',
-        a: 'Once your item reaches our hub and we accept it, we pay you the amount you agreed to when you listed it. That payout is ours to make and does not depend on anything that happens afterwards.',
+        a: 'Once your item reaches our hub and we accept it, we pay you the amount you agreed to when you accepted our offer. That payout is ours to make and does not depend on anything that happens afterwards.',
       },
       {
         q: 'How long do I have to send it?',
-        a: 'You have 5 days from the time your item is bought to pack it and hand it to the courier. We send the prepaid label and pay for it. If it does not go in that time we cancel the order and refund the buyer.',
+        a: 'Once your item is bought, we email you a prepaid label. Print it and attach it to the parcel. A courier will collect it from your door, usually within 48 hours, and it must be handed over within 5 days. We pay for shipping. If it does not go in that time we cancel the order and refund the buyer.',
       },
       {
         q: 'What happens if I miss the pickup deadline?',
@@ -57,15 +57,19 @@ const SECTIONS: FaqSection[] = [
       },
       {
         q: 'Do I send the item as soon as I accept?',
-        a: 'No. This is the part people most often get wrong. The item stays with you the whole time it is listed, and only moves once somebody buys it. All we ask in between is that you keep it and stay reachable.',
+        a: 'No. This is the part people most often get wrong. The item stays with you until someone buys it. All we ask in between is that you keep it packed and unworn, in the condition you described, and watch your email for your shipping label.',
       },
       {
-        q: 'How long is my offer open, and how long does the listing run?',
-        a: 'Two different clocks. You have 7 days to accept an offer before it lapses. Once you accept, the listing runs for 30 days. If it has not sold by then it comes off the site, nothing is owed either way, and you are welcome to send it to us again.',
+        q: 'Can I change my mind after accepting?',
+        a: 'Yes, until someone buys it. Withdraw your item from your vendor portal and it comes off the site straight away. Your offer ends, there is no charge, and you can send it to us again later. Once it has been bought, it can no longer be withdrawn.',
+      },
+      {
+        q: 'How long is my offer open, and how long is my item on the site?',
+        a: 'Two different clocks. You have 7 days to accept an offer before it lapses. Once you accept, your item is on the site for 30 days. If we have not sold it by then, or you withdraw it, your offer ends. Nothing is owed either way, and you are welcome to send it to us again.',
       },
       {
         q: 'Why do you email asking if I still have it?',
-        a: 'Because we cannot sell something we are not sure is still there. Every couple of weeks we send one question with two buttons, yes or no. It takes a second. If we ask twice and hear nothing, we take the listing down. Saying no costs you nothing.',
+        a: 'Because we cannot sell something we are not sure is still there. Every couple of weeks we send one question with two buttons, yes or no. It takes a second. If we ask twice and hear nothing, we take it off the site. Saying no costs you nothing.',
       },
       {
         q: 'What if my item does not match what I described?',
