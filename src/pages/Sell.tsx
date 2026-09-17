@@ -182,7 +182,7 @@ const MEASUREMENTS_BY_CATEGORY: Record<string, { required: Measure[]; optional: 
   Bottoms: {
     required: [],
     optional: [
-      { key: 'waist_cm', label: 'Waist', how: 'Button them, lay flat, measure across the waistband and double it.', step: 1 },
+      { key: 'waist_cm', label: 'Waist', how: 'Button them, lay flat, and measure straight across the top of the waistband.', step: 1 },
       { key: 'inseam_cm', label: 'Inseam', how: 'From the crotch seam down to the bottom of the leg.', step: 2 },
       { key: 'outseam_cm', label: 'Outseam', how: 'From the top of the waistband down the outside of the leg to the hem.', step: 3 },
     ],

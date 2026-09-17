@@ -410,7 +410,7 @@ export function ProductPage() {
                     ['Pit to pit', listing.pit_to_pit_cm],
                     ['Length', listing.length_cm],
                     ['Sleeve', listing.sleeve_cm],
-                    ['Waist', listing.waist_cm],
+                    ['Waist (flat)', listing.waist_cm],
                     ['Inseam', listing.inseam_cm],
                     ['Outseam', listing.outseam_cm],
                   ] as Array<[string, number | null | undefined]>)
