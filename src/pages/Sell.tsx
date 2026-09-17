@@ -118,7 +118,7 @@ const REQUIRED_PHOTOS = PHOTO_SLOTS.filter((p) => p.required).length;
 //
 // Required where fit is least predictable and optional elsewhere, because
 // making someone measure a belt to sell it is how you lose the listing.
-type Measure = { key: MeasureKey; label: string; how: string };
+type Measure = { key: MeasureKey; label: string; how: string; step?: number };
 
 // The same ceilings the database enforces, in centimetres. Duplicated here on
 // purpose: without them an inch typo converts to something over the limit and
@@ -145,20 +145,20 @@ type MeasureKey = 'pit_to_pit_cm' | 'length_cm' | 'sleeve_cm' | 'waist_cm' | 'in
 const MEASUREMENTS_BY_CATEGORY: Record<string, { required: Measure[]; optional: Measure[] }> = {
   Tops: {
     required: [
-      { key: 'pit_to_pit_cm', label: 'Pit to pit', how: 'Lay it flat and measure straight across from one armpit seam to the other.' },
-      { key: 'length_cm', label: 'Length', how: 'From the highest point of the shoulder straight down to the hem.' },
+      { key: 'pit_to_pit_cm', label: 'Pit to pit (chest)', how: 'Lay it flat and measure straight across from one armpit seam to the other.', step: 1 },
+      { key: 'length_cm', label: 'Length', how: 'From the highest point of the shoulder straight down to the hem.', step: 2 },
     ],
     optional: [
-      { key: 'sleeve_cm', label: 'Sleeve', how: 'From the shoulder seam to the end of the cuff.' },
+      { key: 'sleeve_cm', label: 'Sleeve', how: 'From the shoulder seam to the end of the cuff.', step: 3 },
     ],
   },
   Outerwear: {
     required: [
-      { key: 'pit_to_pit_cm', label: 'Pit to pit', how: 'Lay it flat and measure straight across from one armpit seam to the other.' },
-      { key: 'length_cm', label: 'Length', how: 'From the highest point of the shoulder straight down to the hem.' },
+      { key: 'pit_to_pit_cm', label: 'Pit to pit (chest)', how: 'Lay it flat and measure straight across from one armpit seam to the other.', step: 1 },
+      { key: 'length_cm', label: 'Length', how: 'From the highest point of the shoulder straight down to the hem.', step: 2 },
     ],
     optional: [
-      { key: 'sleeve_cm', label: 'Sleeve', how: 'From the shoulder seam to the end of the cuff.' },
+      { key: 'sleeve_cm', label: 'Sleeve', how: 'From the shoulder seam to the end of the cuff.', step: 3 },
     ],
   },
   Bottoms: {
@@ -1165,12 +1165,55 @@ function DetailsStep(props: {
                 ))}
               </div>
             </div>
+            {/* The guide is its own block, full width of the column, above the
+                fields rather than beside or over them.
+
+                Beside the fields it would get half of a 640px column, about
+                290px, and the lettering on the drawing drops to around 4px:
+                decoration you cannot read. Floated over them it covers the
+                helper text, which is the other half of the instruction. At full
+                width the lettering is legible, and the numbers on the drawing
+                are repeated on the field labels below, so the mapping holds even
+                for someone who does not read the small print.
+
+                Only shown when every measurement being asked for is on the
+                drawing. It is a long-sleeve top: shown for trousers it would be
+                actively wrong, not merely unhelpful. */}
+            {[...measures.required, ...measures.optional].every((m) => m.step) && (
+              <figure className="border border-black/10 bg-white p-2 sm:p-3">
+                <picture>
+                  <source srcSet="/images/measurement-guide-web.webp" type="image/webp" />
+                  <img
+                    src="/images/measurement-guide-web.png"
+                    alt="How to measure a top: 1, pit to pit, straight across the chest from armpit to armpit. 2, length, from the top of the shoulder down to the hem. 3, sleeve, from the shoulder seam to the end of the cuff."
+                    width={1152}
+                    height={863}
+                    loading="lazy"
+                    decoding="async"
+                    className="block h-auto w-full"
+                  />
+                </picture>
+              </figure>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-8">
               {[...measures.required, ...measures.optional].map((m) => {
                 const isRequired = measures.required.some((r) => r.key === m.key);
                 return (
                   <div key={m.key} className="flex flex-col gap-3">
-                    <FieldLabel optional={!isRequired}>{m.label}</FieldLabel>
+                    <FieldLabel optional={!isRequired}>
+                      {m.step != null && (
+                        // Same mark as the drawing: a filled black circle with
+                        // the number reversed out. Hidden from screen readers,
+                        // which get the whole mapping from the image's alt text.
+                        <span
+                          aria-hidden
+                          className="inline-flex h-5 w-5 shrink-0 items-center justify-center self-center rounded-full bg-black text-[11px] font-black leading-none text-white"
+                        >
+                          {m.step}
+                        </span>
+                      )}
+                      {m.label}
+                    </FieldLabel>
                     <div className="flex items-baseline gap-2">
                       <input
                         type="number" inputMode="decimal" min="1" step="any"
