@@ -183,6 +183,31 @@ There are **two separate clocks**. Do not conflate them.
   seller does not accept within 7 days, the offer lapses.
 - **Listing window: 30 days**, starting **from acceptance**, not from submission
   and not from the offer being issued. (Start here, tune later.)
+- **Handover: 5 days** from purchase (`fulfillment_config.ship_by_days`). Tell
+  sellers the courier usually collects **within 48 hours**; the 5 days is the
+  deadline, not the promise.
+- **Label by email.** We may also WhatsApp a seller we cannot reach, but copy
+  never promises WhatsApp delivery until WhatsApp sending is built.
+
+### Withdrawal — until someone buys it
+
+A seller may withdraw an accepted item from the vendor portal **any time until
+someone buys it** (`withdraw_acquisition`). The item comes off the site and the
+offer ends. No charge, no trust penalty.
+
+The cutoff is purchase, not the label, because title passes at buyer purchase
+(§2). Before that no supply has occurred, so a withdrawal settles nothing. A
+buyer still paying counts as bought: checkout reserves the item with an
+`awaiting_payment` order, and a withdrawal inside that window would sell a
+customer something we can no longer supply.
+
+After acceptance a seller cannot *delete* the item: the signed agreement is kept
+on record (`listing_agreements` restricts the delete). Withdrawal is the only
+way off the site.
+
+Wording: a seller withdraws **their item**, never "their listing". They do not
+run a listing on zarketplace; they have agreed to sell us one item, and we are
+the ones selling it.
 
 Possession checks at 30 and 60 days, plus a lightweight
 "do you still have it?" WhatsApp ping every 2–3 weeks (yes/no button).

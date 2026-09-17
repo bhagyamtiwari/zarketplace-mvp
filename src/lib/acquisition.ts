@@ -87,7 +87,10 @@ export async function getVendorOffer(listingId: string): Promise<VendorOffer | n
 // this text can never change what someone actually agreed to. Bump the version
 // whenever a line below changes; never edit a line in place.
 // ---------------------------------------------------------------------------
-export const AGREEMENT_VERSION = '2026-09-01.1';
+// Bumped whenever a clause's wording changes. Each acceptance stores the version
+// and the exact text it agreed to, so an older acceptance is never read against
+// newer words.
+export const AGREEMENT_VERSION = '2026-09-17.1';
 
 export interface AgreementClause { key: string; text: string }
 
@@ -99,7 +102,7 @@ export interface AgreementClause { key: string; text: string }
 export const AGREEMENT_CLAUSES: AgreementClause[] = [
   {
     key: 'genuine_and_accurate',
-    text: "This item is genuine, and it's described accurately as far as I know.",
+    text: "This item is genuine and described accurately, it's the exact item in my photos, and I'll keep it packed and unworn until it's bought or I withdraw it.",
   },
   {
     key: 'return_shipping_payable',
@@ -153,6 +156,35 @@ export async function resubmitListing(listingId: string): Promise<void> {
   if (error) throw error;
 }
 
+/**
+ * Take an accepted item off the site. Allowed until someone buys it: that is
+ * when ownership passes to us (MODEL.md), and a buyer part-way through paying
+ * counts. The database enforces all of this; the check below only decides
+ * whether to show the button.
+ */
+export async function withdrawItem(listingId: string): Promise<void> {
+  const { error } = await supabase.rpc('withdraw_acquisition', { p_listing_id: listingId });
+  if (error) throw error;
+}
+
+/** True when an accepted item is still on the site and nobody has bought it. */
+export function canWithdraw(offer: VendorOffer | null | undefined, isSold: boolean): boolean {
+  return offer?.offer_status === 'accepted'
+    && !offer.listing_expired_at
+    && !offer.intake_status
+    && !isSold;
+}
+
+/**
+ * True when deleting is allowed. Once an offer has been accepted the signed
+ * agreement is kept on record and the database refuses the delete; from then
+ * on an item comes off the site by being withdrawn, not deleted. Hiding the
+ * button there spares the vendor a raw constraint error.
+ */
+export function canDelete(offer: VendorOffer | null | undefined, isSold: boolean): boolean {
+  return !isSold && offer?.offer_status !== 'accepted';
+}
+
 /** True when the vendor can rework this item and send it back. */
 export function canResubmit(offer: VendorOffer | null | undefined): boolean {
   return offer?.offer_status === 'declined'
@@ -170,7 +202,7 @@ export function canResubmit(offer: VendorOffer | null | undefined): boolean {
 export type VendorStatus =
   | 'awaiting_offer' | 'offer_ready' | 'declined' | 'offer_rejected' | 'offer_expired'
   | 'live' | 'live_check_due' | 'sold' | 'awaiting_pickup' | 'in_transit'
-  | 'received' | 'paid' | 'not_accepted' | 'expired' | 'delisted';
+  | 'received' | 'paid' | 'not_accepted' | 'expired' | 'delisted' | 'withdrawn';
 
 export interface VendorStatusView {
   key: VendorStatus;
@@ -189,16 +221,17 @@ const STATUS_COPY: Record<VendorStatus, { label: string; detail: string; needsAc
   // "Live" means the item is sitting in the vendor's home, listed. Saying so
   // outright is the single most useful thing this dashboard does: the most
   // common patient-lane mistake is assuming the item has already been sent.
-  live:            { label: 'Live, with you',  detail: 'Listed on zarketplace. Keep it safe and stay reachable.', needsAction: false },
+  live:            { label: 'Live, with you',  detail: 'On the site. Keep it packed and unworn, and stay reachable.', needsAction: false },
   live_check_due:  { label: 'Answer needed',   detail: 'We asked whether you still have this. Two unanswered and it comes down.', needsAction: true },
   sold:            { label: 'Sold',           detail: 'Bought. We are sending a prepaid label and booking a pickup.', needsAction: false },
   awaiting_pickup: { label: 'Post it now',     detail: 'Pack it and hand it to the courier by the date we sent you.', needsAction: true },
   in_transit:      { label: 'In transit',     detail: 'On its way to us.', needsAction: false },
   received:        { label: 'Received',       detail: 'With us and being checked.', needsAction: false },
   paid:            { label: 'Paid',           detail: 'Your payout has been sent.', needsAction: false },
-  not_accepted:    { label: 'Not accepted',   detail: 'This item did not match its listing. Get in touch about returning it.', needsAction: true },
+  not_accepted:    { label: 'Not accepted',   detail: 'This item did not match what you described. Get in touch about returning it.', needsAction: true },
   expired:         { label: 'Came off the site', detail: 'It did not sell this time. It is yours, and you owe us nothing.', needsAction: false },
-  delisted:        { label: 'Taken down',     detail: 'We could not confirm you still had it. List it again any time.', needsAction: false },
+  delisted:        { label: 'Taken down',     detail: 'We could not confirm you still had it. Send it to us again any time.', needsAction: false },
+  withdrawn:       { label: 'Withdrawn',      detail: 'You took this off the site, so the offer has ended. Send it to us again any time.', needsAction: false },
 };
 
 /**
@@ -241,7 +274,9 @@ export function vendorStatus(
   // vendor, and lumping them together makes the second look like the first.
   if (offer?.listing_expired_at) {
     const key: VendorStatus =
-      offer.delisted_reason === 'listing_window_elapsed' ? 'expired' : 'delisted';
+      offer.delisted_reason === 'listing_window_elapsed' ? 'expired'
+      : offer.delisted_reason === 'vendor_withdrew' ? 'withdrawn'
+      : 'delisted';
     return { key, ...STATUS_COPY[key] };
   }
 
