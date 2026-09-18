@@ -6,8 +6,9 @@
 // into the Company accordion instead of repeated separately).
 import * as React from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown, ChevronUp, Instagram, Twitter, Youtube, MessageCircle } from 'lucide-react';
+import { ChevronDown, ChevronUp, Instagram } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { Wordmark } from './Wordmark';
 
 interface FooterLink {
   label: string;
@@ -89,48 +90,60 @@ const COMPANY: FooterColumn = {
 // tracking. The uppercase tracked register is kept for the four headings,
 // which is what that register is for. Two type styles in the footer, not one
 // used for both jobs.
-const LINK_CLASS = 'text-sm font-medium text-white/70 hover:text-white transition-colors rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2';
+const LINK_CLASS = 'text-sm font-medium text-white hover:text-white/65 transition-colors rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2';
 const HEADER_CLASS = 'text-[10px] font-black uppercase tracking-[0.3em] text-white';
+
+// Brand marks, drawn inline. The icon set has an Instagram outline and a
+// YouTube outline but no X logo and no WhatsApp logo, so X was the retired
+// Twitter bird and WhatsApp was a generic speech bubble: two of the four read
+// as the wrong company, or none. Paths are Simple Icons (CC0). Everything uses
+// currentColor, so the footer's ink and hover apply to them like any link.
+function XMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden className={className} fill="currentColor">
+      <path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z" />
+    </svg>
+  );
+}
+
+function YouTubeMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden className={className} fill="currentColor">
+      <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+    </svg>
+  );
+}
+
+function WhatsAppMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden className={className} fill="currentColor">
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z" />
+    </svg>
+  );
+}
+
+const SOCIALS: Array<{ label: string; href: string; icon: (cls: string) => React.ReactNode }> = [
+  { label: 'zarketplace on Instagram', href: 'https://www.instagram.com/zarketplace', icon: (c) => <Instagram className={c} strokeWidth={1.75} /> },
+  { label: 'zarketplace on X', href: 'https://x.com/zarketplace', icon: (c) => <XMark className={c} /> },
+  { label: 'zarketplace on YouTube', href: 'https://www.youtube.com/@zarketplace', icon: (c) => <YouTubeMark className={c} /> },
+  { label: 'zarketplace on WhatsApp', href: 'https://wa.me/918505927538', icon: (c) => <WhatsAppMark className={c} /> },
+];
 
 function SocialIcons() {
   return (
-    <div className="flex items-center gap-4">
-      <a
-        href="https://www.instagram.com/zarketplace"
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="zarketplace on Instagram"
-        className="hover:text-white transition-colors rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2"
-      >
-        <Instagram className="h-4 w-4" />
-      </a>
-      <a
-        href="https://x.com/zarketplace"
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="zarketplace on X"
-        className="hover:text-white transition-colors rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2"
-      >
-        <Twitter className="h-4 w-4" />
-      </a>
-      <a
-        href="https://www.youtube.com/@zarketplace"
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="zarketplace on YouTube"
-        className="hover:text-white transition-colors rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2"
-      >
-        <Youtube className="h-4 w-4" />
-      </a>
-      <a
-        href="https://wa.me/918505927538"
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="zarketplace on WhatsApp"
-        className="hover:text-white transition-colors rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2"
-      >
-        <MessageCircle className="h-4 w-4" />
-      </a>
+    <div className="flex items-center gap-6">
+      {SOCIALS.map((s) => (
+        <a
+          key={s.label}
+          href={s.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={s.label}
+          className="flex h-11 w-11 items-center justify-center -m-3 text-white transition-colors hover:text-white/65 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2"
+        >
+          {s.icon('h-5 w-5')}
+        </a>
+      ))}
     </div>
   );
 }
@@ -141,32 +154,15 @@ export function Footer() {
   return (
     <footer className="bg-black text-white py-16 sm:py-20">
       <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8">
-        {/* Desktop: the four columns as one centred group, then the socials
-            under them.
-
-            Stretched across the full 1448px they were not a footer section,
-            they were four lists a long way apart: 326px columns holding about
-            170px of text, so the eye had to cross 150px of black between the
-            end of one list and the start of the next, and the whole block hung
-            off the left edge with a void on the right.
-
-            Capping the group and centring it fixes both at once. The columns
-            close up, the block has a left and a right edge of its own, and it
-            sits under the page rather than being dragged to one side of it.
-            The page's own alignment is unaffected: the bottom bar still runs
-            the full width and still starts where everything else does. */}
-        <div className="hidden md:block">
-          <div className="mx-auto grid max-w-4xl grid-cols-4 gap-x-10">
-            <FooterColumnBlock column={SHOP} />
-            <FooterColumnBlock column={SELLING} />
-            <FooterColumnBlock column={HELP} />
-            <FooterColumnBlock column={COMPANY} />
-          </div>
-          {/* Centred on their own line rather than tucked under the fourth
-              column, where they read as a fifth item belonging to Company. */}
-          <div className="mt-12 flex justify-center">
-            <SocialIcons />
-          </div>
+        {/* Desktop: four equal columns across the page, set in from the
+            wordmark's edge so the lists read as a block of their own. The
+            socials are not here any more: they sit in the bottom bar with the
+            copyright, where the eye goes for "where else can I find you". */}
+        <div className="hidden md:grid grid-cols-4 gap-x-10 md:pl-8 lg:pl-12">
+          <FooterColumnBlock column={SHOP} />
+          <FooterColumnBlock column={SELLING} />
+          <FooterColumnBlock column={HELP} />
+          <FooterColumnBlock column={COMPANY} />
         </div>
 
         {/* Mobile: accordion sections, one open at a time */}
@@ -198,20 +194,19 @@ export function Footer() {
           })}
         </div>
 
-        {/* Desktop bottom bar: who we legally are on the left, the notice on
-            the right. Both are the same small register, so the rule reads as a
-            closing line rather than a second row of content. */}
-        <div className="hidden md:flex mt-16 pt-8 border-t border-white/10 items-end justify-between">
-          <Link to="/" className="flex min-h-[44px] items-center">
-            <img
-              src="/images/registered-wordmark/zark-reg-tp.png"
-              alt="zarketplace®"
-              referrerPolicy="no-referrer"
-              className="h-9 w-auto aspect-[1083/202] object-contain"
-            />
+        {/* Desktop bottom bar, one row: the wordmark on the left; the socials,
+            a hairline, and the notice on the right. The divider is what makes
+            the icons and the copyright read as two things rather than one run
+            of small marks. The wordmark is the same one as the nav, so the
+            page opens and closes on the same mark. */}
+        <div className="hidden md:flex mt-16 pt-8 border-t border-white/10 items-center justify-between">
+          <Link to="/" aria-label="zarketplace home" className="flex min-h-[44px] items-center">
+            <Wordmark on="dark" heightClassName="h-[30px]" />
           </Link>
-          <div className="flex flex-col items-end gap-1">
-            <span className="text-[10px] font-bold uppercase tracking-widest ink-mid">© 2026 All rights reserved.</span>
+          <div className="flex items-center">
+            <SocialIcons />
+            <span aria-hidden className="mx-12 h-6 w-px bg-white/25" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-white/80">© 2026 All rights reserved.</span>
           </div>
         </div>
 
@@ -220,12 +215,7 @@ export function Footer() {
             together rather than the icons hiding in an accordion above. */}
         <div className="md:hidden mt-10 pt-8 flex flex-col items-center gap-5 text-center">
           <Link to="/" className="flex min-h-[44px] items-center">
-            <img
-              src="/images/registered-wordmark/zark-reg-tp.png"
-              alt="zarketplace®"
-              referrerPolicy="no-referrer"
-              className="h-8 w-auto aspect-[1083/202] object-contain"
-            />
+            <Wordmark on="dark" heightClassName="h-7" />
           </Link>
           <SocialIcons />
           <span className="text-[10px] font-bold uppercase tracking-widest ink-mid">© 2026 All rights reserved.</span>
@@ -239,7 +229,7 @@ function FooterColumnBlock({ column, bare }: { column: FooterColumn; bare?: bool
   return (
     <div className={cn('flex flex-col gap-6', bare && 'gap-6')}>
       <h4 className={HEADER_CLASS}>{column.title}</h4>
-      <ul className="flex flex-col gap-3">
+      <ul className="flex flex-col gap-4">
         {column.links.map((link) => (
           <li key={link.to}>
             <Link to={link.to} className={LINK_CLASS}>{link.label}</Link>
