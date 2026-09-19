@@ -191,12 +191,23 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
 
+  // Taking something out of the cart also lets go of any checkout hold on it,
+  // so it is back on sale for everyone straight away instead of in 5 minutes.
+  // Best effort: the hold runs out on its own if this call fails.
+  const releaseHolds = async (ids: string[] | null) => {
+    if (!user) return;
+    const { error } = await supabase.rpc('release_my_reservations', { p_listing_ids: ids });
+    if (error) console.warn('[cart] could not release checkout hold', error);
+  };
+
   const remove: CartContextValue['remove'] = async (listingId) => {
     await persist(items.filter((i) => i.listing_id !== listingId));
+    await releaseHolds([listingId]);
   };
 
   const clear: CartContextValue['clear'] = async () => {
     await persist([]);
+    await releaseHolds(null);
   };
 
   const has = React.useCallback((id: string) => items.some((i) => i.listing_id === id), [items]);

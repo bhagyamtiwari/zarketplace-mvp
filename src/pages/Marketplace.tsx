@@ -587,24 +587,27 @@ export function Marketplace() {
           way to close it is the kind of thing you stop seeing and start
           resenting. The choice is remembered per browser. */}
       {!offerCtaHidden && (
-        <div className="lg:hidden fixed bottom-6 right-5 z-40 flex items-center gap-2">
+        // One small see-through pill, the same material as the cookie card,
+        // so it sits over the feed without covering it.
+        <div className="lg:hidden fixed bottom-5 right-4 z-40 flex h-10 items-center rounded-full border border-white/10 bg-black/70 text-white backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.25)]">
           <Link
             to="/sell"
-            aria-label="Get an offer for your item"
-            className="flex h-14 items-center gap-2 rounded-full bg-black pl-4 pr-5 text-[11px] font-black uppercase tracking-[0.2em] text-white shadow-[0_8px_30px_rgba(0,0,0,0.35)] active:scale-95 transition-transform"
+            aria-label="Sell now: get an offer for your item"
+            className="flex h-full items-center gap-1.5 pl-4 pr-2 text-[11px] font-black uppercase tracking-[0.2em] active:opacity-70"
           >
-            <Plus className="h-5 w-5" /> Get offer
+            <Plus className="h-3.5 w-3.5" /> Sell now
           </Link>
+          <span aria-hidden className="h-4 w-px bg-white/25" />
           <button
             type="button"
-            aria-label="Hide the offer button"
+            aria-label="Hide the sell button"
             onClick={() => {
               setOfferCtaHidden(true);
               try { localStorage.setItem(OFFER_CTA_KEY, '1'); } catch { /* private mode */ }
             }}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-black/80 text-white shadow-[0_8px_30px_rgba(0,0,0,0.35)] active:scale-95 transition-transform"
+            className="flex h-full w-9 items-center justify-center pr-1 active:opacity-70"
           >
-            <X className="h-4 w-4" />
+            <X className="h-3.5 w-3.5" />
           </button>
         </div>
       )}

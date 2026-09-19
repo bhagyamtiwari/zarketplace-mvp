@@ -129,7 +129,7 @@ export const META = {
   grievance: { title: 'Grievance officer', description: 'Grievance officer details, as required under the Consumer Protection (E-Commerce) Rules 2020.', path: '/grievance-officer' },
   trademark: { title: 'Trademark & brand notice', description: 'How brand names are used on zarketplace listings.', path: '/trademark-notice' },
   // Signed-in and operator surfaces: never indexed.
-  cart: { title: 'Your bag', description: 'Your bag.', path: '/cart', noIndex: true },
+  cart: { title: 'Your cart', description: 'Your cart.', path: '/cart', noIndex: true },
   checkout: { title: 'Checkout', description: 'Checkout.', noIndex: true },
   orders: { title: 'Your orders', description: 'Track your orders.', noIndex: true },
   account: { title: 'Your profile', description: 'Your profile.', noIndex: true },
