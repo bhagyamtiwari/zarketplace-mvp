@@ -400,7 +400,7 @@ export function ProductPage() {
                   </a>
                   <div
                     aria-hidden
-                    className="pointer-events-none absolute left-0 bottom-full z-30 mb-3 hidden w-72 border border-black bg-white p-2 shadow-[0_12px_40px_rgba(0,0,0,0.12)] opacity-0 transition-opacity [@media(hover:hover)]:block group-hover:opacity-100 group-focus-within:opacity-100"
+                    className="pointer-events-none absolute left-0 top-full z-30 mt-3 hidden w-72 border border-black bg-white p-2 shadow-[0_12px_40px_rgba(0,0,0,0.12)] opacity-0 transition-opacity [@media(hover:hover)]:block group-hover:opacity-100 group-focus-within:opacity-100"
                   >
                     <picture>
                       <source srcSet={`/images/${guide}.webp`} type="image/webp" />
