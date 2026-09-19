@@ -733,7 +733,7 @@ function SellInner() {
         </div>
 
         <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase leading-[0.95] mb-6">
-          We will come back within 24 hours
+          Back in 24 hours.
         </h1>
 
         {/* The vendor has not listed anything yet and should not think they
