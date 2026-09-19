@@ -78,8 +78,7 @@ function CartInner() {
                 >
                   {item.title}
                 </Link>
-                <span className="text-[11px] font-black uppercase tracking-widest ink-mid">{item.brand}</span>
-                {item.size && <span className="text-[11px] font-black uppercase tracking-widest ink-mid">Size {item.size}</span>}
+                {item.sku && <span className="text-[11px] font-black uppercase tracking-widest ink-mid tabular-nums">{item.sku}</span>}
               </div>
               <div className="flex flex-col items-end gap-1 shrink-0">
                 <span className="text-sm font-black">{formatCurrency(item.sale_price ?? item.price ?? 0)}</span>

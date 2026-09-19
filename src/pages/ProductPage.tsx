@@ -98,15 +98,25 @@ export function ProductPage() {
   // The sticky mobile buy bar follows the buyer through the item and leaves
   // as soon as the end of it comes into view, rather than riding over the
   // recommendations and the footer below.
+  //
+  // Measured on scroll rather than with an IntersectionObserver: an observer
+  // only fires when the marker's visibility changes, and a fast fling (or a
+  // jump to the bottom) can carry the marker from below the screen to above
+  // it without it ever being visible, which left the bar showing over the
+  // footer.
   React.useEffect(() => {
     const el = stickyStopRef.current;
     if (!el) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => setStickyBarVisible(entry.boundingClientRect.top > window.innerHeight),
-      { threshold: 0 },
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
+    // One rect read per scroll event, and React skips the render when the
+    // value has not changed, so this stays cheap without a frame scheduler.
+    const update = () => setStickyBarVisible(el.getBoundingClientRect().top > window.innerHeight);
+    update();
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
   }, [listing?.id]);
 
   // Swipe state for the mobile carousel. Declared here (not below the
