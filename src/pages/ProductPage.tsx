@@ -249,7 +249,10 @@ export function ProductPage() {
 
 
 
-  const purchasable = listing.status === 'approved' && !listing.is_sold;
+  // Demo items fill the shop for previews and are marked "(Demo)" at the end
+  // of the title. They are never for sale; the database refuses the order too.
+  const isDemo = /\(demo\)\s*$/i.test(listing.title);
+  const purchasable = listing.status === 'approved' && !listing.is_sold && !isDemo;
 
   // The phone's own share sheet (WhatsApp, Instagram, Messages...) with the
   // cover photo attached where the browser allows files, the link alone where
@@ -502,6 +505,11 @@ export function ProductPage() {
                     ? 'We are looking at this item. It goes on sale once you accept our offer, and nobody can buy it before then.'
                     : 'This item is not on sale yet.'}
                 </p>
+              </div>
+            ) : isDemo ? (
+              <div className="w-full border border-black/15 bg-zinc-50 px-6 py-5 flex flex-col gap-1">
+                <span className="text-[15px] font-bold">Demo item, not for sale</span>
+                <span className="text-sm ink-mid">It shows how pieces look on zarketplace. Real stock is on its way.</span>
               </div>
             ) : listing.is_sold ? (
               <div className="w-full bg-zinc-100 py-6 text-center text-xs font-black uppercase tracking-[0.3em] ink-mid cursor-not-allowed border border-black/5">
