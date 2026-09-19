@@ -100,11 +100,17 @@ const WHAT_HAPPENS_NEXT: Array<{ title: string; points: string[] }> = [
   {
     title: 'When it is bought, we send you a prepaid label',
     points: [
-      'Print it and attach it to the parcel.',
+      'Shipping to us is free: print the label and attach it to the parcel.',
       'A courier collects it from your door, usually within 48 hours.',
       'It must be handed over within 5 days.',
       'Send the exact item in your photos.',
-      'You pay nothing for shipping.',
+    ],
+  },
+  {
+    title: 'You are paid when it reaches our hub',
+    points: [
+      'We check it against your photos, then pay you the agreed amount.',
+      'We take care of delivery to the buyer.',
     ],
   },
 ];

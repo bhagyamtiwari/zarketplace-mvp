@@ -225,13 +225,13 @@ function OfferScreen({
         <span className="text-5xl sm:text-6xl font-black tracking-tighter leading-none tabular-nums">
           {formatCurrency(amount)}
         </span>
-        <span className="text-[15px] leading-snug">For {title}, paid when it sells.</span>
+        <span className="text-[15px] leading-snug">For {title}, paid when it reaches our hub.</span>
       </div>
 
       <Bullets items={[
         'The amount is fixed and does not change once you accept.',
         'The item stays with you until someone buys it.',
-        'We pay for shipping, payment fees and handling.',
+        'Shipping to us is free: we send you a prepaid label.',
       ]} />
 
       <div className="flex flex-col gap-4">
@@ -355,9 +355,10 @@ function AgreementScreen({
         <span className="text-[11px] font-black uppercase tracking-[0.2em]">What you are agreeing to</span>
         <Bullets items={[
           'Keep it packed and unworn, and do not sell it anywhere else.',
-          'When it sells, we email you a prepaid label and a courier collects it from your door.',
+          'When it sells, we email you a prepaid label and a courier collects it from your door, free.',
           <>It must be handed over within <strong>5 days</strong>, and you pay nothing for shipping.</>,
           <>If it does not match your photos, we can refuse it and return it <strong>at your expense</strong>.</>,
+          'You are paid when it reaches our hub and matches your photos.',
           'If it has not sold in 30 days, the offer ends and nothing is owed either way.',
           'You can withdraw it from your vendor portal any time before it sells.',
         ]} />
