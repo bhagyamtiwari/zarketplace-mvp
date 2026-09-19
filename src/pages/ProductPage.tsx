@@ -6,7 +6,7 @@ import { formatCurrency, cn } from '../lib/utils';
 import { variantUrl } from '../lib/images';
 import { ProductGallery } from '../components/ProductGallery';
 import { motion } from 'motion/react';
-import { Loader2, RotateCcw, ArrowLeft, ShoppingBag, Check, Share2, X, Link as LinkIcon, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { Loader2, RotateCcw, ArrowLeft, ArrowUpRight, ShoppingBag, Check, Share2, Link as LinkIcon, ShieldCheck, AlertTriangle } from 'lucide-react';
 import { log } from '../lib/log';
 import { useCart } from '../lib/cart';
 import { useAuth } from '../lib/auth';
@@ -23,9 +23,42 @@ const WEAR_LABELS: Record<string, string> = {
   never: 'Never', '1_2_times': '1-2 Times', occasionally: 'Occasionally', frequently: 'Frequently',
 };
 
-// Worst-to-best order for the condition meter bar (CONDITIONS itself is
-// best-to-worst, matching the Conditions Guide and Sell form order).
-const CONDITION_TIERS = [...CONDITIONS].reverse();
+type Unit = 'in' | 'cm';
+const CM_PER_INCH = 2.54;
+
+// Inches to the nearest quarter, as a tape reads; centimetres to the nearest
+// half. Stored in cm to a millimetre, which is more precision than a hand
+// measurement has.
+function formatLength(cm: number, unit: Unit): string {
+  const v = unit === 'in' ? Math.round((cm / CM_PER_INCH) * 4) / 4 : Math.round(cm * 2) / 2;
+  return String(v);
+}
+
+// The drawing the vendor measured from, per category (see MEASURE_GUIDES in
+// Sell.tsx). Shown to the buyer so both sides mean the same thing by "length".
+const MEASURE_GUIDE_BY_CATEGORY: Record<string, string> = {
+  Tops: 'measure-tops',
+  Outerwear: 'measure-tops',
+  Bottoms: 'measure-bottoms',
+};
+
+// "Fits like" is the vendor's own size note (the size detail field, where they
+// write things like "Fits like XL" or "Oversized"), with the prefix trimmed so
+// the row does not read "Fits like: fits like XL". A size read off a chart
+// from the measurements was tried and dropped: a tape measured the wrong way
+// makes it contradict both the tag and the vendor, and the measurements below
+// already give the buyer the real numbers. The one exception is a trouser
+// waist, which is arithmetic rather than a guess.
+function fitsLikeFor(listing: Listing): { value: string; note?: string } | null {
+  const note = listing.size?.replace(/^\s*fits\s+like\s*:?\s*/i, '').trim();
+  if (note) return { value: note };
+  if (listing.category === 'Bottoms' && listing.waist_cm) {
+    // Flat waist doubled is the waistband all the way round.
+    const waist = Math.round((listing.waist_cm * 2) / CM_PER_INCH);
+    return { value: `${waist} in waist`, note: 'From the measured waistband' };
+  }
+  return null;
+}
 
 // UUIDv4-ish detector. We accept either /product/:id (UUID) or /item/:sku.
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -54,7 +87,7 @@ export function ProductPage() {
   const [cartMsg, setCartMsg] = React.useState<string | null>(null);
   const [shareOpen, setShareOpen] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
-  const [showConditionMeter, setShowConditionMeter] = React.useState(false);
+  const [unit, setUnit] = React.useState<Unit>('in');
   const [stickyBarVisible, setStickyBarVisible] = React.useState(true);
   const stickyStopRef = React.useRef<HTMLDivElement>(null);
 
@@ -185,7 +218,18 @@ export function ProductPage() {
     ? listing.image_urls 
     : [listing.image_url];
 
-  const currentConditionIdx = CONDITION_TIERS.findIndex(t => t.name === listing.condition);
+  const condition = conditionByName(listing.condition ?? '');
+  const fitsLike = fitsLikeFor(listing);
+  const guide = MEASURE_GUIDE_BY_CATEGORY[listing.category ?? ''] ?? null;
+  const measurements = ([
+    ['Pit to pit', listing.pit_to_pit_cm],
+    ['Length', listing.length_cm],
+    ['Sleeve', listing.sleeve_cm],
+    ['Waist (flat)', listing.waist_cm],
+    ['Inseam', listing.inseam_cm],
+    ['Outseam', listing.outseam_cm],
+  ] as Array<[string, number | null | undefined]>)
+    .filter((m): m is [string, number] => m[1] != null);
 
 
 
@@ -215,16 +259,18 @@ export function ProductPage() {
           <ProductGallery images={images} alt={listing.title} />
         </div>
 
-        {/* Product Info */}
+        {/* Product info, in the order a buyer decides in: what it is and what
+            it costs, whether it fits, what state it is in, then buy. Who we
+            are and how we ship comes last - it is the same on every item, so
+            it should not sit between a buyer and the answers that are not. */}
         <div className="lg:col-span-7 flex flex-col gap-10">
-          <div className="flex flex-col gap-2">
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight uppercase leading-snug">{listing.title}</h1>
-            <span className="text-[10px] font-black uppercase tracking-[0.4em] text-black">{listing.brand}</span>
-            <div className="mt-4 flex items-center gap-6">
+          <div className="flex flex-col gap-4">
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tighter uppercase leading-[0.95]">{listing.title}</h1>
+            <div className="flex items-baseline gap-4">
               {listing.sale_price ? (
                 <>
                   <span className="text-3xl font-black text-red-600">{formatCurrency(listing.sale_price)}</span>
-                  <span className="text-xl ink-low line-through font-bold">{formatCurrency(listing.price)}</span>
+                  <span className="text-xl ink-mid line-through font-bold">{formatCurrency(listing.price)}</span>
                 </>
               ) : (
                 <span className="text-3xl font-black">{formatCurrency(listing.price)}</span>
@@ -232,84 +278,152 @@ export function ProductPage() {
             </div>
           </div>
 
-          {/* The whole buyer-side proposition, stated once and given room.
-              It used to be a grey line under the price, which is where you put
-              a disclaimer, not the reason someone should buy from you. */}
-          <div className="border-y border-black py-6 flex flex-col gap-4">
-            <span className="text-[10px] font-black uppercase tracking-[0.3em]">
-              Sold &amp; shipped by zarketplace
-            </span>
-            <ul className="flex flex-col gap-2">
-              {[
-                'Bought and owned by us, not listed by someone else',
-                'Checked against this listing before it ships',
-                'Dispatched from our own hub, in our own packaging',
-              ].map((line) => (
-                <li key={line} className="flex gap-3 text-xs font-medium leading-relaxed ink-mid">
-                  <span aria-hidden className="ink-low">&mdash;</span>
-                  <span>{line}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {/* The three answers a buyer is scanning for, as label and value.
+              One row each, so the eye runs straight down the right column. */}
+          <dl className="border-t border-black">
+            <SpecRow label="Brand">{listing.brand}</SpecRow>
+            <SpecRow label="Size">
+              {listing.size_type || 'One size'}
+            </SpecRow>
+            {fitsLike && (
+              <SpecRow label="Fits like">
+                {fitsLike.value}
+                {fitsLike.note && (
+                  <span className="ml-3 text-sm font-medium normal-case tracking-normal ink-mid">{fitsLike.note}</span>
+                )}
+              </SpecRow>
+            )}
+          </dl>
 
-          <div className="grid grid-cols-2 gap-y-6 gap-x-4 border-b border-black/5 pb-8">
-            <div>
-              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-black block mb-1">Size</span>
-              <p className="font-black text-base uppercase tracking-tight">{listing.size_type || 'One Size'}</p>
+          {/* All four grades, with this one filled. A grade on its own means
+              nothing until you can see where it sits on the scale. */}
+          <section className="flex flex-col gap-4" aria-labelledby="condition-heading">
+            <div className="flex items-baseline justify-between gap-4">
+              <h2 id="condition-heading" className="text-[11px] font-black uppercase tracking-[0.2em]">Condition</h2>
+              <Link to="/conditions-guide" className="text-[11px] font-black uppercase tracking-[0.2em] underline underline-offset-4 decoration-black/30 hover:decoration-black">
+                Condition guide
+              </Link>
             </div>
-            <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-black">Condition</span>
-                <Link
-                  to="/conditions-guide"
-                  className="text-[9px] font-black uppercase tracking-widest underline decoration-black/20 hover:decoration-black transition-all"
-                >
-                  (Condition Guide)
-                </Link>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowConditionMeter((v) => !v)}
-                className="font-black text-base uppercase tracking-tight underline decoration-black/20 hover:decoration-black transition-all"
-              >
-                {listing.condition}
-              </button>
+            <ol className="grid grid-cols-4 gap-1">
+              {CONDITIONS.map((tier) => {
+                const active = tier.name === condition?.name;
+                return (
+                  <li
+                    key={tier.name}
+                    aria-current={active ? 'true' : undefined}
+                    className={cn(
+                      'flex flex-col items-center gap-1 py-3 px-1 border text-center',
+                      active ? 'bg-black border-black text-white' : 'border-black/15 ink-mid',
+                    )}
+                  >
+                    <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em]">{tier.name}</span>
+                    <span className="text-[10px] font-bold tabular-nums">{tier.grade}</span>
+                  </li>
+                );
+              })}
+            </ol>
+            {condition && (
+              <p className="text-sm leading-relaxed">
+                <span className="font-black">{condition.name}.</span> {condition.desc}
+              </p>
+            )}
+            <ul className="flex flex-col gap-2">
+              <li className="flex items-center gap-3">
+                {listing.has_flaws
+                  ? <AlertTriangle className="h-4 w-4 shrink-0" />
+                  : <Check className="h-4 w-4 shrink-0" />}
+                <span className="text-[11px] font-black uppercase tracking-[0.2em]">
+                  {listing.has_flaws ? 'Flaws disclosed below' : 'No flaws disclosed'}
+                </span>
+              </li>
+              {listing.authenticity_confirmed && (
+                <li className="flex items-center gap-3">
+                  <ShieldCheck className="h-4 w-4 shrink-0" />
+                  <span className="text-[11px] font-black uppercase tracking-[0.2em]">Authenticity confirmed</span>
+                </li>
+              )}
+            </ul>
+          </section>
 
-              {showConditionMeter && (
-                <div className="mt-4 bg-zinc-50 border border-black/5 p-4 flex flex-col gap-3">
-                  <div className="flex items-center gap-1">
-                    {CONDITION_TIERS.map((tier, idx) => (
-                      <div
-                        key={tier.name}
-                        className={cn('h-1.5 flex-1 rounded-full', idx <= currentConditionIdx ? 'bg-black' : 'bg-black/10')}
-                      />
-                    ))}
+          {/* MODEL.md §8. Tag size is not enough on used clothing, and "it did
+              not fit" is the biggest single reason things come back. Inches
+              first, because that is what most people here measure their own
+              clothes in; stored in centimetres either way. */}
+          {measurements.length > 0 && (
+            <section className="flex flex-col gap-4" aria-labelledby="measurements-heading">
+              <div className="flex items-center justify-between gap-4">
+                <h2 id="measurements-heading" className="text-[11px] font-black uppercase tracking-[0.2em]">Measurements</h2>
+                <div className="flex border border-black/15" role="group" aria-label="Measurement unit">
+                  {(['in', 'cm'] as Unit[]).map((u) => (
+                    <button
+                      key={u}
+                      type="button"
+                      onClick={() => setUnit(u)}
+                      aria-pressed={unit === u}
+                      className={cn(
+                        'px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] transition-colors',
+                        unit === u ? 'bg-black text-white' : 'text-black hover:bg-black/5',
+                      )}
+                    >
+                      {u}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <dl className="grid grid-cols-3 border-t border-black/10">
+                {measurements.map(([label, cm]) => (
+                  <div key={label} className="flex flex-col gap-1 pt-4">
+                    <dt className="text-[10px] font-black uppercase tracking-[0.2em] ink-mid">{label}</dt>
+                    <dd className="text-xl font-black tracking-tight tabular-nums">
+                      {formatLength(cm, unit)}
+                      <span className="ml-1 text-xs font-black uppercase">{unit}</span>
+                    </dd>
                   </div>
-                  <div className="flex justify-between text-[7px] font-black uppercase tracking-widest ink-low">
-                    {CONDITION_TIERS.map((tier) => <span key={tier.name}>{tier.name}</span>)}
+                ))}
+              </dl>
+              <p className="text-[13px] leading-relaxed ink-mid">
+                Measured flat, by hand. Compare them with something you already own rather than
+                going by the tag.
+              </p>
+              {guide && (
+                // The same drawing the vendor measured from. Hover or focus shows
+                // it in place on a pointer device; a tap opens it full size in a
+                // new tab, which is the only version legible on a phone anyway.
+                <div className="group relative self-start">
+                  <a
+                    href={`/images/${guide}.png`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] underline underline-offset-4 decoration-black/30 hover:decoration-black"
+                  >
+                    How we measure <ArrowUpRight className="h-3.5 w-3.5" />
+                  </a>
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute left-0 top-full z-30 mt-3 hidden w-72 border border-black bg-white p-2 shadow-[0_12px_40px_rgba(0,0,0,0.12)] opacity-0 transition-opacity [@media(hover:hover)]:block group-hover:opacity-100 group-focus-within:opacity-100"
+                  >
+                    <picture>
+                      <source srcSet={`/images/${guide}.webp`} type="image/webp" />
+                      <img src={`/images/${guide}.png`} alt="" width={720} height={1080} loading="lazy" decoding="async" className="block h-auto w-full" />
+                    </picture>
                   </div>
-                  <p className="text-[10px] font-medium leading-relaxed">
-                    {CONDITION_TIERS[currentConditionIdx]?.desc}
-                  </p>
                 </div>
               )}
-            </div>
-            <div>
-              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-black block mb-1">Shipping</span>
-              <p className="font-black text-base uppercase tracking-tight">
-                {listing.free_shipping
-                    ? 'Free'
-                  : shippingCategories.length === 0
-                    ? 'Calculating...'
-                    : fmt(shippingRateFor(listing.shipping_category, shippingCategories))}
+            </section>
+          )}
+
+          {/* Flaws, in their own words. Every flaw written down and
+              photographed is the thing that actually prevents a return. */}
+          {listing.has_flaws && (
+            <section className="flex flex-col gap-3 border-l-2 border-black pl-5">
+              <h2 className="text-[11px] font-black uppercase tracking-[0.2em]">Flaws, stated plainly</h2>
+              <p className="text-sm leading-relaxed">{listing.flaws_description}</p>
+              <p className="text-[13px] leading-relaxed ink-mid">
+                This is a used item and we would rather tell you than have you find out. The flaw
+                is in the photos too.
               </p>
-            </div>
-            <div>
-              <span className="text-[9px] font-black uppercase tracking-[0.2em] text-black block mb-1">Product Code</span>
-              <p className="font-black text-base uppercase tracking-tight">{listing.sku || `ZV-${listing.id.slice(0, 8).toUpperCase()}`}</p>
-            </div>
-          </div>
+            </section>
+          )}
 
           <div className="flex flex-col gap-4">
             {listing.status !== 'approved' ? (
@@ -324,7 +438,7 @@ export function ProductPage() {
                 </p>
               </div>
             ) : listing.is_sold ? (
-              <div className="w-full bg-zinc-100 py-6 text-center text-xs font-black uppercase tracking-[0.3em] ink-low cursor-not-allowed border border-black/5">
+              <div className="w-full bg-zinc-100 py-6 text-center text-xs font-black uppercase tracking-[0.3em] ink-mid cursor-not-allowed border border-black/5">
                 Sold Out
               </div>
             ) : (
@@ -369,153 +483,97 @@ export function ProductPage() {
             )}
           </div>
 
-          <div className="flex flex-col gap-8">
-            <div className="flex flex-col gap-4">
-              <h3 className="text-xs font-black uppercase tracking-widest">About this piece</h3>
-              <div className="flex flex-col gap-4">
-                <p className="text-xs font-medium uppercase tracking-widest leading-relaxed whitespace-pre-line">{listing.description}</p>
-              </div>
-            </div>
+          <div className="flex flex-col gap-10">
+            {listing.description && (
+              <section className="flex flex-col gap-3">
+                <h2 className="text-[11px] font-black uppercase tracking-[0.2em]">About this piece</h2>
+                <p className="text-sm leading-relaxed whitespace-pre-line">{listing.description}</p>
+              </section>
+            )}
 
             {(listing.original_tags_attached !== null || listing.original_packaging !== null || listing.item_altered !== null || listing.wear_frequency) && (
-              <div className="flex flex-col gap-4">
-                <h3 className="text-xs font-black uppercase tracking-widest">Item Details</h3>
-                <div className="grid grid-cols-2 gap-y-3 gap-x-4">
+              <section className="flex flex-col gap-3">
+                <h2 className="text-[11px] font-black uppercase tracking-[0.2em]">Item details</h2>
+                <dl className="border-t border-black/10">
                   {listing.original_tags_attached !== null && (
-                    <DetailRow label="Original tags" value={listing.original_tags_attached ? 'Attached' : 'Not attached'} />
+                    <SpecRow label="Original tags" quiet>{listing.original_tags_attached ? 'Attached' : 'Not attached'}</SpecRow>
                   )}
                   {listing.original_packaging !== null && (
-                    <DetailRow label="Packaging" value={listing.original_packaging ? 'Included' : 'Not included'} />
+                    <SpecRow label="Packaging" quiet>{listing.original_packaging ? 'Included' : 'Not included'}</SpecRow>
                   )}
                   {listing.item_altered !== null && (
-                    <DetailRow label="Altered" value={listing.item_altered ? 'Yes' : 'No'} />
+                    <SpecRow label="Altered" quiet>{listing.item_altered ? 'Yes' : 'No'}</SpecRow>
                   )}
                   {listing.wear_frequency && (
-                    <DetailRow label="Worn" value={WEAR_LABELS[listing.wear_frequency] ?? listing.wear_frequency} />
+                    <SpecRow label="Worn" quiet>{WEAR_LABELS[listing.wear_frequency] ?? listing.wear_frequency}</SpecRow>
                   )}
-                </div>
-              </div>
-            )}
-
-            {/* MODEL.md §8. Tag size is not enough on used clothing, least of
-                all vintage, and "it didn't fit" is the biggest single reason
-                things come back. The measured garment gets its own block with
-                the same weight as the price, not a line inside a description. */}
-            {(listing.pit_to_pit_cm || listing.length_cm || listing.sleeve_cm
-              || listing.waist_cm || listing.inseam_cm || listing.outseam_cm) && (
-              <div className="flex flex-col gap-4">
-                <h3 className="text-xs font-black uppercase tracking-widest">Measurements</h3>
-                <dl className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4">
-                  {([
-                    ['Pit to pit', listing.pit_to_pit_cm],
-                    ['Length', listing.length_cm],
-                    ['Sleeve', listing.sleeve_cm],
-                    ['Waist (flat)', listing.waist_cm],
-                    ['Inseam', listing.inseam_cm],
-                    ['Outseam', listing.outseam_cm],
-                  ] as Array<[string, number | null | undefined]>)
-                    .filter(([, v]) => v != null)
-                    .map(([label, v]) => (
-                      <div key={label} className="flex flex-col gap-1">
-                        <dt className="text-[10px] font-black uppercase tracking-[0.2em] ink-low">{label}</dt>
-                        <dd className="text-lg font-black tracking-tight tabular-nums">{v} cm</dd>
-                      </div>
-                    ))}
                 </dl>
-                <p className="text-[13px] font-normal leading-relaxed ink-mid">
-                  Measured flat, by hand. Sizing on pre-owned pieces is not consistent between
-                  brands or decades, so compare these against something you already own rather
-                  than going by the tag.
-                </p>
-              </div>
+              </section>
             )}
-
-            {/* Flaws, stated as their own section rather than tucked inside the
-                condition box. Every flaw photographed and written down is the
-                thing that actually prevents a return, and burying it reads as
-                hiding it. */}
-            {listing.has_flaws && (
-              <div className="flex flex-col gap-3 border-l-2 border-black pl-5">
-                <h3 className="text-xs font-black uppercase tracking-widest">Flaws, stated plainly</h3>
-                <p className="text-sm font-normal normal-case tracking-normal leading-relaxed">
-                  {listing.flaws_description}
-                </p>
-                <p className="text-[13px] font-normal leading-relaxed ink-mid">
-                  This is a used item and we would rather tell you than have you find out.
-                  The flaw is in the photos too.
-                </p>
-              </div>
-            )}
-
-            <div className="flex flex-col gap-4">
-              <h3 className="text-xs font-black uppercase tracking-widest">Condition & Authenticity</h3>
-              <div className="flex flex-col gap-4">
-                {conditionByName(listing.condition ?? '') && (
-                  <p className="text-sm font-normal normal-case tracking-normal leading-relaxed">
-                    <span className="font-black text-black">{conditionByName(listing.condition ?? '')?.name}.</span>
-                    {' '}
-                    {conditionByName(listing.condition ?? '')?.desc}
-                  </p>
-                )}
-
-                {listing.has_flaws ? (
-                  <div className="flex items-center gap-3">
-                    <AlertTriangle className="h-4 w-4 text-amber-700 shrink-0" />
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-amber-800">Flaws disclosed above</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-3">
-                    <ShieldCheck className="h-4 w-4 text-emerald-700 shrink-0" />
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700">No flaws disclosed</span>
-                  </div>
-                )}
-
-                <div className="flex items-center gap-3">
-                  {listing.authenticity_confirmed ? (
-                    <>
-                      <ShieldCheck className="h-4 w-4 text-emerald-700 shrink-0" />
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-700">Confirmed authentic</span>
-                    </>
-                  ) : (
-                    <>
-                      <AlertTriangle className="h-4 w-4 ink-low shrink-0" />
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] ink-low">Authenticity not confirmed</span>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
 
             <div ref={stickyStopRef} />
 
-            <div className="flex flex-col gap-4 pt-6 border-t border-black/5">
-              <button
-                type="button"
-                onClick={() => {
-                  navigator.clipboard.writeText(window.location.href);
-                  setCartMsg(null);
-                  setCopied(true);
-                  setTimeout(() => setCopied(false), 2000);
-                }}
-                className="self-start flex items-center gap-3 text-[11px] font-black uppercase tracking-widest hover:text-black/60 transition-colors"
-              >
-                <LinkIcon className="h-4 w-4 text-black" />
-                {copied ? 'Link Copied' : 'Copy Link'}
-              </button>
-              <div className="flex items-start gap-4 text-[11px] font-black uppercase tracking-widest">
-                <ShieldCheck className="h-4 w-4 text-black shrink-0 mt-0.5" />
-                <div className="flex flex-col gap-1">
-                  <Link to="/buyer-protection" className="underline">Buyer Protection</Link>
-                  <span className="text-[9px] font-bold tracking-widest ink-low leading-relaxed uppercase">
-                    Your payment is held until you confirm delivery. Refund if the item is significantly not as described.
-                  </span>
+            {/* The same on every item, so it comes last. Sentence case at a
+                readable size: this is the part people check before paying, and
+                it used to be 9px grey capitals. */}
+            <section className="flex flex-col gap-6 border-t border-black pt-8">
+              <div className="flex flex-col gap-3">
+                <h2 className="text-[11px] font-black uppercase tracking-[0.2em]">Sold &amp; shipped by zarketplace</h2>
+                <ul className="flex flex-col gap-2">
+                  {[
+                    'Bought and owned by us, not listed by someone else.',
+                    'Checked against this listing before it ships.',
+                    'Dispatched from our own hub, in our own packaging.',
+                  ].map((line) => (
+                    <li key={line} className="flex gap-3 text-sm leading-relaxed ink-mid">
+                      <span aria-hidden>-</span>
+                      <span>{line}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <dl className="border-t border-black/10">
+                <SpecRow label="Shipping" quiet>
+                  {listing.free_shipping
+                    ? 'Free'
+                    : shippingCategories.length === 0
+                      ? 'Calculating...'
+                      : fmt(shippingRateFor(listing.shipping_category, shippingCategories))}
+                </SpecRow>
+                <SpecRow label="Product code" quiet>{listing.sku || `ZV-${listing.id.slice(0, 8).toUpperCase()}`}</SpecRow>
+              </dl>
+
+              <div className="flex flex-col gap-5">
+                <div className="flex items-start gap-4">
+                  <ShieldCheck className="h-4 w-4 shrink-0 mt-0.5" />
+                  <div className="flex flex-col gap-1">
+                    <Link to="/buyer-protection" className="self-start text-[11px] font-black uppercase tracking-[0.2em] underline underline-offset-4">Buyer protection</Link>
+                    <p className="text-[13px] leading-relaxed ink-mid">
+                      Your payment is held until you confirm delivery, and refunded if the item is
+                      significantly not as described.
+                    </p>
+                  </div>
                 </div>
+                <div className="flex items-center gap-4">
+                  <RotateCcw className="h-4 w-4 shrink-0" />
+                  <Link to="/returns" className="text-[11px] font-black uppercase tracking-[0.2em] underline underline-offset-4">Returns &amp; cancellations</Link>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(window.location.href);
+                    setCartMsg(null);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  }}
+                  className="self-start flex items-center gap-4 text-[11px] font-black uppercase tracking-[0.2em] hover:text-black/60 transition-colors"
+                >
+                  <LinkIcon className="h-4 w-4" />
+                  {copied ? 'Link copied' : 'Copy link'}
+                </button>
               </div>
-              <div className="flex items-center gap-4 text-[11px] font-black uppercase tracking-widest">
-                <RotateCcw className="h-4 w-4 text-black" />
-                <Link to="/returns" className="underline">Returns & Cancellations Policy</Link>
-              </div>
-            </div>
+            </section>
 
             {listing.is_mine === true && (
               <div className="mt-4 pt-6 border-t border-black/5 flex flex-col gap-3">
@@ -586,11 +644,11 @@ export function ProductPage() {
   );
 }
 
-function DetailRow({ label, value }: { label: string; value: string }) {
+function SpecRow({ label, quiet, children }: { label: string; quiet?: boolean; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-0.5">
-      <span className="text-[9px] font-black uppercase tracking-widest ink-low">{label}</span>
-      <span className="text-[11px] font-bold uppercase tracking-widest">{value}</span>
+    <div className={cn('grid grid-cols-[7.5rem_1fr] items-baseline gap-4 border-b border-black/10', quiet ? 'py-3' : 'py-4')}>
+      <dt className="text-[10px] font-black uppercase tracking-[0.2em] ink-mid">{label}</dt>
+      <dd className={cn('font-black uppercase tracking-tight', quiet ? 'text-sm' : 'text-base')}>{children}</dd>
     </div>
   );
 }

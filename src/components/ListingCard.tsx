@@ -112,14 +112,14 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing, priority = fa
           {listing.sale_price ? (
             <>
               <span className="text-base font-black text-black">{formatCurrency(listing.sale_price)}</span>
-              <span className="text-[10px] ink-low line-through font-bold">{formatCurrency(listing.price)}</span>
+              <span className="text-[10px] ink-mid line-through font-bold">{formatCurrency(listing.price)}</span>
             </>
           ) : (
             <span className="text-base font-black text-black">{formatCurrency(listing.price)}</span>
           )}
         </div>
 
-        <div className="flex justify-between items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] ink-low">
+        <div className="flex justify-between items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] ink-mid">
           <span className="truncate max-w-[65%]">{listing.brand || 'Vintage'}</span>
           {(listing.size_type || listing.size) && <span className="shrink-0">{listing.size_type || listing.size}</span>}
         </div>
