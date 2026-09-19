@@ -373,7 +373,7 @@ export function Marketplace() {
         <div className="min-w-0 flex-1 flex flex-col gap-4">
           {/* Result count and sort, as a single quiet line of text. */}
           <div className="flex items-center justify-between gap-4">
-            <p className="text-[11px] font-black uppercase tracking-[0.2em] ink-low">
+            <p className="text-[11px] font-black uppercase tracking-[0.2em] ink-mid">
               {state === 'loading'
                 ? 'Loading'
                 : (total ?? listings.length) > 0
