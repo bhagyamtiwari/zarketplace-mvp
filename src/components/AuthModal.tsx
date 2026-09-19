@@ -166,7 +166,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                 <h2 className="text-2xl font-black uppercase tracking-tighter">
                   {mode === 'signup' ? 'Create Account' : mode === 'forgot' ? 'Reset Password' : 'Sign In'}
                 </h2>
-                <p className="text-[10px] font-bold uppercase tracking-widest ink-mid">
+                <p className="text-[11px] font-bold uppercase tracking-widest ink-mid">
                   {message ?? (mode === 'signup'
                     ? 'Email and password.'
                     : mode === 'forgot'
@@ -180,7 +180,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                   <button
                     type="button"
                     onClick={() => switchMode('signup')}
-                    className={`py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${
+                    className={`py-3 text-[11px] font-black uppercase tracking-widest transition-colors ${
                       mode === 'signup' ? 'bg-black text-white' : 'bg-white ink-mid hover:text-black'
                     }`}
                   >
@@ -189,7 +189,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                   <button
                     type="button"
                     onClick={() => switchMode('signin')}
-                    className={`py-3 text-[10px] font-black uppercase tracking-widest transition-colors ${
+                    className={`py-3 text-[11px] font-black uppercase tracking-widest transition-colors ${
                       mode === 'signin' ? 'bg-black text-white' : 'bg-white ink-mid hover:text-black'
                     }`}
                   >
@@ -199,7 +199,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
               )}
 
               <div className="flex flex-col gap-3">
-                <label className="text-[10px] font-black uppercase tracking-widest">
+                <label className="text-[11px] font-black uppercase tracking-widest">
                   {mode === 'signin' ? 'Email or phone' : 'Email'}
                 </label>
                 <div className="flex items-center border-b border-black/10 focus-within:border-black transition-colors">
@@ -212,11 +212,11 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder={mode === 'signin' ? 'you@example.com or 98765 43210' : 'you@example.com'}
                     autoComplete={mode === 'signin' ? 'username' : 'email'}
-                    className="flex-1 py-4 text-sm font-bold focus:outline-none placeholder:text-xs placeholder:font-medium placeholder:tracking-widest placeholder:uppercase placeholder:text-black/25"
+                    className="flex-1 py-4 text-sm font-bold focus:outline-none placeholder:font-normal placeholder:text-black/40"
                   />
                 </div>
                 {email && !emailValid && (
-                  <p className="text-[9px] font-bold uppercase tracking-widest text-red-600">
+                  <p className="text-xs font-semibold text-red-600">
                     {mode === 'signin' && /^[+\d][\d\s-]{6,}$/.test(email.trim())
                       ? 'We cannot sign you in by phone yet. Use the email you signed up with.'
                       : 'Enter a valid email.'}
@@ -226,7 +226,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
 
               {mode === 'signup' && (
                 <div className="flex flex-col gap-3">
-                  <label className="text-[10px] font-black uppercase tracking-widest">Phone</label>
+                  <label className="text-[11px] font-black uppercase tracking-widest">Phone</label>
                   <div className="flex items-center border-b border-black/10 focus-within:border-black transition-colors">
                     <Phone className="h-4 w-4 ink-low mr-3" />
                     {/* Country code is its own field so a non-Indian number is
@@ -251,11 +251,11 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                       onChange={(e) => setPhoneDigits(e.target.value.replace(/\D/g, '').slice(0, 14))}
                       placeholder="98765 43210"
                       autoComplete="tel-national"
-                      className="flex-1 py-4 text-sm font-bold focus:outline-none tracking-wider placeholder:text-xs placeholder:font-medium placeholder:tracking-widest placeholder:uppercase placeholder:text-black/25"
+                      className="flex-1 py-4 text-sm font-bold focus:outline-none tracking-wider placeholder:font-normal placeholder:text-black/40"
                     />
                   </div>
                   {phoneDigits && !phoneValid && (
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-red-600">Enter a valid phone number.</p>
+                    <p className="text-xs font-semibold text-red-600">Enter a valid phone number.</p>
                   )}
                 </div>
               )}
@@ -263,12 +263,12 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
               {mode !== 'forgot' && (
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-black uppercase tracking-widest">Password</label>
+                    <label className="text-[11px] font-black uppercase tracking-widest">Password</label>
                     {mode === 'signin' && (
                       <button
                         type="button"
                         onClick={() => switchMode('forgot')}
-                        className="text-[9px] font-bold uppercase tracking-widest ink-mid hover:text-black underline transition-colors"
+                        className="text-[11px] font-bold uppercase tracking-widest ink-mid hover:text-black underline transition-colors"
                       >
                         Forgot password?
                       </button>
@@ -283,11 +283,11 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder={mode === 'signup' ? 'At least 10 characters, a letter and a digit' : '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022'}
                       autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-                      className="flex-1 py-4 text-sm font-bold focus:outline-none placeholder:text-xs placeholder:font-medium placeholder:tracking-widest placeholder:uppercase placeholder:text-black/25"
+                      className="flex-1 py-4 text-sm font-bold focus:outline-none placeholder:font-normal placeholder:text-black/40"
                     />
                   </div>
                   {mode === 'signup' && password && !passwordValid && (
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-red-600">
+                    <p className="text-xs font-semibold text-red-600">
                       10+ chars with a letter and a digit.
                     </p>
                   )}
@@ -296,7 +296,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
 
               {mode === 'signup' && (
                 <div className="flex flex-col gap-3">
-                  <label className="text-[10px] font-black uppercase tracking-widest">Confirm Password</label>
+                  <label className="text-[11px] font-black uppercase tracking-widest">Confirm Password</label>
                   <div className="flex items-center border-b border-black/10 focus-within:border-black transition-colors">
                     <Lock className="h-4 w-4 ink-low mr-3" />
                     <input
@@ -306,20 +306,20 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Retype password"
                       autoComplete="new-password"
-                      className="flex-1 py-4 text-sm font-bold focus:outline-none placeholder:text-xs placeholder:font-medium placeholder:tracking-widest placeholder:uppercase placeholder:text-black/25"
+                      className="flex-1 py-4 text-sm font-bold focus:outline-none placeholder:font-normal placeholder:text-black/40"
                     />
                   </div>
                   {confirmPassword && !confirmValid && (
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-red-600">Passwords do not match.</p>
+                    <p className="text-xs font-semibold text-red-600">Passwords do not match.</p>
                   )}
                 </div>
               )}
 
               {error && (
-                <p className="text-[10px] font-bold uppercase tracking-widest text-red-600">{error}</p>
+                <p className="text-sm font-semibold text-red-600">{error}</p>
               )}
               {notice && (
-                <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 bg-emerald-50 border border-emerald-200 p-3 leading-relaxed">
+                <p className="text-sm font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 p-3 leading-relaxed">
                   {notice}
                 </p>
               )}
@@ -336,12 +336,12 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                 <button
                   type="button"
                   onClick={() => switchMode('signin')}
-                  className="text-[9px] font-bold uppercase tracking-widest ink-mid hover:text-black text-center underline transition-colors"
+                  className="text-[11px] font-bold uppercase tracking-widest ink-mid hover:text-black text-center underline transition-colors"
                 >
                   Back to Sign In
                 </button>
               ) : (
-                <p className="text-center text-[10px] font-normal leading-relaxed ink-mid">
+                <p className="text-center text-[11px] font-normal leading-relaxed ink-mid">
                   By continuing you agree to the{' '}
                   <Link to="/terms" className="underline underline-offset-4 text-black">zarketplace terms</Link>.
                 </p>

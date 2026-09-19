@@ -1295,7 +1295,7 @@ function ListingDrawer({ listing, acq, orders, payouts, audit, backLabel, onClos
 // negotiating phrase would end up, and neither belongs in front of a vendor.
 const REJECTION_REASONS: string[] = [
   'The photos are too dark. Please reshoot in daylight, near a window.',
-  'We need a photo of the brand label and the size tag.',
+  'We need a clear photo of the size tag.',
   'We need more angles: front, back, and any detail that matters.',
   'The description does not match what the photos show.',
   'The condition is not clear enough from these photos.',
