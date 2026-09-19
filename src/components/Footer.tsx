@@ -91,7 +91,7 @@ const COMPANY: FooterColumn = {
 // which is what that register is for. Two type styles in the footer, not one
 // used for both jobs.
 const LINK_CLASS = 'text-sm font-medium text-white hover:text-white/65 transition-colors rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2';
-const HEADER_CLASS = 'text-[10px] font-black uppercase tracking-[0.3em] text-white';
+const HEADER_CLASS = 'text-[11px] font-black uppercase tracking-[0.3em] text-white';
 
 // Brand marks, drawn inline. The icon set has an Instagram outline and a
 // YouTube outline but no X logo and no WhatsApp logo, so X was the retired
@@ -206,7 +206,7 @@ export function Footer() {
           <div className="flex items-center">
             <SocialIcons />
             <span aria-hidden className="mx-12 h-6 w-px bg-white/25" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-white/80">© 2026 All rights reserved.</span>
+            <span className="text-[11px] font-bold uppercase tracking-widest text-white/80">© 2026 All rights reserved.</span>
           </div>
         </div>
 
@@ -218,7 +218,7 @@ export function Footer() {
             <Wordmark on="dark" heightClassName="h-7" />
           </Link>
           <SocialIcons />
-          <span className="text-[10px] font-bold uppercase tracking-widest ink-mid">© 2026 All rights reserved.</span>
+          <span className="text-[11px] font-bold uppercase tracking-widest ink-mid">© 2026 All rights reserved.</span>
         </div>
       </div>
     </footer>

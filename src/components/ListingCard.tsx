@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, Truck } from 'lucide-react';
+import { Heart } from 'lucide-react';
 import { Listing } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import { variantUrl, variantSrcSet } from '../lib/images';
@@ -13,8 +13,9 @@ interface ListingCardProps {
   priority?: boolean;
 }
 
-// A card has to answer brand / condition / size / price / trust / favorite
-// state in about a second, so everything here is a glance-level signal. Sold
+// A card answers three things at a glance: what it is, what it costs, and
+// whether it is your size. Brand, condition and delivery are one tap away on
+// the item, and a row of tags on every photo read as decoration. Sold
 // items stay in the feed, greyed: seeing inventory move is what makes a young
 // feed feel alive.
 export const ListingCard: React.FC<ListingCardProps> = ({ listing, priority = false }) => {
@@ -75,53 +76,40 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing, priority = fa
         </button>
 
         {sold ? (
-          <div className="absolute top-2 left-2 bg-black px-3 py-1 text-[9px] font-black text-white uppercase tracking-[0.2em]">
+          <div className="absolute top-2 left-2 bg-black px-3 py-1 text-[11px] font-black text-white uppercase tracking-[0.2em]">
             Sold
           </div>
         ) : listing.sale_price ? (
-          <div className="absolute top-2 left-2 bg-black px-3 py-1 text-[9px] font-black text-white uppercase tracking-[0.2em]">
+          <div className="absolute top-2 left-2 bg-black px-3 py-1 text-[11px] font-black text-white uppercase tracking-[0.2em]">
             Sale
           </div>
         ) : null}
 
-        <div className="absolute bottom-2 left-2 flex flex-wrap gap-1.5">
-          {/* Ours, in hand, shot by us. The one chip on the card that is about
-              who is holding the item rather than about the garment. */}
-          {listing.is_verified && (
-            <span className="bg-black px-2.5 py-1 text-[9px] font-black text-white uppercase tracking-[0.15em]">
-              Verified
-            </span>
-          )}
-          {listing.condition && (
-            <span className="bg-white/90 px-2.5 py-1 text-[9px] font-black text-black uppercase tracking-[0.15em]">
-              {listing.condition}
-            </span>
-          )}
-          {listing.free_shipping && !sold && (
-            <span className="flex items-center gap-1 bg-white/90 px-2.5 py-1 text-[9px] font-black text-black uppercase tracking-[0.15em]">
-              <Truck className="h-3 w-3" /> Free ship
-            </span>
-          )}
-        </div>
+        {/* Ours, in hand, shot by us: the one tag that changes what buying
+            it means, so the one tag that stays. */}
+        {listing.is_verified && (
+          <span className="absolute bottom-2 left-2 bg-black px-2.5 py-1 text-[11px] font-black text-white uppercase tracking-[0.15em]">
+            Verified
+          </span>
+        )}
       </div>
 
       <div className={cn('flex flex-col gap-1.5', sold && 'opacity-50')}>
-        <h3 className="text-xs font-bold uppercase tracking-widest leading-tight line-clamp-2">{listing.title}</h3>
-
-        <div className="flex items-center gap-2">
-          {listing.sale_price ? (
-            <>
-              <span className="text-base font-black text-black">{formatCurrency(listing.sale_price)}</span>
-              <span className="text-[10px] ink-mid line-through font-bold">{formatCurrency(listing.price)}</span>
-            </>
-          ) : (
-            <span className="text-base font-black text-black">{formatCurrency(listing.price)}</span>
+        <h3 className="text-sm font-black uppercase tracking-tight leading-tight line-clamp-2">{listing.title}</h3>
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="flex items-baseline gap-2">
+            {listing.sale_price ? (
+              <>
+                <span className="text-base font-black">{formatCurrency(listing.sale_price)}</span>
+                <span className="text-sm ink-mid line-through">{formatCurrency(listing.price)}</span>
+              </>
+            ) : (
+              <span className="text-base font-black">{formatCurrency(listing.price)}</span>
+            )}
+          </span>
+          {(listing.size_type || listing.size) && (
+            <span className="shrink-0 text-sm ink-mid">Size {listing.size_type || listing.size}</span>
           )}
-        </div>
-
-        <div className="flex justify-between items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] ink-mid">
-          <span className="truncate max-w-[65%]">{listing.brand || 'Vintage'}</span>
-          {(listing.size_type || listing.size) && <span className="shrink-0">{listing.size_type || listing.size}</span>}
         </div>
       </div>
     </Link>

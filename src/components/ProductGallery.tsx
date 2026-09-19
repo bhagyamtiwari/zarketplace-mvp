@@ -151,7 +151,7 @@ export function ProductGallery({ images, alt }: Props) {
           </>
         )}
 
-        <span className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-1.5 bg-white/90 px-2.5 py-1.5 text-[10px] font-black uppercase tracking-widest text-black">
+        <span className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-1.5 bg-white/90 px-2.5 py-1.5 text-[11px] font-black uppercase tracking-widest text-black">
           <ZoomIn className="h-3 w-3" /> Tap to zoom
         </span>
 
@@ -283,7 +283,7 @@ function ZoomView({ images, alt, index, onIndex, onClose }: {
   return createPortal(
     <div className="fixed inset-0 z-[100] bg-black/95 flex flex-col" role="dialog" aria-modal="true" aria-label={alt}>
       <div className="flex items-center justify-between px-4 py-4 text-white">
-        <span className="text-[10px] font-black uppercase tracking-[0.3em] ink-mid">
+        <span className="text-[11px] font-black uppercase tracking-[0.3em] ink-mid">
           {index + 1} / {images.length}
         </span>
         <div className="flex items-center gap-1">

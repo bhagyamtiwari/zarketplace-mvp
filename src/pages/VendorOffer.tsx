@@ -120,7 +120,7 @@ function VendorOfferInner() {
   if (loading) {
     return (
       <Shell>
-        <div className="flex items-center gap-3 ink-low">
+        <div className="flex items-center gap-3 ink-mid">
           <Loader2 className="h-4 w-4 animate-spin" />
           <span className="text-[11px] font-black uppercase tracking-[0.3em]">Loading</span>
         </div>
@@ -193,7 +193,7 @@ function VendorOfferInner() {
 function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-20 sm:pb-28">
-      <Link to="/vendor-portal" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-12">
+      <Link to="/vendor-portal" className="inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-12">
         <ArrowLeft className="h-3 w-3" /> Your items
       </Link>
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
@@ -221,11 +221,11 @@ function OfferScreen({
   return (
     <div className="flex flex-col gap-10">
       <div className="flex flex-col gap-4 border-b border-black pb-8">
-        <span className="text-[10px] font-black uppercase tracking-[0.25em] ink-mid">Our offer</span>
+        <span className="text-[11px] font-black uppercase tracking-[0.2em] ink-mid">Our offer</span>
         <span className="text-5xl sm:text-6xl font-black tracking-tighter leading-none tabular-nums">
           {formatCurrency(amount)}
         </span>
-        <span className="font-serif italic text-lg leading-snug">for {title}, paid when it sells.</span>
+        <span className="text-[15px] leading-snug">For {title}, paid when it sells.</span>
       </div>
 
       <Bullets items={[
@@ -486,7 +486,7 @@ function Verdict({ status, reasons, note, listingId, canSendBack, submitting, on
             <ul className="flex flex-col gap-2.5">
               {reasons.map((r) => (
                 <li key={r} className="body-copy text-black flex gap-3">
-                  <span aria-hidden className="ink-low">&mdash;</span>
+                  <span aria-hidden className="mt-[0.6em] h-1 w-1 shrink-0 bg-black" />
                   <span>{r}</span>
                 </li>
               ))}
@@ -585,7 +585,7 @@ function ImprovePanel({ listingId, submitting, onResubmit }: {
         </button>
         <button
           type="button" onClick={onResubmit} disabled={submitting}
-          className="px-7 py-5 text-[11px] font-black uppercase tracking-widest ink-low transition-colors hover:text-black disabled:opacity-50"
+          className="px-7 py-5 text-[11px] font-black uppercase tracking-widest ink-mid transition-colors hover:text-black disabled:opacity-50"
         >
           {submitting ? 'Sending...' : 'Send back as is'}
         </button>
@@ -598,15 +598,15 @@ function ImprovePanel({ listingId, submitting, onResubmit }: {
   return (
     <div className="flex flex-col gap-10 border-t border-black/10 pt-12">
       <div className="flex flex-col gap-3">
-        <label className="text-[9px] font-black uppercase tracking-[0.4em] ink-low">
+        <label className="text-[11px] font-black uppercase tracking-[0.4em] ink-mid">
           Add photos
         </label>
         <input
           type="file" accept="image/*" multiple
           onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
-          className="text-xs font-bold file:mr-4 file:border file:border-black file:bg-white file:px-5 file:py-3 file:text-[10px] file:font-black file:uppercase file:tracking-widest hover:file:bg-black hover:file:text-white file:transition-colors"
+          className="text-xs font-bold file:mr-4 file:border file:border-black file:bg-white file:px-5 file:py-3 file:text-[11px] file:font-black file:uppercase file:tracking-widest hover:file:bg-black hover:file:text-white file:transition-colors"
         />
-        <p className="text-[10px] font-bold uppercase tracking-widest ink-low leading-[1.9]">
+        <p className="text-[11px] font-bold uppercase tracking-widest ink-mid leading-[1.9]">
           {files.length > 0
             ? `${files.length} ${files.length === 1 ? 'photo' : 'photos'} will be added`
             : 'These are added to your existing photos, not swapped for them.'}
@@ -614,7 +614,7 @@ function ImprovePanel({ listingId, submitting, onResubmit }: {
       </div>
 
       <div className="flex flex-col gap-3">
-        <label className="text-[9px] font-black uppercase tracking-[0.4em] ink-low">
+        <label className="text-[11px] font-black uppercase tracking-[0.4em] ink-mid">
           Description
         </label>
         <textarea
@@ -640,7 +640,7 @@ function ImprovePanel({ listingId, submitting, onResubmit }: {
         </button>
         <button
           type="button" onClick={() => setOpen(false)} disabled={busy}
-          className="px-7 py-5 text-[11px] font-black uppercase tracking-widest ink-low transition-colors hover:text-black disabled:opacity-50"
+          className="px-7 py-5 text-[11px] font-black uppercase tracking-widest ink-mid transition-colors hover:text-black disabled:opacity-50"
         >
           Cancel
         </button>
