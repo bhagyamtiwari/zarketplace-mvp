@@ -87,7 +87,7 @@ export function Navbar() {
                   <Link
                     to="/browse"
                     className={cn(
-                      "relative inline-flex items-center text-[10px] font-black uppercase tracking-[0.2em] transition-colors hover:text-black py-8",
+                      "relative inline-flex items-center text-[11px] font-black uppercase tracking-[0.2em] transition-colors hover:text-black py-8",
                       location.pathname === '/browse' ? "text-black" : "text-black hover:text-black/80"
                     )}
                   >
@@ -104,7 +104,7 @@ export function Navbar() {
                         <Link
                           key={gender}
                           to={`/browse?gender=${gender}`}
-                          className="px-3 py-3 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-zinc-50 transition-colors"
+                          className="px-3 py-3 text-[11px] font-black uppercase tracking-[0.2em] hover:bg-zinc-50 transition-colors"
                           onClick={() => setIsBrowseOpen(false)}
                         >
                           {gender}
@@ -140,7 +140,7 @@ export function Navbar() {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       placeholder="Search items..."
-                      className="w-64 border-b border-black py-1 text-[10px] font-black uppercase tracking-widest focus:outline-none bg-transparent"
+                      className="w-64 border-b border-black py-1 text-[11px] font-black uppercase tracking-widest focus:outline-none bg-transparent"
                     />
                   </motion.form>
                 )}
@@ -153,7 +153,7 @@ export function Navbar() {
                 >
                   <ShoppingBag className="h-4 w-4" />
                   {cartCount > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 rounded-full bg-black text-white text-[9px] font-black flex items-center justify-center">
+                    <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-1 rounded-full bg-black text-white text-[11px] font-black flex items-center justify-center">
                       {cartCount}
                     </span>
                   )}
@@ -183,15 +183,15 @@ export function Navbar() {
                       className="absolute right-0 top-full w-64 bg-white border border-black/5 shadow-2xl p-6 flex flex-col gap-4"
                     >
                       <div className="flex flex-col gap-2 pb-3 border-b border-black/5">
-                        <p className="text-[9px] font-black uppercase tracking-widest ink-low">Signed in as</p>
+                        <p className="text-[11px] font-black uppercase tracking-widest ink-low">Signed in as</p>
                         <p className="text-xs font-bold truncate">{profile?.email ?? user.email}</p>
                         {emailVerified ? (
-                          <span className="self-start text-[9px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1">
+                          <span className="self-start text-[11px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1">
                             Email Verified
                           </span>
                         ) : (
                           <div className="flex flex-col gap-2">
-                            <span className="self-start text-[9px] font-black uppercase tracking-widest bg-amber-50 text-amber-700 border border-amber-200 px-2 py-1">
+                            <span className="self-start text-[11px] font-black uppercase tracking-widest bg-amber-50 text-amber-700 border border-amber-200 px-2 py-1">
                               Email Unverified
                             </span>
                             <button
@@ -200,39 +200,39 @@ export function Navbar() {
                                 const { error } = await resendVerification();
                                 setVerifyNotice(error ? error : 'Verification email sent.');
                               }}
-                              className="self-start text-[10px] font-black uppercase tracking-widest underline hover:text-black/60"
+                              className="self-start text-[11px] font-black uppercase tracking-widest underline hover:text-black/60"
                             >
                               Resend verification
                             </button>
                             {verifyNotice && (
-                              <p className="text-[9px] font-bold uppercase tracking-widest ink-mid">{verifyNotice}</p>
+                              <p className="text-[11px] font-bold uppercase tracking-widest ink-mid">{verifyNotice}</p>
                             )}
                           </div>
                         )}
                       </div>
                       <Link to="/track-order" onClick={() => setIsAccountOpen(false)} className="flex flex-col gap-0.5 hover:text-black/60">
-                        <span className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest">
+                        <span className="flex items-center gap-3 text-[11px] font-black uppercase tracking-widest">
                           <Package className="h-3.5 w-3.5" /> My Purchases
                         </span>
-                        <span className="text-[9px] font-bold uppercase tracking-widest ink-low ml-6">Items you bought</span>
+                        <span className="text-[11px] font-bold uppercase tracking-widest ink-low ml-6">Items you bought</span>
                       </Link>
                       <Link to="/vendor-portal" onClick={() => setIsAccountOpen(false)} className="flex flex-col gap-0.5 hover:text-black/60">
-                        <span className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest">
+                        <span className="flex items-center gap-3 text-[11px] font-black uppercase tracking-widest">
                           <LayoutGrid className="h-3.5 w-3.5" /> Vendor Portal
                         </span>
-                        <span className="text-[9px] font-bold uppercase tracking-widest ink-low ml-6">Items you sold</span>
+                        <span className="text-[11px] font-bold uppercase tracking-widest ink-low ml-6">Items you sold</span>
                       </Link>
-                      <Link to="/account" onClick={() => setIsAccountOpen(false)} className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest hover:text-black/60">
+                      <Link to="/account" onClick={() => setIsAccountOpen(false)} className="flex items-center gap-3 text-[11px] font-black uppercase tracking-widest hover:text-black/60">
                         <User className="h-3.5 w-3.5" /> My Profile
                       </Link>
                       {profile?.is_admin && (
-                        <Link to="/admin" onClick={() => setIsAccountOpen(false)} className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest hover:text-black/60">
+                        <Link to="/admin" onClick={() => setIsAccountOpen(false)} className="flex items-center gap-3 text-[11px] font-black uppercase tracking-widest hover:text-black/60">
                           <User className="h-3.5 w-3.5" /> Admin
                         </Link>
                       )}
                       <button
                         onClick={async () => { await signOut(); setIsAccountOpen(false); navigate('/'); }}
-                        className="flex items-center gap-3 text-[10px] font-black uppercase tracking-widest text-red-600 hover:text-red-700 pt-3 border-t border-black/5"
+                        className="flex items-center gap-3 text-[11px] font-black uppercase tracking-widest text-red-600 hover:text-red-700 pt-3 border-t border-black/5"
                       >
                         <LogOut className="h-3.5 w-3.5" /> Sign Out
                       </button>
@@ -242,7 +242,7 @@ export function Navbar() {
               ) : (
                 <button
                   onClick={() => setShowAuth(true)}
-                  className="text-[10px] font-black uppercase tracking-[0.2em] text-black hover:text-black/80 transition-colors"
+                  className="text-[11px] font-black uppercase tracking-[0.2em] text-black hover:text-black/80 transition-colors"
                 >
                   Sign In
                 </button>
@@ -251,7 +251,7 @@ export function Navbar() {
               {/* "List item" described the old model, where a vendor listed
                   something and waited to see if it sold. They are asking us to
                   buy it, so the label says that. */}
-              <Link to="/sell" className="bg-black px-8 py-3 text-[10px] font-black uppercase tracking-[0.2em] text-white transition-all hover:scale-105 active:scale-95">
+              <Link to="/sell" className="bg-black px-8 py-3 text-[11px] font-black uppercase tracking-[0.2em] text-white transition-all hover:scale-105 active:scale-95">
                 Get an offer
               </Link>
             </div>
@@ -387,7 +387,7 @@ export function Navbar() {
 function DrawerSection({ title, children }: { title?: string; children: React.ReactNode }) {
   return (
     <div className="pb-3 mb-3 border-b border-black/5 last:border-0">
-      {title && <p className="text-[9px] font-black uppercase tracking-[0.3em] ink-low mb-1 mt-3">{title}</p>}
+      {title && <p className="text-[11px] font-black uppercase tracking-[0.3em] ink-low mb-1 mt-3">{title}</p>}
       {children}
     </div>
   );
@@ -411,7 +411,7 @@ function DrawerLink({ to, onClick, badge, Icon, children }: {
         {Icon && <Icon className="h-4 w-4 shrink-0 text-black" strokeWidth={1.75} />}
         {children}
         {!!badge && (
-          <span className="h-4 min-w-4 px-1 rounded-full bg-black text-white text-[9px] font-black flex items-center justify-center">
+          <span className="h-4 min-w-4 px-1 rounded-full bg-black text-white text-[11px] font-black flex items-center justify-center">
             {badge}
           </span>
         )}

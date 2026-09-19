@@ -19,12 +19,12 @@ import { CONDITIONS, conditionByName } from '../lib/condition';
 
 const plog = log('product');
 
-// The column's text roles, named so every instance of a role is
-// identical. A label names a value or a section; a link is a link; a serif
-// value is a fact about this garment.
-const LABEL = 'text-[10px] font-black uppercase tracking-[0.25em] ink-mid';
-const LINK = 'text-[10px] font-black uppercase tracking-[0.25em] underline underline-offset-4 decoration-black/30 hover:decoration-black transition-colors';
-const SERIF_VALUE = 'font-serif italic text-xl sm:text-2xl leading-none';
+// The column's text roles, named so every instance of a role is identical.
+// Two faces only, the site's own: Inter at black weight for labels and
+// values, Inter at regular weight for sentences. Nothing below 11px.
+const LABEL = 'text-[11px] font-black uppercase tracking-[0.2em] ink-mid';
+const LINK = 'text-[11px] font-black uppercase tracking-[0.2em] underline underline-offset-4 decoration-black/30 hover:decoration-black transition-colors';
+const VALUE = 'text-lg sm:text-xl font-black tracking-tight leading-none';
 
 type Unit = 'in' | 'cm';
 const CM_PER_INCH = 2.54;
@@ -292,7 +292,7 @@ export function ProductPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-28 sm:pb-20">
-      <Link to="/browse" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-6 sm:mb-10">
+      <Link to="/browse" className="inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-6 sm:mb-10">
         <ArrowLeft className="h-3 w-3" /> Back to browse
       </Link>
 
@@ -322,7 +322,7 @@ export function ProductPage() {
                   {shared === 'copied' ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
                 </button>
                 {shared === 'copied' && (
-                  <span role="status" className="absolute right-0 top-full mt-2 whitespace-nowrap text-[10px] font-black uppercase tracking-[0.25em] ink-mid">
+                  <span role="status" className="absolute right-0 top-full mt-2 whitespace-nowrap text-[11px] font-black uppercase tracking-[0.2em] ink-mid">
                     Link copied
                   </span>
                 )}
@@ -359,7 +359,7 @@ export function ProductPage() {
             ] as Array<[string, string]>).map(([label, value], i) => (
               <div key={label} className={cn('flex min-w-0 flex-col gap-3 py-5', i > 0 && 'border-l border-black/10 pl-4 sm:pl-5')}>
                 <dt className={LABEL}>{label}</dt>
-                <dd className={cn(SERIF_VALUE, 'break-words')}>{value}</dd>
+                <dd className={cn(VALUE, 'break-words')}>{value}</dd>
               </div>
             ))}
           </dl>
@@ -370,7 +370,7 @@ export function ProductPage() {
             <div className="flex items-baseline justify-between gap-4">
               <h2 id="condition-heading" className={LABEL}>Condition</h2>
               {listing.authenticity_confirmed && (
-                <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.25em]">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.2em]">
                   <ShieldCheck className="h-3.5 w-3.5" /> Authenticity confirmed
                 </span>
               )}
@@ -389,11 +389,11 @@ export function ProductPage() {
                       <span aria-hidden className={cn('block h-[3px] w-full transition-colors', active ? 'bg-black' : 'bg-black/10 group-hover/tier:bg-black/30')} />
                       <span className="flex h-6 items-end justify-between gap-1">
                         {active ? (
-                          <span className="font-serif italic text-xl leading-none">{tier.name}</span>
+                          <span className="text-sm font-black uppercase tracking-[0.1em]">{tier.name}</span>
                         ) : (
-                          <span className="text-[10px] font-black uppercase tracking-[0.2em] ink-mid">{tier.name}</span>
+                          <span className="text-[11px] font-black uppercase tracking-[0.15em] ink-mid">{tier.name}</span>
                         )}
-                        {active && <span className="text-[10px] font-black tabular-nums">{tier.grade}</span>}
+                        {active && <span className="text-[11px] font-black tabular-nums">{tier.grade}</span>}
                       </span>
                     </button>
                     <span
@@ -405,10 +405,10 @@ export function ProductPage() {
                         i === 0 ? 'left-0' : i === CONDITIONS.length - 1 ? 'right-0' : 'left-1/2 -translate-x-1/2',
                       )}
                     >
-                      <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.25em] text-white/70">
+                      <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.2em] text-white/70">
                         {tier.name} &middot; {tier.grade}
                       </span>
-                      <span className="block font-serif italic text-base leading-snug">{tier.desc}</span>
+                      <span className="block text-sm leading-snug">{tier.desc}</span>
                     </span>
                   </li>
                 );
@@ -449,7 +449,7 @@ export function ProductPage() {
                         onClick={() => setUnit(u)}
                         aria-pressed={unit === u}
                         className={cn(
-                          'px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.2em] transition-colors',
+                          'px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.2em] transition-colors',
                           unit === u ? 'bg-black text-white' : 'text-black hover:bg-black/5',
                         )}
                       >
@@ -463,9 +463,9 @@ export function ProductPage() {
                 {measurements.map(([label, cm]) => (
                   <div key={label} className="flex flex-col gap-2">
                     <dt className={LABEL}>{label}</dt>
-                    <dd className={cn(SERIF_VALUE, 'tabular-nums')}>
+                    <dd className={cn(VALUE, 'tabular-nums')}>
                       {formatLength(cm, unit)}
-                      <span className="ml-1.5 font-sans not-italic text-[10px] font-black uppercase tracking-[0.2em] ink-mid">{unit}</span>
+                      <span className="ml-1 text-[11px] font-black uppercase ink-mid">{unit}</span>
                     </dd>
                   </div>
                 ))}
@@ -476,7 +476,7 @@ export function ProductPage() {
           <div className="flex flex-col gap-3 py-8">
             {listing.status !== 'approved' ? (
               <div className="w-full border border-amber-200 bg-amber-50 px-6 py-6 flex flex-col gap-2">
-                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-700">
+                <span className="text-[11px] font-black uppercase tracking-[0.4em] text-amber-700">
                   {listing.status === 'pending' ? 'Pending admin approval' : 'Listing not available'}
                 </span>
                 <p className="text-[11px] font-bold uppercase tracking-widest text-amber-700/80 leading-relaxed">
@@ -526,7 +526,7 @@ export function ProductPage() {
                     <><ShoppingBag className="h-4 w-4" /> Add to cart</>
                   )}
                 </button>
-                {cartMsg && <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">{cartMsg}</p>}
+                {cartMsg && <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-700">{cartMsg}</p>}
               </>
             )}
           </div>
@@ -561,7 +561,7 @@ export function ProductPage() {
             <section id="flaws" className="flex scroll-mt-32 flex-col gap-4 py-8">
               <h2 className={LABEL}>Details</h2>
               {listing.description && (
-                <p className="font-serif italic text-lg leading-snug whitespace-pre-line">{listing.description}</p>
+                <p className="text-[15px] leading-relaxed whitespace-pre-line">{listing.description}</p>
               )}
               {listing.has_flaws && listing.flaws_description && (
                 <p className="flex gap-2 text-sm leading-relaxed">
@@ -582,15 +582,15 @@ export function ProductPage() {
 
             {listing.is_mine === true && (
               <div className="mt-4 pt-6 border-t border-black/5 flex flex-col gap-3">
-                <span className="text-[9px] font-black uppercase tracking-[0.4em] ink-low">Your listing</span>
+                <span className="text-[11px] font-black uppercase tracking-[0.4em] ink-mid">Your listing</span>
                 <button
                   type="button"
                   onClick={() => setShareOpen(true)}
-                  className="self-start inline-flex items-center gap-3 border border-black px-6 py-3 text-[10px] font-black uppercase tracking-[0.3em] hover:bg-black hover:text-white transition-colors"
+                  className="self-start inline-flex items-center gap-3 border border-black px-6 py-3 text-[11px] font-black uppercase tracking-[0.3em] hover:bg-black hover:text-white transition-colors"
                 >
                   <Share2 className="h-3.5 w-3.5" /> Generate Instagram image
                 </button>
-                <p className="text-[10px] font-bold uppercase tracking-widest ink-low leading-relaxed max-w-md">
+                <p className="text-[11px] font-bold uppercase tracking-widest ink-mid leading-relaxed max-w-md">
                   Download a branded post or story image of your listing in one click.
                 </p>
               </div>
@@ -603,7 +603,7 @@ export function ProductPage() {
         <section className="mt-16 sm:mt-24 pt-10 sm:pt-12 border-t border-black/5">
           <div className="flex items-end justify-between gap-4 mb-8">
             <h2 className="text-2xl sm:text-3xl font-black tracking-tighter uppercase leading-none">You might like</h2>
-            <Link to="/browse" className="shrink-0 text-[10px] font-black uppercase tracking-[0.2em] border-b-2 border-black pb-1">
+            <Link to="/browse" className="shrink-0 text-[11px] font-black uppercase tracking-[0.2em] border-b-2 border-black pb-1">
               View All
             </Link>
           </div>
@@ -618,7 +618,7 @@ export function ProductPage() {
       {purchasable && stickyBarVisible && (
         <div className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-black/10 px-4 py-3 flex items-center gap-4 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
           <div className="min-w-0 flex-1">
-            <p className="text-[8px] font-black uppercase tracking-widest ink-low truncate">{listing.title}</p>
+            <p className="text-[11px] font-black uppercase tracking-widest ink-mid truncate">{listing.title}</p>
             <p className="text-lg font-black tracking-tight">
               {formatCurrency(listing.sale_price ?? listing.price)}
             </p>

@@ -466,8 +466,8 @@ export function Marketplace() {
                 // broken. It now says plainly why the catalogue stops here, at
                 // a weight someone actually reads.
                 <div className="py-10 flex justify-center px-4">
-                  <p className="max-w-md border border-black/15 bg-zinc-50 px-6 py-5 text-center text-[11px] font-black uppercase tracking-[0.2em] leading-[1.9] ink-mid">
-                    New listings are paused while we clear the queue
+                  <p className="max-w-md text-center text-sm ink-mid">
+                    That is everything for now. New pieces go up as we buy them.
                   </p>
                 </div>
               )}
