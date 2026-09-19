@@ -826,18 +826,7 @@ function RazorpayPayStep({
       )}
 
       <div className="flex flex-col gap-4">
-        {items.map((i) => (
-          <div key={i.listing_id} className="flex gap-4 items-center">
-            <div className="h-20 w-16 bg-zinc-200 overflow-hidden border border-black/5 flex-shrink-0">
-              {i.image_url && <img src={variantUrl(i.image_url, 'thumb')} alt={i.title} className="h-full w-full object-cover" />}
-            </div>
-            <div className="flex flex-col justify-center gap-0.5 min-w-0 flex-1">
-              <span className="text-xs font-bold uppercase tracking-widest truncate">{i.title}</span>
-              {i.size && <span className="text-[11px] font-black uppercase tracking-widest ink-mid">Size {i.size}</span>}
-            </div>
-            <span className="text-sm font-black shrink-0">{formatCurrency(i.sale_price ?? i.price ?? 0)}</span>
-          </div>
-        ))}
+        {items.map((i) => <React.Fragment key={i.listing_id}><SummaryItem item={i} /></React.Fragment>)}
       </div>
 
       <div className="flex flex-col gap-3 border-y border-black/10 py-6">
@@ -882,9 +871,6 @@ function RazorpayPayStep({
           If anything changes or your order is delayed, we refund you in full. Not heard from us?{' '}
           <a href="https://wa.me/918505927538" target="_blank" rel="noreferrer" className="underline underline-offset-4 text-black">WhatsApp 8505-ZARKET</a>.
         </p>
-        <Link to="/returns" className="self-start text-[11px] font-black uppercase tracking-[0.2em] underline underline-offset-4">
-          Returns &amp; refunds
-        </Link>
       </div>
 
       {errorMsg && <p className="text-[11px] font-bold uppercase tracking-widest text-red-600 text-center">{errorMsg}</p>}
@@ -922,19 +908,7 @@ function Summary({ items, subtotal, shipping, shippingLoading, buyerProtection, 
       )}
 
       <div className="flex flex-col gap-4 max-h-72 overflow-y-auto">
-        {items.map((i) => (
-          <div key={i.listing_id} className="flex gap-4">
-            <div className="h-20 w-16 bg-zinc-200 overflow-hidden border border-black/5 flex-shrink-0">
-              {i.image_url && <img src={variantUrl(i.image_url, 'thumb')} alt={i.title} className="h-full w-full object-cover" />}
-            </div>
-            <div className="flex flex-col justify-center gap-0.5 min-w-0">
-              <span className="text-[11px] font-black uppercase tracking-widest ink-mid">{i.brand}</span>
-              <span className="text-xs font-bold uppercase tracking-widest truncate">{i.title}</span>
-              <span className="text-[11px] font-black uppercase tracking-widest ink-mid">Size {i.size}</span>
-              <span className="text-xs font-black mt-1">{formatCurrency(i.sale_price ?? i.price ?? 0)}</span>
-            </div>
-          </div>
-        ))}
+        {items.map((i) => <React.Fragment key={i.listing_id}><SummaryItem item={i} /></React.Fragment>)}
       </div>
 
       <div className="flex flex-col gap-3 border-y border-black/5 py-6">
@@ -972,6 +946,28 @@ function Row({ label, value, dim }: { label: string; value: string; dim?: boolea
     <div className={cn('flex justify-between text-xs font-bold uppercase tracking-widest', dim && 'ink-mid text-[11px]')}>
       <span>{label}</span>
       <span>{value}</span>
+    </div>
+  );
+}
+
+/**
+ * One line per item in either summary: the photo and name link back to the
+ * item, and the product code is there to quote if the buyer writes to us.
+ */
+function SummaryItem({ item }: { item: CartItem }) {
+  const href = item.sku ? `/item/${item.sku.toLowerCase()}` : `/product/${item.listing_id}`;
+  return (
+    <div className="flex gap-4 items-center">
+      <Link to={href} className="h-20 w-16 bg-zinc-200 overflow-hidden border border-black/5 flex-shrink-0">
+        {item.image_url && <img src={variantUrl(item.image_url, 'thumb')} alt={item.title} className="h-full w-full object-cover" />}
+      </Link>
+      <div className="flex flex-col justify-center gap-1 min-w-0 flex-1">
+        <Link to={href} className="text-xs font-bold uppercase tracking-widest truncate hover:underline underline-offset-4">
+          {item.title}
+        </Link>
+        {item.sku && <span className="text-[11px] font-black uppercase tracking-widest ink-mid tabular-nums">{item.sku}</span>}
+      </div>
+      <span className="text-sm font-black shrink-0">{formatCurrency(item.sale_price ?? item.price ?? 0)}</span>
     </div>
   );
 }
