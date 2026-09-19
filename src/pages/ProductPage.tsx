@@ -6,7 +6,7 @@ import { formatCurrency, cn } from '../lib/utils';
 import { variantUrl } from '../lib/images';
 import { ProductGallery } from '../components/ProductGallery';
 import { motion } from 'motion/react';
-import { Loader2, RotateCcw, ArrowLeft, ArrowUpRight, ShoppingBag, Check, Share2, Link as LinkIcon, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { Loader2, RotateCcw, ArrowLeft, ArrowUpRight, ShoppingBag, Check, Share2, ShieldCheck, AlertTriangle, Truck, ChevronRight } from 'lucide-react';
 import { log } from '../lib/log';
 import { useCart } from '../lib/cart';
 import { useAuth } from '../lib/auth';
@@ -19,18 +19,12 @@ import { CONDITIONS, conditionByName } from '../lib/condition';
 
 const plog = log('product');
 
-const WEAR_LABELS: Record<string, string> = {
-  never: 'Never', '1_2_times': '1-2 Times', occasionally: 'Occasionally', frequently: 'Frequently',
-};
-
-// The column's four text roles, named so every instance of a role is
-// identical. A label names a value; a heading names a section; a link is a
-// link; a serif value is a fact about this garment.
+// The column's text roles, named so every instance of a role is
+// identical. A label names a value or a section; a link is a link; a serif
+// value is a fact about this garment.
 const LABEL = 'text-[10px] font-black uppercase tracking-[0.25em] ink-mid';
-const HEADING = 'text-[11px] font-black uppercase tracking-[0.25em]';
 const LINK = 'text-[10px] font-black uppercase tracking-[0.25em] underline underline-offset-4 decoration-black/30 hover:decoration-black transition-colors';
 const SERIF_VALUE = 'font-serif italic text-xl sm:text-2xl leading-none';
-const STATUS = 'text-[10px] font-black uppercase tracking-[0.25em]';
 
 type Unit = 'in' | 'cm';
 const CM_PER_INCH = 2.54;
@@ -58,13 +52,12 @@ const MEASURE_GUIDE_BY_CATEGORY: Record<string, string> = {
 // makes it contradict both the tag and the vendor, and the measurements below
 // already give the buyer the real numbers. The one exception is a trouser
 // waist, which is arithmetic rather than a guess.
-function fitsLikeFor(listing: Listing): { value: string; note?: string } | null {
+function fitsLikeFor(listing: Listing): string | null {
   const note = listing.size?.replace(/^\s*fits\s+like\s*:?\s*/i, '').trim();
-  if (note) return { value: note };
+  if (note) return note;
   if (listing.category === 'Bottoms' && listing.waist_cm) {
     // Flat waist doubled is the waistband all the way round.
-    const waist = Math.round((listing.waist_cm * 2) / CM_PER_INCH);
-    return { value: `${waist} in waist`, note: 'From the measured waistband' };
+    return `${Math.round((listing.waist_cm * 2) / CM_PER_INCH)} in waist`;
   }
   return null;
 }
@@ -95,7 +88,9 @@ export function ProductPage() {
   const [loading, setLoading] = React.useState(true);
   const [cartMsg, setCartMsg] = React.useState<string | null>(null);
   const [shareOpen, setShareOpen] = React.useState(false);
-  const [copied, setCopied] = React.useState(false);
+  // 'copied' after a copied link; 'manual' when the browser refused both
+  // copy methods and the link is shown to copy by hand.
+  const [shared, setShared] = React.useState<null | 'copied' | 'manual'>(null);
   const [unit, setUnit] = React.useState<Unit>('in');
   const [stickyBarVisible, setStickyBarVisible] = React.useState(true);
   const stickyStopRef = React.useRef<HTMLDivElement>(null);
@@ -245,6 +240,48 @@ export function ProductPage() {
 
   const purchasable = listing.status === 'approved' && !listing.is_sold;
 
+  // The phone's own share sheet (WhatsApp, Instagram, Messages...) with the
+  // cover photo attached where the browser allows files, the link alone where
+  // it does not, and a copied link where there is no share sheet at all.
+  const onShare = async () => {
+    const url = window.location.href;
+    const text = `${listing.title} on zarketplace`;
+    if (navigator.share) {
+      try {
+        let files: File[] | undefined;
+        try {
+          const blob = await fetch(variantUrl(images[0], 'grid')).then((r) => r.blob());
+          const file = new File([blob], `${listing.sku || 'zarketplace'}.webp`, { type: blob.type || 'image/webp' });
+          if (navigator.canShare?.({ files: [file] })) files = [file];
+        } catch { /* share the link alone */ }
+        await navigator.share(files ? { files, title: listing.title, text: `${text}\n${url}` } : { title: listing.title, text, url });
+        return;
+      } catch (err) {
+        if ((err as Error)?.name === 'AbortError') return;
+      }
+    }
+    // No share sheet (most desktops): copy the link instead. The async
+    // clipboard is refused in some embedded and older browsers, so the
+    // selection-based copy is the backstop.
+    let copied = false;
+    try {
+      await navigator.clipboard.writeText(url);
+      copied = true;
+    } catch {
+      const field = document.createElement('textarea');
+      field.value = url;
+      field.setAttribute('readonly', '');
+      field.style.position = 'fixed';
+      field.style.opacity = '0';
+      document.body.appendChild(field);
+      field.select();
+      copied = document.execCommand('copy');
+      field.remove();
+    }
+    setShared(copied ? 'copied' : 'manual');
+    if (copied) setTimeout(() => setShared(null), 2000);
+  };
+
   const handleBuyNow = () => {
     if (!user) {
       setAuthModal({ redirectTo: `/checkout/${listing.id}`, message: 'Sign in to buy.' });
@@ -260,25 +297,37 @@ export function ProductPage() {
       </Link>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16">
-        {/* One component owns the carousel, the thumbnails and zoom. Pinned on
-            desktop, so the garment stays in view while the facts about it
-            scroll past. */}
+        {/* Pinned on desktop, so the garment stays in view while the facts
+            about it scroll past. */}
         <div className="lg:col-span-6 lg:sticky lg:top-28 lg:self-start">
           <ProductGallery images={images} alt={listing.title} />
         </div>
 
-        {/* One typographic rule runs the whole column. Facts about this
-            garment - its brand, sizes, grade, measurements, flaws and
-            description - are set in the serif. Everything that is ours - the
-            labels, the price, the buttons, the terms - stays in Inter. Read
-            down the column and the serif is the item talking; the sans is us.
-
-            Order is the order a buyer decides in: what it is and what it costs,
-            whether it fits, what state it is in, then buy. What is the same on
-            every item comes last. */}
-        <div className="lg:col-span-6 flex flex-col lg:max-w-[34rem]">
-          <header className="flex flex-col gap-5 pb-8">
-            <h1 className="text-3xl sm:text-4xl font-black tracking-tighter uppercase leading-[0.9]">{listing.title}</h1>
+        {/* One typographic rule runs the column: facts about this garment are
+            in the serif, everything of ours is in Inter. And one editing rule:
+            only what a buyer needs to decide is on the page. What is the same
+            on every item is one line each, linked to the page that has the
+            rest. */}
+        <div className="lg:col-span-6 flex flex-col lg:max-w-[32rem]">
+          <header className="flex flex-col gap-4 pb-8">
+            <div className="flex items-start justify-between gap-6">
+              <h1 className="text-3xl sm:text-4xl font-black tracking-tighter uppercase leading-[0.9]">{listing.title}</h1>
+              <div className="relative mt-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={onShare}
+                  aria-label="Share"
+                  className="flex h-9 w-9 items-center justify-center border border-black/15 transition-colors hover:border-black"
+                >
+                  {shared === 'copied' ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
+                </button>
+                {shared === 'copied' && (
+                  <span role="status" className="absolute right-0 top-full mt-2 whitespace-nowrap text-[10px] font-black uppercase tracking-[0.25em] ink-mid">
+                    Link copied
+                  </span>
+                )}
+              </div>
+            </div>
             <div className="flex items-baseline gap-4">
               {listing.sale_price ? (
                 <>
@@ -289,15 +338,24 @@ export function ProductPage() {
                 <span className="text-2xl font-black">{formatCurrency(listing.price)}</span>
               )}
             </div>
+            {shared === 'manual' && (
+              <input
+                readOnly
+                autoFocus
+                value={window.location.href}
+                onFocus={(e) => e.currentTarget.select()}
+                onBlur={() => setShared(null)}
+                aria-label="Link to this item"
+                className="w-full border border-black/15 px-3 py-2 text-xs font-medium focus:border-black focus:outline-none"
+              />
+            )}
           </header>
 
-          {/* Brand, the size on the tag, and how it actually wears: the three
-              things a buyer scans for, read across in one line. */}
           <dl className={cn('grid border-y border-black', fitsLike ? 'grid-cols-3' : 'grid-cols-2')}>
             {([
               ['Brand', listing.brand || 'Vintage'],
               ['Listed size', listing.size_type || 'One size'],
-              ...(fitsLike ? [['Fits like', fitsLike.value]] : []),
+              ...(fitsLike ? [['Fits like', fitsLike]] : []),
             ] as Array<[string, string]>).map(([label, value], i) => (
               <div key={label} className={cn('flex min-w-0 flex-col gap-3 py-5', i > 0 && 'border-l border-black/10 pl-4 sm:pl-5')}>
                 <dt className={LABEL}>{label}</dt>
@@ -306,13 +364,16 @@ export function ProductPage() {
             ))}
           </dl>
 
-          {/* The four grades as one scale, this item's filled. What each grade
-              means is one hover (or tap) away rather than a sentence that is
-              always there, so the scale reads at a glance. */}
-          <section className="flex flex-col gap-5 border-b border-black/10 py-7" aria-labelledby="condition-heading">
+          {/* The four grades as one scale, this item's filled. What a grade
+              means is a hover (or a tap) away, not a sentence always there. */}
+          <section className="flex flex-col gap-4 border-b border-black/10 py-6" aria-labelledby="condition-heading">
             <div className="flex items-baseline justify-between gap-4">
-              <h2 id="condition-heading" className={HEADING}>Condition</h2>
-              <Link to="/conditions-guide" className={LINK}>Guide</Link>
+              <h2 id="condition-heading" className={LABEL}>Condition</h2>
+              {listing.authenticity_confirmed && (
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.25em]">
+                  <ShieldCheck className="h-3.5 w-3.5" /> Authenticity confirmed
+                </span>
+              )}
             </div>
             <ol className="grid grid-cols-4 gap-1.5">
               {CONDITIONS.map((tier, i) => {
@@ -353,50 +414,54 @@ export function ProductPage() {
                 );
               })}
             </ol>
-            <ul className="flex flex-wrap gap-x-6 gap-y-2">
-              {listing.authenticity_confirmed && (
-                <li className="flex items-center gap-2">
-                  <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
-                  <span className={STATUS}>Authenticity confirmed</span>
-                </li>
-              )}
-              <li className="flex items-center gap-2">
-                {listing.has_flaws ? <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> : <Check className="h-3.5 w-3.5 shrink-0" />}
-                {listing.has_flaws
-                  ? <a href="#flaws" className={cn(STATUS, 'underline underline-offset-4 decoration-black/30 hover:decoration-black')}>Flaws disclosed below</a>
-                  : <span className={STATUS}>No flaws disclosed</span>}
-              </li>
-            </ul>
           </section>
 
-          {/* MODEL.md §8. Tag size is not enough on used clothing, and "it did
-              not fit" is the biggest single reason things come back. Inches
-              first, because that is what most buyers here measure their own
-              clothes in; stored in centimetres either way. */}
+          {/* MODEL.md §8: "it did not fit" is the biggest single reason used
+              clothing comes back. Inches first; stored in centimetres. */}
           {measurements.length > 0 && (
-            <section className="flex flex-col gap-5 border-b border-black/10 py-7" aria-labelledby="measurements-heading">
+            <section className="flex flex-col gap-4 border-b border-black/10 py-6" aria-labelledby="measurements-heading">
               <div className="flex items-center justify-between gap-4">
-                <h2 id="measurements-heading" className={HEADING}>Measurements</h2>
-                <div className="flex border border-black/15" role="group" aria-label="Measurement unit">
-                  {(['in', 'cm'] as Unit[]).map((u) => (
-                    <button
-                      key={u}
-                      type="button"
-                      onClick={() => setUnit(u)}
-                      aria-pressed={unit === u}
-                      className={cn(
-                        'px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] transition-colors',
-                        unit === u ? 'bg-black text-white' : 'text-black hover:bg-black/5',
-                      )}
-                    >
-                      {u}
-                    </button>
-                  ))}
+                <h2 id="measurements-heading" className={LABEL}>Measurements, flat</h2>
+                <div className="flex items-center gap-4">
+                  {guide && (
+                    // The drawing the vendor measured from: on hover where a
+                    // pointer exists, full size in a new tab on click or tap.
+                    <div className="group/guide relative">
+                      <a href={`/images/${guide}.png`} target="_blank" rel="noopener noreferrer" className={cn(LINK, 'inline-flex items-center gap-1')}>
+                        Guide <ArrowUpRight className="h-3 w-3" />
+                      </a>
+                      <div
+                        aria-hidden
+                        className="pointer-events-none absolute right-0 top-full z-30 mt-3 hidden w-72 border border-black bg-white p-2 shadow-[0_12px_40px_rgba(0,0,0,0.12)] opacity-0 transition-opacity duration-150 [@media(hover:hover)]:block group-hover/guide:opacity-100 group-focus-within/guide:opacity-100"
+                      >
+                        <picture>
+                          <source srcSet={`/images/${guide}.webp`} type="image/webp" />
+                          <img src={`/images/${guide}.png`} alt="" width={720} height={1080} loading="lazy" decoding="async" className="block h-auto w-full" />
+                        </picture>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex border border-black/15" role="group" aria-label="Measurement unit">
+                    {(['in', 'cm'] as Unit[]).map((u) => (
+                      <button
+                        key={u}
+                        type="button"
+                        onClick={() => setUnit(u)}
+                        aria-pressed={unit === u}
+                        className={cn(
+                          'px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.2em] transition-colors',
+                          unit === u ? 'bg-black text-white' : 'text-black hover:bg-black/5',
+                        )}
+                      >
+                        {u}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
-              <dl className="grid grid-cols-3 gap-x-4 gap-y-6">
+              <dl className="grid grid-cols-3 gap-x-4 gap-y-5">
                 {measurements.map(([label, cm]) => (
-                  <div key={label} className="flex flex-col gap-3">
+                  <div key={label} className="flex flex-col gap-2">
                     <dt className={LABEL}>{label}</dt>
                     <dd className={cn(SERIF_VALUE, 'tabular-nums')}>
                       {formatLength(cm, unit)}
@@ -405,28 +470,6 @@ export function ProductPage() {
                   </div>
                 ))}
               </dl>
-              <p className="font-serif italic text-[15px] leading-snug ink-mid">
-                Measured flat, by hand. Hold them against something you already own, not the tag.
-              </p>
-              {guide && (
-                // The drawing the vendor measured from. Hover or focus shows
-                // it in place on a pointer device; a click or tap opens it
-                // full size in a new tab, the only legible version on a phone.
-                <div className="group/guide relative self-start">
-                  <a href={`/images/${guide}.png`} target="_blank" rel="noopener noreferrer" className={cn(LINK, 'inline-flex items-center gap-1.5')}>
-                    How we measure <ArrowUpRight className="h-3 w-3" />
-                  </a>
-                  <div
-                    aria-hidden
-                    className="pointer-events-none absolute left-0 top-full z-30 mt-3 hidden w-72 border border-black bg-white p-2 shadow-[0_12px_40px_rgba(0,0,0,0.12)] opacity-0 transition-opacity duration-150 [@media(hover:hover)]:block group-hover/guide:opacity-100 group-focus-within/guide:opacity-100"
-                  >
-                    <picture>
-                      <source srcSet={`/images/${guide}.webp`} type="image/webp" />
-                      <img src={`/images/${guide}.png`} alt="" width={720} height={1080} loading="lazy" decoding="async" className="block h-auto w-full" />
-                    </picture>
-                  </div>
-                </div>
-              )}
             </section>
           )}
 
@@ -488,107 +531,54 @@ export function ProductPage() {
             )}
           </div>
 
-          <div className="flex flex-col">
-            {/* The flaw in the item's own words, given the same weight as the
-                description. Every flaw written down is the thing that actually
-                prevents a return. */}
-            {listing.has_flaws && (
-              <section id="flaws" className="flex scroll-mt-32 flex-col gap-3 border-t border-black/10 py-7">
-                <h2 className={HEADING}>Flaws, stated plainly</h2>
-                <p className="font-serif italic text-xl leading-snug">{listing.flaws_description}</p>
-                <p className="text-[13px] leading-relaxed ink-mid">
-                  We would rather tell you than have you find out. It is in the photos too.
-                </p>
-              </section>
-            )}
+          {/* What is the same on every item: one line each, right under the
+              button where a buyer checks it, linked to the page with the rest. */}
+          <ul className="flex flex-col border-t border-black/10">
+            {[
+              {
+                icon: Truck, title: 'Sold & shipped by zarketplace', to: '/buyer-protection',
+                body: listing.free_shipping
+                  ? 'Checked at our hub, then free tracked delivery to your door.'
+                  : 'Checked at our hub, then tracked delivery to your door.',
+              },
+              { icon: ShieldCheck, title: 'Buyer protection', to: '/buyer-protection', body: 'Not as described? Tell us within 7 days for a full refund.' },
+              { icon: RotateCcw, title: 'Returns & cancellations', to: '/returns', body: 'Cancel any time before it ships.' },
+            ].map(({ icon: Icon, title, body, to }) => (
+              <li key={title} className="border-b border-black/10">
+                <Link to={to} className="group flex items-center gap-4 py-4">
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="flex min-w-0 flex-1 flex-col gap-1">
+                    <span className="text-[11px] font-black uppercase tracking-[0.2em]">{title}</span>
+                    <span className="text-[13px] leading-snug ink-mid">{body}</span>
+                  </span>
+                  <ChevronRight className="h-4 w-4 shrink-0 ink-mid transition-transform group-hover:translate-x-0.5" />
+                </Link>
+              </li>
+            ))}
+          </ul>
 
-            {listing.description && (
-              <section className="flex flex-col gap-3 border-t border-black/10 py-7">
-                <h2 className={HEADING}>About this piece</h2>
+          {(listing.description || listing.has_flaws) && (
+            <section id="flaws" className="flex scroll-mt-32 flex-col gap-4 py-8">
+              <h2 className={LABEL}>Details</h2>
+              {listing.description && (
                 <p className="font-serif italic text-lg leading-snug whitespace-pre-line">{listing.description}</p>
-              </section>
-            )}
-
-            {(listing.original_tags_attached !== null || listing.original_packaging !== null || listing.item_altered !== null || listing.wear_frequency) && (
-              <section className="flex flex-col gap-4 border-t border-black/10 py-7">
-                <h2 className={HEADING}>Item details</h2>
-                <dl className="grid grid-cols-2 gap-x-4 gap-y-5">
-                  {([
-                    ['Original tags', listing.original_tags_attached == null ? null : listing.original_tags_attached ? 'Attached' : 'Not attached'],
-                    ['Packaging', listing.original_packaging == null ? null : listing.original_packaging ? 'Included' : 'Not included'],
-                    ['Altered', listing.item_altered == null ? null : listing.item_altered ? 'Yes' : 'No'],
-                    ['Worn', listing.wear_frequency ? (WEAR_LABELS[listing.wear_frequency] ?? listing.wear_frequency) : null],
-                  ] as Array<[string, string | null]>)
-                    .filter(([, v]) => v != null)
-                    .map(([label, v]) => (
-                      <div key={label} className="flex flex-col gap-2">
-                        <dt className={LABEL}>{label}</dt>
-                        <dd className="font-serif italic text-lg leading-none">{v}</dd>
-                      </div>
-                    ))}
-                </dl>
-              </section>
-            )}
-
-            <div ref={stickyStopRef} />
-
-            {/* The same on every item, so it comes last, set apart on its own
-                ground. The serif line is the promise; the sans is the terms. */}
-            <section className="mt-4 flex flex-col gap-6 bg-zinc-50 p-6 sm:p-8">
-              <div className="flex flex-col gap-3">
-                <h2 className={HEADING}>Sold &amp; shipped by zarketplace</h2>
-                <p className="font-serif italic text-2xl leading-tight">bought by us, checked by us, shipped by us.</p>
-                <p className="text-[13px] leading-relaxed ink-mid">
-                  We own this piece outright. It is checked against this listing at our hub and
-                  sent out in our own packaging.
+              )}
+              {listing.has_flaws && listing.flaws_description && (
+                <p className="flex gap-2 text-sm leading-relaxed">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span><span className="font-black">Flaw:</span> {listing.flaws_description}</span>
                 </p>
-              </div>
-
-              <dl className="grid grid-cols-2 gap-4 border-y border-black/10 py-5">
-                <div className="flex flex-col gap-2">
-                  <dt className={LABEL}>Shipping</dt>
-                  <dd className="text-sm font-black uppercase tracking-tight">
-                    {listing.free_shipping
-                      ? 'Free'
-                      : shippingCategories.length === 0
-                        ? 'Calculating...'
-                        : fmt(shippingRateFor(listing.shipping_category, shippingCategories))}
-                  </dd>
-                </div>
-                <div className="flex flex-col gap-2">
-                  <dt className={LABEL}>Product code</dt>
-                  <dd className="text-sm font-black uppercase tracking-tight">{listing.sku || `ZV-${listing.id.slice(0, 8).toUpperCase()}`}</dd>
-                </div>
-              </dl>
-
-              <div className="flex flex-col gap-2">
-                <Link to="/buyer-protection" className={cn(LINK, 'self-start inline-flex items-center gap-2')}>
-                  <ShieldCheck className="h-3.5 w-3.5" /> Buyer protection
-                </Link>
-                <p className="text-[13px] leading-relaxed ink-mid">
-                  Your payment is held until you confirm delivery, and refunded if the item is
-                  significantly not as described.
-                </p>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
-                <Link to="/returns" className={cn(LINK, 'inline-flex items-center gap-2')}>
-                  <RotateCcw className="h-3.5 w-3.5" /> Returns &amp; cancellations
-                </Link>
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(window.location.href);
-                    setCartMsg(null);
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 2000);
-                  }}
-                  className={cn(LINK, 'inline-flex items-center gap-2')}
-                >
-                  <LinkIcon className="h-3.5 w-3.5" /> {copied ? 'Link copied' : 'Copy link'}
-                </button>
-              </div>
+              )}
             </section>
+          )}
+
+          <div ref={stickyStopRef} />
+
+          <p className={cn(LABEL, 'pt-2')}>
+            Product code {listing.sku || `ZV-${listing.id.slice(0, 8).toUpperCase()}`}
+          </p>
+
+          <div className="flex flex-col">
 
             {listing.is_mine === true && (
               <div className="mt-4 pt-6 border-t border-black/5 flex flex-col gap-3">
