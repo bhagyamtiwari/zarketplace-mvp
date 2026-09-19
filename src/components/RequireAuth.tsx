@@ -13,9 +13,16 @@ interface Props {
   children: React.ReactNode;
   requireAdmin?: boolean;
   message?: string;
+  /**
+   * What a signed-out visitor sees instead of the bare "please sign in"
+   * panel. Given this, the sign-in form waits to be asked for rather than
+   * opening on arrival: a page that explains itself first converts better
+   * than a form over a blank screen.
+   */
+  signedOut?: (openSignIn: () => void) => React.ReactNode;
 }
 
-export function RequireAuth({ children, requireAdmin = false, message }: Props) {
+export function RequireAuth({ children, requireAdmin = false, message, signedOut }: Props) {
   const { user, profile, loading } = useAuth();
   const location = useLocation();
   const [modalOpen, setModalOpen] = React.useState(false);
@@ -23,7 +30,7 @@ export function RequireAuth({ children, requireAdmin = false, message }: Props) 
   // Auto-open the modal whenever the gate is shown so the user has one less
   // click to make.
   React.useEffect(() => {
-    if (!loading && !user) setModalOpen(true);
+    if (!loading && !user) setModalOpen(!signedOut);
     else setModalOpen(false);
   }, [loading, user]);
 
@@ -37,6 +44,14 @@ export function RequireAuth({ children, requireAdmin = false, message }: Props) 
 
   if (!user) {
     const redirect = `${location.pathname}${location.search}`;
+    if (signedOut) {
+      return (
+        <>
+          {signedOut(() => setModalOpen(true))}
+          <AuthModal open={modalOpen} onClose={() => setModalOpen(false)} redirectTo={redirect} />
+        </>
+      );
+    }
     return (
       <>
         <div className="mx-auto max-w-xl px-4 pt-24 sm:pt-32 pb-20 sm:pb-32 text-center flex flex-col items-center gap-6">

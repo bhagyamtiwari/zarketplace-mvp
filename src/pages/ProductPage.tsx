@@ -22,7 +22,7 @@ const plog = log('product');
 // The column's text roles, named so every instance of a role is identical.
 // Two faces only, the site's own: Inter at black weight for labels and
 // values, Inter at regular weight for sentences. Nothing below 11px.
-const LABEL = 'text-[11px] font-black uppercase tracking-[0.2em] ink-mid';
+const LABEL = 'text-xs font-black uppercase tracking-[0.15em] ink-mid';
 const LINK = 'text-[11px] font-black uppercase tracking-[0.2em] underline underline-offset-4 decoration-black/30 hover:decoration-black transition-colors';
 const VALUE = 'text-lg sm:text-xl font-black tracking-tight leading-none';
 
@@ -477,12 +477,12 @@ export function ProductPage() {
             {listing.status !== 'approved' ? (
               <div className="w-full border border-amber-200 bg-amber-50 px-6 py-6 flex flex-col gap-2">
                 <span className="text-[11px] font-black uppercase tracking-[0.4em] text-amber-700">
-                  {listing.status === 'pending' ? 'Pending admin approval' : 'Listing not available'}
+                  {listing.status === 'pending' ? 'Not on sale yet' : 'Not available'}
                 </span>
                 <p className="text-[11px] font-bold uppercase tracking-widest text-amber-700/80 leading-relaxed">
                   {listing.is_mine === true
-                    ? 'Your listing is awaiting admin approval. It will be visible on browse and purchasable once approved. Until then, no one (including you) can buy or add it to cart.'
-                    : 'This listing is not yet available to purchase.'}
+                    ? 'We are looking at this item. It goes on sale once you accept our offer, and nobody can buy it before then.'
+                    : 'This item is not on sale yet.'}
                 </p>
               </div>
             ) : listing.is_sold ? (
@@ -539,24 +539,22 @@ export function ProductPage() {
                 ? {
                   icon: Zap, title: 'Instant ship', to: '/shipping-policy',
                   body: listing.free_shipping
-                    ? 'Already in our hub. Dispatched within 48 hours, free tracked delivery.'
-                    : 'Already in our hub. Dispatched within 48 hours, tracked delivery.',
+                    ? 'Already with us. Dispatched within 48 hours, delivery free.'
+                    : 'Already with us. Dispatched within 48 hours.',
                 }
                 : {
-                  icon: Truck, title: 'Sold & shipped by zarketplace', to: '/buyer-protection',
-                  body: listing.free_shipping
-                    ? 'Checked at our hub, then free tracked delivery to your door.'
-                    : 'Checked at our hub, then tracked delivery to your door.',
+                  icon: Truck, title: listing.free_shipping ? 'Free delivery' : 'Tracked delivery', to: '/shipping-policy',
+                  body: 'Checked at our hub, then tracked to your door.',
                 },
               { icon: ShieldCheck, title: 'Buyer protection', to: '/buyer-protection', body: 'Not as described? Tell us within 7 days for a full refund.' },
               { icon: RotateCcw, title: 'Returns & cancellations', to: '/returns', body: 'Cancel any time before it ships.' },
             ].map(({ icon: Icon, title, body, to }) => (
               <li key={title} className="border-b border-black/10">
                 <Link to={to} className="group flex items-center gap-4 py-4">
-                  <Icon className="h-4 w-4 shrink-0" />
+                  <Icon className="h-5 w-5 shrink-0" />
                   <span className="flex min-w-0 flex-1 flex-col gap-1">
-                    <span className="text-[11px] font-black uppercase tracking-[0.2em]">{title}</span>
-                    <span className="text-[13px] leading-snug ink-mid">{body}</span>
+                    <span className="text-[15px] font-bold leading-snug">{title}</span>
+                    <span className="text-sm leading-snug ink-mid">{body}</span>
                   </span>
                   <ChevronRight className="h-4 w-4 shrink-0 ink-mid transition-transform group-hover:translate-x-0.5" />
                 </Link>
@@ -566,7 +564,7 @@ export function ProductPage() {
 
           {(listing.description || listing.has_flaws) && (
             <section id="flaws" className="flex scroll-mt-32 flex-col gap-4 py-8">
-              <h2 className={LABEL}>Details</h2>
+              <h2 className="text-[15px] font-bold">Details</h2>
               {listing.description && (
                 <p className="text-[15px] leading-relaxed whitespace-pre-line">{listing.description}</p>
               )}
@@ -581,7 +579,7 @@ export function ProductPage() {
 
           <div ref={stickyStopRef} />
 
-          <p className={cn(LABEL, 'pt-2')}>
+          <p className="pt-2 text-sm ink-mid">
             Product code {listing.sku || `ZV-${listing.id.slice(0, 8).toUpperCase()}`}
           </p>
 
@@ -589,7 +587,7 @@ export function ProductPage() {
 
             {listing.is_mine === true && (
               <div className="mt-4 pt-6 border-t border-black/5 flex flex-col gap-3">
-                <span className="text-[11px] font-black uppercase tracking-[0.4em] ink-mid">Your listing</span>
+                <span className="text-[11px] font-black uppercase tracking-[0.4em] ink-mid">Your item</span>
                 <button
                   type="button"
                   onClick={() => setShareOpen(true)}
@@ -598,7 +596,7 @@ export function ProductPage() {
                   <Share2 className="h-3.5 w-3.5" /> Generate Instagram image
                 </button>
                 <p className="text-[11px] font-bold uppercase tracking-widest ink-mid leading-relaxed max-w-md">
-                  Download a branded post or story image of your listing in one click.
+                  Download a post or story image of this item in one click.
                 </p>
               </div>
             )}

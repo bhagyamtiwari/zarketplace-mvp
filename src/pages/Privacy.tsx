@@ -51,7 +51,7 @@ export function Privacy() {
 
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Data Security</h2>
-            <p>We take security seriously but cannot guarantee complete protection. Please use the site at your own risk.</p>
+            <p>Payments are handled by Razorpay, so we never see or store your card details. Your account and order data are stored with access limited to the people who need it to run your order. No system is perfectly secure, and if we ever learn of a breach that affects you, we will tell you promptly.</p>
           </section>
 
           <section className="flex flex-col gap-4">

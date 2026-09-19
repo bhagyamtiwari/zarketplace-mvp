@@ -135,7 +135,7 @@ export function ShareInstagramModal({ open, onClose, listing }: Props) {
             <div className="flex flex-col gap-1">
               <h2 className="text-2xl font-black tracking-tighter uppercase">Generate post image</h2>
               <p className="text-[11px] font-bold uppercase tracking-widest ink-low leading-relaxed max-w-xl">
-                Download a branded post or story image of your listing in one click.
+                Download a post or story image of this item in one click.
               </p>
             </div>
 

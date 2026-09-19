@@ -17,6 +17,7 @@ import { log } from '../lib/log';
 import { usePageMeta, META } from '../lib/pageMeta';
 import { useFavorites } from '../lib/favorites';
 import { CONDITIONS } from '../lib/condition';
+import { CATEGORY_SIZES, ALL_SIZES } from '../lib/sizes';
 
 const mlog = log('marketplace');
 
@@ -46,15 +47,7 @@ function sanitizeSearch(q: string): string {
 const GENDERS = ['Men', 'Women', 'Unisex'];
 const PRODUCT_TYPES = ['Tops', 'Bottoms', 'Outerwear', 'Accessories', 'Shoes'];
 
-const CATEGORY_SIZES: Record<string, string[]> = {
-  Tops: ['XXS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', 'One Size'],
-  Bottoms: ['28', '30', '32', '34', '36', '38', '40', '42', '44', 'One Size'],
-  Outerwear: ['XXS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', 'One Size'],
-  Accessories: ['One Size'],
-  Shoes: ['UK 5', 'UK 6', 'UK 7', 'UK 8', 'UK 9', 'UK 10', 'UK 11', 'UK 12', 'UK 13'],
-};
 
-const ALL_SIZES = ['XXS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '28', '30', '32', '34', '36', '38', '40', '42', '44', 'One Size'];
 
 // Discovery chips. These are shortcuts into the same filter surface, not
 // marketing sections - each one is a query anyone could have built by hand.

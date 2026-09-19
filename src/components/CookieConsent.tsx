@@ -15,7 +15,10 @@ export function CookieConsent() {
   if (consent !== null) return null;
 
   return (
-    <div className="fixed bottom-0 inset-x-0 z-[60] bg-black text-white border-t border-white/10">
+    // A small floating card on a phone, see-through, so the first screen of
+    // the site is still visible behind it rather than half-covered by a black
+    // slab on arrival. A full-width bar where there is room.
+    <div className="fixed z-[60] bottom-3 inset-x-3 rounded-xl sm:rounded-none sm:bottom-0 sm:inset-x-0 bg-black/70 sm:bg-black/85 backdrop-blur-md text-white border border-white/10 sm:border-x-0 sm:border-b-0 shadow-[0_8px_30px_rgba(0,0,0,0.25)] sm:shadow-none">
       {settingsOpen && (
         <div className="border-b border-white/10 px-4 sm:px-6 lg:px-8 py-5 flex flex-col gap-4 max-w-3xl mx-auto sm:mx-0">
           <div className="flex items-center justify-between">
@@ -54,16 +57,16 @@ export function CookieConsent() {
         </div>
       )}
 
-      <div className="px-4 sm:px-6 lg:px-8 py-3.5 sm:py-4 flex items-center gap-4 text-left sm:gap-8">
+      <div className="px-4 sm:px-6 lg:px-8 py-2.5 sm:py-4 flex items-center gap-3 text-left sm:gap-8">
         {/* Short form on a phone: five lines of consent copy over the fold is
             its own dark pattern. The full wording stays where there is room,
             and both link to the policy that spells it out. */}
         <p className="flex-1 text-[13px] leading-snug sm:text-xs sm:leading-relaxed">
           {/* Sentence case on a phone: the uppercase body voice needs six lines
               for the same sentence and pushes the buttons off the bar. */}
-          <span className="sm:hidden text-[13px] font-bold leading-snug">
-            We use cookies to improve your experience.{' '}
-            <Link to="/privacy" className="inline-block py-3.5 -my-3.5 underline text-white">Privacy Policy</Link>.
+          <span className="sm:hidden text-[13px] leading-snug">
+            We use cookies.{' '}
+            <Link to="/privacy" className="inline-block py-3.5 -my-3.5 underline text-white">Privacy</Link>
           </span>
           <span className="hidden sm:inline body-copy">
             We store a few things in your browser to keep you signed in and your cart intact, and,
@@ -75,16 +78,16 @@ export function CookieConsent() {
           <button
             type="button"
             onClick={() => setConsent('accepted')}
-            className="bg-white px-6 sm:px-8 min-h-[44px] py-3 text-[10px] font-black uppercase tracking-widest text-black hover:bg-white/90 transition-colors"
+            className="rounded-md sm:rounded-none bg-white px-4 sm:px-8 min-h-[40px] sm:min-h-[44px] py-2 sm:py-3 text-[11px] font-black uppercase tracking-widest text-black hover:bg-white/90 transition-colors"
           >
             Accept<span className="hidden sm:inline"> all cookies</span>
           </button>
           <button
             type="button"
             onClick={() => setConsent('rejected')}
-            className="px-1 min-h-[44px] py-3 text-[10px] font-black uppercase tracking-widest ink-mid underline underline-offset-4 hover:text-white transition-colors"
+            className="px-1 min-h-[40px] sm:min-h-[44px] py-2 sm:py-3 text-[11px] font-black uppercase tracking-widest text-white/75 underline underline-offset-4 hover:text-white transition-colors"
           >
-            Essential only
+            <span className="sm:hidden">Decline</span><span className="hidden sm:inline">Essential only</span>
           </button>
           <button
             type="button"

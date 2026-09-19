@@ -36,16 +36,10 @@ import { removeBackground } from '../lib/backgroundRemoval';
 import { usePageMeta, META } from '../lib/pageMeta';
 import { resolvePincode } from '../lib/pincode';
 import { cn, formatCurrency } from '../lib/utils';
+import { CATEGORY_SIZES } from '../lib/sizes';
 
 const slog = log('sell');
 
-const CATEGORY_SIZES: Record<string, string[]> = {
-  'Tops': ['XXS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', 'One Size'],
-  'Bottoms': ['28', '30', '32', '34', '36', '38', '40', '42', '44', 'One Size'],
-  'Outerwear': ['XXS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', 'One Size'],
-  'Accessories': ['One Size'],
-  'Shoes': ['UK 5', 'UK 6', 'UK 7', 'UK 8', 'UK 9', 'UK 10', 'UK 11', 'UK 12', 'UK 13'],
-};
 
 // Two lines instead of six ticks and an authenticity radio. Every element of
 // the old set survives: one-item is its own rule, and accuracy now carries
@@ -130,15 +124,16 @@ const WHAT_HAPPENS_NOTES: Array<{ title: string; body: string }> = [
 // image array (index 0 is still the cover). Not a hard per-slot requirement.
 // These are the instruction: they say what to shoot, so no paragraph above the
 // grid has to.
-// MODEL.md §9: completeness, not beauty. The first four settle what the item
+// MODEL.md §9: completeness, not beauty. The first three settle what the item
 // actually is, and we reject for a missing angle but never for bad lighting.
 // A phone photo in a bedroom is what a buyer wants to see on used clothing;
 // consistency comes from processing at upload, not from the vendor's camera.
 const PHOTO_SLOTS: Array<{ label: string; required: boolean; hint?: string }> = [
   { label: 'Front of item', required: true },
   { label: 'Back of item', required: true },
-  { label: 'Brand label', required: true, hint: 'The neck or inner tag' },
-  { label: 'Size tag', required: true, hint: 'Even if it is faded' },
+  // The one label that says both what size it is and, usually, who made it.
+  { label: 'Size tag', required: true, hint: 'At the neck, or inside the waistband or leg' },
+  { label: 'Brand label', required: false, hint: 'If it is separate from the size tag' },
   { label: 'Close-up detail', required: false },
   { label: 'Any flaws', required: false },
 ];
@@ -286,7 +281,7 @@ export function Sell() {
   usePageMeta(META.sell);
 
   return (
-    <RequireAuth message="Sign in to get an offer.">
+    <RequireAuth message="Sign in to get an offer." signedOut={(openSignIn) => <SellIntro onStart={openSignIn} />}>
       <SellInner />
     </RequireAuth>
   );
@@ -487,7 +482,7 @@ function SellInner() {
       // to what to shoot, and someone who uploads four good photos in a
       // different order has done the thing we actually need.
       if (imageFiles.length < REQUIRED_PHOTOS) {
-        return `Add ${REQUIRED_PHOTOS} photos: front, back, the brand label and the size tag. We cannot price an item we cannot identify.`;
+        return `Add ${REQUIRED_PHOTOS} photos: the front, the back and the size tag. We cannot price an item we cannot identify.`;
       }
     }
     if (s === 1) {
@@ -518,7 +513,7 @@ function SellInner() {
       if (!condition) return 'Choose a condition.';
       if (hasFlaws === null) return 'Say whether this item has any flaws.';
       if (hasFlaws && !flawsDescription.trim()) return 'Describe the flaw, or answer No.';
-      if (hasFlaws && imageFiles.length < 2) return 'Add a close-up of the flaw to your photos.';
+      if (hasFlaws && imageFiles.length <= REQUIRED_PHOTOS) return 'Add a close-up of the flaw as an extra photo.';
     }
     return null;
   };
@@ -1493,3 +1488,50 @@ function LastStep({
   );
 }
 
+/**
+ * The sell page for someone without an account yet. It used to be a sign-up
+ * form over a blank page: a password and a phone number asked for before the
+ * visitor had seen what we buy or what happens next. This says both first.
+ */
+function SellIntro({ onStart }: { onStart: () => void }) {
+  return (
+    <div className="shell-form pt-24 sm:pt-32 pb-24 flex flex-col gap-10">
+      <div className="flex flex-col gap-4">
+        <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase leading-[0.95]">
+          What are you selling?
+        </h1>
+        <p className="body-longform measure">
+          Add your item. We'll make you an offer within 24 hours.
+        </p>
+      </div>
+
+      <ol className="flex flex-col gap-5 border-y border-black/10 py-8">
+        {WHAT_HAPPENS_NEXT.map((step, i) => (
+          <li key={step.title} className="flex gap-4">
+            <span
+              aria-hidden
+              className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-black text-xs font-black leading-none text-white"
+            >
+              {i + 1}
+            </span>
+            <div className="flex min-w-0 flex-col gap-1">
+              <h2 className="text-[15px] font-bold text-black">{step.title}</h2>
+              <p className="text-sm leading-relaxed ink-mid">{step.points[0]}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+
+      <div className="flex flex-col gap-3">
+        <button
+          type="button"
+          onClick={onStart}
+          className="w-full sm:w-auto sm:self-start bg-black px-10 py-5 text-xs font-black uppercase tracking-[0.3em] text-white hover:bg-zinc-800"
+        >
+          Start selling
+        </button>
+        <p className="text-sm ink-mid">It takes a minute. You pay nothing to sell to us, and we cover shipping.</p>
+      </div>
+    </div>
+  );
+}
