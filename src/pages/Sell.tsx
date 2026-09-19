@@ -679,7 +679,13 @@ function SellInner() {
         listing_id: listingId,
         vendor_id: user.id,
       });
-      if (acqError) throw acqError;
+      if (acqError) {
+        // The two inserts are separate requests, so a failure here would leave
+        // a pending listing that can never be priced. Take it back out, so a
+        // retry starts clean instead of stranding a duplicate each time.
+        await supabase.from('listings').delete().eq('id', listingId);
+        throw acqError;
+      }
 
       tFull.end({ outcome: 'success' });
       // Seller-side conversion. Compared against sell_started, this is the
