@@ -1,7 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Search, User, Menu, X, ArrowRight, LogOut, LayoutGrid, Package, ShoppingBag, Tag, Heart, Instagram, Twitter, Youtube, MessageCircle } from 'lucide-react';
+import { Search, User, Menu, X, LogOut, LayoutGrid, Package, ShoppingBag } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -9,15 +9,8 @@ import { useAuth } from '../lib/auth';
 import { useCart } from '../lib/cart';
 import { AuthModal } from './AuthModal';
 import { Wordmark } from './Wordmark';
+import { SOCIALS } from './Footer';
 
-// Same four accounts the footer lists. Kept here rather than imported so the
-// drawer does not depend on the footer's internals; if one moves, both change.
-const SOCIALS: Array<{ label: string; href: string; Icon: typeof Instagram }> = [
-  { label: 'zarketplace on Instagram', href: 'https://www.instagram.com/zarketplace', Icon: Instagram },
-  { label: 'zarketplace on X', href: 'https://x.com/zarketplace', Icon: Twitter },
-  { label: 'zarketplace on YouTube', href: 'https://www.youtube.com/@zarketplace', Icon: Youtube },
-  { label: 'zarketplace on WhatsApp', href: 'https://wa.me/918505927538', Icon: MessageCircle },
-];
 
 export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
@@ -292,7 +285,7 @@ export function Navbar() {
             transition={{ type: 'tween', duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
             className="md:hidden fixed inset-y-0 right-0 z-[70] w-full max-w-xs bg-white border-l border-black/5 flex flex-col"
           >
-              <div className="flex items-center justify-between h-20 px-4 border-b border-black/5 shrink-0">
+              <div className="flex items-center justify-between h-20 px-6 border-b border-black/10 shrink-0">
                 <Link to="/" className="flex min-h-[44px] items-center" onClick={() => setIsMenuOpen(false)}>
                   <Wordmark on="light" heightClassName="h-7" />
                 </Link>
@@ -301,78 +294,60 @@ export function Navbar() {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto px-4 py-6 flex flex-col gap-1">
-                {/* What you came to do, with an icon each. Everything below is
-                    plain text: the three actions should be the only things
-                    competing for the eye. */}
-                <DrawerSection>
-                  <DrawerLink to="/browse" Icon={Search} onClick={closeMenu}>Browse</DrawerLink>
-                  <DrawerLink to="/sell" Icon={Tag} onClick={closeMenu}>Get an offer</DrawerLink>
-                  <DrawerLink to="/browse?q=saved" Icon={Heart} onClick={closeMenu}>Saved items</DrawerLink>
-                  {/* The phone navbar has no cart icon, so the drawer is the
-                      only way to a basket that already has items in it. */}
-                  <DrawerLink to="/cart" Icon={ShoppingBag} onClick={closeMenu} badge={cartCount > 0 ? cartCount : undefined}>
-                    Cart
-                  </DrawerLink>
-                </DrawerSection>
+              {/* Two groups and nothing else. The policies all live in the
+                  footer; repeating them here made the menu a second footer. */}
+              <div className="flex-1 overflow-y-auto px-6 py-8 flex flex-col gap-10">
+                <nav className="flex flex-col gap-1" aria-label="Main">
+                  <MainLink to="/browse" onClick={closeMenu}>Browse</MainLink>
+                  <MainLink to="/sell" onClick={closeMenu}>Get an offer</MainLink>
+                  <MainLink to="/browse?q=saved" onClick={closeMenu}>Favorites</MainLink>
+                  {/* The phone navbar has no cart icon, so this is the only
+                      way to a basket that already has items in it. */}
+                  <MainLink to="/cart" onClick={closeMenu} badge={cartCount > 0 ? cartCount : undefined}>Cart</MainLink>
+                </nav>
 
-                <DrawerSection title="Support">
-                  <DrawerLink to="/contact" onClick={closeMenu}>Contact</DrawerLink>
-                  <DrawerLink to="/buyer-protection" onClick={closeMenu}>Buyer protection</DrawerLink>
-                  <DrawerLink to="/shipping-policy" onClick={closeMenu}>Shipping policy</DrawerLink>
-                  <DrawerLink to="/returns" onClick={closeMenu}>Returns</DrawerLink>
-                  <DrawerLink to="/refund-policy" onClick={closeMenu}>Refund policy</DrawerLink>
-                </DrawerSection>
-
-                <DrawerSection title="Account">
+                <div className="flex flex-col gap-1 border-t border-black/10 pt-6">
                   {user ? (
                     <>
-                      <DrawerLink to="/track-order" onClick={closeMenu}>My orders</DrawerLink>
-                      <DrawerLink to="/account" onClick={closeMenu}>My profile</DrawerLink>
-                      <DrawerLink to="/vendor-portal" onClick={closeMenu}>Vendor portal</DrawerLink>
-                      {profile?.is_admin && <DrawerLink to="/admin" onClick={closeMenu}>Admin</DrawerLink>}
+                      <SubLink to="/track-order" onClick={closeMenu}>My orders</SubLink>
+                      <SubLink to="/account" onClick={closeMenu}>My profile</SubLink>
+                      <SubLink to="/vendor-portal" onClick={closeMenu}>Your items</SubLink>
+                      {profile?.is_admin && <SubLink to="/admin" onClick={closeMenu}>Admin</SubLink>}
+                      <SubLink to="/contact" onClick={closeMenu}>Contact</SubLink>
                       <button
                         onClick={async () => { await signOut(); closeMenu(); navigate('/'); }}
-                        className={cn(DRAWER_ROW_CLASS, 'w-full text-red-600')}
+                        className="self-start py-2.5 text-[15px] ink-mid hover:text-black"
                       >
-                        <span className="flex items-center gap-3">Sign out</span>
-                        <LogOut className="h-3.5 w-3.5" />
+                        Sign out
                       </button>
                     </>
                   ) : (
-                    <button
-                      onClick={() => { setShowAuth(true); closeMenu(); }}
-                      className={cn(DRAWER_ROW_CLASS, 'w-full')}
-                    >
-                      <span className="flex items-center gap-3">Sign in / Sign up</span>
-                      <ArrowRight className="h-3.5 w-3.5 ink-low" />
-                    </button>
+                    <>
+                      <button
+                        onClick={() => { setShowAuth(true); closeMenu(); }}
+                        className="self-start py-2.5 text-[15px] font-semibold"
+                      >
+                        Sign in
+                      </button>
+                      <SubLink to="/contact" onClick={closeMenu}>Contact</SubLink>
+                    </>
                   )}
-                </DrawerSection>
+                </div>
               </div>
 
-              <div className="px-4 py-4 border-t border-black/5 shrink-0 flex flex-col gap-5">
-                <Link
-                  to="/sell"
-                  className="flex w-full items-center justify-center gap-3 bg-black py-5 text-[11px] font-black uppercase tracking-[0.3em] text-white"
-                  onClick={closeMenu}
-                >
-                  Get offer
-                </Link>
-                <div className="flex items-center justify-center gap-8 pb-1">
-                  {SOCIALS.map(({ label, href, Icon }) => (
-                    <a
-                      key={label}
-                      href={href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label={label}
-                      className="hover:text-black transition-colors"
-                    >
-                      <Icon className="h-[18px] w-[18px]" />
-                    </a>
-                  ))}
-                </div>
+              <div className="px-6 py-5 border-t border-black/10 shrink-0 flex items-center gap-8">
+                {SOCIALS.map((s) => (
+                  <a
+                    key={s.label}
+                    href={s.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={s.label}
+                    className="flex h-11 w-11 -m-3 items-center justify-center text-black hover:text-black/60 transition-colors"
+                  >
+                    {s.icon('h-[18px] w-[18px]')}
+                  </a>
+                ))}
               </div>
             </motion.div>,
         ]}
@@ -384,39 +359,23 @@ export function Navbar() {
   );
 }
 
-function DrawerSection({ title, children }: { title?: string; children: React.ReactNode }) {
+function MainLink({ to, onClick, badge, children }: { to: string; onClick: () => void; badge?: number; children: React.ReactNode }) {
   return (
-    <div className="pb-3 mb-3 border-b border-black/5 last:border-0">
-      {title && <p className="text-[11px] font-black uppercase tracking-[0.3em] ink-low mb-1 mt-3">{title}</p>}
+    <Link to={to} onClick={onClick} className="flex items-center gap-3 py-2 text-2xl font-black uppercase tracking-tighter hover:text-black/60 transition-colors">
       {children}
-    </div>
+      {!!badge && (
+        <span className="h-5 min-w-5 px-1.5 rounded-full bg-black text-white text-[11px] font-black flex items-center justify-center tracking-normal">
+          {badge}
+        </span>
+      )}
+    </Link>
   );
 }
 
-// One row shape for every line in the drawer, whether it navigates or acts, so
-// a link and a button never sit at different heights next to each other.
-const DRAWER_ROW_CLASS =
-  'flex items-center justify-between py-4 text-[11px] font-black uppercase tracking-[0.2em] text-black hover:text-black/60 transition-colors';
-
-function DrawerLink({ to, onClick, badge, Icon, children }: {
-  to: string;
-  onClick: () => void;
-  badge?: number;
-  Icon?: typeof Search;
-  children: React.ReactNode;
-}) {
+function SubLink({ to, onClick, children }: { to: string; onClick: () => void; children: React.ReactNode }) {
   return (
-    <Link to={to} onClick={onClick} className={DRAWER_ROW_CLASS}>
-      <span className="flex items-center gap-3">
-        {Icon && <Icon className="h-4 w-4 shrink-0 text-black" strokeWidth={1.75} />}
-        {children}
-        {!!badge && (
-          <span className="h-4 min-w-4 px-1 rounded-full bg-black text-white text-[11px] font-black flex items-center justify-center">
-            {badge}
-          </span>
-        )}
-      </span>
-      <ArrowRight className="h-3.5 w-3.5 ink-low" />
+    <Link to={to} onClick={onClick} className="self-start py-2.5 text-[15px] hover:text-black/60 transition-colors">
+      {children}
     </Link>
   );
 }

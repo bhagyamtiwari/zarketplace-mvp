@@ -96,7 +96,7 @@ export function CampaignBand({
         {cta && (
           <Link
             to={cta.to}
-            className="group shrink-0 flex items-center gap-4 border border-white bg-white px-8 py-4 text-[10px] font-black uppercase tracking-[0.3em] text-black hover:bg-transparent hover:text-white transition-colors"
+            className="group shrink-0 flex items-center gap-4 border border-white bg-white/5 backdrop-blur-sm px-8 py-4 text-[11px] font-black uppercase tracking-[0.3em] text-white hover:bg-white hover:text-black transition-colors"
           >
             {cta.label}
             <ArrowRight className="h-3.5 w-3.5" />

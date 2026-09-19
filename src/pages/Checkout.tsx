@@ -485,7 +485,7 @@ function CheckoutInner() {
                     <span className="ink-low">Shipping</span>
                     <span>{o.free_shipping ? 'Free' : formatCurrency(Number(o.shipping_cost))}</span>
                   </div>
-                  <div className="flex justify-between"><span className="ink-low">Buyer protection</span><span>{formatCurrency(Number(o.buyer_protection_fee))}</span></div>
+                  {Number(o.buyer_protection_fee) > 0 && <div className="flex justify-between"><span className="ink-low">Buyer protection</span><span>{formatCurrency(Number(o.buyer_protection_fee))}</span></div>}
                   <div className="flex justify-between border-t border-black/10 pt-1.5 mt-1"><span>Total paid</span><span>{formatCurrency(Number(o.total_amount))}</span></div>
                 </div>
                 {o.shipping_address && (
