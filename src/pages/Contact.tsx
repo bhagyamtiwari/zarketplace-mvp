@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Mail, Instagram, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Mail, Instagram } from 'lucide-react';
+import { WhatsAppMark } from '../components/Footer';
 import { usePageMeta, META } from '../lib/pageMeta';
 
 // The three places a person actually answers. One shape each, so the rows are
@@ -8,13 +9,17 @@ import { usePageMeta, META } from '../lib/pageMeta';
 const CHANNELS: Array<{
   label: string;
   value: string;
+  /** A second line under the value, for the number behind a vanity number. */
+  detail?: string;
   href: string;
   external?: boolean;
-  Icon: typeof Mail;
+  icon: (cls: string) => React.ReactNode;
 }> = [
-  { label: 'Email', value: 'contact@zarketplace.com', href: 'mailto:contact@zarketplace.com', Icon: Mail },
-  { label: 'Instagram', value: '@zarketplace', href: 'https://instagram.com/zarketplace', external: true, Icon: Instagram },
-  { label: 'WhatsApp', value: '+91 85059 27538', href: 'https://wa.me/918505927538', external: true, Icon: MessageCircle },
+  { label: 'Email', value: 'contact@zarketplace.com', href: 'mailto:contact@zarketplace.com', icon: (c) => <Mail className={c} strokeWidth={1.75} /> },
+  { label: 'Instagram', value: '@zarketplace', href: 'https://instagram.com/zarketplace', external: true, icon: (c) => <Instagram className={c} strokeWidth={1.75} /> },
+  // ZARKET on a phone keypad is 927538, so the vanity form dials the real
+  // number. The digits stay underneath for anyone typing it in by hand.
+  { label: 'WhatsApp', value: '8505-ZARKET', detail: '+91 85059 27538', href: 'https://wa.me/918505927538', external: true, icon: (c) => <WhatsAppMark className={c} /> },
 ];
 
 export function Contact() {
@@ -55,11 +60,18 @@ export function Contact() {
               {/* Fixed square, so the three icons sit on one vertical line and
                   every label starts at the same x. */}
               <span className="flex h-12 w-12 shrink-0 items-center justify-center border border-black/15 transition-colors group-hover:border-black group-hover:bg-black group-hover:text-white">
-                <c.Icon className="h-5 w-5" strokeWidth={1.75} />
+                {c.icon('h-5 w-5')}
               </span>
               <span className="flex min-w-0 flex-col gap-0.5">
                 <span className="text-[11px] font-black uppercase tracking-[0.2em] ink-mid">{c.label}</span>
-                <span className="text-sm font-bold text-black break-words">{c.value}</span>
+                {c.detail ? (
+                  <>
+                    <span className="text-xl font-black uppercase tracking-tight text-black">{c.value}</span>
+                    <span className="text-sm ink-mid tabular-nums">{c.detail}</span>
+                  </>
+                ) : (
+                  <span className="text-sm font-bold text-black break-words">{c.value}</span>
+                )}
               </span>
             </a>
           ))}

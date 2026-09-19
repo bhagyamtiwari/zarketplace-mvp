@@ -9,7 +9,7 @@ import { getShippingCategories, shippingRateFor, type ShippingCategory } from '.
 
 export function Cart() {
   return (
-    <RequireAuth message="Sign in to see your bag.">
+    <RequireAuth message="Sign in to see your cart.">
       <CartInner />
     </RequireAuth>
   );
@@ -32,9 +32,9 @@ function CartInner() {
         <div className="flex h-24 w-24 items-center justify-center rounded-full bg-zinc-100 ink-low">
           <ShoppingBag className="h-10 w-10" />
         </div>
-        <h1 className="text-5xl font-black tracking-tighter uppercase">Nothing in your bag yet</h1>
-        <p className="text-xs font-bold uppercase tracking-widest ink-mid max-w-md">
-          Find something you love and add it here.
+        <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Your cart is empty</h1>
+        <p className="text-[15px] ink-mid max-w-md">
+          Find something you like and add it here.
         </p>
         <Link
           to="/browse"
@@ -48,11 +48,11 @@ function CartInner() {
 
   return (
     <div className="mx-auto max-w-2xl px-4 sm:px-6 pt-24 sm:pt-28 pb-16 sm:pb-20">
-      <Link to="/browse" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-6">
+      <Link to="/browse" className="inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-6">
         <ArrowLeft className="h-3 w-3" /> Continue Shopping
       </Link>
 
-      <h1 className="text-3xl sm:text-4xl font-black tracking-tighter uppercase mb-8">Your bag</h1>
+      <h1 className="text-3xl sm:text-4xl font-black tracking-tighter uppercase mb-8">Your cart</h1>
 
 
       <div className="flex flex-col gap-8 p-8 sm:p-10 bg-zinc-50 border border-black/5">
@@ -78,15 +78,15 @@ function CartInner() {
                 >
                   {item.title}
                 </Link>
-                <span className="text-[9px] font-black uppercase tracking-widest ink-low">{item.brand}</span>
-                {item.size && <span className="text-[9px] font-black uppercase tracking-widest ink-low">Size {item.size}</span>}
+                <span className="text-[11px] font-black uppercase tracking-widest ink-mid">{item.brand}</span>
+                {item.size && <span className="text-[11px] font-black uppercase tracking-widest ink-mid">Size {item.size}</span>}
               </div>
               <div className="flex flex-col items-end gap-1 shrink-0">
                 <span className="text-sm font-black">{formatCurrency(item.sale_price ?? item.price ?? 0)}</span>
                 <button
                   type="button"
                   onClick={() => remove(item.listing_id)}
-                  className="ink-low hover:text-red-600 transition-colors"
+                  className="ink-mid hover:text-red-600 transition-colors p-1 -m-1"
                   aria-label="Remove item"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -120,10 +120,12 @@ function CartInner() {
           Checkout <ArrowRight className="h-4 w-4" />
         </button>
 
+        {/* Clearing also lets go of any checkout hold, so the items are back
+            on sale for everyone straight away. */}
         <button
           type="button"
-          onClick={() => clear()}
-          className="self-center text-[10px] font-black uppercase tracking-widest ink-low hover:text-black underline"
+          onClick={() => { if (confirm('Clear your cart? Anything you were checking out goes back on sale.')) void clear(); }}
+          className="self-center text-[11px] font-black uppercase tracking-widest ink-mid hover:text-black underline underline-offset-4"
         >
           Clear cart
         </button>

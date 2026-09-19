@@ -588,7 +588,7 @@ function CheckoutInner() {
               setOrderNumbers([]);
               setReservationExpiresAt(null);
               setStep('address');
-              setErrorMsg('Your reservation expired. Please check out again to hold this item.');
+              setErrorMsg('Your 5-minute hold ended and the item is back on sale. Continue to hold it again.');
             }}
           />
         </div>
@@ -745,10 +745,6 @@ function AddressStep({
         {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
         <span>Continue to Payment</span>
       </button>
-      <div className="flex items-center justify-center gap-2 text-[9px] font-black uppercase tracking-[0.2em] ink-low">
-        <ShieldCheck className="h-4 w-4" />
-        <span>Your details are only used to deliver your order</span>
-      </div>
     </section>
   );
 }

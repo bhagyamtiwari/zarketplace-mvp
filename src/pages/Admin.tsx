@@ -153,7 +153,7 @@ const NAV: Section[] = [
     { key: 'o_delivered', label: 'Delivered', kind: 'orders', hint: 'Arrived with the buyer.',
       order: (o) => o.status === 'delivered' },
     { key: 'o_awaiting_payment', label: 'Awaiting payment', kind: 'orders',
-      hint: 'Checkout started but not paid. These clear themselves after 20 minutes.',
+      hint: 'Checkout started but not paid. These clear themselves after 5 minutes.',
       order: (o) => o.status === 'awaiting_payment' },
     { key: 'o_cancelled', label: 'Cancelled & refunded', kind: 'orders', hint: 'Closed orders, for the record.',
       order: (o) => o.status === 'cancelled' || o.status === 'refunded' },
