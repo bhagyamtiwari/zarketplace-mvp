@@ -375,17 +375,6 @@ export function Marketplace() {
       <div className="mx-auto max-w-[1600px] w-full px-4 sm:px-6 lg:px-8 pb-12 pt-4 flex gap-10">
 
         <div className="min-w-0 flex-1 flex flex-col gap-4">
-          {/* Result count and sort, as a single quiet line of text. */}
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-[11px] font-black uppercase tracking-[0.2em] ink-mid">
-              {state === 'loading'
-                ? 'Loading'
-                : (total ?? listings.length) > 0
-                  ? `${total ?? listings.length} item${(total ?? listings.length) === 1 ? '' : 's'}`
-                  : ''}
-            </p>
-          </div>
-
           {state === 'error' && listings.length === 0 ? (
             /* A failed fetch must never look like an empty catalogue. */
             <div className="border border-black/10 bg-zinc-50 p-8 flex flex-col items-start gap-4">
@@ -471,7 +460,7 @@ export function Marketplace() {
                 // a weight someone actually reads.
                 <div className="py-10 flex justify-center px-4">
                   <p className="max-w-md text-center text-sm ink-mid">
-                    That is everything for now. New pieces go up as we buy them.
+                    New pieces go up as we buy them.
                   </p>
                 </div>
               )}
