@@ -6,7 +6,7 @@ import { formatCurrency, cn } from '../lib/utils';
 import { variantUrl } from '../lib/images';
 import { ProductGallery } from '../components/ProductGallery';
 import { motion } from 'motion/react';
-import { Loader2, RotateCcw, ArrowLeft, ArrowUpRight, ShoppingBag, Check, Share2, ShieldCheck, AlertTriangle, Truck, ChevronRight } from 'lucide-react';
+import { Loader2, RotateCcw, ArrowLeft, ArrowUpRight, ShoppingBag, Check, Share2, ShieldCheck, AlertTriangle, Truck, ChevronRight, Zap } from 'lucide-react';
 import { log } from '../lib/log';
 import { useCart } from '../lib/cart';
 import { useAuth } from '../lib/auth';
@@ -535,12 +535,19 @@ export function ProductPage() {
               button where a buyer checks it, linked to the page with the rest. */}
           <ul className="flex flex-col border-t border-black/10">
             {[
-              {
-                icon: Truck, title: 'Sold & shipped by zarketplace', to: '/buyer-protection',
-                body: listing.free_shipping
-                  ? 'Checked at our hub, then free tracked delivery to your door.'
-                  : 'Checked at our hub, then tracked delivery to your door.',
-              },
+              listing.is_verified
+                ? {
+                  icon: Zap, title: 'Instant ship', to: '/shipping-policy',
+                  body: listing.free_shipping
+                    ? 'Already in our hub. Dispatched within 48 hours, free tracked delivery.'
+                    : 'Already in our hub. Dispatched within 48 hours, tracked delivery.',
+                }
+                : {
+                  icon: Truck, title: 'Sold & shipped by zarketplace', to: '/buyer-protection',
+                  body: listing.free_shipping
+                    ? 'Checked at our hub, then free tracked delivery to your door.'
+                    : 'Checked at our hub, then tracked delivery to your door.',
+                },
               { icon: ShieldCheck, title: 'Buyer protection', to: '/buyer-protection', body: 'Not as described? Tell us within 7 days for a full refund.' },
               { icon: RotateCcw, title: 'Returns & cancellations', to: '/returns', body: 'Cancel any time before it ships.' },
             ].map(({ icon: Icon, title, body, to }) => (

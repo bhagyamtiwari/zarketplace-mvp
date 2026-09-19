@@ -17,7 +17,7 @@ import { Listing, ListingStatus, Order, OrderStatus, VendorPayout } from '../typ
 import { formatCurrency, cn } from '../lib/utils';
 import { variantUrl } from '../lib/images';
 import {
-  Loader2, Search, ChevronRight, X, ExternalLink, ArrowLeft, Package, CreditCard,
+  Loader2, Search, ChevronRight, X, ExternalLink, ArrowLeft, CheckCircle2, XCircle, Clock, AlertCircle, Archive, Zap, Package, CreditCard,
   Truck, Wallet, Users as UsersIcon, LifeBuoy, Terminal, LayoutGrid, Boxes,
 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
@@ -95,26 +95,6 @@ export interface AcqRow {
   updated_at: string | null;
 }
 
-/**
- * Whose turn it is. This is the distinction the admin page was missing: an
- * item's listings.status says 'pending' whether we owe the vendor an answer,
- * the vendor owes us a fix, or an offer is sitting with them unanswered.
- * Reading those as one queue is what made the 24-hour promise measure the
- * wrong thing.
- */
-export type Turn = 'ours' | 'theirs' | 'settled';
-
-export function turnFor(offerStatus: string | undefined): Turn {
-  switch (offerStatus) {
-    case 'pending_pricing': return 'ours';      // we owe them an offer
-    case 'offered': return 'theirs';            // they owe us an answer
-    case 'declined': return 'theirs';           // they owe us a fix, or nothing
-    case 'expired': return 'theirs';
-    case 'accepted': return 'settled';
-    default: return 'ours';                     // no acquisition row: we look at it
-  }
-}
-
 // Six sections, one home per problem. Support, Shiprocket and Razorpay used
 // to be sections of their own that re-listed the same orders under other
 // names, so the same stuck order could be found in three places and it was
@@ -123,6 +103,13 @@ export function turnFor(offerStatus: string | undefined): Turn {
 //
 // Each queue carries one sentence saying what is in it and what to do, so
 // someone who did not build this can run it.
+/** A new item nobody has answered yet: the one queue that is always ours. */
+export function needsApproval(l: Listing, a?: AcqRow): boolean {
+  return l.status === 'pending' && (!a || a.offer_status === 'pending_pricing');
+}
+
+const CLOSED_OFFER = new Set(['declined', 'expired', 'offer_rejected']);
+
 const NAV: Section[] = [
   { key: 'overview', label: 'Today', icon: LayoutGrid, leaves: [
     { key: 'overview', label: 'To do', kind: 'overview',
@@ -131,12 +118,12 @@ const NAV: Section[] = [
   { key: 'listings', label: 'Listings', icon: Boxes, leaves: [
     // Split deliberately. These were one queue, and merging them is what let
     // an item waiting on a vendor look like work an operator could do.
-    { key: 'l_triage', label: 'Needs an offer', kind: 'listings',
-      hint: 'New items waiting on us. Open one, set the listed price and our offer, or reject it. We promise an answer within 24 hours.',
-      listing: (l, a) => l.status === 'pending' && turnFor(a?.offer_status) === 'ours' },
-    { key: 'l_with_vendor', label: 'With the vendor', kind: 'listings',
-      hint: 'We have answered and are waiting on the vendor to accept, or to fix what we asked. Nothing to do.',
-      listing: (l, a) => l.status === 'pending' && turnFor(a?.offer_status) === 'theirs' },
+    { key: 'l_triage', label: 'Needs approval', kind: 'listings',
+      hint: 'New items from vendors, waiting on us. Open one, set the listed price and our offer, then send it, or reject it. We promise an answer within 24 hours.',
+      listing: needsApproval },
+    { key: 'l_with_vendor', label: 'Offer sent', kind: 'listings',
+      hint: 'We have sent an offer, or asked for a fix, and are waiting on the vendor. Offers close by themselves after 7 days. Nothing to do.',
+      listing: (l, a) => l.status === 'pending' && a?.offer_status === 'offered' },
     { key: 'l_accepted', label: 'Accepted, not live', kind: 'listings',
       hint: 'The vendor accepted but the item did not go live. Open it and approve it.',
       listing: (l, a) => l.status === 'pending' && a?.offer_status === 'accepted' },
@@ -147,9 +134,9 @@ const NAV: Section[] = [
     // reject_listing writes acquisitions.offer_status, never listings.status,
     // so keying this on the listing left it permanently empty while every
     // declined item hid in the approval queue.
-    { key: 'l_rejected', label: 'Declined', kind: 'listings',
-      hint: 'Items we turned down. The vendor can fix them and send them back, or you can reopen one.',
-      listing: (l, a) => a?.offer_status === 'declined' || l.status === 'rejected' },
+    { key: 'l_rejected', label: 'Closed', kind: 'listings',
+      hint: 'Items we rejected, offers that ran out after 7 days, and offers the vendor turned down. Rejected and expired items can be reopened from the item.',
+      listing: (l, a) => l.status !== 'approved' && (CLOSED_OFFER.has(a?.offer_status ?? '') || l.status === 'rejected') },
     { key: 'l_archived', label: 'Archived', kind: 'listings', hint: 'Taken down. Kept for the record.',
       listing: (l) => l.status === 'archived' || l.status === 'suspended' },
   ] },
@@ -325,7 +312,13 @@ function Console() {
                       className={cn('flex items-center justify-between pl-8 pr-3 py-2 text-left text-[13px] font-semibold rounded transition-colors',
                         active ? 'bg-black text-white' : 'text-black hover:bg-black/[0.05]')}>
                       <span>{l.label}</span>
-                      {count > 0 && <span className={cn('text-[11px] font-black tabular-nums', active ? '' : 'ink-mid')}>{count}</span>}
+                      {count > 0 && (l.key === 'l_triage' ? (
+                        // The one queue that is always ours to clear, so the
+                        // one count that stands out.
+                        <span className="min-w-6 rounded-full bg-amber-400 px-1.5 py-0.5 text-center text-[11px] font-black tabular-nums text-black">{count}</span>
+                      ) : (
+                        <span className={cn('text-[11px] font-black tabular-nums', active ? '' : 'ink-mid')}>{count}</span>
+                      ))}
                     </button>
                   );
                 })}
@@ -488,7 +481,7 @@ function OverviewView({ orders, listings, acqByListing, payouts, refundsOverdue,
   orders: Order[]; listings: Listing[]; acqByListing: Map<string, AcqRow>;
   payouts: VendorPayout[]; refundsOverdue: number; onOpenLeaf: (key: string) => void;
 }) {
-  const needsOffer = listings.filter((l) => l.status === 'pending' && turnFor(acqByListing.get(l.id)?.offer_status) === 'ours');
+  const needsOffer = listings.filter((l) => needsApproval(l, acqByListing.get(l.id)));
   // Past the 24 hours the submit screen promises. Time starts from when it
   // became ours, not from submission: a vendor's rework is not on our clock.
   const triageOverdue = needsOffer.filter((l) => {
@@ -500,7 +493,7 @@ function OverviewView({ orders, listings, acqByListing, payouts, refundsOverdue,
   // In the order they should be done: money and promises owed to people first.
   const todo: Array<{ key: string; count: number; label: string; urgent?: boolean }> = [
     { key: 'o_claims', count: orders.filter((o) => o.claim_open).length, label: 'buyer claims to resolve', urgent: true },
-    { key: 'l_triage', count: needsOffer.length, label: 'items waiting for an offer', urgent: triageOverdue > 0 },
+    { key: 'l_triage', count: needsOffer.length, label: 'items need approval', urgent: triageOverdue > 0 },
     { key: 'o_paid', count: orders.filter((o) => o.status === 'paid').length, label: 'orders to ship' },
     { key: 'o_awaiting_verification', count: orders.filter((o) => o.status === 'awaiting_verification').length, label: 'payments to verify' },
     { key: 'p_due', count: payouts.filter((p) => p.status === 'due').length, label: 'vendors to pay' },
@@ -538,7 +531,8 @@ function OverviewView({ orders, listings, acqByListing, payouts, refundsOverdue,
         <ul className="flex flex-col border-t border-black/10">
           {open.map((t) => (
             <li key={t.key} className="border-b border-black/10">
-              <button onClick={() => onOpenLeaf(t.key)} className="group flex w-full items-center gap-4 py-4 text-left hover:bg-black/[0.03]">
+              <button onClick={() => onOpenLeaf(t.key)} className={cn('group flex w-full items-center gap-4 py-4 pr-3 text-left',
+                t.key === 'l_triage' ? 'bg-amber-50 hover:bg-amber-100' : 'hover:bg-black/[0.03]')}>
                 <span className={cn('w-12 text-right text-2xl font-black tabular-nums', t.urgent && 'text-red-600')}>{t.count}</span>
                 <span className="flex-1 text-sm font-semibold">{t.label}</span>
                 <ChevronRight className="h-4 w-4 ink-mid transition-transform group-hover:translate-x-0.5" />
@@ -588,33 +582,67 @@ function OrdersView({ rows, onOpen }: { rows: Order[]; onOpen: (id: string) => v
  * "pending" whether we owed an offer, an offer was sitting unanswered, or the
  * vendor had been asked for changes and might never come back.
  */
-function StateBadge({ listing, acq }: { listing: Listing; acq?: AcqRow }) {
-  const [label, tone] =
-    listing.is_sold ? ['Sold', 'text-red-600']
-    : listing.status === 'approved' ? ['Live', 'text-emerald-700']
-    : listing.status === 'archived' || listing.status === 'suspended' ? [listing.status, 'ink-mid']
-    : acq?.offer_status === 'accepted' ? ['Accepted, not live', 'text-emerald-700']
-    : acq?.offer_status === 'offered' ? ['Offer with vendor', 'text-amber-700']
-    : acq?.offer_status === 'declined' ? ['Declined', 'ink-mid']
-    : acq?.offer_status === 'expired' ? ['Offer expired', 'ink-mid']
-    : ['Needs an offer', 'text-black'];
-  return <span className={cn('text-[11px] font-black uppercase tracking-widest', tone)}>{label}</span>;
+type Tone = 'amber' | 'green' | 'blue' | 'live' | 'black' | 'grey';
+
+const TONE: Record<Tone, string> = {
+  amber: 'bg-amber-100 text-amber-900 border-amber-300',
+  green: 'bg-emerald-50 text-emerald-800 border-emerald-300',
+  blue: 'bg-sky-50 text-sky-900 border-sky-300',
+  live: 'bg-emerald-600 text-white border-emerald-600',
+  black: 'bg-black text-white border-black',
+  grey: 'bg-zinc-100 text-zinc-700 border-zinc-300',
+};
+
+function daysLeft(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  return Math.ceil((new Date(iso).getTime() - Date.now()) / 864e5);
 }
 
-function WaitingCell({ listing, acq }: { listing: Listing; acq?: AcqRow }) {
-  // Only counts while the answer is ours to give. An item sitting with the
-  // vendor used to accrue hours here against a promise we had already kept.
-  if (listing.status !== 'pending' || turnFor(acq?.offer_status) !== 'ours') {
-    return <span className="text-[11px] ink-mid">-</span>;
+/**
+ * Where an item stands, in one coloured label and one line under it. Colour
+ * carries whose move it is: amber is ours to do, green is done and waiting on
+ * the vendor, blue is one click from live. listings.status alone said
+ * "pending" for all three.
+ */
+export function listingState(listing: Listing, acq?: AcqRow): { label: string; detail?: string; tone: Tone; icon: React.ComponentType<{ className?: string }>; urgent?: boolean } {
+  if (listing.is_sold) return { label: 'Sold', tone: 'black', icon: Package };
+  if (listing.status === 'approved') return { label: 'Live', tone: 'live', icon: CheckCircle2, detail: listing.is_verified ? 'Instant ship' : undefined };
+  if (listing.status === 'archived' || listing.status === 'suspended') return { label: 'Archived', tone: 'grey', icon: Archive };
+  switch (acq?.offer_status) {
+    case 'accepted':
+      return { label: 'Accepted', tone: 'blue', icon: CheckCircle2, detail: 'Approve it to go live' };
+    case 'offered': {
+      const d = daysLeft(acq.offer_expires_at);
+      return {
+        label: 'Offer sent', tone: 'green', icon: CheckCircle2,
+        detail: d == null ? 'Waiting on the vendor' : d <= 0 ? 'Expiring now' : `Waiting on the vendor, ${d} day${d === 1 ? '' : 's'} left`,
+      };
+    }
+    case 'declined': return { label: 'Declined', tone: 'grey', icon: XCircle, detail: 'Vendor can fix and resend' };
+    case 'offer_rejected': return { label: 'Vendor said no', tone: 'grey', icon: XCircle };
+    case 'expired': return { label: 'Offer expired', tone: 'grey', icon: Clock, detail: 'No answer in 7 days' };
+    default: {
+      const hours = Math.floor((Date.now() - new Date(acq?.updated_at ?? listing.created_at).getTime()) / 36e5);
+      return {
+        label: 'Needs approval', tone: 'amber', icon: AlertCircle, urgent: hours >= 24,
+        detail: `Waiting ${hours < 1 ? 'under an hour' : `${hours}h`}${hours >= 24 ? ', past 24h' : ''}`,
+      };
+    }
   }
-  const hours = Math.floor((Date.now() - new Date(acq?.updated_at ?? listing.created_at).getTime()) / 36e5);
-  const overdue = hours >= 24;
+}
+
+function StatePill({ listing, acq, large }: { listing: Listing; acq?: AcqRow; large?: boolean }) {
+  const st = listingState(listing, acq);
+  const Icon = st.icon;
   return (
-    <span className={cn(
-      'text-[11px] font-black uppercase tracking-widest tabular-nums',
-      overdue ? 'text-red-600' : 'ink-mid',
-    )}>
-      {hours < 1 ? '<1h' : `${hours}h`}{overdue && ' · overdue'}
+    <span className="inline-flex flex-col gap-1">
+      <span className={cn('inline-flex items-center gap-1.5 self-start border rounded-full font-black uppercase tracking-wider whitespace-nowrap',
+        large ? 'px-3.5 py-1.5 text-xs' : 'px-2.5 py-1 text-[11px]', TONE[st.tone])}>
+        <Icon className={large ? 'h-4 w-4' : 'h-3.5 w-3.5'} /> {st.label}
+      </span>
+      {st.detail && (
+        <span className={cn('text-xs whitespace-nowrap', st.urgent ? 'font-bold text-red-700' : 'ink-mid')}>{st.detail}</span>
+      )}
     </span>
   );
 }
@@ -627,7 +655,7 @@ function ListingsView({ rows, acqByListing, orders, onOpen }: { rows: Listing[];
     <div className="overflow-x-auto border border-black/10">
       <table className="w-full text-left">
         <thead><tr className="border-b border-black/10 bg-black/[0.02]">
-          <Th>Item</Th><Th>Vendor</Th><Th right>Price</Th><Th>State</Th><Th>Waiting</Th><Th>Order</Th><Th right>Open</Th>
+          <Th>Item</Th><Th>Status</Th><Th right>Price</Th><Th>Vendor</Th><Th>Order</Th><Th right>Open</Th>
         </tr></thead>
         <tbody>
           {rows.map((l) => {
@@ -636,19 +664,16 @@ function ListingsView({ rows, acqByListing, orders, onOpen }: { rows: Listing[];
               <tr key={l.id} onClick={() => onOpen(l.id)} className="border-b border-black/5 last:border-0 hover:bg-black/[0.03] cursor-pointer">
                 <td className="py-3 px-3">
                   <div className="flex items-center gap-3">
-                    <div className="h-11 w-8 shrink-0 overflow-hidden bg-zinc-100 border border-black/5">
+                    <div className="h-14 w-11 shrink-0 overflow-hidden bg-zinc-100 border border-black/5">
                       <img src={variantUrl(l.image_url, 'thumb')} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
                     </div>
-                    <div className="min-w-0"><p className="text-xs font-bold truncate max-w-[200px]">{l.title}</p>
-                      <p className="text-[11px] ink-mid uppercase tracking-widest">{l.brand}{l.free_shipping && <span className="ml-2 ink-mid">Free shipping</span>}</p></div>
+                    <div className="min-w-0"><p className="text-sm font-bold truncate max-w-[240px]">{l.title}</p>
+                      <p className="text-xs ink-mid">{[l.brand, l.category, l.size_type].filter(Boolean).join(' · ')}</p></div>
                   </div>
                 </td>
-                <td className="py-3 px-3 text-[11px]">{l.seller_email}</td>
-                <td className="py-3 px-3 text-xs font-black text-right tabular-nums">{formatCurrency(l.price)}</td>
-                <td className="py-3 px-3">
-                  <StateBadge listing={l} acq={acqByListing.get(l.id)} />
-                </td>
-                <td className="py-3 px-3"><WaitingCell listing={l} acq={acqByListing.get(l.id)} /></td>
+                <td className="py-3 px-3"><StatePill listing={l} acq={acqByListing.get(l.id)} /></td>
+                <td className="py-3 px-3 text-xs font-black text-right tabular-nums">{l.price > 0 ? formatCurrency(l.price) : '-'}</td>
+                <td className="py-3 px-3 text-xs">{l.seller_email}</td>
                 <td className="py-3 px-3 text-[11px] font-bold uppercase tracking-widest ink-mid">{ord ? ord.order_number : '-'}</td>
                 <td className="py-3 px-3 text-right"><ChevronRight className="h-4 w-4 ink-mid inline" /></td>
               </tr>
@@ -1137,6 +1162,22 @@ function ListingDrawer({ listing, acq, orders, payouts, audit, backLabel, onClos
     } catch (err: any) { alert(err?.message ?? 'Failed.'); } finally { setBusy(false); }
   };
 
+  const toggleInstant = async () => {
+    const next = !listing.is_verified;
+    if (next && !confirm('Turn on Instant ship? Only for items already in our hub: buyers are promised dispatch within 48 hours.')) return;
+    setBusy(true);
+    try {
+      const { error } = await supabase.from('listings').update({ is_verified: next }).eq('id', listing.id);
+      if (error) throw error;
+      await writeAudit({
+        entity: 'listing', entity_id: listing.id,
+        action: next ? 'listing.instant_ship.on' : 'listing.instant_ship.off',
+        old_state: { is_verified: !!listing.is_verified }, new_state: { is_verified: next }, reason: listing.title,
+      });
+      await onDone();
+    } catch (err: any) { alert(err?.message ?? 'Failed.'); } finally { setBusy(false); }
+  };
+
   return (
     <DrawerShell title={listing.title} subtitle={listing.brand ?? ''} backLabel={backLabel} onClose={onClose}>
       <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
@@ -1152,6 +1193,27 @@ function ListingDrawer({ listing, acq, orders, payouts, audit, backLabel, onClos
           {listing.is_sold ? 'Sold' : listing.status === 'approved' ? 'Live' : listing.status}
         </span>
       </div>
+
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <StatePill listing={listing} acq={acq} large />
+        {/* Instant ship: the item is already in our hub, so it can leave
+            within 48 hours of an order. Only ever set here, by an operator:
+            it is a claim about where the item physically is. */}
+        <button
+          type="button"
+          disabled={busy}
+          onClick={toggleInstant}
+          aria-pressed={!!listing.is_verified}
+          className={cn('inline-flex items-center gap-2 border px-3.5 py-2 text-xs font-black uppercase tracking-wider transition-colors disabled:opacity-50',
+            listing.is_verified ? 'border-black bg-black text-white' : 'border-black/20 hover:border-black')}
+        >
+          <Zap className="h-4 w-4" />
+          {listing.is_verified ? 'Instant ship: on' : 'Instant ship: off'}
+        </button>
+      </div>
+      <p className="-mt-4 text-xs ink-mid">
+        Turn on Instant ship only for items already in our hub. Buyers can filter for them, and they are promised dispatch within 48 hours.
+      </p>
 
       {/* The decision first: it is why anyone opens a pending item. */}
       <AcquisitionPanel listingId={listing.id} listingTitle={listing.title} vendorEmail={listing.seller_email ?? null} askingPriceFallback={listing.sale_price ?? listing.price} onDone={onDone} />
@@ -1188,53 +1250,13 @@ function ListingDrawer({ listing, acq, orders, payouts, audit, backLabel, onClos
 
       <Sec title="Admin actions">
         <div className="flex flex-col gap-2 pt-1">
-          {listing.status !== 'approved' && (
-            <div className="flex flex-col gap-1.5">
-              <ActBtn
-                label="Approve"
-                onClick={() => setStatus('approved', 'Approve')}
-                busy={busy}
-                disabled={acq?.offer_status !== 'accepted'}
-              />
-              {acq?.offer_status !== 'accepted' && (
-                <p className="text-[11px] leading-relaxed ink-mid max-w-[38ch]">
-                  {acq?.offer_status === 'offered'
-                    ? 'The vendor has not accepted the offer yet. Nothing can go live until they do.'
-                    : acq?.offer_status === 'declined'
-                    ? 'This item is declined. Reopen it below, or wait for the vendor to send it back.'
-                    : 'Make an offer first, and wait for the vendor to accept it.'}
-                </p>
-              )}
-            </div>
+          {/* Approving is only ever the last step after a vendor accepts
+              (acceptance normally puts the item live by itself). Rejecting a
+              new item is done from the offer panel above, which also tells the
+              vendor why; a bare status change here never did. */}
+          {listing.status !== 'approved' && acq?.offer_status === 'accepted' && (
+            <ActBtn label="Approve, put it live" onClick={() => setStatus('approved', 'Approve')} busy={busy} />
           )}
-          {/* The Verified shelf. Only ever set here: it says we own the item,
-              shot it, and can put it in a box today, which is a claim only an
-              operator is in a position to make. */}
-          <ActBtn
-            label={listing.is_verified ? 'Remove Verified badge' : 'Mark Verified (ours, in hand)'}
-            busy={busy}
-            onClick={async () => {
-              const next = !listing.is_verified;
-              if (next && !confirm('Mark this as Verified? It tells buyers we own it, photographed it, and can ship it within 48 hours.')) return;
-              setBusy(true);
-              try {
-                const { error } = await supabase
-                  .from('listings')
-                  .update({ is_verified: next })
-                  .eq('id', listing.id);
-                if (error) throw error;
-                await writeAudit({
-                  entity: 'listing', entity_id: listing.id,
-                  action: next ? 'listing.verified.on' : 'listing.verified.off',
-                  old_state: { is_verified: !!listing.is_verified },
-                  new_state: { is_verified: next },
-                  reason: listing.title,
-                });
-                await onDone(); onClose();
-              } catch (err: any) { alert(err?.message ?? 'Failed.'); } finally { setBusy(false); }
-            }}
-          />
-          {listing.status !== 'rejected' && <ActBtn label="Reject" onClick={() => setStatus('rejected', 'Reject')} busy={busy} />}
           {listing.status === 'approved' && <ActBtn label="Suspend" onClick={() => setStatus('suspended', 'Suspend')} busy={busy} />}
           {listing.status !== 'archived' && <ActBtn label="Archive" onClick={() => setStatus('archived', 'Archive')} busy={busy} />}
           {listing.is_sold && order && <ActBtn label={order.razorpay_payment_id ? 'Refund order & relist' : 'Cancel order & relist'} danger onClick={async () => {

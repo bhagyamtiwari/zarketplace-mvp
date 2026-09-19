@@ -5,7 +5,7 @@
 // it the page is search, filters and real inventory, and nothing else.
 import React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, SlidersHorizontal, X, Plus, Loader2, Heart, ChevronDown, PackageCheck, MessageSquareOff, Truck, ArrowRight } from 'lucide-react';
+import { Search, SlidersHorizontal, X, Plus, Loader2, Heart, ChevronDown, PackageCheck, MessageSquareOff, Truck, ArrowRight, Zap } from 'lucide-react';
 import { supabasePublic } from '../lib/supabase';
 import { Listing } from '../types';
 import { ListingCard } from '../components/ListingCard';
@@ -64,7 +64,7 @@ const OFFER_CTA_KEY = 'zk.offerCta.hidden';
 const QUICK_CHIPS: Array<{ value: string; label: string; tag?: string }> = [
   // MODEL.md §3. Stock we own and photographed ourselves, on our shelf, so it
   // goes out the day it is bought rather than waiting on anyone.
-  { value: 'verified', label: 'Instant ship', tag: 'Verified' },
+  { value: 'verified', label: 'Instant ship' },
   { value: 'under_999', label: 'Under ₹999' },
   { value: 'sale', label: 'On sale' },
 ];
@@ -340,6 +340,15 @@ export function Marketplace() {
               {GENDERS.map((g) => (
                 <Chip key={g} active={gender === g} onClick={() => toggleParam('gender', g)}>{g}</Chip>
               ))}
+              {/* Stock already in our hub, out within 48 hours of an order.
+                  On the bar rather than behind Filters, because "can I have it
+                  this week" is a question people arrive with. */}
+              <Chip active={quick === 'verified'} onClick={() => toggleParam('q', 'verified')}>
+                <span className="flex items-center gap-1.5">
+                  <Zap className={cn('h-3 w-3', quick === 'verified' ? 'fill-white' : 'fill-black')} />
+                  Instant ship
+                </span>
+              </Chip>
               {favorites.size > 0 && (
                 <Chip active={quick === 'saved'} onClick={() => toggleParam('q', 'saved')}>
                   <span className="flex items-center gap-1.5">
@@ -419,6 +428,8 @@ export function Marketplace() {
             >
               {quick === 'saved'
                 ? 'Nothing saved yet'
+                : quick === 'verified' && activeFilterCount === 1 && !searchQuery
+                  ? 'Nothing in our hub right now'
                 : activeFilterCount > 0 || searchQuery
                   ? 'Nothing matches that'
                   // No filters and no results means the shelf is genuinely

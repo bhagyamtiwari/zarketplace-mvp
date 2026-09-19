@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Heart } from 'lucide-react';
+import { Heart, Zap } from 'lucide-react';
 import { Listing } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import { variantUrl, variantSrcSet } from '../lib/images';
@@ -85,11 +85,11 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing, priority = fa
           </div>
         ) : null}
 
-        {/* Ours, in hand, shot by us: the one tag that changes what buying
-            it means, so the one tag that stays. */}
+        {/* Already in our hub, out within 48 hours: the one tag that changes
+            what buying it means, so the one tag that stays. */}
         {listing.is_verified && (
-          <span className="absolute bottom-2 left-2 bg-black px-2.5 py-1 text-[11px] font-black text-white uppercase tracking-[0.15em]">
-            Verified
+          <span className="absolute bottom-2 left-2 flex items-center gap-1 bg-black px-2.5 py-1 text-[11px] font-black text-white uppercase tracking-[0.15em]">
+            <Zap className="h-3 w-3 fill-white" /> Instant ship
           </span>
         )}
       </div>
