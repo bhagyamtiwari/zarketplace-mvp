@@ -192,12 +192,12 @@ function ItemCard({ row, onDone }: { key?: string; row: HubRow; onDone: () => vo
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <span className="text-sm font-black uppercase tracking-tight">{row.title}</span>
             <span className="text-[10px] font-bold uppercase tracking-widest ink-low">
-              {row.brand} · {row.sku ?? '—'}
+              {row.brand} · {row.sku ?? '-'}
             </span>
           </div>
           <div className="flex flex-wrap gap-x-5 gap-y-1 text-[10px] font-black uppercase tracking-widest">
             <span>{s.replace(/_/g, ' ')}</span>
-            <span className="ink-low">Condition: {row.condition ?? '—'}</span>
+            <span className="ink-low">Condition: {row.condition ?? '-'}</span>
             {row.offer_amount != null && (
               <span className="ink-low">Payout {formatCurrency(Number(row.offer_amount))}</span>
             )}
