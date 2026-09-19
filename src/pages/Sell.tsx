@@ -99,14 +99,16 @@ const WHAT_HAPPENS_NEXT: Array<{ title: string; points: string[] }> = [
     points: [
       'Keep it packed, unworn, and in the condition you described.',
       'Do not sell it anywhere else.',
-      'Watch your email for your shipping label. If we cannot reach you, we may message you on WhatsApp too.',
+      'Watch your email for your shipping label.',
+      'If we cannot reach you by email, we may message you on WhatsApp.',
     ],
   },
   {
     title: 'When it is bought, we send you a prepaid label',
     points: [
       'Print it and attach it to the parcel.',
-      'A courier will collect it from your door, usually within 48 hours. It must be handed over within 5 days.',
+      'A courier collects it from your door, usually within 48 hours.',
+      'It must be handed over within 5 days.',
       'Send the exact item in your photos.',
       'You pay nothing for shipping.',
     ],
@@ -1435,10 +1437,16 @@ function LastStep({
               </span>
               <div className="flex min-w-0 flex-col gap-2">
                 <h4 className="text-sm font-black text-black">{step.title}</h4>
+                {/* One line reads as a sentence; several read as a list, one
+                    sentence per bullet, so a step with three instructions
+                    does not look like a paragraph. */}
                 <ul className="flex flex-col gap-1.5">
                   {step.points.map((point) => (
-                    <li key={point} className="text-sm font-normal leading-relaxed text-black">
-                      {point}
+                    <li key={point} className="flex gap-3 text-sm font-normal leading-relaxed text-black">
+                      {step.points.length > 1 && (
+                        <span aria-hidden className="mt-[0.6em] h-1 w-1 shrink-0 bg-black" />
+                      )}
+                      <span>{point}</span>
                     </li>
                   ))}
                 </ul>

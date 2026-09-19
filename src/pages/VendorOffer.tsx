@@ -208,9 +208,9 @@ function Notice({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * One number, given the whole screen. The amount is the largest thing on the
- * page by a wide margin - it is the entire decision, and the layout should not
- * pretend otherwise.
+ * The offer, and the three facts that make it safe to say yes. The number
+ * leads but does not shout: it is a figure someone reads and considers, not a
+ * headline, and at poster size it read as a sales pitch.
  */
 function OfferScreen({
   title, amount, expiresAt, onContinue, onDecline, submitting,
@@ -219,60 +219,57 @@ function OfferScreen({
   onContinue: () => void; onDecline: () => void; submitting: boolean;
 }) {
   return (
-    <div className="flex flex-col gap-14">
-      <div className="flex flex-col gap-3">
-        <h1 className="text-3xl sm:text-4xl font-black tracking-tighter uppercase leading-[0.95]">
-          zarketplace will pay you
-        </h1>
-      </div>
-
-      <div className="border-y border-black py-12 sm:py-16 flex flex-col items-start gap-5">
-        <span className="text-[3.5rem] sm:text-[5.5rem] font-black tracking-tighter leading-[0.85]">
+    <div className="flex flex-col gap-10">
+      <div className="flex flex-col gap-4 border-b border-black pb-8">
+        <span className="text-[10px] font-black uppercase tracking-[0.25em] ink-mid">Our offer</span>
+        <span className="text-5xl sm:text-6xl font-black tracking-tighter leading-none tabular-nums">
           {formatCurrency(amount)}
         </span>
-        <span className="text-[11px] font-black uppercase tracking-[0.3em] ink-mid">
-          when {title} sells
-        </span>
+        <span className="font-serif italic text-lg leading-snug">for {title}, paid when it sells.</span>
       </div>
 
-      <div className="flex flex-col gap-5 body-copy max-w-prose">
-        <p>
-          This is the amount we pay you, in full. It is fixed now, before your item is
-          listed, and it does not change afterwards for any reason.
-        </p>
-        <p>
-          This is what we will pay you. We cover shipping both ways, payment fees and
-          handling, and we carry the risk if it does not sell.
-        </p>
-        <p>
-          Accepting does not mean posting anything today. The item stays with you and goes
-          live on zarketplace at our price. When somebody buys it we send a prepaid label
-          and a courier comes to your door.
-        </p>
+      <Bullets items={[
+        'The amount is fixed and does not change once you accept.',
+        'The item stays with you until someone buys it.',
+        'We pay for shipping, payment fees and handling.',
+      ]} />
+
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            type="button" onClick={onContinue} disabled={submitting}
+            className="flex items-center justify-between gap-3 bg-black px-7 py-5 text-[11px] font-black uppercase tracking-widest text-white transition-colors hover:bg-zinc-800 disabled:opacity-50 sm:min-w-[260px]"
+          >
+            Accept this offer <ArrowRight className="h-4 w-4" />
+          </button>
+          <button
+            type="button" onClick={onDecline} disabled={submitting}
+            className="px-7 py-5 text-[11px] font-black uppercase tracking-widest ink-mid transition-colors hover:text-black disabled:opacity-50"
+          >
+            No thanks
+          </button>
+        </div>
         {expiresAt && (
-          <p className="ink-low">
-            This offer is open until {new Date(expiresAt).toLocaleDateString('en-IN', {
-              day: 'numeric', month: 'long', year: 'numeric',
-            })}.
+          <p className="text-[13px] ink-mid">
+            Open until {new Date(expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long' })}.
           </p>
         )}
       </div>
-
-      <div className="flex flex-col sm:flex-row gap-4">
-        <button
-          type="button" onClick={onContinue} disabled={submitting}
-          className="flex items-center justify-between gap-3 bg-black px-7 py-5 text-[11px] font-black uppercase tracking-widest text-white transition-transform hover:scale-[1.02] active:scale-95 disabled:opacity-50 sm:min-w-[260px]"
-        >
-          Accept this offer <ArrowRight className="h-4 w-4" />
-        </button>
-        <button
-          type="button" onClick={onDecline} disabled={submitting}
-          className="px-7 py-5 text-[11px] font-black uppercase tracking-widest ink-low transition-colors hover:text-black disabled:opacity-50"
-        >
-          No thanks
-        </button>
-      </div>
     </div>
+  );
+}
+
+/** Short statements, one sentence each, as a list rather than a paragraph. */
+function Bullets({ items }: { items: React.ReactNode[] }) {
+  return (
+    <ul className="flex flex-col gap-2.5">
+      {items.map((item, i) => (
+        <li key={i} className="flex gap-3 text-sm leading-relaxed">
+          <span aria-hidden className="mt-[0.6em] h-1 w-1 shrink-0 bg-black" />
+          <span>{item}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -295,43 +292,36 @@ function AgreementScreen({
   addressReady: boolean;
   submitting: boolean; onBack: () => void; onAccept: () => void;
 }) {
+  const field = 'border-b border-black/15 py-3 text-sm font-bold focus:border-black focus:outline-none placeholder:text-black/35';
   return (
-    <div className="flex flex-col gap-14">
+    <div className="flex flex-col gap-10">
       <div className="flex flex-col gap-3">
-        <h1 className="text-3xl sm:text-4xl font-black tracking-tighter uppercase leading-[0.95]">
-          Three things to agree to
+        <h1 className="text-2xl sm:text-3xl font-black tracking-tighter uppercase leading-[0.95]">
+          Accept {formatCurrency(amount)}
         </h1>
-        <p className="body-copy max-w-prose mt-2">
-          You are accepting {formatCurrency(amount)} for this item. Please read each of these
-          and tick it. We keep a record of what you agreed to and when.
-        </p>
+        <p className="text-sm leading-relaxed ink-mid">Tick all three. We keep a record of what you agreed to.</p>
       </div>
 
-      <ul className="flex flex-col">
-        {AGREEMENT_CLAUSES.map((clause, i) => {
+      <ul className="flex flex-col border-t border-black/10">
+        {AGREEMENT_CLAUSES.map((clause) => {
           const on = !!checked[clause.key];
           return (
-            <li key={clause.key} className="border-t border-black/10 last:border-b">
+            <li key={clause.key} className="border-b border-black/10">
               <button
                 type="button"
                 onClick={() => onToggle(clause.key)}
                 aria-pressed={on}
-                className="group flex w-full items-start gap-5 py-7 text-left"
+                className="group flex w-full items-start gap-4 py-5 text-left"
               >
                 <span
                   className={cn(
-                    'mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center border transition-colors',
+                    'mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center border transition-colors',
                     on ? 'border-black bg-black text-white' : 'border-black/25 group-hover:border-black',
                   )}
                 >
-                  {on && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
+                  {on && <Check className="h-3 w-3" strokeWidth={3} />}
                 </span>
-                <span className="flex flex-col gap-2 min-w-0">
-                  <span className="text-[9px] font-black uppercase tracking-[0.4em] ink-low">
-                    0{i + 1}
-                  </span>
-                  <span className="body-copy text-black">{clause.text}</span>
-                </span>
+                <span className="text-sm leading-relaxed">{clause.text}</span>
               </button>
             </li>
           );
@@ -342,90 +332,59 @@ function AgreementScreen({
           have told anyone a number is four fields spent on an item we might
           not take. accept_acquisition_offer refuses an acceptance without
           them, so nothing can be agreed with nowhere to collect from. */}
-      <div className="flex flex-col gap-6 border-t border-black/10 pt-10">
-        <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-semibold tracking-tight text-black">
-            Where should the courier collect it?
-          </span>
-          <p className="text-xs font-medium leading-relaxed ink-mid">
-            We only use this when the item sells.
-          </p>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <span className="text-[11px] font-black uppercase tracking-[0.2em]">Collection address</span>
+          <p className="text-[13px] ink-mid">Only used once it sells.</p>
         </div>
-        <input
-          type="text" value={pickupAddress}
-          onChange={(e) => setPickupAddress(e.target.value)}
-          placeholder="Flat / house no., street, area"
-          className="border-b border-black/15 py-3 text-sm font-bold focus:border-black focus:outline-none placeholder:text-black/25"
-        />
+        <input type="text" value={pickupAddress} onChange={(e) => setPickupAddress(e.target.value)}
+          placeholder="Flat / house no., street, area" className={field} />
         <div className="grid grid-cols-2 gap-4">
-          <input
-            type="text" value={pickupCity}
-            onChange={(e) => setPickupCity(e.target.value)}
-            placeholder="City"
-            className="border-b border-black/15 py-3 text-sm font-bold focus:border-black focus:outline-none placeholder:text-black/25"
-          />
-        <input
-          type="text" inputMode="numeric" maxLength={6} value={pickupPincode}
-          onChange={(e) => setPickupPincode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-          placeholder="Pincode"
-          className="border-b border-black/15 py-3 text-sm font-bold focus:border-black focus:outline-none placeholder:text-black/25"
-        />
+          <input type="text" value={pickupCity} onChange={(e) => setPickupCity(e.target.value)}
+            placeholder="City" className={field} />
+          <input type="text" inputMode="numeric" maxLength={6} value={pickupPincode}
+            onChange={(e) => setPickupPincode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+            placeholder="Pincode" className={field} />
         </div>
       </div>
 
-      {/* What accepting commits you to, at the moment you commit to it rather
-          than in an email weeks later. Same rules, same numbers and the same
-          words as "What happens next?" on the listing form and the How It
-          Works page, so nobody meets a different version of a rule twice. */}
-      <div className="border-l-2 border-black pl-6 py-1 flex flex-col gap-3">
-        <p className="body-copy text-black normal-case tracking-normal text-sm font-normal leading-relaxed">
-          <strong>The item stays with you until someone buys it.</strong> Keep it packed, unworn,
-          and in the condition you described, and do not sell it anywhere else.
-        </p>
-        <p className="body-copy text-black normal-case tracking-normal text-sm font-normal leading-relaxed">
-          <strong>Watch your email for your shipping label.</strong> If we cannot reach you, we may
-          message you on WhatsApp too. When it arrives, print it and attach it to the parcel. A
-          courier will collect it from your door, usually within 48 hours, and it must be handed
-          over within <strong>5 days</strong>. You pay nothing for shipping.
-        </p>
-        <p className="body-copy text-black normal-case tracking-normal text-sm font-normal leading-relaxed">
-          <strong>Send the exact item in your photos.</strong> We check it against your photos and
-          description when it reaches us. If it is a different item, or a different condition from
-          the one you described, we can refuse it, no payout is due, and getting it back to you is{' '}
-          <strong>at your expense</strong>.
-        </p>
-        <p className="body-copy text-black normal-case tracking-normal text-sm font-normal leading-relaxed">
-          <strong>Changed your mind?</strong> Withdraw your item from your vendor portal any time
-          until someone buys it.
-        </p>
-        <p className="body-copy text-black normal-case tracking-normal text-sm font-normal leading-relaxed">
-          <strong>If we have not sold it within 30 days</strong>, or you withdraw it, this offer ends.
-          Nothing is owed either way. Every couple of weeks we will email to ask whether you still
-          have it, which is two buttons and takes a second.
-        </p>
+      {/* What accepting commits you to, at the moment you commit to it. The
+          same rules and numbers as "What happens next?" on the listing form,
+          one sentence each. */}
+      <div className="flex flex-col gap-4 bg-zinc-50 p-6">
+        <span className="text-[11px] font-black uppercase tracking-[0.2em]">What you are agreeing to</span>
+        <Bullets items={[
+          'Keep it packed and unworn, and do not sell it anywhere else.',
+          'When it sells, we email you a prepaid label and a courier collects it from your door.',
+          <>It must be handed over within <strong>5 days</strong>, and you pay nothing for shipping.</>,
+          <>If it does not match your photos, we can refuse it and return it <strong>at your expense</strong>.</>,
+          'If it has not sold in 30 days, the offer ends and nothing is owed either way.',
+          'You can withdraw it from your vendor portal any time before it sells.',
+        ]} />
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4">
-        <button
-          type="button" onClick={onAccept} disabled={!allChecked || !addressReady || submitting}
-          className="flex items-center justify-between gap-3 bg-black px-7 py-5 text-[11px] font-black uppercase tracking-widest text-white transition-transform enabled:hover:scale-[1.02] enabled:active:scale-95 disabled:opacity-40 sm:min-w-[260px]"
-        >
-          {submitting ? 'Recording...' : 'Accept this offer'}
-          {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
-        </button>
-        <button
-          type="button" onClick={onBack} disabled={submitting}
-          className="px-7 py-5 text-[11px] font-black uppercase tracking-widest ink-low transition-colors hover:text-black disabled:opacity-50"
-        >
-          Back
-        </button>
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            type="button" onClick={onAccept} disabled={!allChecked || !addressReady || submitting}
+            className="flex items-center justify-between gap-3 bg-black px-7 py-5 text-[11px] font-black uppercase tracking-widest text-white transition-colors enabled:hover:bg-zinc-800 disabled:opacity-40 sm:min-w-[260px]"
+          >
+            {submitting ? 'Recording...' : 'Accept this offer'}
+            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+          </button>
+          <button
+            type="button" onClick={onBack} disabled={submitting}
+            className="px-7 py-5 text-[11px] font-black uppercase tracking-widest ink-mid transition-colors hover:text-black disabled:opacity-50"
+          >
+            Back
+          </button>
+        </div>
+        {(!allChecked || !addressReady) && (
+          <p className="text-[13px] ink-mid">
+            {!allChecked ? 'Tick all three to continue.' : 'Add the collection address to continue.'}
+          </p>
+        )}
       </div>
-
-      {(!allChecked || !addressReady) && (
-        <p className="text-[10px] font-black uppercase tracking-[0.3em] ink-low -mt-8">
-          {!allChecked ? 'Tick all three to continue' : 'Add the collection address'}
-        </p>
-      )}
     </div>
   );
 }
