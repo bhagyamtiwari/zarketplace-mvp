@@ -28,6 +28,10 @@ interface Props { images: string[]; alt: string }
 export function ProductGallery({ images, alt }: Props) {
   const [index, setIndex] = React.useState(0);
   const [zoomOpen, setZoomOpen] = React.useState(false);
+  // The frame takes the shape of the cover photo, anywhere from square to
+  // 3:4 portrait, rather than forcing every upload into one crop. Outside that
+  // range it stops at the nearer edge and the photo is fitted, never cut.
+  const [ratio, setRatio] = React.useState(3 / 4);
 
   // Live horizontal offset while a finger or pointer is down, so the image
   // tracks the gesture instead of sitting still until it ends.
@@ -104,8 +108,8 @@ export function ProductGallery({ images, alt }: Props) {
         onPointerUp={onPointerUp}
         onPointerCancel={() => { gesture.current = null; setDragX(0); setDragging(false); }}
         onContextMenu={(e) => e.preventDefault()}
-        className="relative aspect-[3/4] overflow-hidden bg-zinc-50 touch-pan-y select-none outline-none focus-visible:ring-2 focus-visible:ring-black cursor-zoom-in"
-        style={PROTECT}
+        className="relative overflow-hidden bg-zinc-50 touch-pan-y select-none outline-none focus-visible:ring-2 focus-visible:ring-black cursor-zoom-in"
+        style={{ ...PROTECT, aspectRatio: String(ratio) }}
       >
         {/* One rail carrying every image, moved as a unit. The old version
             swapped the src and cross-faded, which is why a swipe read as a cut
@@ -127,7 +131,11 @@ export function ProductGallery({ images, alt }: Props) {
               draggable={false}
               loading={i === 0 ? 'eager' : 'lazy'}
               referrerPolicy="no-referrer"
-              className="h-full w-full shrink-0 object-cover"
+              onLoad={i === 0 ? (e) => {
+                const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
+                if (w && h) setRatio(Math.min(1, Math.max(3 / 4, w / h)));
+              } : undefined}
+              className="h-full w-full shrink-0 object-contain"
               style={PROTECT}
             />
           ))}

@@ -6,7 +6,7 @@ import { formatCurrency, cn } from '../lib/utils';
 import { variantUrl } from '../lib/images';
 import { ProductGallery } from '../components/ProductGallery';
 import { motion } from 'motion/react';
-import { Loader2, RotateCcw, ArrowLeft, ArrowUpRight, ShoppingBag, Check, Share2, Link as LinkIcon, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { Loader2, RotateCcw, ArrowLeft, ArrowUpRight, ShoppingBag, Check, Share2, ShieldCheck, AlertTriangle, Truck, ChevronRight } from 'lucide-react';
 import { log } from '../lib/log';
 import { useCart } from '../lib/cart';
 import { useAuth } from '../lib/auth';
@@ -19,9 +19,12 @@ import { CONDITIONS, conditionByName } from '../lib/condition';
 
 const plog = log('product');
 
-const WEAR_LABELS: Record<string, string> = {
-  never: 'Never', '1_2_times': '1-2 Times', occasionally: 'Occasionally', frequently: 'Frequently',
-};
+// The column's text roles, named so every instance of a role is
+// identical. A label names a value or a section; a link is a link; a serif
+// value is a fact about this garment.
+const LABEL = 'text-[10px] font-black uppercase tracking-[0.25em] ink-mid';
+const LINK = 'text-[10px] font-black uppercase tracking-[0.25em] underline underline-offset-4 decoration-black/30 hover:decoration-black transition-colors';
+const SERIF_VALUE = 'font-serif italic text-xl sm:text-2xl leading-none';
 
 type Unit = 'in' | 'cm';
 const CM_PER_INCH = 2.54;
@@ -49,13 +52,12 @@ const MEASURE_GUIDE_BY_CATEGORY: Record<string, string> = {
 // makes it contradict both the tag and the vendor, and the measurements below
 // already give the buyer the real numbers. The one exception is a trouser
 // waist, which is arithmetic rather than a guess.
-function fitsLikeFor(listing: Listing): { value: string; note?: string } | null {
+function fitsLikeFor(listing: Listing): string | null {
   const note = listing.size?.replace(/^\s*fits\s+like\s*:?\s*/i, '').trim();
-  if (note) return { value: note };
+  if (note) return note;
   if (listing.category === 'Bottoms' && listing.waist_cm) {
     // Flat waist doubled is the waistband all the way round.
-    const waist = Math.round((listing.waist_cm * 2) / CM_PER_INCH);
-    return { value: `${waist} in waist`, note: 'From the measured waistband' };
+    return `${Math.round((listing.waist_cm * 2) / CM_PER_INCH)} in waist`;
   }
   return null;
 }
@@ -86,7 +88,9 @@ export function ProductPage() {
   const [loading, setLoading] = React.useState(true);
   const [cartMsg, setCartMsg] = React.useState<string | null>(null);
   const [shareOpen, setShareOpen] = React.useState(false);
-  const [copied, setCopied] = React.useState(false);
+  // 'copied' after a copied link; 'manual' when the browser refused both
+  // copy methods and the link is shown to copy by hand.
+  const [shared, setShared] = React.useState<null | 'copied' | 'manual'>(null);
   const [unit, setUnit] = React.useState<Unit>('in');
   const [stickyBarVisible, setStickyBarVisible] = React.useState(true);
   const stickyStopRef = React.useRef<HTMLDivElement>(null);
@@ -236,6 +240,48 @@ export function ProductPage() {
 
   const purchasable = listing.status === 'approved' && !listing.is_sold;
 
+  // The phone's own share sheet (WhatsApp, Instagram, Messages...) with the
+  // cover photo attached where the browser allows files, the link alone where
+  // it does not, and a copied link where there is no share sheet at all.
+  const onShare = async () => {
+    const url = window.location.href;
+    const text = `${listing.title} on zarketplace`;
+    if (navigator.share) {
+      try {
+        let files: File[] | undefined;
+        try {
+          const blob = await fetch(variantUrl(images[0], 'grid')).then((r) => r.blob());
+          const file = new File([blob], `${listing.sku || 'zarketplace'}.webp`, { type: blob.type || 'image/webp' });
+          if (navigator.canShare?.({ files: [file] })) files = [file];
+        } catch { /* share the link alone */ }
+        await navigator.share(files ? { files, title: listing.title, text: `${text}\n${url}` } : { title: listing.title, text, url });
+        return;
+      } catch (err) {
+        if ((err as Error)?.name === 'AbortError') return;
+      }
+    }
+    // No share sheet (most desktops): copy the link instead. The async
+    // clipboard is refused in some embedded and older browsers, so the
+    // selection-based copy is the backstop.
+    let copied = false;
+    try {
+      await navigator.clipboard.writeText(url);
+      copied = true;
+    } catch {
+      const field = document.createElement('textarea');
+      field.value = url;
+      field.setAttribute('readonly', '');
+      field.style.position = 'fixed';
+      field.style.opacity = '0';
+      document.body.appendChild(field);
+      field.select();
+      copied = document.execCommand('copy');
+      field.remove();
+    }
+    setShared(copied ? 'copied' : 'manual');
+    if (copied) setTimeout(() => setShared(null), 2000);
+  };
+
   const handleBuyNow = () => {
     if (!user) {
       setAuthModal({ redirectTo: `/checkout/${listing.id}`, message: 'Sign in to buy.' });
@@ -250,184 +296,184 @@ export function ProductPage() {
         <ArrowLeft className="h-3 w-3" /> Back to browse
       </Link>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16">
-        {/* One component owns the carousel, the thumbnails and zoom. They
-            used to be three behaviours that had grown separately: hover-only
-            arrows, a swipe that only moved on release, and a zoom that closed
-            on the same tap that opened it. */}
-        <div className="lg:col-span-5">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16">
+        {/* Pinned on desktop, so the garment stays in view while the facts
+            about it scroll past. */}
+        <div className="lg:col-span-6 lg:sticky lg:top-28 lg:self-start">
           <ProductGallery images={images} alt={listing.title} />
         </div>
 
-        {/* Product info, in the order a buyer decides in: what it is and what
-            it costs, whether it fits, what state it is in, then buy. Who we
-            are and how we ship comes last - it is the same on every item, so
-            it should not sit between a buyer and the answers that are not. */}
-        <div className="lg:col-span-7 flex flex-col gap-10">
-          <div className="flex flex-col gap-4">
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tighter uppercase leading-[0.95]">{listing.title}</h1>
+        {/* One typographic rule runs the column: facts about this garment are
+            in the serif, everything of ours is in Inter. And one editing rule:
+            only what a buyer needs to decide is on the page. What is the same
+            on every item is one line each, linked to the page that has the
+            rest. */}
+        <div className="lg:col-span-6 flex flex-col lg:max-w-[32rem]">
+          <header className="flex flex-col gap-4 pb-8">
+            <div className="flex items-start justify-between gap-6">
+              <h1 className="text-3xl sm:text-4xl font-black tracking-tighter uppercase leading-[0.9]">{listing.title}</h1>
+              <div className="relative mt-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={onShare}
+                  aria-label="Share"
+                  className="flex h-9 w-9 items-center justify-center border border-black/15 transition-colors hover:border-black"
+                >
+                  {shared === 'copied' ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
+                </button>
+                {shared === 'copied' && (
+                  <span role="status" className="absolute right-0 top-full mt-2 whitespace-nowrap text-[10px] font-black uppercase tracking-[0.25em] ink-mid">
+                    Link copied
+                  </span>
+                )}
+              </div>
+            </div>
             <div className="flex items-baseline gap-4">
               {listing.sale_price ? (
                 <>
-                  <span className="text-3xl font-black text-red-600">{formatCurrency(listing.sale_price)}</span>
-                  <span className="text-xl ink-mid line-through font-bold">{formatCurrency(listing.price)}</span>
+                  <span className="text-2xl font-black text-red-600">{formatCurrency(listing.sale_price)}</span>
+                  <span className="text-base ink-mid line-through font-bold">{formatCurrency(listing.price)}</span>
                 </>
               ) : (
-                <span className="text-3xl font-black">{formatCurrency(listing.price)}</span>
+                <span className="text-2xl font-black">{formatCurrency(listing.price)}</span>
               )}
             </div>
-          </div>
-
-          {/* The three answers a buyer is scanning for, as label and value.
-              One row each, so the eye runs straight down the right column.
-              "Listed size" is what the tag says; "Fits like" is how it
-              actually wears, which on used clothing is the one that matters. */}
-          <dl className="border-t border-black">
-            <SpecRow label="Brand">{listing.brand}</SpecRow>
-            <SpecRow label="Listed size">
-              {listing.size_type || 'One size'}
-            </SpecRow>
-            {fitsLike && (
-              <SpecRow label="Fits like">
-                {fitsLike.value}
-                {fitsLike.note && (
-                  <span className="ml-3 text-sm font-medium normal-case tracking-normal ink-mid">{fitsLike.note}</span>
-                )}
-              </SpecRow>
+            {shared === 'manual' && (
+              <input
+                readOnly
+                autoFocus
+                value={window.location.href}
+                onFocus={(e) => e.currentTarget.select()}
+                onBlur={() => setShared(null)}
+                aria-label="Link to this item"
+                className="w-full border border-black/15 px-3 py-2 text-xs font-medium focus:border-black focus:outline-none"
+              />
             )}
+          </header>
+
+          <dl className={cn('grid border-y border-black', fitsLike ? 'grid-cols-3' : 'grid-cols-2')}>
+            {([
+              ['Brand', listing.brand || 'Vintage'],
+              ['Listed size', listing.size_type || 'One size'],
+              ...(fitsLike ? [['Fits like', fitsLike]] : []),
+            ] as Array<[string, string]>).map(([label, value], i) => (
+              <div key={label} className={cn('flex min-w-0 flex-col gap-3 py-5', i > 0 && 'border-l border-black/10 pl-4 sm:pl-5')}>
+                <dt className={LABEL}>{label}</dt>
+                <dd className={cn(SERIF_VALUE, 'break-words')}>{value}</dd>
+              </div>
+            ))}
           </dl>
 
-          {/* All four grades, with this one filled. A grade on its own means
-              nothing until you can see where it sits on the scale. */}
-          <section className="flex flex-col gap-4" aria-labelledby="condition-heading">
+          {/* The four grades as one scale, this item's filled. What a grade
+              means is a hover (or a tap) away, not a sentence always there. */}
+          <section className="flex flex-col gap-4 border-b border-black/10 py-6" aria-labelledby="condition-heading">
             <div className="flex items-baseline justify-between gap-4">
-              <h2 id="condition-heading" className="text-[11px] font-black uppercase tracking-[0.2em]">Condition</h2>
-              <Link to="/conditions-guide" className="text-[11px] font-black uppercase tracking-[0.2em] underline underline-offset-4 decoration-black/30 hover:decoration-black">
-                Condition guide
-              </Link>
+              <h2 id="condition-heading" className={LABEL}>Condition</h2>
+              {listing.authenticity_confirmed && (
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.25em]">
+                  <ShieldCheck className="h-3.5 w-3.5" /> Authenticity confirmed
+                </span>
+              )}
             </div>
-            <ol className="grid grid-cols-4 gap-1">
-              {CONDITIONS.map((tier) => {
+            <ol className="grid grid-cols-4 gap-1.5">
+              {CONDITIONS.map((tier, i) => {
                 const active = tier.name === condition?.name;
                 return (
-                  <li
-                    key={tier.name}
-                    aria-current={active ? 'true' : undefined}
-                    className={cn(
-                      'flex flex-col items-center gap-1 py-3 px-1 border text-center',
-                      active ? 'bg-black border-black text-white' : 'border-black/15 ink-mid',
-                    )}
-                  >
-                    <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-[0.15em]">{tier.name}</span>
-                    <span className="text-[10px] font-bold tabular-nums">{tier.grade}</span>
+                  <li key={tier.name} className="group/tier relative">
+                    <button
+                      type="button"
+                      aria-describedby={`tier-${i}`}
+                      aria-current={active ? 'true' : undefined}
+                      className="flex w-full flex-col gap-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-4"
+                    >
+                      <span aria-hidden className={cn('block h-[3px] w-full transition-colors', active ? 'bg-black' : 'bg-black/10 group-hover/tier:bg-black/30')} />
+                      <span className="flex h-6 items-end justify-between gap-1">
+                        {active ? (
+                          <span className="font-serif italic text-xl leading-none">{tier.name}</span>
+                        ) : (
+                          <span className="text-[10px] font-black uppercase tracking-[0.2em] ink-mid">{tier.name}</span>
+                        )}
+                        {active && <span className="text-[10px] font-black tabular-nums">{tier.grade}</span>}
+                      </span>
+                    </button>
+                    <span
+                      id={`tier-${i}`}
+                      role="tooltip"
+                      className={cn(
+                        'pointer-events-none absolute bottom-full z-30 mb-3 w-60 bg-black p-4 text-white opacity-0 transition-opacity duration-150',
+                        'group-hover/tier:opacity-100 group-focus-within/tier:opacity-100',
+                        i === 0 ? 'left-0' : i === CONDITIONS.length - 1 ? 'right-0' : 'left-1/2 -translate-x-1/2',
+                      )}
+                    >
+                      <span className="mb-2 block text-[10px] font-black uppercase tracking-[0.25em] text-white/70">
+                        {tier.name} &middot; {tier.grade}
+                      </span>
+                      <span className="block font-serif italic text-base leading-snug">{tier.desc}</span>
+                    </span>
                   </li>
                 );
               })}
             </ol>
-            {condition && (
-              <p className="text-sm leading-relaxed">
-                <span className="font-black">{condition.name}.</span> {condition.desc}
-              </p>
-            )}
-            <ul className="flex flex-col gap-2">
-              <li className="flex items-center gap-3">
-                {listing.has_flaws
-                  ? <AlertTriangle className="h-4 w-4 shrink-0" />
-                  : <Check className="h-4 w-4 shrink-0" />}
-                <span className="text-[11px] font-black uppercase tracking-[0.2em]">
-                  {listing.has_flaws ? 'Flaws disclosed below' : 'No flaws disclosed'}
-                </span>
-              </li>
-              {listing.authenticity_confirmed && (
-                <li className="flex items-center gap-3">
-                  <ShieldCheck className="h-4 w-4 shrink-0" />
-                  <span className="text-[11px] font-black uppercase tracking-[0.2em]">Authenticity confirmed</span>
-                </li>
-              )}
-            </ul>
           </section>
 
-          {/* MODEL.md §8. Tag size is not enough on used clothing, and "it did
-              not fit" is the biggest single reason things come back. Inches
-              first, because that is what most people here measure their own
-              clothes in; stored in centimetres either way. */}
+          {/* MODEL.md §8: "it did not fit" is the biggest single reason used
+              clothing comes back. Inches first; stored in centimetres. */}
           {measurements.length > 0 && (
-            <section className="flex flex-col gap-4" aria-labelledby="measurements-heading">
+            <section className="flex flex-col gap-4 border-b border-black/10 py-6" aria-labelledby="measurements-heading">
               <div className="flex items-center justify-between gap-4">
-                <h2 id="measurements-heading" className="text-[11px] font-black uppercase tracking-[0.2em]">Measurements</h2>
-                <div className="flex border border-black/15" role="group" aria-label="Measurement unit">
-                  {(['in', 'cm'] as Unit[]).map((u) => (
-                    <button
-                      key={u}
-                      type="button"
-                      onClick={() => setUnit(u)}
-                      aria-pressed={unit === u}
-                      className={cn(
-                        'px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] transition-colors',
-                        unit === u ? 'bg-black text-white' : 'text-black hover:bg-black/5',
-                      )}
-                    >
-                      {u}
-                    </button>
-                  ))}
+                <h2 id="measurements-heading" className={LABEL}>Measurements, flat</h2>
+                <div className="flex items-center gap-4">
+                  {guide && (
+                    // The drawing the vendor measured from: on hover where a
+                    // pointer exists, full size in a new tab on click or tap.
+                    <div className="group/guide relative">
+                      <a href={`/images/${guide}.png`} target="_blank" rel="noopener noreferrer" className={cn(LINK, 'inline-flex items-center gap-1')}>
+                        Guide <ArrowUpRight className="h-3 w-3" />
+                      </a>
+                      <div
+                        aria-hidden
+                        className="pointer-events-none absolute right-0 top-full z-30 mt-3 hidden w-72 border border-black bg-white p-2 shadow-[0_12px_40px_rgba(0,0,0,0.12)] opacity-0 transition-opacity duration-150 [@media(hover:hover)]:block group-hover/guide:opacity-100 group-focus-within/guide:opacity-100"
+                      >
+                        <picture>
+                          <source srcSet={`/images/${guide}.webp`} type="image/webp" />
+                          <img src={`/images/${guide}.png`} alt="" width={720} height={1080} loading="lazy" decoding="async" className="block h-auto w-full" />
+                        </picture>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex border border-black/15" role="group" aria-label="Measurement unit">
+                    {(['in', 'cm'] as Unit[]).map((u) => (
+                      <button
+                        key={u}
+                        type="button"
+                        onClick={() => setUnit(u)}
+                        aria-pressed={unit === u}
+                        className={cn(
+                          'px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.2em] transition-colors',
+                          unit === u ? 'bg-black text-white' : 'text-black hover:bg-black/5',
+                        )}
+                      >
+                        {u}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
-              <dl className="grid grid-cols-3 border-t border-black/10">
+              <dl className="grid grid-cols-3 gap-x-4 gap-y-5">
                 {measurements.map(([label, cm]) => (
-                  <div key={label} className="flex flex-col gap-1 pt-4">
-                    <dt className="text-[10px] font-black uppercase tracking-[0.2em] ink-mid">{label}</dt>
-                    <dd className="text-xl font-black tracking-tight tabular-nums">
+                  <div key={label} className="flex flex-col gap-2">
+                    <dt className={LABEL}>{label}</dt>
+                    <dd className={cn(SERIF_VALUE, 'tabular-nums')}>
                       {formatLength(cm, unit)}
-                      <span className="ml-1 text-xs font-black uppercase">{unit}</span>
+                      <span className="ml-1.5 font-sans not-italic text-[10px] font-black uppercase tracking-[0.2em] ink-mid">{unit}</span>
                     </dd>
                   </div>
                 ))}
               </dl>
-              <p className="text-[13px] leading-relaxed ink-mid">
-                Measured flat, by hand. Compare them with something you already own rather than
-                going by the tag.
-              </p>
-              {guide && (
-                // The same drawing the vendor measured from. Hover or focus shows
-                // it in place on a pointer device; a tap opens it full size in a
-                // new tab, which is the only version legible on a phone anyway.
-                <div className="group relative self-start">
-                  <a
-                    href={`/images/${guide}.png`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] underline underline-offset-4 decoration-black/30 hover:decoration-black"
-                  >
-                    How we measure <ArrowUpRight className="h-3.5 w-3.5" />
-                  </a>
-                  <div
-                    aria-hidden
-                    className="pointer-events-none absolute left-0 top-full z-30 mt-3 hidden w-72 border border-black bg-white p-2 shadow-[0_12px_40px_rgba(0,0,0,0.12)] opacity-0 transition-opacity [@media(hover:hover)]:block group-hover:opacity-100 group-focus-within:opacity-100"
-                  >
-                    <picture>
-                      <source srcSet={`/images/${guide}.webp`} type="image/webp" />
-                      <img src={`/images/${guide}.png`} alt="" width={720} height={1080} loading="lazy" decoding="async" className="block h-auto w-full" />
-                    </picture>
-                  </div>
-                </div>
-              )}
             </section>
           )}
 
-          {/* Flaws, in their own words. Every flaw written down and
-              photographed is the thing that actually prevents a return. */}
-          {listing.has_flaws && (
-            <section className="flex flex-col gap-3 border-l-2 border-black pl-5">
-              <h2 className="text-[11px] font-black uppercase tracking-[0.2em]">Flaws, stated plainly</h2>
-              <p className="text-sm leading-relaxed">{listing.flaws_description}</p>
-              <p className="text-[13px] leading-relaxed ink-mid">
-                This is a used item and we would rather tell you than have you find out. The flaw
-                is in the photos too.
-              </p>
-            </section>
-          )}
-
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3 py-8">
             {listing.status !== 'approved' ? (
               <div className="w-full border border-amber-200 bg-amber-50 px-6 py-6 flex flex-col gap-2">
                 <span className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-700">
@@ -480,102 +526,59 @@ export function ProductPage() {
                     <><ShoppingBag className="h-4 w-4" /> Add to cart</>
                   )}
                 </button>
-                {cartMsg && <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-600">{cartMsg}</p>}
+                {cartMsg && <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">{cartMsg}</p>}
               </>
             )}
           </div>
 
-          <div className="flex flex-col gap-10">
-            {listing.description && (
-              <section className="flex flex-col gap-3">
-                <h2 className="text-[11px] font-black uppercase tracking-[0.2em]">About this piece</h2>
-                <p className="text-sm leading-relaxed whitespace-pre-line">{listing.description}</p>
-              </section>
-            )}
+          {/* What is the same on every item: one line each, right under the
+              button where a buyer checks it, linked to the page with the rest. */}
+          <ul className="flex flex-col border-t border-black/10">
+            {[
+              {
+                icon: Truck, title: 'Sold & shipped by zarketplace', to: '/buyer-protection',
+                body: listing.free_shipping
+                  ? 'Checked at our hub, then free tracked delivery to your door.'
+                  : 'Checked at our hub, then tracked delivery to your door.',
+              },
+              { icon: ShieldCheck, title: 'Buyer protection', to: '/buyer-protection', body: 'Not as described? Tell us within 7 days for a full refund.' },
+              { icon: RotateCcw, title: 'Returns & cancellations', to: '/returns', body: 'Cancel any time before it ships.' },
+            ].map(({ icon: Icon, title, body, to }) => (
+              <li key={title} className="border-b border-black/10">
+                <Link to={to} className="group flex items-center gap-4 py-4">
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="flex min-w-0 flex-1 flex-col gap-1">
+                    <span className="text-[11px] font-black uppercase tracking-[0.2em]">{title}</span>
+                    <span className="text-[13px] leading-snug ink-mid">{body}</span>
+                  </span>
+                  <ChevronRight className="h-4 w-4 shrink-0 ink-mid transition-transform group-hover:translate-x-0.5" />
+                </Link>
+              </li>
+            ))}
+          </ul>
 
-            {(listing.original_tags_attached !== null || listing.original_packaging !== null || listing.item_altered !== null || listing.wear_frequency) && (
-              <section className="flex flex-col gap-3">
-                <h2 className="text-[11px] font-black uppercase tracking-[0.2em]">Item details</h2>
-                <dl className="border-t border-black/10">
-                  {listing.original_tags_attached !== null && (
-                    <SpecRow label="Original tags" quiet>{listing.original_tags_attached ? 'Attached' : 'Not attached'}</SpecRow>
-                  )}
-                  {listing.original_packaging !== null && (
-                    <SpecRow label="Packaging" quiet>{listing.original_packaging ? 'Included' : 'Not included'}</SpecRow>
-                  )}
-                  {listing.item_altered !== null && (
-                    <SpecRow label="Altered" quiet>{listing.item_altered ? 'Yes' : 'No'}</SpecRow>
-                  )}
-                  {listing.wear_frequency && (
-                    <SpecRow label="Worn" quiet>{WEAR_LABELS[listing.wear_frequency] ?? listing.wear_frequency}</SpecRow>
-                  )}
-                </dl>
-              </section>
-            )}
-
-            <div ref={stickyStopRef} />
-
-            {/* The same on every item, so it comes last. Sentence case at a
-                readable size: this is the part people check before paying, and
-                it used to be 9px grey capitals. */}
-            <section className="flex flex-col gap-6 border-t border-black pt-8">
-              <div className="flex flex-col gap-3">
-                <h2 className="text-[11px] font-black uppercase tracking-[0.2em]">Sold &amp; shipped by zarketplace</h2>
-                <ul className="flex flex-col gap-2">
-                  {[
-                    'Bought and owned by us, not listed by someone else.',
-                    'Checked against this listing before it ships.',
-                    'Dispatched from our own hub, in our own packaging.',
-                  ].map((line) => (
-                    <li key={line} className="flex gap-3 text-sm leading-relaxed ink-mid">
-                      <span aria-hidden>-</span>
-                      <span>{line}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <dl className="border-t border-black/10">
-                <SpecRow label="Shipping" quiet>
-                  {listing.free_shipping
-                    ? 'Free'
-                    : shippingCategories.length === 0
-                      ? 'Calculating...'
-                      : fmt(shippingRateFor(listing.shipping_category, shippingCategories))}
-                </SpecRow>
-                <SpecRow label="Product code" quiet>{listing.sku || `ZV-${listing.id.slice(0, 8).toUpperCase()}`}</SpecRow>
-              </dl>
-
-              <div className="flex flex-col gap-5">
-                <div className="flex items-start gap-4">
-                  <ShieldCheck className="h-4 w-4 shrink-0 mt-0.5" />
-                  <div className="flex flex-col gap-1">
-                    <Link to="/buyer-protection" className="self-start text-[11px] font-black uppercase tracking-[0.2em] underline underline-offset-4">Buyer protection</Link>
-                    <p className="text-[13px] leading-relaxed ink-mid">
-                      Your payment is held until you confirm delivery, and refunded if the item is
-                      significantly not as described.
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <RotateCcw className="h-4 w-4 shrink-0" />
-                  <Link to="/returns" className="text-[11px] font-black uppercase tracking-[0.2em] underline underline-offset-4">Returns &amp; cancellations</Link>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(window.location.href);
-                    setCartMsg(null);
-                    setCopied(true);
-                    setTimeout(() => setCopied(false), 2000);
-                  }}
-                  className="self-start flex items-center gap-4 text-[11px] font-black uppercase tracking-[0.2em] hover:text-black/60 transition-colors"
-                >
-                  <LinkIcon className="h-4 w-4" />
-                  {copied ? 'Link copied' : 'Copy link'}
-                </button>
-              </div>
+          {(listing.description || listing.has_flaws) && (
+            <section id="flaws" className="flex scroll-mt-32 flex-col gap-4 py-8">
+              <h2 className={LABEL}>Details</h2>
+              {listing.description && (
+                <p className="font-serif italic text-lg leading-snug whitespace-pre-line">{listing.description}</p>
+              )}
+              {listing.has_flaws && listing.flaws_description && (
+                <p className="flex gap-2 text-sm leading-relaxed">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span><span className="font-black">Flaw:</span> {listing.flaws_description}</span>
+                </p>
+              )}
             </section>
+          )}
+
+          <div ref={stickyStopRef} />
+
+          <p className={cn(LABEL, 'pt-2')}>
+            Product code {listing.sku || `ZV-${listing.id.slice(0, 8).toUpperCase()}`}
+          </p>
+
+          <div className="flex flex-col">
 
             {listing.is_mine === true && (
               <div className="mt-4 pt-6 border-t border-black/5 flex flex-col gap-3">
@@ -646,11 +649,3 @@ export function ProductPage() {
   );
 }
 
-function SpecRow({ label, quiet, children }: { label: string; quiet?: boolean; children: React.ReactNode }) {
-  return (
-    <div className={cn('grid grid-cols-[7.5rem_1fr] items-baseline gap-4 border-b border-black/10', quiet ? 'py-3' : 'py-4')}>
-      <dt className="text-[10px] font-black uppercase tracking-[0.2em] ink-mid">{label}</dt>
-      <dd className={cn('font-black uppercase tracking-tight', quiet ? 'text-sm' : 'text-base')}>{children}</dd>
-    </div>
-  );
-}

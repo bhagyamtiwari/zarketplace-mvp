@@ -87,7 +87,7 @@ function applyDevFilters(
 ): Listing[] {
   let out = rows.filter((l) => {
     if (f.category && l.category !== f.category) return false;
-    if (f.gender && l.gender !== f.gender) return false;
+    if (f.gender && l.gender !== f.gender && !(f.gender !== 'Unisex' && l.gender === 'Unisex')) return false;
     if (f.sizeType && l.size_type !== f.sizeType) return false;
     if (f.condition && l.condition !== f.condition) return false;
     if (f.quick === 'verified') return !!l.is_verified;
@@ -175,7 +175,9 @@ export function Marketplace() {
         query = query.order('id', { ascending: false });
 
         if (category) query = query.eq('category', category);
-        if (gender) query = query.eq('gender', gender);
+        // Unisex pieces are for everyone, so they appear under Men and under
+        // Women as well as under Unisex itself.
+        if (gender) query = gender === 'Unisex' ? query.eq('gender', 'Unisex') : query.in('gender', [gender, 'Unisex']);
         if (sizeType) query = query.eq('size_type', sizeType);
         if (condition) query = query.eq('condition', condition);
 

@@ -106,7 +106,7 @@ export const AGREEMENT_CLAUSES: AgreementClause[] = [
   },
   {
     key: 'return_shipping_payable',
-    text: "If it doesn't match when it reaches you, you won't take it — and I can pay the return postage to get it back.",
+    text: "If it doesn't match when it reaches you, you won't take it, and I can pay the return postage to get it back.",
   },
   {
     key: 'sixty_day_forfeit',
