@@ -17,8 +17,16 @@
     background-color: #000;
     overscroll-behavior-y: none;
   }
+  /* The body is black too: iOS Safari tints the bar behind its floating
+     address pill with the body's colour, so a white body put a white strip
+     under the black footer. The page itself is white on #root instead. */
   body {
-    @apply antialiased bg-white text-black min-h-screen;
+    @apply antialiased bg-black text-black;
+  }
+  #root {
+    @apply bg-white;
+    min-height: 100vh;
+    min-height: 100dvh;
   }
 }
 

@@ -629,12 +629,6 @@ function StepHeader({ step, onGoToAddress, onGoToPay }: {
   const idx = steps.findIndex((s) => s.key === step);
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex items-center gap-3">
-        <span className="text-xs font-black uppercase tracking-[0.4em] text-black">Checkout</span>
-        <span className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-emerald-700">
-          <ShieldCheck className="h-3 w-3" /> Secure
-        </span>
-      </div>
       <h1 className="text-4xl sm:text-6xl font-black tracking-tighter uppercase">Finalize Order</h1>
       <div className="flex items-center gap-4 mt-6">
         {steps.map((s, i) => (
