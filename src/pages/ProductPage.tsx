@@ -42,25 +42,16 @@ const MEASURE_GUIDE_BY_CATEGORY: Record<string, string> = {
   Bottoms: 'measure-bottoms',
 };
 
-// Flat chest (pit to pit, cm) upper bounds for each letter size on a regular
-// fit. An approximation by design: it reads the size off the measured garment
-// rather than trusting a tag that may be decades old or from a different
-// market, which is the whole point of the row. Unisex follows the men's chart.
-const CHEST_CHART: Record<'men' | 'women', Array<[number, string]>> = {
-  men:   [[49, 'XS'], [52, 'S'], [55, 'M'], [58, 'L'], [61, 'XL'], [64, '2XL']],
-  women: [[43, 'XS'], [46, 'S'], [49, 'M'], [52, 'L'], [55, 'XL'], [58, '2XL']],
-};
-
-function fitsLikeFor(listing: Listing): { value: string; note: string } | null {
-  const tag = listing.size_type;
-  if ((listing.category === 'Tops' || listing.category === 'Outerwear') && listing.pit_to_pit_cm) {
-    const chart = CHEST_CHART[listing.gender === 'Women' ? 'women' : 'men'];
-    const size = chart.find(([max]) => listing.pit_to_pit_cm! < max)?.[1] ?? '3XL';
-    const note = !tag || tag === 'One Size'
-      ? 'From the measured chest'
-      : tag === size ? 'True to the tag' : `Tagged ${tag}, from the measured chest`;
-    return { value: size, note };
-  }
+// "Fits like" is the vendor's own size note (the size detail field, where they
+// write things like "Fits like XL" or "Oversized"), with the prefix trimmed so
+// the row does not read "Fits like: fits like XL". A size read off a chart
+// from the measurements was tried and dropped: a tape measured the wrong way
+// makes it contradict both the tag and the vendor, and the measurements below
+// already give the buyer the real numbers. The one exception is a trouser
+// waist, which is arithmetic rather than a guess.
+function fitsLikeFor(listing: Listing): { value: string; note?: string } | null {
+  const note = listing.size?.replace(/^\s*fits\s+like\s*:?\s*/i, '').trim();
+  if (note) return { value: note };
   if (listing.category === 'Bottoms' && listing.waist_cm) {
     // Flat waist doubled is the waistband all the way round.
     const waist = Math.round((listing.waist_cm * 2) / CM_PER_INCH);
@@ -293,14 +284,13 @@ export function ProductPage() {
             <SpecRow label="Brand">{listing.brand}</SpecRow>
             <SpecRow label="Size">
               {listing.size_type || 'One size'}
-              {listing.size && (
-                <span className="ml-3 text-sm font-medium normal-case tracking-normal ink-mid">{listing.size}</span>
-              )}
             </SpecRow>
             {fitsLike && (
               <SpecRow label="Fits like">
                 {fitsLike.value}
-                <span className="ml-3 text-sm font-medium normal-case tracking-normal ink-mid">{fitsLike.note}</span>
+                {fitsLike.note && (
+                  <span className="ml-3 text-sm font-medium normal-case tracking-normal ink-mid">{fitsLike.note}</span>
+                )}
               </SpecRow>
             )}
           </dl>
