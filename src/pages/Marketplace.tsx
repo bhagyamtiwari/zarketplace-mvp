@@ -636,7 +636,7 @@ const PROMISES: Array<{ label: string; body: string; to: string; Icon: typeof Pa
   { label: 'Doorstep delivery', body: 'Tracked, to your door.', to: '/shipping-policy', Icon: Truck },
 ];
 
-const HERO_IMAGE = 'url(/images/new-banner3.jpg)';
+const HERO_IMAGE = 'url(/images/banner-3-new.jpg)';
 
 // The home banner: the pitch, the three promises that back it, and the only two
 // things a visitor can do here. It is permanent rather than dismissible - it is
@@ -699,7 +699,7 @@ function HeroBanner() {
         <div className="grid grid-cols-2 gap-3 sm:flex sm:gap-4">
           <Link
             to="/browse"
-            className="flex items-center justify-between gap-3 bg-white px-5 py-4 sm:min-w-[230px] sm:px-7 text-[11px] font-black uppercase tracking-widest text-black transition-colors hover:bg-white/85"
+            className="flex items-center justify-between gap-3 border border-white bg-black/60 backdrop-blur-sm px-5 py-4 sm:min-w-[230px] sm:px-7 text-[11px] font-black uppercase tracking-widest text-white transition-colors hover:bg-white hover:text-black"
           >
             <span className="sm:hidden">Browse</span>
             <span className="hidden sm:inline">Browse items</span>
@@ -707,7 +707,7 @@ function HeroBanner() {
           </Link>
           <Link
             to="/sell"
-            className="flex items-center justify-between gap-3 border border-white/40 bg-black sm:bg-transparent px-5 py-4 sm:min-w-[230px] sm:px-7 text-[11px] font-black uppercase tracking-widest text-white transition-colors hover:border-white hover:bg-white/10"
+            className="flex items-center justify-between gap-3 border border-white bg-black/60 backdrop-blur-sm px-5 py-4 sm:min-w-[230px] sm:px-7 text-[11px] font-black uppercase tracking-widest text-white transition-colors hover:bg-white hover:text-black"
           >
             <span className="sm:hidden">Get offer</span>
             <span className="hidden sm:inline">Get an offer</span>

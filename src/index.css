@@ -10,8 +10,15 @@
 }
 
 @layer base {
+  /* The canvas behind the page is the footer's black, so pulling past the
+     bottom on a phone shows more footer rather than a white strip under it.
+     The bounce itself is switched off where the browser allows. */
+  html {
+    background-color: #000;
+    overscroll-behavior-y: none;
+  }
   body {
-    @apply antialiased bg-white text-black;
+    @apply antialiased bg-white text-black min-h-screen;
   }
 }
 

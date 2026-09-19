@@ -122,7 +122,8 @@ function WhatsAppMark({ className }: { className?: string }) {
   );
 }
 
-const SOCIALS: Array<{ label: string; href: string; icon: (cls: string) => React.ReactNode }> = [
+// Also used by the phone menu, so the two can never show different marks.
+export const SOCIALS: Array<{ label: string; href: string; icon: (cls: string) => React.ReactNode }> = [
   { label: 'zarketplace on Instagram', href: 'https://www.instagram.com/zarketplace', icon: (c) => <Instagram className={c} strokeWidth={1.75} /> },
   { label: 'zarketplace on X', href: 'https://x.com/zarketplace', icon: (c) => <XMark className={c} /> },
   { label: 'zarketplace on YouTube', href: 'https://www.youtube.com/@zarketplace', icon: (c) => <YouTubeMark className={c} /> },

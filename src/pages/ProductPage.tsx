@@ -95,13 +95,14 @@ export function ProductPage() {
   const [stickyBarVisible, setStickyBarVisible] = React.useState(true);
   const stickyStopRef = React.useRef<HTMLDivElement>(null);
 
-  // The sticky mobile buy bar should only follow the user down to the end of
-  // the item description, not all the way to the footer.
+  // The sticky mobile buy bar follows the buyer through the item and leaves
+  // as soon as the end of it comes into view, rather than riding over the
+  // recommendations and the footer below.
   React.useEffect(() => {
     const el = stickyStopRef.current;
     if (!el) return;
     const observer = new IntersectionObserver(
-      ([entry]) => setStickyBarVisible(entry.boundingClientRect.top > 0),
+      ([entry]) => setStickyBarVisible(entry.boundingClientRect.top > window.innerHeight),
       { threshold: 0 },
     );
     observer.observe(el);
@@ -328,15 +329,22 @@ export function ProductPage() {
                 )}
               </div>
             </div>
-            <div className="flex items-baseline gap-4">
-              {listing.sale_price ? (
-                <>
-                  <span className="text-2xl font-black text-red-600">{formatCurrency(listing.sale_price)}</span>
-                  <span className="text-base ink-mid line-through font-bold">{formatCurrency(listing.price)}</span>
-                </>
-              ) : (
-                <span className="text-2xl font-black">{formatCurrency(listing.price)}</span>
-              )}
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-baseline gap-4">
+                {listing.sale_price ? (
+                  <>
+                    <span className="text-2xl font-black text-red-600">{formatCurrency(listing.sale_price)}</span>
+                    <span className="text-base ink-mid line-through font-bold">{formatCurrency(listing.price)}</span>
+                  </>
+                ) : (
+                  <span className="text-2xl font-black">{formatCurrency(listing.price)}</span>
+                )}
+              </div>
+              {/* The code people quote on WhatsApp or when they write to us,
+                  so it sits where it can be read off at a glance. */}
+              <span className="shrink-0 border border-black px-2.5 py-1 text-xs font-black uppercase tracking-[0.12em] tabular-nums" title="Product code">
+                {listing.sku || `ZV-${listing.id.slice(0, 8).toUpperCase()}`}
+              </span>
             </div>
             {shared === 'manual' && (
               <input
@@ -371,7 +379,7 @@ export function ProductPage() {
               <h2 id="condition-heading" className={LABEL}>Condition</h2>
               {listing.authenticity_confirmed && (
                 <span className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.2em]">
-                  <ShieldCheck className="h-3.5 w-3.5" /> Authenticity confirmed
+                  <ShieldCheck className="h-3.5 w-3.5" /> Confirmed authentic
                 </span>
               )}
             </div>
@@ -421,13 +429,13 @@ export function ProductPage() {
           {measurements.length > 0 && (
             <section className="flex flex-col gap-4 border-b border-black/10 py-6" aria-labelledby="measurements-heading">
               <div className="flex items-center justify-between gap-4">
-                <h2 id="measurements-heading" className={LABEL}>Measurements, flat</h2>
+                <h2 id="measurements-heading" className={LABEL}>Measurements</h2>
                 <div className="flex items-center gap-4">
                   {guide && (
                     // The drawing the vendor measured from: on hover where a
                     // pointer exists, full size in a new tab on click or tap.
-                    <div className="group/guide relative">
-                      <a href={`/images/${guide}.png`} target="_blank" rel="noopener noreferrer" className={cn(LINK, 'inline-flex items-center gap-1')}>
+                    <div className="group/guide relative flex items-center">
+                      <a href={`/images/${guide}.png`} target="_blank" rel="noopener noreferrer" className={cn(LINK, 'inline-flex items-center gap-1 leading-none')}>
                         Guide <ArrowUpRight className="h-3 w-3" />
                       </a>
                       <div
@@ -564,7 +572,7 @@ export function ProductPage() {
 
           {(listing.description || listing.has_flaws) && (
             <section id="flaws" className="flex scroll-mt-32 flex-col gap-4 py-8">
-              <h2 className="text-[15px] font-bold">Details</h2>
+              <h2 className="text-[15px] font-bold">Description</h2>
               {listing.description && (
                 <p className="text-[15px] leading-relaxed whitespace-pre-line">{listing.description}</p>
               )}
@@ -579,9 +587,6 @@ export function ProductPage() {
 
           <div ref={stickyStopRef} />
 
-          <p className="pt-2 text-sm ink-mid">
-            Product code {listing.sku || `ZV-${listing.id.slice(0, 8).toUpperCase()}`}
-          </p>
 
           <div className="flex flex-col">
 

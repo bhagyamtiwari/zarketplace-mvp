@@ -33,9 +33,9 @@ export function Terms() {
               legal name, principal geographic address and customer care details
               displayed, and the Grievance page tells people to look for them here.
 
-              TODO: REGISTERED_OFFICE is still missing and this page is not
-              compliant until it is filled in. GSTIN goes in the same block once
-              it is issued. */}
+              TODO: the registered office reads "temporarily relocating" until
+              the new address is settled. Replace it with the full address as
+              soon as it is, and add the GSTIN in the same block once issued. */}
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Who you are contracting with</h2>
             <p>zarketplace is a trading name of <strong>ADNIZ Private Limited</strong>, a company incorporated in India.</p>
@@ -47,6 +47,10 @@ export function Terms() {
               <div className="flex flex-col gap-1">
                 <dt className="text-xs font-black uppercase tracking-[0.2em]">CIN</dt>
                 <dd>U47711DL2023PTC418107</dd>
+              </div>
+              <div className="flex flex-col gap-1">
+                <dt className="text-xs font-black uppercase tracking-[0.2em]">Registered office</dt>
+                <dd>Temporarily relocating. Write to us at the customer care address below for any correspondence, and we will reply with our current postal address.</dd>
               </div>
               <div className="flex flex-col gap-1">
                 <dt className="text-xs font-black uppercase tracking-[0.2em]">Customer care</dt>

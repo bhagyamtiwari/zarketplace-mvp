@@ -1,4 +1,4 @@
-// Sell page. Three steps: Photos -> Details -> Condition.
+// Sell page. Three steps: Photos -> Description -> Condition.
 //
 // The form asks for what we need in order to price the item, and nothing else.
 // That line moved when we started taking physical possession: anything we can
@@ -269,7 +269,7 @@ const MAX_IMAGES = PHOTO_SLOTS.length;
 // Three steps. The last one used to be "Condition & price" and no longer holds
 // a price: a vendor names no number at all now, so the step carries condition,
 // how the item reaches us, and the two confirmations.
-const STEP_LABELS = ['Photos', 'Details', 'Condition'];
+const STEP_LABELS = ['Photos', 'Description', 'Condition'];
 
 type Declarations = Record<string, boolean>;
 
