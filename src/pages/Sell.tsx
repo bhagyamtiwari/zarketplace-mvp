@@ -23,7 +23,7 @@ import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'motion/react';
-import { Loader2, CheckCircle2, Check, X, Plus, ChevronLeft, ChevronRight, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Loader2, Check, X, Plus, ChevronLeft, ChevronRight, AlertTriangle, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
 import { getShippingCategories, type ShippingCategory } from '../lib/pricing';
@@ -116,7 +116,7 @@ const WHAT_HAPPENS_NOTES: Array<{ title: string; body: string }> = [
   },
   {
     title: 'If it does not sell',
-    body: 'If we have not sold it within 30 days, or you withdraw it, your offer ends. Nothing is owed either way, and you can send it to us again.',
+    body: 'After 30 days unsold, the offer ends and the item stays yours. Nothing is owed either way.',
   },
 ];
 
@@ -304,6 +304,56 @@ function SellInner() {
   // put it back. Only populated where background removal produced something.
   const [originals, setOriginals] = React.useState<Record<number, { file: File; preview: string }>>({});
   const [cleaning, setCleaning] = React.useState<Record<number, boolean>>({});
+
+  // Photos are resized, encoded and uploaded in the background from the
+  // moment they are added, while the vendor fills in the rest of the form, so
+  // Submit only has to wait for whatever is still in flight - usually
+  // nothing. Keyed by the exact File, so a photo swapped for its cleaned
+  // version (or back) uploads again and nothing else does. A failed upload
+  // drops out of the cache and is retried at Submit.
+  const uploadsRef = React.useRef(new Map<File, Promise<string>>());
+  const uploadPhoto = React.useCallback((file: File): Promise<string> => {
+    const existing = uploadsRef.current.get(file);
+    if (existing) return existing;
+    const job = (async () => {
+      if (!user) throw new Error('Sign in first.');
+      const base = `listings/${user.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const put = async (path: string, blob: Blob) => {
+        const { error } = await supabase.storage
+          .from('listing-images')
+          .upload(path, blob, { contentType: blob.type || 'image/jpeg', cacheControl: '31536000' });
+        if (error) throw error;
+      };
+      // Three sizes per photo; the stored URL is the 1600px one and
+      // variantUrl() derives the other two from its name.
+      const variants = await encodeVariants(file);
+      let fullUrl = '';
+      for (const variant of ['thumb', 'grid', 'full'] as const) {
+        const { blob, width, ext } = variants[variant];
+        const path = `${base}-${width}.${ext}`;
+        await put(path, blob);
+        if (variant === 'full') fullUrl = supabase.storage.from('listing-images').getPublicUrl(path).data.publicUrl;
+      }
+      // The 1200x630 link-preview card, made for every photo because any of
+      // them can end up as the cover. socialCardUrl() finds it by name.
+      await put(`${base}${SOCIAL_CARD_SUFFIX}`, await encodeSocialCard(file));
+      return fullUrl;
+    })();
+    uploadsRef.current.set(file, job);
+    job.catch((err) => {
+      uploadsRef.current.delete(file);
+      slog.warn('background upload failed, will retry at submit', err);
+    });
+    return job;
+  }, [user]);
+
+  // Start each photo once it has settled: a photo still having its
+  // background removed is about to be replaced, so it waits for that.
+  React.useEffect(() => {
+    imageFiles.forEach((file, i) => {
+      if (!cleaning[i]) void uploadPhoto(file).catch(() => {});
+    });
+  }, [imageFiles, cleaning, uploadPhoto]);
 
   const [title, setTitle] = React.useState('');
   const [brand, setBrand] = React.useState('');
@@ -554,39 +604,12 @@ function SellInner() {
     setLoading(true);
     const tFull = slog.time('full submit');
     try {
-      // Resize and re-encode in the browser before anything is uploaded. A
-      // phone photo is 1.5-8 MB and no browser ever needs more than a fraction
-      // of that; sending the original would cost storage and egress on every
-      // view forever. Three variants go up per photo and the stored URL is the
-      // 1600px one - variantUrl() derives the smaller two from its name.
+      // Already resized and uploading since each photo was added (see
+      // uploadPhoto); this only waits for anything still in flight.
       const uploadedUrls: string[] = [];
-      const stamp = Date.now();
       for (let i = 0; i < imageFiles.length; i++) {
-        const variants = await encodeVariants(imageFiles[i]);
         setUploadProgress({ done: i, total: imageFiles.length });
-        let fullUrl = '';
-        for (const variant of ['thumb', 'grid', 'full'] as const) {
-          const { blob, width, ext } = variants[variant];
-          const filePath = `listings/${user.id}-${stamp}-${i}-${width}.${ext}`;
-          const { error: uploadError } = await supabase.storage
-            .from('listing-images')
-            .upload(filePath, blob, { contentType: blob.type, cacheControl: '31536000' });
-          if (uploadError) throw uploadError;
-          if (variant === 'full') {
-            fullUrl = supabase.storage.from('listing-images').getPublicUrl(filePath).data.publicUrl;
-          }
-        }
-        // Cover photo only: the 1200x630 JPEG that WhatsApp and Facebook
-        // actually render in a link preview. See encodeSocialCard.
-        if (i === 0) {
-          const card = await encodeSocialCard(imageFiles[i]);
-          const cardPath = `listings/${user.id}-${stamp}-${i}${SOCIAL_CARD_SUFFIX}`;
-          const { error: cardErr } = await supabase.storage
-            .from('listing-images')
-            .upload(cardPath, card, { contentType: 'image/jpeg', cacheControl: '31536000' });
-          if (cardErr) throw cardErr;
-        }
-        uploadedUrls.push(fullUrl);
+        uploadedUrls.push(await uploadPhoto(imageFiles[i]));
       }
       setUploadProgress(null);
 
@@ -725,41 +748,29 @@ function SellInner() {
     // after filling in a form.
     return (
       <div className="shell-form pt-24 sm:pt-32 pb-24 flex flex-col">
-        <div className="flex h-16 w-16 items-center justify-center bg-black text-white mb-8">
-          <CheckCircle2 className="h-8 w-8" />
-        </div>
-
-        <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase leading-[0.95] mb-6">
+        <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase leading-[0.95] mb-5">
           Back in 24 hours.
         </h1>
-
-        {/* The vendor has not listed anything yet and should not think they
-            have. Nothing goes live until they have seen a number and agreed to
-            it, and saying so here is the difference between someone waiting and
-            someone who thinks the form silently failed. */}
-        <p className="text-sm font-normal leading-relaxed text-black mb-4">
-          Someone is looking at your item now. You will hear either an offer, or what
-          would need to change before we can make one.
-        </p>
-        <p className="text-sm font-normal leading-relaxed text-black mb-8">
-          Nothing is listed yet, and the item stays with you either way.
+        {/* The vendor has not listed anything and should not think they have:
+            nothing goes on sale until they have seen a number and agreed to it.
+            Saying so is the difference between someone waiting and someone who
+            thinks the form silently failed. */}
+        <p className="text-[15px] leading-relaxed mb-8">
+          We are looking at your item now. You will get an offer, or a note on what to fix, by email.
         </p>
 
-        <div className="border-l-2 border-black pl-5 flex flex-col gap-2 mb-8">
-          <h2 className="text-sm font-black text-black">Everything from here comes by email</h2>
-          <p className="text-sm font-normal leading-relaxed text-black">
-            Your offer, the day it sells, and your label. Check your spam folder now and
-            mark us as not spam, so the one that matters does not sit in there unread.
-          </p>
-        </div>
-
-        {/* The vendor has just finished a form and is at their most willing to
-            read one more thing. Said here so the PAN request that arrives later
-            is expected rather than alarming. */}
-        <p className="text-sm font-normal leading-relaxed text-black mb-12">
-          You do not need a GSTIN. We buy your item and resell it under ours.{' '}
-          <Link to="/vendor-policy" className="underline underline-offset-4">How this works</Link>
-        </p>
+        <ul className="flex flex-col gap-2.5 border-y border-black/10 py-6 mb-10">
+          {[
+            'Nothing is on sale yet, and the item stays with you.',
+            'Check your spam folder and mark our email as safe.',
+            'You do not need a GSTIN to sell to us.',
+          ].map((line) => (
+            <li key={line} className="flex gap-3 text-sm leading-relaxed">
+              <span aria-hidden className="mt-[0.6em] h-1 w-1 shrink-0 bg-black" />
+              <span>{line}</span>
+            </li>
+          ))}
+        </ul>
 
         <div className="flex flex-col sm:flex-row gap-3">
           <button onClick={() => navigate('/vendor-portal')}
@@ -772,16 +783,10 @@ function SellInner() {
           </button>
         </div>
 
-        <div className="mt-12 pt-8 border-t border-black/10 flex flex-col gap-3">
-          <button onClick={() => navigate('/browse')}
-            className="self-start text-sm font-normal text-black underline underline-offset-4">
-            Back to browse
-          </button>
-          <p className="text-sm font-normal leading-relaxed text-black">
-            Something off, or an idea to make this better?{' '}
-            <a href="https://wa.me/918505927538" target="_blank" rel="noreferrer" className="underline underline-offset-4">WhatsApp us</a>.
-          </p>
-        </div>
+        <p className="mt-10 text-sm ink-mid">
+          Questions?{' '}
+          <a href="https://wa.me/918505927538" target="_blank" rel="noreferrer" className="underline underline-offset-4 text-black">WhatsApp us</a>.
+        </p>
       </div>
     );
   }
@@ -899,7 +904,7 @@ function SellInner() {
 
         {uploadProgress && (
           <p className="mt-6 text-xs font-bold uppercase tracking-widest ink-mid">
-            Optimising photo {uploadProgress.done + 1} of {uploadProgress.total}...
+            Finishing photo {uploadProgress.done + 1} of {uploadProgress.total}
           </p>
         )}
 
