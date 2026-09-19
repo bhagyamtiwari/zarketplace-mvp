@@ -279,10 +279,12 @@ export function ProductPage() {
           </div>
 
           {/* The three answers a buyer is scanning for, as label and value.
-              One row each, so the eye runs straight down the right column. */}
+              One row each, so the eye runs straight down the right column.
+              "Listed size" is what the tag says; "Fits like" is how it
+              actually wears, which on used clothing is the one that matters. */}
           <dl className="border-t border-black">
             <SpecRow label="Brand">{listing.brand}</SpecRow>
-            <SpecRow label="Size">
+            <SpecRow label="Listed size">
               {listing.size_type || 'One size'}
             </SpecRow>
             {fitsLike && (
