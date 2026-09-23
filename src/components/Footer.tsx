@@ -222,9 +222,10 @@ export function Footer() {
         </div>
 
         {/* Desktop bottom bar: the wordmark on the left, the notice on the
-            right, on the same edges as the columns above. The wordmark is the
-            same one as the nav, so the page opens and closes on the same mark. */}
-        <div className="hidden md:flex mt-16 pt-8 border-t border-white/10 items-center justify-between">
+            right, on the same edges as the columns above, with no rule over
+            them. The wordmark is the same one as the nav, so the page opens
+            and closes on the same mark. */}
+        <div className="hidden md:flex mt-16 items-center justify-between">
           <Link to="/" aria-label="zarketplace home" className="flex min-h-[44px] items-center">
             <Wordmark on="dark" heightClassName="h-8" />
           </Link>

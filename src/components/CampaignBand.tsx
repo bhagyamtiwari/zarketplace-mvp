@@ -94,10 +94,16 @@ export function CampaignBand({
           )}
         </div>
 
+        {/* On a phone the button sits on the far side from the copy, so the
+            band still reads as copy on one side and action on the other, the
+            way it does side by side on a wide screen. */}
         {cta && (
           <Link
             to={cta.to}
-            className="shrink-0 border border-white px-8 py-4 text-[11px] font-black uppercase tracking-[0.2em] text-white hover:bg-white hover:text-black transition-colors"
+            className={cn(
+              'shrink-0 border border-white px-8 py-4 text-[11px] font-black uppercase tracking-[0.2em] text-white hover:bg-white hover:text-black transition-colors',
+              align === 'right' ? 'self-start md:self-auto' : 'self-end md:self-auto',
+            )}
           >
             {cta.label}
           </Link>

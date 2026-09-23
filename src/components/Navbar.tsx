@@ -9,6 +9,7 @@ import { useCart } from '../lib/cart';
 import { AuthModal } from './AuthModal';
 import { Wordmark } from './Wordmark';
 import { SOCIALS } from './Footer';
+import { useFavorites } from '../lib/favorites';
 
 // The header answers two questions and offers one action.
 //
@@ -50,10 +51,14 @@ export function Navbar() {
   // top of it, so it goes black and merges into the banner rather than cutting a
   // white strip across it. Desktop keeps the white bar.
   const onFeed = location.pathname === '/' || location.pathname === '/browse';
-  const onShop = onFeed || location.pathname.startsWith('/item/') || location.pathname.startsWith('/product/');
+  const onFavorites = onFeed && new URLSearchParams(location.search).get('q') === 'saved';
+  const onShop = (onFeed && !onFavorites) || location.pathname.startsWith('/item/') || location.pathname.startsWith('/product/');
   const onSell = location.pathname === '/sell' || location.pathname === '/how-it-works';
 
   const cartLabel = cartCount > 0 ? `Cart (${cartCount})` : 'Cart';
+  // Favorites are kept on this device, signed in or not, so the link shows
+  // for anyone who has hearted something.
+  const favorites = useFavorites();
 
   return (
     <nav
@@ -145,6 +150,12 @@ export function Navbar() {
                 </button>
               )}
 
+              {favorites.size > 0 && (
+                <NavLink to="/browse?q=saved" active={onFavorites} className="hidden lg:inline">
+                  Favorites ({favorites.size})
+                </NavLink>
+              )}
+
               {user && (
                 <NavLink to="/cart" active={location.pathname === '/cart'}>{cartLabel}</NavLink>
               )}
@@ -187,7 +198,10 @@ export function Navbar() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setIsMenuOpen(false)}
-            className="md:hidden fixed inset-0 z-[65] bg-black/40"
+            // Runs past the bottom of the screen: on iOS Safari the floating
+            // toolbar sits over the page, and a scrim that stopped at
+            // bottom: 0 left a strip of undimmed page underneath it.
+            className="md:hidden fixed inset-x-0 top-0 -bottom-[30vh] z-[65] bg-black/40"
           />,
           <motion.div
             key="drawer-panel"
@@ -197,6 +211,10 @@ export function Navbar() {
             transition={{ type: 'tween', duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
             className="md:hidden fixed inset-y-0 right-0 z-[70] w-full max-w-xs bg-white border-l border-black/10 flex flex-col"
           >
+              {/* The panel's content ends where the screen does; its white
+                  carries on beneath Safari's toolbar, for the same reason as
+                  the scrim above. */}
+              <div aria-hidden className="pointer-events-none absolute left-[-1px] right-0 top-full h-[30vh] border-l border-black/10 bg-white" />
               <div className="flex items-center justify-between h-20 px-6 border-b border-black/10 shrink-0">
                 <Link to="/" className="flex min-h-[44px] items-center" onClick={() => setIsMenuOpen(false)}>
                   <Wordmark on="light" heightClassName="h-7" />
@@ -213,7 +231,7 @@ export function Navbar() {
                   <MainLink to="/browse" onClick={closeMenu}>Shop</MainLink>
                   <MainLink to="/sell" onClick={closeMenu}>Get an offer</MainLink>
                   <MainLink to="/how-it-works" onClick={closeMenu}>Sell to us</MainLink>
-                  <MainLink to="/browse?q=saved" onClick={closeMenu}>Saved</MainLink>
+                  <MainLink to="/browse?q=saved" onClick={closeMenu}>{favorites.size > 0 ? `Favorites (${favorites.size})` : 'Favorites'}</MainLink>
                   {user && <MainLink to="/cart" onClick={closeMenu}>{cartLabel}</MainLink>}
                 </nav>
 

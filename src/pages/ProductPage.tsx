@@ -6,7 +6,7 @@ import { formatCurrency, cn } from '../lib/utils';
 import { variantUrl } from '../lib/images';
 import { ProductGallery } from '../components/ProductGallery';
 import { motion } from 'motion/react';
-import { Loader2, ArrowLeft, Zap } from 'lucide-react';
+import { Loader2, ArrowLeft, Zap, Heart } from 'lucide-react';
 import { log } from '../lib/log';
 import { useCart } from '../lib/cart';
 import { useAuth } from '../lib/auth';
@@ -17,6 +17,7 @@ import { formatCurrency as fmt } from '../lib/utils';
 import { getShippingCategories, shippingRateFor, type ShippingCategory } from '../lib/pricing';
 import { conditionByName } from '../lib/condition';
 import { usePageMeta, itemName, itemMetaTitle, itemMetaDescription, isDemoTitle } from '../lib/pageMeta';
+import { toggleFavorite, useFavorites } from '../lib/favorites';
 
 const plog = log('product');
 
@@ -87,6 +88,7 @@ export function ProductPage() {
   const [shared, setShared] = React.useState<null | 'copied' | 'manual'>(null);
   const [unit, setUnit] = React.useState<Unit>('in');
   const [showGuide, setShowGuide] = React.useState(false);
+  const favorites = useFavorites();
   const [stickyBarVisible, setStickyBarVisible] = React.useState(true);
   const stickyStopRef = React.useRef<HTMLDivElement>(null);
 
@@ -366,7 +368,22 @@ export function ProductPage() {
           {/* The item by its name, then its price. The brand is a fact about
               it, listed below with the size, not a label over the top: led by
               the brand, a page reads as a wall of logos. */}
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight leading-tight">{listing.title}</h1>
+          {/* The heart sits beside the name, the same as on every card, so an
+              item can be kept from wherever it is seen. */}
+          <div className="flex items-start justify-between gap-4">
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight leading-tight">{listing.title}</h1>
+            {!listing.is_sold && (
+              <button
+                type="button"
+                onClick={() => toggleFavorite(listing)}
+                aria-pressed={favorites.has(listing.id)}
+                aria-label={favorites.has(listing.id) ? 'Remove from favorites' : 'Add to favorites'}
+                className="-mr-3 -mt-2 flex h-11 w-11 shrink-0 items-center justify-center"
+              >
+                <Heart className={cn('h-5 w-5', favorites.has(listing.id) && 'fill-black')} strokeWidth={1.75} />
+              </button>
+            )}
+          </div>
           <div className="mt-3 flex items-baseline justify-between gap-4">
             <div className="flex items-baseline gap-3">
               {listing.sale_price ? (
@@ -502,13 +519,11 @@ export function ProductPage() {
             )}
           </div>
 
-          {/* What happens if it is not right, in one line. Delivery is a
-              fact about the item, so it sits in the list above; the details
-              of the protection are one click away, not restated here. */}
+          {/* One line under the buttons. What the protection covers is one
+              click away; spelling it out here pulled the eye off the item. */}
           <p className="mt-5 text-sm leading-relaxed">
             Your order is protected by{' '}
-            <Link to="/buyer-protection" className="font-bold underline underline-offset-4 decoration-black/30 hover:decoration-black">Buyer Protection</Link>:
-            a full refund if it is not as described.
+            <Link to="/buyer-protection" className="font-bold underline underline-offset-4 decoration-black/30 hover:decoration-black">Buyer Protection</Link>.
           </p>
 
           {/* MODEL.md §8: "it did not fit" is the biggest single reason used

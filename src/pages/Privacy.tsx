@@ -56,7 +56,7 @@ export function Privacy() {
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Cookies and Browser Storage</h2>
             <p>zarketplace sets no advertising or cross-site tracking cookies. Almost everything we keep is stored in your browser's local storage on this device, not sent to us as a cookie, and you can clear all of it at any time from your browser settings.</p>
-            <p>Always on, because the site cannot work without them: your sign-in session (so you stay logged in), your cart, your saved items, an in-progress checkout, and your answer to the cookie banner itself.</p>
+            <p>Always on, because the site cannot work without them: your sign-in session (so you stay logged in), your cart, your favorites, an in-progress checkout, and your answer to the cookie banner itself.</p>
             <p>Only after you accept: product analytics (PostHog) and page-performance measurement (Vercel Analytics and Speed Insights). If you reject, the analytics script is never loaded at all, and nothing is recorded. You can change your answer by clearing this site's data in your browser.</p>
             <p>During payment, our payment provider may set its own cookies on its own checkout screen, under its own privacy policy, to complete the transaction and prevent fraud.</p>
           </section>
