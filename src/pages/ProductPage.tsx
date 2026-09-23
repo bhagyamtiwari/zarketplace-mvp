@@ -6,7 +6,7 @@ import { formatCurrency, cn } from '../lib/utils';
 import { variantUrl } from '../lib/images';
 import { ProductGallery } from '../components/ProductGallery';
 import { motion } from 'motion/react';
-import { Loader2, RotateCcw, ArrowLeft, ArrowUpRight, ShoppingBag, Check, Share2, ShieldCheck, AlertTriangle, Truck, ChevronRight, Zap } from 'lucide-react';
+import { Loader2, ArrowLeft, Zap } from 'lucide-react';
 import { log } from '../lib/log';
 import { useCart } from '../lib/cart';
 import { useAuth } from '../lib/auth';
@@ -15,16 +15,10 @@ import { ShareInstagramModal } from '../components/ShareInstagramModal';
 import { ListingCard } from '../components/ListingCard';
 import { formatCurrency as fmt } from '../lib/utils';
 import { getShippingCategories, shippingRateFor, type ShippingCategory } from '../lib/pricing';
-import { CONDITIONS, conditionByName } from '../lib/condition';
+import { conditionByName } from '../lib/condition';
+import { usePageMeta, itemName, itemMetaTitle, itemMetaDescription, isDemoTitle } from '../lib/pageMeta';
 
 const plog = log('product');
-
-// The column's text roles, named so every instance of a role is identical.
-// Two faces only, the site's own: Inter at black weight for labels and
-// values, Inter at regular weight for sentences. Nothing below 11px.
-const LABEL = 'text-xs font-black uppercase tracking-[0.15em] ink-mid';
-const LINK = 'text-[11px] font-black uppercase tracking-[0.2em] underline underline-offset-4 decoration-black/30 hover:decoration-black transition-colors';
-const VALUE = 'text-lg sm:text-xl font-black tracking-tight leading-none';
 
 type Unit = 'in' | 'cm';
 const CM_PER_INCH = 2.54;
@@ -92,6 +86,7 @@ export function ProductPage() {
   // copy methods and the link is shown to copy by hand.
   const [shared, setShared] = React.useState<null | 'copied' | 'manual'>(null);
   const [unit, setUnit] = React.useState<Unit>('in');
+  const [showGuide, setShowGuide] = React.useState(false);
   const [stickyBarVisible, setStickyBarVisible] = React.useState(true);
   const stickyStopRef = React.useRef<HTMLDivElement>(null);
 
@@ -119,13 +114,23 @@ export function ProductPage() {
     };
   }, [listing?.id]);
 
-  // Swipe state for the mobile carousel. Declared here (not below the
-  // loading/not-found early returns) so the hook order stays identical
-  // across renders — hooks after a conditional return crash React (#310).
-
-
-
-
+  // The details column stays in view on desktop while the photos scroll past
+  // it. When it is taller than the screen, it scrolls with the page until its
+  // last line is showing and pins from there, so nothing in it is ever out of
+  // reach. Declared above the early returns: hooks after a conditional return
+  // crash React (#310).
+  const infoRef = React.useRef<HTMLDivElement>(null);
+  const [infoTop, setInfoTop] = React.useState(112);
+  React.useEffect(() => {
+    const el = infoRef.current;
+    if (!el) return;
+    const update = () => setInfoTop(Math.min(112, window.innerHeight - el.offsetHeight - 32));
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    window.addEventListener('resize', update);
+    return () => { ro.disconnect(); window.removeEventListener('resize', update); };
+  }, [listing?.id]);
 
   React.useEffect(() => {
     async function fetchListing() {
@@ -199,6 +204,23 @@ export function ProductPage() {
     return () => { cancelled = true; };
   }, [listing]);
 
+  // The tab title, description and canonical for this item, the same ones
+  // api/item.ts writes into the first response, so a visit that arrives by
+  // clicking through the shop gets them too. Demo items and missing ones are
+  // never indexed.
+  const metaName = listing ? itemName(listing.title, listing.brand) : 'Pre-owned clothing';
+  const metaSize = listing ? (listing.size_type || listing.size) : null;
+  usePageMeta({
+    title: listing ? itemMetaTitle(metaName, metaSize) : 'Pre-owned clothing',
+    description: listing
+      ? itemMetaDescription(metaName, metaSize, listing.condition, !!listing.free_shipping)
+      : 'Pre-owned clothing, sold and shipped by zarketplace.',
+    path: listing
+      ? (listing.sku ? `/item/${listing.sku.toLowerCase()}` : `/product/${listing.id}`)
+      : window.location.pathname,
+    noIndex: listing ? isDemoTitle(listing.title) : !loading,
+  });
+
   // The loaded page is several screens tall. A short loading state put the
   // footer on screen, and it then jumped when the listing arrived - a 0.20
   // layout shift, the worst on the site. Trying to skeleton the real layout
@@ -210,7 +232,7 @@ export function ProductPage() {
   // sees, and is not counted.
   if (loading) {
     return (
-      <div className="mx-auto max-w-7xl min-h-[220vh] px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32" aria-busy="true">
+      <div className="mx-auto max-w-[1600px] min-h-[220vh] px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32" aria-busy="true">
         <div className="flex justify-center pt-24">
           <Loader2 className="h-8 w-8 animate-spin ink-low" />
         </div>
@@ -220,7 +242,7 @@ export function ProductPage() {
 
   if (!listing) {
     return (
-      <div className="mx-auto max-w-7xl px-4 pt-24 sm:pt-28 pb-14 sm:pb-20 text-center">
+      <div className="mx-auto max-w-7xl px-4 pt-24 sm:pt-32 pb-16 sm:pb-20 text-center">
         <h1 className="text-2xl font-black uppercase tracking-tighter">Listing not found</h1>
         <button onClick={() => navigate('/browse')} className="mt-8 text-xs font-bold uppercase tracking-widest underline">
           Back to browsing
@@ -305,222 +327,149 @@ export function ProductPage() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-28 sm:pb-20">
-      <Link to="/browse" className="inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-6 sm:mb-10">
-        <ArrowLeft className="h-3 w-3" /> Back to browse
+    <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-28 sm:pb-20">
+      <Link to="/browse" className="inline-flex items-center gap-2 text-sm font-medium text-black hover:underline underline-offset-4 mb-6 sm:mb-10">
+        <ArrowLeft className="h-4 w-4" /> Back to browse
       </Link>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16">
-        {/* Pinned on desktop, so the garment stays in view while the facts
-            about it scroll past. */}
-        <div className="lg:col-span-6 lg:sticky lg:top-28 lg:self-start">
+      {/* Photos take the smaller share (about 40/60). They are the vendor's
+          own, from a phone, and shown at half a laptop screen wide they looked
+          worse than they are. */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
+        <div className="lg:col-span-5">
           <ProductGallery images={images} alt={listing.title} />
         </div>
 
-        {/* One typographic rule runs the column: facts about this garment are
-            in the serif, everything of ours is in Inter. And one editing rule:
-            only what a buyer needs to decide is on the page. What is the same
-            on every item is one line each, linked to the page that has the
-            rest. */}
-        <div className="lg:col-span-6 flex flex-col lg:max-w-[32rem]">
-          <header className="flex flex-col gap-4 pb-8">
-            <div className="flex items-start justify-between gap-6">
-              <h1 className="text-3xl sm:text-4xl font-black tracking-tighter uppercase leading-[0.9]">{listing.title}</h1>
-              <div className="relative mt-1 shrink-0">
-                <button
-                  type="button"
-                  onClick={onShare}
-                  aria-label="Share"
-                  className="flex h-9 w-9 items-center justify-center border border-black/15 transition-colors hover:border-black"
-                >
-                  {shared === 'copied' ? <Check className="h-4 w-4" /> : <Share2 className="h-4 w-4" />}
-                </button>
-                {shared === 'copied' && (
-                  <span role="status" className="absolute right-0 top-full mt-2 whitespace-nowrap text-[11px] font-black uppercase tracking-[0.2em] ink-mid">
-                    Link copied
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center justify-between gap-4">
-              <div className="flex items-baseline gap-4">
-                {listing.sale_price ? (
-                  <>
-                    <span className="text-2xl font-black text-red-600">{formatCurrency(listing.sale_price)}</span>
-                    <span className="text-base ink-mid line-through font-bold">{formatCurrency(listing.price)}</span>
-                  </>
-                ) : (
-                  <span className="text-2xl font-black">{formatCurrency(listing.price)}</span>
-                )}
-              </div>
-              {/* The code people quote on WhatsApp or when they write to us,
-                  so it sits where it can be read off at a glance. */}
-              <span className="shrink-0 border border-black px-2.5 py-1 text-xs font-black uppercase tracking-[0.12em] tabular-nums" title="Product code">
-                {listing.sku || `ZV-${listing.id.slice(0, 8).toUpperCase()}`}
+        {/* One column, one rhythm. The brand, the name and the price; then the
+            facts as a short list; then the buttons; then the detail. Four
+            type styles and no icons: a small tracked label for the brand, bold
+            for what matters, regular for everything else, and the buttons. */}
+        <div
+          ref={infoRef}
+          className="lg:col-span-7 lg:max-w-[38rem] lg:sticky lg:self-start flex flex-col"
+          style={{ top: infoTop }}
+        >
+          {/* Instant Ship first, as a sign: it is the one thing that differs
+              between two otherwise identical items, and it answers "can I have
+              it this week" before anything else is read. Only on something
+              that can actually be bought. */}
+          {purchasable && listing.is_verified && (
+            <p className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+              <span className="inline-flex items-center gap-1.5 bg-black px-2.5 py-1 text-xs font-bold text-white">
+                <Zap aria-hidden className="h-3.5 w-3.5" strokeWidth={2} />
+                Instant Ship
               </span>
-            </div>
-            {shared === 'manual' && (
-              <input
-                readOnly
-                autoFocus
-                value={window.location.href}
-                onFocus={(e) => e.currentTarget.select()}
-                onBlur={() => setShared(null)}
-                aria-label="Link to this item"
-                className="w-full border border-black/15 px-3 py-2 text-xs font-medium focus:border-black focus:outline-none"
-              />
-            )}
-          </header>
-
-          <dl className={cn('grid border-y border-black', fitsLike ? 'grid-cols-3' : 'grid-cols-2')}>
-            {([
-              ['Brand', listing.brand || 'Vintage'],
-              ['Listed size', listing.size_type || 'One size'],
-              ...(fitsLike ? [['Fits like', fitsLike]] : []),
-            ] as Array<[string, string]>).map(([label, value], i) => (
-              <div key={label} className={cn('flex min-w-0 flex-col gap-3 py-5', i > 0 && 'border-l border-black/10 pl-4 sm:pl-5')}>
-                <dt className={LABEL}>{label}</dt>
-                <dd className={cn(VALUE, 'break-words')}>{value}</dd>
-              </div>
-            ))}
-          </dl>
-
-          {/* The four grades as one scale, this item's filled. What a grade
-              means is a hover (or a tap) away, not a sentence always there. */}
-          <section className="flex flex-col gap-4 border-b border-black/10 py-6" aria-labelledby="condition-heading">
-            <div className="flex items-baseline justify-between gap-4">
-              <h2 id="condition-heading" className={LABEL}>Condition</h2>
-              {listing.authenticity_confirmed && (
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-black uppercase tracking-[0.2em]">
-                  <ShieldCheck className="h-3.5 w-3.5" /> Confirmed authentic
-                </span>
-              )}
-            </div>
-            <ol className="grid grid-cols-4 gap-1.5">
-              {CONDITIONS.map((tier, i) => {
-                const active = tier.name === condition?.name;
-                return (
-                  <li key={tier.name} className="group/tier relative">
-                    <button
-                      type="button"
-                      aria-describedby={`tier-${i}`}
-                      aria-current={active ? 'true' : undefined}
-                      className="flex w-full flex-col gap-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-4"
-                    >
-                      <span aria-hidden className={cn('block h-[3px] w-full transition-colors', active ? 'bg-black' : 'bg-black/10 group-hover/tier:bg-black/30')} />
-                      <span className="flex h-6 items-end justify-between gap-1">
-                        {active ? (
-                          <span className="text-sm font-black uppercase tracking-[0.1em]">{tier.name}</span>
-                        ) : (
-                          <span className="text-[11px] font-black uppercase tracking-[0.15em] ink-mid">{tier.name}</span>
-                        )}
-                        {active && <span className="text-[11px] font-black tabular-nums">{tier.grade}</span>}
-                      </span>
-                    </button>
-                    <span
-                      id={`tier-${i}`}
-                      role="tooltip"
-                      className={cn(
-                        'pointer-events-none absolute bottom-full z-30 mb-3 w-60 bg-black p-4 text-white opacity-0 transition-opacity duration-150',
-                        'group-hover/tier:opacity-100 group-focus-within/tier:opacity-100',
-                        i === 0 ? 'left-0' : i === CONDITIONS.length - 1 ? 'right-0' : 'left-1/2 -translate-x-1/2',
-                      )}
-                    >
-                      <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.2em] text-white/70">
-                        {tier.name} &middot; {tier.grade}
-                      </span>
-                      <span className="block text-sm leading-snug">{tier.desc}</span>
-                    </span>
-                  </li>
-                );
-              })}
-            </ol>
-          </section>
-
-          {/* MODEL.md §8: "it did not fit" is the biggest single reason used
-              clothing comes back. Inches first; stored in centimetres. */}
-          {measurements.length > 0 && (
-            <section className="flex flex-col gap-4 border-b border-black/10 py-6" aria-labelledby="measurements-heading">
-              <div className="flex items-center justify-between gap-4">
-                <h2 id="measurements-heading" className={LABEL}>Measurements</h2>
-                <div className="flex items-center gap-4">
-                  {guide && (
-                    // The drawing the vendor measured from: on hover where a
-                    // pointer exists, full size in a new tab on click or tap.
-                    <div className="group/guide relative flex items-center">
-                      <a href={`/images/${guide}.png`} target="_blank" rel="noopener noreferrer" className={cn(LINK, 'inline-flex items-center gap-1 leading-none')}>
-                        Guide <ArrowUpRight className="h-3 w-3" />
-                      </a>
-                      <div
-                        aria-hidden
-                        className="pointer-events-none absolute right-0 top-full z-30 mt-3 hidden w-72 border border-black bg-white p-2 shadow-[0_12px_40px_rgba(0,0,0,0.12)] opacity-0 transition-opacity duration-150 [@media(hover:hover)]:block group-hover/guide:opacity-100 group-focus-within/guide:opacity-100"
-                      >
-                        <picture>
-                          <source srcSet={`/images/${guide}.webp`} type="image/webp" />
-                          <img src={`/images/${guide}.png`} alt="" width={720} height={1080} loading="lazy" decoding="async" className="block h-auto w-full" />
-                        </picture>
-                      </div>
-                    </div>
-                  )}
-                  <div className="flex border border-black/15" role="group" aria-label="Measurement unit">
-                    {(['in', 'cm'] as Unit[]).map((u) => (
-                      <button
-                        key={u}
-                        type="button"
-                        onClick={() => setUnit(u)}
-                        aria-pressed={unit === u}
-                        className={cn(
-                          'px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.2em] transition-colors',
-                          unit === u ? 'bg-black text-white' : 'text-black hover:bg-black/5',
-                        )}
-                      >
-                        {u}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              <dl className="grid grid-cols-3 gap-x-4 gap-y-5">
-                {measurements.map(([label, cm]) => (
-                  <div key={label} className="flex flex-col gap-2">
-                    <dt className={LABEL}>{label}</dt>
-                    <dd className={cn(VALUE, 'tabular-nums')}>
-                      {formatLength(cm, unit)}
-                      <span className="ml-1 text-[11px] font-black uppercase ink-mid">{unit}</span>
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </section>
+              <span>Dispatched within 48 hours.</span>
+            </p>
           )}
 
-          <div className="flex flex-col gap-3 py-8">
+          {/* The item by its name, then its price. The brand is a fact about
+              it, listed below with the size, not a label over the top: led by
+              the brand, a page reads as a wall of logos. */}
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight leading-tight">{listing.title}</h1>
+          <div className="mt-3 flex items-baseline justify-between gap-4">
+            <div className="flex items-baseline gap-3">
+              {listing.sale_price ? (
+                <>
+                  <span className="text-xl font-black tabular-nums text-red-600">{formatCurrency(listing.sale_price)}</span>
+                  <span className="text-base line-through tabular-nums">{formatCurrency(listing.price)}</span>
+                </>
+              ) : (
+                <span className="text-xl font-black tabular-nums">{formatCurrency(listing.price)}</span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={onShare}
+              className="shrink-0 text-sm underline underline-offset-4 decoration-black/30 hover:decoration-black"
+            >
+              {shared === 'copied' ? 'Link copied' : 'Share'}
+            </button>
+          </div>
+          {shared === 'manual' && (
+            <input
+              readOnly
+              autoFocus
+              value={window.location.href}
+              onFocus={(e) => e.currentTarget.select()}
+              onBlur={() => setShared(null)}
+              aria-label="Link to this item"
+              className="mt-4 w-full border border-black/15 px-3 py-2 text-sm focus:border-black focus:outline-none"
+            />
+          )}
+
+          {/* The facts, as a spec list: label, then value, no rules between. */}
+          <dl className="mt-8 grid grid-cols-[6.5rem_1fr] gap-x-4 gap-y-3 text-sm">
+            {listing.brand && (
+              <>
+                <dt>Brand</dt>
+                <dd className="font-bold">{listing.brand}</dd>
+              </>
+            )}
+            <dt>Size</dt>
+            <dd className="font-bold">{listing.size_type || 'One size'}</dd>
+            {fitsLike && (
+              <>
+                <dt>Fits like</dt>
+                <dd className="font-bold">{fitsLike}</dd>
+              </>
+            )}
+            {condition && (
+              <>
+                <dt>Condition</dt>
+                <dd>
+                  <Link to="/conditions-guide" className="font-bold underline underline-offset-4 decoration-black/30 hover:decoration-black">
+                    {condition.name}
+                  </Link>
+                  <span className="block leading-relaxed">{condition.desc}</span>
+                </dd>
+              </>
+            )}
+            {/* Only ever a positive: an item without the confirmation simply
+                has no Authenticity row, never a "not confirmed" one. */}
+            {listing.authenticity_confirmed && (
+              <>
+                <dt>Authenticity</dt>
+                <dd className="font-bold">Confirmed</dd>
+              </>
+            )}
+            {listing.free_shipping && (
+              <>
+                <dt>Delivery</dt>
+                <dd className="font-bold">Free</dd>
+              </>
+            )}
+            <dt>Item</dt>
+            <dd className="font-bold">{listing.sku || `ZV-${listing.id.slice(0, 8).toUpperCase()}`}</dd>
+          </dl>
+
+          <div className="mt-8 flex flex-col gap-3">
             {listing.status !== 'approved' ? (
-              <div className="w-full border border-amber-200 bg-amber-50 px-6 py-6 flex flex-col gap-2">
-                <span className="text-[11px] font-black uppercase tracking-[0.4em] text-amber-700">
+              <div className="flex flex-col gap-1 border-t border-black pt-4">
+                <span className="text-[15px] font-bold">
                   {listing.status === 'pending' ? 'Not on sale yet' : 'Not available'}
                 </span>
-                <p className="text-[11px] font-bold uppercase tracking-widest text-amber-700/80 leading-relaxed">
+                <p className="text-sm leading-relaxed">
                   {listing.is_mine === true
                     ? 'We are looking at this item. It goes on sale once you accept our offer, and nobody can buy it before then.'
                     : 'This item is not on sale yet.'}
                 </p>
               </div>
             ) : isDemo ? (
-              <div className="w-full border border-black/15 bg-zinc-50 px-6 py-5 flex flex-col gap-1">
+              <div className="flex flex-col gap-1 border-t border-black pt-4">
                 <span className="text-[15px] font-bold">Demo item, not for sale</span>
-                <span className="text-sm ink-mid">It shows how pieces look on zarketplace. Real stock is on its way.</span>
+                <span className="text-sm">It shows how pieces look on zarketplace. Real stock is on its way.</span>
               </div>
             ) : listing.is_sold ? (
-              <div className="w-full bg-zinc-100 py-6 text-center text-xs font-black uppercase tracking-[0.3em] ink-mid cursor-not-allowed border border-black/5">
-                Sold Out
+              <div className="w-full border border-black py-5 text-center text-xs font-black uppercase tracking-[0.3em]">
+                Sold
               </div>
             ) : (
               <>
                 <button
                   type="button"
                   onClick={handleBuyNow}
-                  className="w-full bg-black py-6 text-center text-xs font-black uppercase tracking-[0.3em] text-white transition-all hover:bg-zinc-800 active:scale-[0.98]"
+                  className="w-full bg-black py-5 text-center text-xs font-black uppercase tracking-[0.3em] text-white transition-colors hover:bg-zinc-800"
                 >
                   Buy it now
                 </button>
@@ -544,60 +493,122 @@ export function ProductPage() {
                     await add(listing);
                     setCartMsg('Added to cart');
                   }}
-                  className="w-full border border-black py-6 text-center text-xs font-black uppercase tracking-[0.3em] text-black transition-all hover:bg-black hover:text-white flex items-center justify-center gap-3"
+                  className="w-full border border-black py-5 text-center text-xs font-black uppercase tracking-[0.3em] text-black transition-colors hover:bg-black hover:text-white"
                 >
-                  {has(listing.id) ? (
-                    <><Check className="h-4 w-4" /> In cart - view cart</>
-                  ) : (
-                    <><ShoppingBag className="h-4 w-4" /> Add to cart</>
-                  )}
+                  {has(listing.id) ? 'In cart, view cart' : 'Add to cart'}
                 </button>
-                {cartMsg && <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-700">{cartMsg}</p>}
+                {cartMsg && <p className="text-sm font-bold">{cartMsg}</p>}
               </>
             )}
           </div>
 
-          {/* What is the same on every item: one line each, right under the
-              button where a buyer checks it, linked to the page with the rest. */}
-          <ul className="flex flex-col border-t border-black/10">
-            {[
-              listing.is_verified
-                ? {
-                  icon: Zap, title: 'Instant ship', to: '/shipping-policy',
-                  body: listing.free_shipping
-                    ? 'Already with us. Dispatched within 48 hours, delivery free.'
-                    : 'Already with us. Dispatched within 48 hours.',
-                }
-                : {
-                  icon: Truck, title: listing.free_shipping ? 'Free delivery' : 'Tracked delivery', to: '/shipping-policy',
-                  body: 'Checked at our hub, then tracked to your door.',
-                },
-              { icon: ShieldCheck, title: 'Buyer protection', to: '/buyer-protection', body: 'Not as described? Tell us within 7 days for a full refund.' },
-              { icon: RotateCcw, title: 'Returns & cancellations', to: '/returns', body: 'Cancel any time before it ships.' },
-            ].map(({ icon: Icon, title, body, to }) => (
-              <li key={title} className="border-b border-black/10">
-                <Link to={to} className="group flex items-center gap-4 py-4">
-                  <Icon className="h-5 w-5 shrink-0" />
-                  <span className="flex min-w-0 flex-1 flex-col gap-1">
-                    <span className="text-[15px] font-bold leading-snug">{title}</span>
-                    <span className="text-sm leading-snug ink-mid">{body}</span>
+          {/* What happens if it is not right, in one line. Delivery is a
+              fact about the item, so it sits in the list above; the details
+              of the protection are one click away, not restated here. */}
+          <p className="mt-5 text-sm leading-relaxed">
+            Your order is protected by{' '}
+            <Link to="/buyer-protection" className="font-bold underline underline-offset-4 decoration-black/30 hover:decoration-black">Buyer Protection</Link>:
+            a full refund if it is not as described.
+          </p>
+
+          {/* MODEL.md §8: "it did not fit" is the biggest single reason used
+              clothing comes back. Inches first; stored in centimetres. */}
+          {measurements.length > 0 && (
+            <section className="mt-12 flex flex-col gap-4" aria-labelledby="measurements-heading">
+              <div className="flex items-baseline justify-between gap-4">
+                <div className="flex flex-wrap items-baseline gap-x-2">
+                  <h2 id="measurements-heading" className="text-[15px] font-bold">Measurements</h2>
+                  {/* How the numbers were taken. On a computer, hover the link
+                      and the drawing appears above it (click opens it full
+                      size). On a phone there is no hover, so a tap shows it in
+                      place, under this line. */}
+                  {guide && (
+                    <span className="text-sm">
+                      (<span className="group/guide relative inline-block">
+                        <a
+                          href={`/images/${guide}.png`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          aria-expanded={showGuide}
+                          onClick={(e) => {
+                            if (window.matchMedia('(hover: hover)').matches) return;
+                            e.preventDefault();
+                            setShowGuide((v) => !v);
+                          }}
+                          className="underline underline-offset-4 decoration-black/30 hover:decoration-black"
+                        >
+                          See how we measure
+                        </a>
+                        <span
+                          aria-hidden
+                          className="pointer-events-none absolute bottom-full left-0 z-30 mb-3 hidden w-60 border border-black bg-white p-2 opacity-0 transition-opacity duration-150 [@media(hover:hover)]:block group-hover/guide:opacity-100"
+                        >
+                          <picture>
+                            <source srcSet={`/images/${guide}.webp`} type="image/webp" />
+                            <img src={`/images/${guide}.png`} alt="" width={720} height={1080} loading="lazy" decoding="async" className="block h-auto w-full" />
+                          </picture>
+                        </span>
+                      </span>)
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-baseline gap-4 text-sm">
+                  {/* Two words, the chosen one bold: a unit switch does not
+                      need to be a control that looks like a control. */}
+                  <span role="group" aria-label="Measurement unit" className="flex items-baseline gap-1.5">
+                    {(['in', 'cm'] as Unit[]).map((u, i) => (
+                      <React.Fragment key={u}>
+                        {i > 0 && <span aria-hidden>/</span>}
+                        <button
+                          type="button"
+                          onClick={() => setUnit(u)}
+                          aria-pressed={unit === u}
+                          className={cn(unit === u ? 'font-bold' : 'underline underline-offset-4 decoration-black/30 hover:decoration-black')}
+                        >
+                          {u}
+                        </button>
+                      </React.Fragment>
+                    ))}
                   </span>
-                  <ChevronRight className="h-4 w-4 shrink-0 ink-mid transition-transform group-hover:translate-x-0.5" />
-                </Link>
-              </li>
-            ))}
-          </ul>
+                </div>
+              </div>
+              {guide && showGuide && (
+                <picture className="[@media(hover:hover)]:hidden">
+                  <source srcSet={`/images/${guide}.webp`} type="image/webp" />
+                  <img
+                    src={`/images/${guide}.png`}
+                    alt="How each measurement is taken, drawn on the garment"
+                    width={720}
+                    height={1080}
+                    loading="lazy"
+                    decoding="async"
+                    className="block h-auto w-full max-w-[16rem] border border-black/10"
+                  />
+                </picture>
+              )}
+              <dl className="grid grid-cols-3 gap-x-4 gap-y-5">
+                {measurements.map(([label, cm]) => (
+                  <div key={label} className="flex flex-col gap-1">
+                    <dt className="text-sm">{label}</dt>
+                    <dd className="text-lg font-bold tracking-tight tabular-nums">
+                      {formatLength(cm, unit)}
+                      <span className="ml-1 text-sm font-normal tracking-normal">{unit}</span>
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          )}
 
           {(listing.description || listing.has_flaws) && (
-            <section id="flaws" className="flex scroll-mt-32 flex-col gap-4 py-8">
+            <section id="flaws" className="mt-12 flex scroll-mt-32 flex-col gap-3">
               <h2 className="text-[15px] font-bold">Description</h2>
               {listing.description && (
-                <p className="text-[15px] leading-relaxed whitespace-pre-line">{listing.description}</p>
+                <p className="text-sm leading-relaxed whitespace-pre-line">{listing.description}</p>
               )}
               {listing.has_flaws && listing.flaws_description && (
-                <p className="flex gap-2 text-sm leading-relaxed">
-                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span><span className="font-black">Flaw:</span> {listing.flaws_description}</span>
+                <p className="text-sm leading-relaxed">
+                  <span className="font-bold">Flaw:</span> {listing.flaws_description}
                 </p>
               )}
             </section>
@@ -605,25 +616,21 @@ export function ProductPage() {
 
           <div ref={stickyStopRef} />
 
-
-          <div className="flex flex-col">
-
-            {listing.is_mine === true && (
-              <div className="mt-4 pt-6 border-t border-black/5 flex flex-col gap-3">
-                <span className="text-[11px] font-black uppercase tracking-[0.4em] ink-mid">Your item</span>
-                <button
-                  type="button"
-                  onClick={() => setShareOpen(true)}
-                  className="self-start inline-flex items-center gap-3 border border-black px-6 py-3 text-[11px] font-black uppercase tracking-[0.3em] hover:bg-black hover:text-white transition-colors"
-                >
-                  <Share2 className="h-3.5 w-3.5" /> Generate Instagram image
-                </button>
-                <p className="text-[11px] font-bold uppercase tracking-widest ink-mid leading-relaxed max-w-md">
-                  Download a post or story image of this item in one click.
-                </p>
-              </div>
-            )}
-          </div>
+          {listing.is_mine === true && (
+            <div className="mt-12 flex flex-col gap-3 border-t border-black pt-4">
+              <span className="text-[15px] font-bold">Your item</span>
+              <p className="text-sm leading-relaxed">
+                Download a post or story image of this item in one click.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShareOpen(true)}
+                className="self-start border border-black px-6 py-3 text-[11px] font-black uppercase tracking-[0.3em] hover:bg-black hover:text-white transition-colors"
+              >
+                Generate Instagram image
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -646,8 +653,8 @@ export function ProductPage() {
       {purchasable && stickyBarVisible && (
         <div className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-black/10 px-4 py-3 flex items-center gap-4 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-black uppercase tracking-widest ink-mid truncate">{listing.title}</p>
-            <p className="text-lg font-black tracking-tight">
+            <p className="text-sm truncate">{listing.title}</p>
+            <p className="text-base font-black tabular-nums">
               {formatCurrency(listing.sale_price ?? listing.price)}
             </p>
           </div>

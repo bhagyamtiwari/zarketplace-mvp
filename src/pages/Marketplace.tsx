@@ -5,13 +5,12 @@
 // it the page is search, filters and real inventory, and nothing else.
 import React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, SlidersHorizontal, X, Plus, Loader2, Heart, ChevronDown, PackageCheck, MessageSquareOff, Truck, ArrowRight, Zap } from 'lucide-react';
+import { Search, SlidersHorizontal, X, Loader2, ChevronDown } from 'lucide-react';
 import { supabasePublic } from '../lib/supabase';
 import { Listing } from '../types';
 import { ListingCard } from '../components/ListingCard';
 import { EmptyState } from '../components/EmptyState';
 import { CampaignBand } from '../components/CampaignBand';
-import { PromiseBanner } from '../components/PromiseBanner';
 import { cn } from '../lib/utils';
 import { log } from '../lib/log';
 import { usePageMeta, META } from '../lib/pageMeta';
@@ -25,12 +24,11 @@ const PAGE_SIZE = 24;
 
 
 
+
 interface ToggleProps {
   active: boolean;
   onClick: () => void;
   children: React.ReactNode;
-  /** Small corner flag, e.g. "New" on a freshly added filter. */
-  tag?: string;
 }
 
 // Neutralize PostgREST-significant characters before interpolating a user search
@@ -51,15 +49,13 @@ const PRODUCT_TYPES = ['Tops', 'Bottoms', 'Outerwear', 'Accessories', 'Shoes'];
 
 // Discovery chips. These are shortcuts into the same filter surface, not
 // marketing sections - each one is a query anyone could have built by hand.
-// Remembered per browser, so dismissing the floating CTA sticks.
-const OFFER_CTA_KEY = 'zk.offerCta.hidden';
 
 const QUICK_CHIPS: Array<{ value: string; label: string; tag?: string }> = [
   // MODEL.md §3. Stock we own and photographed ourselves, on our shelf, so it
   // goes out the day it is bought rather than waiting on anyone.
-  { value: 'verified', label: 'Instant ship' },
+  { value: 'verified', label: 'Instant Ship' },
   { value: 'under_999', label: 'Under ₹999' },
-  { value: 'sale', label: 'On sale' },
+  { value: 'sale', label: 'On Sale' },
 ];
 
 const SORT_OPTIONS: Array<{ value: string; label: string }> = [
@@ -104,9 +100,6 @@ export function Marketplace() {
   const sizeType = searchParams.get('size_type');
   const condition = searchParams.get('condition');
   const quick = searchParams.get('q');
-  const [offerCtaHidden, setOfferCtaHidden] = React.useState(() => {
-    try { return localStorage.getItem(OFFER_CTA_KEY) === '1'; } catch { return false; }
-  });
   const searchQuery = searchParams.get('search') ?? '';
   // Relevance, not recency. Newest-first made the homepage a function of
   // upload order, so the last thing listed led - which put a Rs 50 jersey
@@ -297,88 +290,68 @@ export function Marketplace() {
           before reaching the grid. */}
       <HeroBanner />
 
-      {/* The promise band. It used to run over the Create Listing form, where
-          brand noise on top of a form is pure friction. Here it reaches the same
-          people - those browsing are the ones who go on to list an item with us
-          - without standing between anyone and a field they have to fill. */}
-      <PromiseBanner variant="ticker" />
+      {/* No promise ticker between the hero and the shop. The hero already
+          says sold and shipped by us, prices upfront, checked; the striped
+          tape said it again, louder, and pushed the products down. */}
 
-      {/* Control deck: search + chips. It stays where it sits, between the
-          banner and the grid, rather than following the scroll - pinned, it
-          rode all the way down to the footer, where a search box over the
-          closing bands is just something in the way. */}
-      <div className="border-b border-black/5 bg-white">
-        <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-3 flex flex-col gap-3">
-          {/* Search keeps sentence case rather than the sitewide uppercase: the
-              full hint has to fit a phone's width without truncating. */}
-          <form onSubmit={onSearchSubmit} className="relative">
-            <Search className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 ink-low" />
-            <input
-              type="search"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search brands, items, sizes"
-              aria-label="Search listings"
-              className="w-full border border-black/10 bg-zinc-50 py-3 pl-11 pr-4 text-sm font-bold tracking-normal placeholder:text-black/30 focus:border-black focus:outline-none"
-            />
-          </form>
+      {/* The shop's controls, one strip: what you are looking at on the left
+          as a row of words, and the tools on the right. It stays where it
+          sits rather than following the scroll: pinned, it rode all the way
+          down to the footer. The hero's "Shop now" scrolls here (#shop). */}
+      <div id="shop" className="scroll-mt-20 border-b border-black/10 bg-white">
+        <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex flex-col gap-1 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
+          {/* Gender is the one filter that earns a permanent place: it halves
+              the catalogue in one tap. Instant Ship sits beside it because
+              "can I have it this week" is a question people arrive with. */}
+          <div className="-mx-4 px-4 sm:mx-0 sm:px-0 flex items-center gap-6 overflow-x-auto scrollbar-hide">
+            <Tab active={!gender && !quick && !category} onClick={clearAll}>All</Tab>
+            {GENDERS.map((g) => (
+              <React.Fragment key={g}>
+                <Tab active={gender === g} onClick={() => toggleParam('gender', g)}>{g}</Tab>
+              </React.Fragment>
+            ))}
+            <Tab active={quick === 'verified'} onClick={() => toggleParam('q', 'verified')}>Instant Ship</Tab>
+            {favorites.size > 0 && (
+              <Tab active={quick === 'saved'} onClick={() => toggleParam('q', 'saved')}>Saved ({favorites.size})</Tab>
+            )}
+          </div>
 
-          {/* One line, every width. Gender is the only filter that earns a
-              permanent chip - it halves the catalogue in one tap and everyone
-              uses it. Everything else lives behind Filters, including on
-              desktop, so the bar reads the same on a phone as on a laptop. */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide min-w-0 flex-1">
-              <Chip active={!gender && !quick && !category} onClick={clearAll}>All</Chip>
-              {GENDERS.map((g) => (
-                <Chip key={g} active={gender === g} onClick={() => toggleParam('gender', g)}>{g}</Chip>
-              ))}
-              {/* Stock already in our hub, out within 48 hours of an order.
-                  On the bar rather than behind Filters, because "can I have it
-                  this week" is a question people arrive with. */}
-              <Chip active={quick === 'verified'} onClick={() => toggleParam('q', 'verified')}>
-                <span className="flex items-center gap-1.5">
-                  <Zap className={cn('h-3 w-3', quick === 'verified' ? 'fill-white' : 'fill-black')} />
-                  Instant ship
-                </span>
-              </Chip>
-              {favorites.size > 0 && (
-                <Chip active={quick === 'saved'} onClick={() => toggleParam('q', 'saved')}>
-                  <span className="flex items-center gap-1.5">
-                    <Heart className={cn('h-3 w-3', quick === 'saved' ? 'fill-white' : 'fill-black')} />
-                    {favorites.size}
-                  </span>
-                </Chip>
-              )}
-            </div>
-
-            <div className="flex shrink-0 items-center gap-2">
-              {/* Sort moves into the sheet on a phone. On one line with the
-                  gender chips it took 248px of a 343px row and crushed them to
-                  87px, so "Women" rendered as a single clipped letter. */}
-              <span className="hidden sm:flex">
-                <SortChip value={sortBy} onChange={(v) => setParam('sort', v === 'relevance' ? null : v)} />
-              </span>
-              <button
-                type="button"
-                onClick={() => setShowFilters(true)}
-                className="shrink-0 flex min-h-[44px] items-center gap-2 border border-black bg-white px-4 py-3 text-[11px] font-black uppercase tracking-widest hover:bg-black hover:text-white transition-colors"
-              >
-                <SlidersHorizontal className="h-3.5 w-3.5" />
-                Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
-              </button>
-            </div>
+          <div className="flex items-center gap-5 sm:gap-6">
+            <form onSubmit={onSearchSubmit} className="relative min-w-0 flex-1 lg:w-72 lg:flex-none">
+              <Search className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4" />
+              <input
+                type="search"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Search brands, items, sizes"
+                aria-label="Search listings"
+                className="w-full min-h-[44px] border-b border-black/20 bg-transparent pl-7 pr-2 text-sm placeholder:text-black/40 focus:border-black focus:outline-none"
+              />
+            </form>
+            {/* Sort moves into the sheet on a phone, where the row has no room
+                for it next to the search. */}
+            <span className="hidden sm:flex">
+              <SortChip value={sortBy} onChange={(v) => setParam('sort', v === 'relevance' ? null : v)} />
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowFilters(true)}
+              className="shrink-0 flex min-h-[44px] items-center gap-2 text-sm font-bold hover:underline underline-offset-4"
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+            </button>
           </div>
         </div>
       </div>
 
-      <div className="mx-auto max-w-[1600px] w-full px-4 sm:px-6 lg:px-8 pb-12 pt-4 flex gap-10">
+      <div className="mx-auto max-w-[1600px] w-full px-4 sm:px-6 lg:px-8 pb-16 pt-6 sm:pt-8 flex gap-10">
 
         <div className="min-w-0 flex-1 flex flex-col gap-4">
           {state === 'error' && listings.length === 0 ? (
             /* A failed fetch must never look like an empty catalogue. */
-            <div className="border border-black/10 bg-zinc-50 p-8 flex flex-col items-start gap-4">
-              <p className="text-xs font-bold uppercase tracking-widest ink-mid">
+            <div className="border border-black/10 p-8 flex flex-col items-start gap-4">
+              <p className="text-sm font-bold">
                 We could not load listings just now.
               </p>
               <button
@@ -434,6 +407,9 @@ export function Marketplace() {
               </FeedGrid>
 
               <div ref={sentinelRef} className="h-10" />
+              {/* At the end of the feed, nothing. A closing line under the last
+                  row ("new pieces go up as we buy them") read as an apology,
+                  and the band below the grid already ends the page. */}
               {state === 'paging' ? (
                 <div className="flex justify-center py-6">
                   <Loader2 className="h-5 w-5 animate-spin ink-low" />
@@ -452,18 +428,7 @@ export function Marketplace() {
                     Browse all listings
                   </button>
                 </div>
-              ) : (
-                // End of feed. This used to be a faint "you have seen
-                // everything listed", which read as a bug once new seller
-                // listings stopped appearing: the shopper assumed the feed had
-                // broken. It now says plainly why the catalogue stops here, at
-                // a weight someone actually reads.
-                <div className="py-10 flex justify-center px-4">
-                  <p className="max-w-md text-center text-sm ink-mid">
-                    New pieces go up as we buy them.
-                  </p>
-                </div>
-              )}
+              ) : null}
             </>
           )}
         </div>
@@ -526,7 +491,7 @@ export function Marketplace() {
             <div className="flex gap-3 sticky bottom-0 bg-white pt-2">
               <button
                 onClick={clearAll}
-                className="flex-1 border border-black/10 py-4 text-[11px] font-black uppercase tracking-widest"
+                className="flex-1 border border-black py-4 text-[11px] font-black uppercase tracking-widest"
               >
                 Clear all
               </button>
@@ -541,65 +506,19 @@ export function Marketplace() {
         </div>
       )}
 
-      {/* One band, not three. Three full-bleed statements below the grid was
-          the same idea said three times, and BrandKit's own rule is one idea
-          per section. The other two live on /about, where an argument belongs. */}
-      {/* Two bands, one per side of the business, so the foot of the feed
-          speaks to whoever is reading it. The seller line first, because the
-          feed above it has already served the buyer.
-
-          No body copy under either. The heading and the serif line are the
-          whole statement; a third line explaining them was the band saying the
-          same thing twice at a smaller size. */}
+      {/* One band, to the seller. By the foot of the feed the buyer has
+          been served; the one reader left to reach is someone with something
+          to sell. A second band ("Reduce waste, buy pre-loved", to Browse)
+          said the same thing again and linked to the page it sat on. The
+          photograph is a real resale crowd, not a single shoe. */}
       <CampaignBand
-        image="/images/red-web.jpg"
+        image="/images/resale-web.jpg"
         heading="Good clothes deserve"
         script="another life."
         emphasis="script"
         cta={{ label: 'Get an offer', to: '/sell' }}
       />
 
-      <CampaignBand
-        image="/images/boots-web.jpg"
-        heading="Reduce waste,"
-        script="buy pre-loved."
-        emphasis="script"
-        align="right"
-        cta={{ label: 'Browse everything', to: '/browse' }}
-      />
-
-      {/* Getting an offer is one tap from anywhere in the feed, without ever
-          occupying space the inventory could have used.
-          
-          Dismissable, and it stays dismissed. Someone browsing to buy is not
-          selling today, and a button that sits over the feed forever with no
-          way to close it is the kind of thing you stop seeing and start
-          resenting. The choice is remembered per browser. */}
-      {!offerCtaHidden && (
-        // One small see-through pill, the same material as the cookie card,
-        // so it sits over the feed without covering it.
-        <div className="lg:hidden fixed bottom-5 right-4 z-40 flex h-10 items-center rounded-full border border-white/10 bg-black/70 text-white backdrop-blur-md shadow-[0_8px_30px_rgba(0,0,0,0.25)]">
-          <Link
-            to="/sell"
-            aria-label="Sell now: get an offer for your item"
-            className="flex h-full items-center gap-1.5 pl-4 pr-2 text-[11px] font-black uppercase tracking-[0.2em] active:opacity-70"
-          >
-            <Plus className="h-3.5 w-3.5" /> Sell now
-          </Link>
-          <span aria-hidden className="h-4 w-px bg-white/25" />
-          <button
-            type="button"
-            aria-label="Hide the sell button"
-            onClick={() => {
-              setOfferCtaHidden(true);
-              try { localStorage.setItem(OFFER_CTA_KEY, '1'); } catch { /* private mode */ }
-            }}
-            className="flex h-full w-9 items-center justify-center pr-1 active:opacity-70"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      )}
     </div>
   );
 }
@@ -612,27 +531,15 @@ function FeedGrid({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Trust claims, each one linking to the page that backs it. They live on the
-// banner rather than under the filters: a promise belongs next to the pitch, not
-// wedged between a buyer and the grid.
-//
-// All three are addressed to a BUYER. One of them used to be "We buy your
-// item", which is the seller pitch, sitting between two buyer claims on the
-// front of a shop. A buyer reading three promises in a row has no reason to
-// notice the second one changed audience, so it read as though we were buying
-// from them. Sellers are served by the "Get an offer" button directly below,
-// which is unambiguous because it is a button and not a claim.
-const PROMISES: Array<{ label: string; body: string; to: string; Icon: typeof PackageCheck }> = [
-  { label: 'Checked by us', body: 'Before it ships.', to: '/buyer-protection', Icon: PackageCheck },
-  { label: 'No DMs to buy', body: 'One price, shown upfront.', to: '/browse', Icon: MessageSquareOff },
-  { label: 'Doorstep delivery', body: 'Tracked, to your door.', to: '/shipping-policy', Icon: Truck },
-];
-
 const HERO_IMAGE = 'url(/images/banner-3-new.jpg)';
 
-// The home banner: the pitch, the three promises that back it, and the only two
-// things a visitor can do here. It is permanent rather than dismissible - it is
-// the top of the marketplace, not a first-visit notice.
+// The home banner. One line of display type that lands the joke the photo
+// sets up (the headstone reads "DM FOR PRICE"), then two short sentences: what
+// we are, and the answer to the joke (the price is on the page, and the piece
+// has been checked). Then the two things a visitor can do.
+//
+// Mirrored by hand in index.html (#static-hero) for the first paint. The two
+// must stay identical, or the page visibly changes as the app loads.
 function HeroBanner() {
   // Hand off from the static hero in index.html. A layout effect runs after
   // this component is in the DOM but before the browser paints, so the swap
@@ -641,11 +548,15 @@ function HeroBanner() {
     document.getElementById('static-hero')?.remove();
   }, []);
 
+  const toShop = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
+    document.getElementById('shop')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   return (
     <section className="relative isolate overflow-hidden bg-black text-white">
       {/* Phone: the photo takes the right side whole, so the figure stays intact
-          and the copy sits on flat black instead of fighting the image. The
-          horizontal position keeps the face in frame at this crop. */}
+          and the copy sits on flat black instead of fighting the image. */}
       <div aria-hidden className="absolute inset-y-0 right-0 w-[68%] sm:hidden">
         <div
           className="absolute inset-0 bg-cover bg-no-repeat"
@@ -654,56 +565,36 @@ function HeroBanner() {
         <div className="absolute inset-0 bg-gradient-to-r from-black via-black/55 to-black/10" />
       </div>
 
-      {/* Wide: same idea with more room. The photo holds the right side, where
-          the whole frame fits (figure and headstone both), and fades into flat
-          black under the copy rather than being dimmed all the way across. */}
+      {/* Wide: the photo holds the right side, where the whole frame fits
+          (figure and headstone both), and fades into flat black under the copy. */}
       <div aria-hidden className="hidden sm:block absolute inset-y-0 right-0 w-[64%]">
         <div className="absolute inset-0 bg-cover bg-no-repeat bg-center" style={{ backgroundImage: HERO_IMAGE }} />
         <div className="absolute inset-0 bg-gradient-to-r from-black via-black/45 via-35% to-transparent to-75%" />
       </div>
 
-      <div className="relative mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-20 flex flex-col gap-7 sm:gap-8">
-        <h1 className="max-w-[8ch] sm:max-w-none text-[2.1rem] leading-[0.95] sm:text-4xl lg:text-5xl font-black tracking-tighter">
-          Pre-owned fashion,<br className="hidden sm:block" /> sold by us.
+      <div className="relative mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-14 sm:py-20 lg:py-24 flex flex-col items-start gap-6 sm:gap-8">
+        {/* Two lines, broken where the joke breaks: the phrase, then the thing
+            it buries. */}
+        <h1 className="text-[2.35rem] leading-[0.9] sm:text-6xl lg:text-7xl font-black uppercase tracking-tighter">
+          <span className="block">Rest in peace,</span>
+          <span className="block">DM for price.</span>
         </h1>
-
-        {/* The phone stacks the three claims into full-width rows rather than
-            squeezing them into thirds: at a third of a phone's width the second
-            line had to be dropped, which left the hero least informative exactly
-            where most of the traffic is. Stacked, both lines fit and each claim
-            gets its own line of the page. */}
-        <ul className="flex flex-col divide-y divide-white/15 sm:flex-row sm:divide-y-0 sm:gap-10">
-          {PROMISES.map(({ label, body, to, Icon }) => (
-            <li key={label} className="min-w-0 py-2.5 first:pt-0 last:pb-0 sm:p-0">
-              <Link to={to} className="group flex min-h-[44px] items-start gap-2.5 py-1 sm:items-center sm:gap-3 sm:py-0">
-                <Icon className="mt-0.5 h-5 w-5 sm:mt-0 sm:h-6 sm:w-6 shrink-0" strokeWidth={1.5} />
-                <span className="flex min-w-0 flex-col gap-0.5">
-                  <span className="text-[13px] sm:text-sm font-black tracking-tight group-hover:text-white/70">
-                    {label}
-                  </span>
-                  <span className="text-[11px] sm:text-xs font-bold ink-mid">{body}</span>
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-
-        <div className="grid grid-cols-2 gap-3 sm:flex sm:gap-4">
-          <Link
-            to="/browse"
-            className="flex items-center justify-between gap-3 border border-white bg-black/60 backdrop-blur-sm px-5 py-4 sm:min-w-[230px] sm:px-7 text-[11px] font-black uppercase tracking-widest text-white transition-colors hover:bg-white hover:text-black"
+        <p className="max-w-[34ch] text-sm sm:text-base font-medium leading-relaxed">
+          Pre-owned fashion, sold and shipped by us. Every price upfront, every piece checked.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <a
+            href="#shop"
+            onClick={toShop}
+            className="bg-white px-8 py-4 text-[11px] font-black uppercase tracking-[0.2em] text-black transition-colors hover:bg-zinc-200"
           >
-            <span className="sm:hidden">Browse</span>
-            <span className="hidden sm:inline">Browse items</span>
-            <ArrowRight className="h-4 w-4" />
-          </Link>
+            Shop now
+          </a>
           <Link
             to="/sell"
-            className="flex items-center justify-between gap-3 border border-white bg-black/60 backdrop-blur-sm px-5 py-4 sm:min-w-[230px] sm:px-7 text-[11px] font-black uppercase tracking-widest text-white transition-colors hover:bg-white hover:text-black"
+            className="border border-white px-8 py-4 text-[11px] font-black uppercase tracking-[0.2em] text-white transition-colors hover:bg-white hover:text-black"
           >
-            <span className="sm:hidden">Get offer</span>
-            <span className="hidden sm:inline">Get an offer</span>
-            <ArrowRight className="h-4 w-4" />
+            Get an offer
           </Link>
         </div>
       </div>
@@ -713,27 +604,24 @@ function HeroBanner() {
 
 function SellTile() {
   return (
-    <Link
-      to="/sell"
-      className="group relative isolate overflow-hidden flex flex-col items-start justify-end gap-2 bg-black p-5 text-white aspect-[3/4]"
-    >
-      <img
-        src="/images/denim-2-web.jpg"
-        alt=""
-        aria-hidden
-        loading="lazy"
-        className="absolute inset-0 h-full w-full object-cover opacity-55 transition-transform duration-700 group-hover:scale-105"
-      />
-      <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/20" />
-      <span className="relative text-xl sm:text-2xl font-black uppercase tracking-tighter leading-none">
-        Got something<br />to sell?
-      </span>
-      <span className="relative text-[10px] font-black uppercase tracking-[0.2em]">
-        We'll make you an offer.
-      </span>
-      <span className="relative mt-1 border-b-2 border-white pb-1 text-[10px] font-black uppercase tracking-[0.2em]">
-        Get an offer
-      </span>
+    <Link to="/sell" className="group flex flex-col gap-3">
+      <div className="relative isolate aspect-[3/4] overflow-hidden bg-black text-white">
+        <img
+          src="/images/denim-2-web.jpg"
+          alt=""
+          aria-hidden
+          loading="lazy"
+          className="absolute inset-0 h-full w-full object-cover opacity-50"
+        />
+        <span className="absolute inset-x-5 bottom-5 text-xl sm:text-2xl font-black uppercase tracking-tighter leading-[0.95]">
+          Got something<br />to sell?
+        </span>
+      </div>
+      <div className="flex flex-col gap-0.5">
+        <span className="text-sm font-bold">Sell it to us</span>
+        <span className="text-sm">We'll make you an offer.</span>
+        <span className="mt-1 text-sm font-bold underline underline-offset-4 group-hover:decoration-2">Get an offer</span>
+      </div>
     </Link>
   );
 }
@@ -744,9 +632,10 @@ function SellTile() {
 // size ourselves.
 function SortChip({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
-    <label className="relative shrink-0 flex min-h-[44px] items-center gap-2 border border-black/10 bg-white px-4 py-3 sm:py-2.5 text-[11px] font-black uppercase tracking-widest hover:border-black transition-colors">
-      {SORT_OPTIONS.find((o) => o.value === value)?.label ?? 'Newest'}
-      <ChevronDown className="h-3.5 w-3.5 ink-low" />
+    <label className="relative shrink-0 flex min-h-[44px] items-center gap-1.5 text-sm hover:underline underline-offset-4">
+      <span>Sort:</span>
+      <span className="font-bold">{SORT_OPTIONS.find((o) => o.value === value)?.label ?? 'Newest'}</span>
+      <ChevronDown className="h-4 w-4" />
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -761,28 +650,23 @@ function SortChip({ value, onChange }: { value: string; onChange: (v: string) =>
   );
 }
 
-const Chip: React.FC<ToggleProps> = ({ active, onClick, children, tag }) => {
+// One word in the shop's row of views. The one you are on is underlined,
+// the rest are plain; no boxes, so the row reads as navigation, not a form.
+function Tab({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        'relative shrink-0 min-h-[44px] border px-4 py-3 sm:py-2.5 text-[11px] font-black uppercase tracking-widest transition-colors',
-        active ? 'bg-black text-white border-black' : 'bg-white text-black border-black/10 hover:border-black',
+        'shrink-0 min-h-[44px] whitespace-nowrap text-sm font-bold underline-offset-[10px] decoration-2',
+        active ? 'underline' : 'hover:underline hover:decoration-black/30',
       )}
     >
       {children}
-      {tag && (
-        // Sits on the corner rather than in the label, so the filter name stays
-        // the thing you read and the flag is what you notice.
-        <span className="pointer-events-none absolute -top-1.5 -right-1.5 bg-black text-white border border-white px-1.5 py-0.5 text-[8px] font-black uppercase tracking-[0.15em] leading-none">
-          {tag}
-        </span>
-      )}
     </button>
   );
-};
+}
 
 // Collapsible rail section. Shows the current selection in the header so a
 // folded group still tells you what it is filtering by.
@@ -801,7 +685,7 @@ function FilterGroup({ title, summary, defaultOpen = false, children }: {
         aria-expanded={open}
         className="flex items-center justify-between gap-2 text-left"
       >
-        <span className="text-[10px] font-black uppercase tracking-[0.25em] ink-low">{title}</span>
+        <span className="text-sm font-bold">{title}</span>
         <span className="flex items-center gap-2">
           {!open && summary && (
             <span className="text-[10px] font-black uppercase tracking-widest text-black truncate max-w-[6rem]">{summary}</span>
@@ -848,16 +732,16 @@ function SheetGroup({ title, summary, collapsible = false, defaultOpen = true, c
           aria-expanded={open}
           className="flex items-center justify-between gap-2"
         >
-          <span className="text-[10px] font-black uppercase tracking-[0.25em] ink-low">{title}</span>
+          <span className="text-sm font-bold">{title}</span>
           <span className="flex items-center gap-2">
             {!open && summary && (
-              <span className="text-[10px] font-black uppercase tracking-widest text-black">{summary}</span>
+              <span className="text-sm">{summary}</span>
             )}
-            <ChevronDown className={cn('h-4 w-4 ink-low transition-transform', open && 'rotate-180')} />
+            <ChevronDown className={cn('h-4 w-4 transition-transform', open && 'rotate-180')} />
           </span>
         </button>
       ) : (
-        <h3 className="text-[10px] font-black uppercase tracking-[0.25em] ink-low">{title}</h3>
+        <h3 className="text-sm font-bold">{title}</h3>
       )}
       {open && <div className="flex flex-wrap gap-2">{children}</div>}
     </div>
@@ -871,8 +755,8 @@ const SheetChip: React.FC<ToggleProps> = ({ active, onClick, children }) => {
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        'border px-4 py-2.5 min-h-[44px] text-[11px] font-black uppercase tracking-widest transition-colors',
-        active ? 'bg-black text-white border-black' : 'bg-white text-black border-black/10',
+        'border px-4 py-2.5 min-h-[44px] text-sm transition-colors',
+        active ? 'bg-black text-white border-black font-bold' : 'bg-white text-black border-black/15 hover:border-black',
       )}
     >
       {children}

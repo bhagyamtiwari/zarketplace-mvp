@@ -8,54 +8,50 @@ export function GrievanceOfficer() {
 
   return (
     <div className="shell-wide pt-24 sm:pt-32 pb-16 sm:pb-20">
-      <Link to="/browse" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-12">
-        <ArrowLeft className="h-3 w-3" /> Back to browse
+      <Link to="/" className="inline-flex items-center gap-2 text-sm font-medium text-black hover:underline underline-offset-4 mb-12">
+        <ArrowLeft className="h-4 w-4" /> Back to home
       </Link>
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col gap-12"
+        className="flex flex-col gap-8"
       >
         <div className="flex flex-col gap-4">
           <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Grievance Officer</h1>
         </div>
 
-        <div className="flex flex-col gap-10 text-black body-longform">
+        <div className="flex flex-col gap-12 text-black body-longform [&>p+p]:-mt-8">
           <p>
             If something goes wrong with an order, write to us and a person will
             answer. This page exists so you always know who that is.
           </p>
 
-          {/* Three facts, set as three facts. The bordered panel framed them as
-              a callout, which is a device for something you might otherwise
-              miss: on a page whose entire purpose is these three lines, the box
-              was adding emphasis to the only thing on the page. */}
-          <dl className="flex flex-col gap-4">
+          {/* Four facts, two by two on a wider screen so the block is as short
+              as it can be. Set as plain text, bold label over value. Rule 4(5) of the
+              Consumer Protection (E-Commerce) Rules 2020 asks for a name,
+              designation, email and phone number, so the designation stays,
+              set beside the name rather than on a line of its own. */}
+          <dl className="grid grid-cols-1 gap-x-10 gap-y-5 sm:grid-cols-2">
             <div className="flex flex-col gap-1">
-              <dt className="text-xs font-black uppercase tracking-[0.2em]">Grievance officer</dt>
-              <dd>Bhagyam Tiwari</dd>
-            </div>
-            {/* Rule 4(5) asks for a designation and a contact number as well as a
-                name and an email. Both were missing. */}
-            <div className="flex flex-col gap-1">
-              <dt className="text-xs font-black uppercase tracking-[0.2em]">Designation</dt>
-              <dd>Director</dd>
+              <dt className="font-bold">Grievance Officer</dt>
+              <dd>Bhagyam Tiwari, Director</dd>
             </div>
             <div className="flex flex-col gap-1">
-              <dt className="text-xs font-black uppercase tracking-[0.2em]">Company</dt>
-              <dd>ADNIZ Private Limited (CIN U47711DL2023PTC418107)</dd>
+              <dt className="font-bold">Company</dt>
+              <dd>ADNIZ Private Limited</dd>
             </div>
             <div className="flex flex-col gap-1">
-              <dt className="text-xs font-black uppercase tracking-[0.2em]">Email</dt>
+              <dt className="font-bold">Email</dt>
               <dd>
                 <a href="mailto:grievance@zarketplace.com" className="underline underline-offset-4">grievance@zarketplace.com</a>
               </dd>
             </div>
             <div className="flex flex-col gap-1">
-              <dt className="text-xs font-black uppercase tracking-[0.2em]">Phone</dt>
+              <dt className="font-bold">Phone</dt>
               <dd>
-                <a href="tel:+918505927538" className="underline underline-offset-4">+91 85059 27538</a>
+                <a href="tel:+918505927538" className="underline underline-offset-4">8505-ZARKET</a>{' '}
+                <span className="tabular-nums">(+91 85059 27538)</span>
               </dd>
             </div>
           </dl>
@@ -79,7 +75,7 @@ export function GrievanceOfficer() {
             </p>
             {/* Required of a seller under the Consumer Protection (E-Commerce)
                 Rules 2020. Filled in before launch - see the note below. */}
-            <p className="ink-mid">
+            <p>
               Our full company details are on the{' '}
               <Link to="/terms" className="font-bold text-black underline">Terms</Link> page.
             </p>

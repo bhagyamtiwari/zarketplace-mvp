@@ -32,7 +32,7 @@ const SECTIONS: FaqSection[] = [
       },
       {
         q: 'Can I cancel an order?',
-        a: 'Yes, as long as the item has not shipped yet. Once we have dispatched it to you, it can no longer be cancelled.',
+        a: 'Yes, as long as the item has not shipped yet. Email contact@zarketplace.com with your order number. Once we have dispatched it to you, it can no longer be cancelled.',
       },
     ],
   },
@@ -99,11 +99,11 @@ const SECTIONS: FaqSection[] = [
     items: [
       {
         q: 'How do I update my profile?',
-        a: 'Go to My Profile to update your full name and phone number at any time.',
+        a: 'Go to My Profile to change your name. Your email and phone are how we reach you about an order, so to change either, write to us and we will do it.',
       },
       {
         q: 'How do I update payout information?',
-        a: 'Update your UPI ID in My Profile. It will automatically prefill on any new listing you create. Listings you\'ve already submitted keep the UPI ID entered at that time, since it\'s locked in for payout safety.',
+        a: 'Add your UPI ID in My Profile. It locks after your first sale to us, so money is never sent somewhere new by mistake. To change it after that, write to us.',
       },
     ],
   },
@@ -114,8 +114,8 @@ export function Faq() {
 
   return (
     <div className="shell-wide pt-24 sm:pt-32 pb-16 sm:pb-20">
-      <Link to="/browse" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-12">
-        <ArrowLeft className="h-3 w-3" /> Back to browse
+      <Link to="/" className="inline-flex items-center gap-2 text-sm font-medium text-black hover:underline underline-offset-4 mb-12">
+        <ArrowLeft className="h-4 w-4" /> Back to home
       </Link>
 
       <div className="flex flex-col">
@@ -124,20 +124,13 @@ export function Faq() {
             max-w-6xl page, so every row stopped two thirds of the way across
             and the heading above it did not. */}
         <div className="flex-1 min-w-0">
-          <div className="flex flex-col gap-4 mb-12">
+          <div className="flex flex-col gap-4 mb-8">
             <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Frequently Asked Questions</h1>
           </div>
 
-          <div className="flex flex-col gap-12">
+          <div className="flex flex-col">
             {SECTIONS.map((section) => (
-              <div key={section.title} className="flex flex-col gap-3">
-                <h2 className="text-xs font-black uppercase tracking-[0.3em] ink-mid border-b border-black pb-3 mb-2">
-                  {section.title}
-                </h2>
-                {section.items.map((item) => (
-                  <React.Fragment key={item.q}><FaqItem item={item} /></React.Fragment>
-                ))}
-              </div>
+              <React.Fragment key={section.title}><FaqTopic section={section} /></React.Fragment>
             ))}
           </div>
         </div>
@@ -146,26 +139,36 @@ export function Faq() {
   );
 }
 
-function FaqItem({ item }: { item: QA }) {
+// A topic is a dropdown, closed to start, so the page opens as four
+// headings and you pick the one you came for. Open one and every answer
+// under it is already showing: one click to all of them, not one per question.
+function FaqTopic({ section }: { section: (typeof SECTIONS)[number] }) {
   const [open, setOpen] = React.useState(false);
   return (
-    <div className={cn('flex flex-col gap-2 p-6 bg-zinc-50 border border-black/5 transition-colors', open && 'bg-zinc-100')}>
+    <div className="flex flex-col border-b border-black">
       <button
         type="button"
+        aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between gap-4 text-left"
+        className="flex w-full items-center justify-between gap-4 py-6 text-left"
       >
-        <span className="text-lg font-black uppercase tracking-tight text-black">{item.q}</span>
-        <ChevronDown className={cn('h-4 w-4 shrink-0 transition-transform ink-low', open && 'rotate-180')} />
+        <h2 className="text-xl font-black uppercase tracking-tight text-black">{section.title}</h2>
+        <ChevronDown className={cn('h-5 w-5 shrink-0 transition-transform', open && 'rotate-180')} />
       </button>
-      {/* An answer is prose. At 10px uppercase and tracked it was a label shape
-          holding three sentences, which is something you decode rather than
-          read. */}
       {open && (
-        <p className="text-sm font-normal leading-relaxed text-black">
-          {item.a}
-        </p>
+        // Inside an open topic every answer is simply there: question in
+        // bold, answer under it, a hairline between. The topic is the one
+        // thing you open; the questions are not a second layer of buttons.
+        <dl className="flex flex-col pb-8">
+          {section.items.map((item) => (
+            <div key={item.q} className="flex flex-col gap-1.5 border-t border-black/10 py-5 first:border-t-0 first:pt-0">
+              <dt className="text-[15px] font-bold leading-snug">{item.q}</dt>
+              <dd className="text-sm leading-relaxed">{item.a}</dd>
+            </div>
+          ))}
+        </dl>
       )}
     </div>
   );
 }
+

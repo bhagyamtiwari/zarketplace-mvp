@@ -28,6 +28,7 @@ const Trademark = lazy(() => import('./pages/Trademark').then((m) => ({ default:
 const Condition = lazy(() => import('./pages/Condition').then((m) => ({ default: m.Condition })));
 const Checkout = lazy(() => import('./pages/Checkout').then((m) => ({ default: m.Checkout })));
 const About = lazy(() => import('./pages/About').then((m) => ({ default: m.About })));
+const Mission = lazy(() => import('./pages/Mission').then((m) => ({ default: m.Mission })));
 const Contact = lazy(() => import('./pages/Contact').then((m) => ({ default: m.Contact })));
 const TrackOrder = lazy(() => import('./pages/TrackOrder').then((m) => ({ default: m.TrackOrder })));
 const PossessionCheck = lazy(() => import('./pages/PossessionCheck').then((m) => ({ default: m.PossessionCheck })));
@@ -90,9 +91,12 @@ export default function App() {
       <AuthProvider>
       <CartProvider>
       <ScrollToTop />
-      <div className="min-h-screen bg-white font-sans text-black selection:bg-black selection:text-white overflow-x-clip">
+      {/* A column that is at least a screen tall, with the page taking the
+          spare height, so a short page (an empty cart, a sign-in gate) keeps
+          its footer at the bottom of the screen instead of halfway up it. */}
+      <div className="flex min-h-screen flex-col bg-white font-sans text-black selection:bg-black selection:text-white overflow-x-clip">
         <Navbar />
-        <main>
+        <main className="flex-1">
           <RoutedErrorBoundary>
           {/* Reserve more than two viewports while a route chunk loads. At
               80vh the footer sat on screen and was then shoved down as the real
@@ -120,6 +124,7 @@ export default function App() {
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/checkout/:id" element={<Checkout />} />
             <Route path="/about" element={<About />} />
+            <Route path="/our-mission" element={<Mission />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/track-order" element={<TrackOrder />} />
             {/* Reached from a possession-check email. No auth: the token in the
@@ -135,8 +140,9 @@ export default function App() {
             <Route path="/account" element={<Account />} />
             <Route path="/faq" element={<Faq />} />
             <Route path="/shipping-policy" element={<ShippingPolicy />} />
-            <Route path="/vendor-policy" element={<SellerPolicy />} />
-            <Route path="/seller-policy" element={<Navigate to="/vendor-policy" replace />} />
+            <Route path="/how-it-works" element={<SellerPolicy />} />
+            <Route path="/vendor-policy" element={<Navigate to="/how-it-works" replace />} />
+            <Route path="/seller-policy" element={<Navigate to="/how-it-works" replace />} />
             <Route path="/refund-policy" element={<RefundPolicy />} />
             <Route path="/buyer-protection" element={<BuyerProtection />} />
             <Route path="/terms" element={<Terms />} />

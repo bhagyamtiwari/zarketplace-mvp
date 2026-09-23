@@ -1,21 +1,28 @@
-// Checkout via Razorpay. Payment status is never set by this page — only the
-// razorpay-webhook edge function (verified server-side) ever writes
-// orders.status = 'paid' / 'payment_failed'. This page only:
-//   1. Address - collect shipping. Creates one order row per cart item.
-//   2. Pay - asks create-razorpay-order for a Razorpay order, opens
-//      Razorpay Checkout, then polls the order rows until the webhook has
-//      flipped their status (or the buyer cancels/it fails).
-//   3. Success / Failed.
+// Checkout via Razorpay, on one page. Payment status is never set by this
+// page — only the razorpay-webhook edge function (verified server-side) ever
+// writes orders.status = 'paid' / 'payment_failed'. This page only:
+//   1. Collects the address, next to the order summary.
+//   2. On "Complete purchase": creates one order row per item (which holds
+//      them for 5 minutes), asks create-razorpay-order for a Razorpay order,
+//      and opens Razorpay Checkout. Closing Razorpay leaves the hold in place,
+//      and pressing the button again reuses it while it lasts and nothing on
+//      the page has changed.
+//   3. Polls the order rows until the webhook has flipped their status, then
+//      shows Success or Failed.
+//
+// There used to be a separate Payment step between 1 and 2. All it did was
+// repeat the address and ask for one more click before Razorpay, which shows
+// the amount and takes the payment itself.
 
 import React from 'react';
 import { scrollToTop } from '../lib/scrollToTop';
 import { useParams, Link } from 'react-router-dom';
-import { motion } from 'motion/react';
 import { supabase } from '../lib/supabase';
 import { CartItem, Listing } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { variantUrl } from '../lib/images';
-import { Loader2, ArrowLeft, ArrowRight, ShieldCheck, CheckCircle2, XCircle, Package, AlertTriangle, MapPin } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
+import { ui } from '../lib/ui';
 import { resolvePincode } from '../lib/pincode';
 import { useAuth } from '../lib/auth';
 import { useCart } from '../lib/cart';
@@ -52,7 +59,7 @@ declare global {
   }
 }
 
-type Step = 'address' | 'pay' | 'confirming' | 'success' | 'failed';
+type Step = 'checkout' | 'confirming' | 'success' | 'failed';
 
 interface ResumeState {
   step: Step;
@@ -60,6 +67,12 @@ interface ResumeState {
   amount: number;
   reservation_expires_at?: string | null;
 }
+
+// What the missing-field message calls each field.
+const FIELD_NAMES: Record<string, string> = {
+  fullName: 'full name', email: 'email', phone: 'phone', address: 'address', city: 'city', pincode: 'pincode',
+  billingFullName: 'billing name', billingAddress: 'billing address', billingCity: 'billing city', billingPincode: 'billing pincode',
+};
 
 function snapshotFromListing(l: Listing): CartItem {
   return {
@@ -115,7 +128,7 @@ function CheckoutInner() {
   const items: CartItem[] = id ? (buyNowItems ?? []) : cart.items;
 
 
-  const [step, setStep] = React.useState<Step>('address');
+  const [step, setStep] = React.useState<Step>('checkout');
 
   React.useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -123,8 +136,15 @@ function CheckoutInner() {
 
   const [orderNumbers, setOrderNumbers] = React.useState<string[]>([]);
   const [reservationExpiresAt, setReservationExpiresAt] = React.useState<string | null>(null);
-  // What the server actually priced the orders at, once they exist. The pay
-  // step shows these rather than recomputing, so the summary and the Razorpay
+  // What the held orders were created from (the items and both addresses), so
+  // a second press of the button can tell whether they still match the page.
+  const ordersKey = React.useRef<string | null>(null);
+  // True while Razorpay's window is open. The hold running out then is the
+  // server's to settle (a late payment is refunded), so the page leaves the
+  // orders alone until the window closes.
+  const paying = React.useRef(false);
+  // What the server actually priced the orders at, once they exist. The
+  // summary shows these rather than recomputing, so it and the Razorpay
   // charge are the same numbers by construction.
   const [serverTotals, setServerTotals] = React.useState<{ subtotal: number; shipping: number; fee: number; total: number } | null>(null);
   // Full order rows once payment is confirmed, so the success screen can show
@@ -158,7 +178,10 @@ function CheckoutInner() {
     const addr = (profile?.default_address ?? {}) as Record<string, string>;
     setShippingAddress((prev) => ({
       fullName: prev.fullName || profile?.full_name || addr.fullName || '',
-      email: user.email ?? prev.email,
+      // What the buyer typed wins, like every other field. This runs again
+      // when the profile refreshes mid-purchase, and with the account email
+      // first it quietly swapped a typed address back on screen.
+      email: prev.email || user.email || '',
       phone: prev.phone || profile?.phone || addr.phone || '',
       address: prev.address || addr.address || '',
       landmark: prev.landmark || addr.landmark || '',
@@ -168,15 +191,17 @@ function CheckoutInner() {
     }));
   }, [user, profile]);
 
+  // A reload in the middle of confirming or after a failure comes back to that
+  // screen. An unpaid hold is not restored: the next press of the button makes
+  // a fresh one, which replaces the old hold rather than competing with it.
   React.useEffect(() => {
     try {
       const raw = localStorage.getItem(RESUME_KEY);
       if (!raw) return;
       const r = JSON.parse(raw) as ResumeState;
-      if (r?.order_numbers?.length && ['pay', 'confirming', 'failed'].includes(r.step)) {
+      if (r?.order_numbers?.length && (r.step === 'confirming' || r.step === 'failed')) {
         setOrderNumbers(r.order_numbers);
         setStep(r.step);
-        if (r.reservation_expires_at) setReservationExpiresAt(r.reservation_expires_at);
       }
     } catch {}
   }, []);
@@ -215,10 +240,13 @@ function CheckoutInner() {
   };
   const clearResume = () => { try { localStorage.removeItem(RESUME_KEY); } catch {} };
 
-  const submitAddress = async () => {
-    setErrorMsg(null);
-    if (!user) return;
-    if (items.length === 0) { setErrorMsg('Your cart is empty.'); return; }
+  // Everything the order rows are made from. When this changes after a hold
+  // was taken, the held orders no longer describe what the buyer is paying for.
+  const checkoutKey = () => JSON.stringify([
+    items.map((i) => i.listing_id), shippingAddress, billingSameAsShipping ? null : billingAddress,
+  ]);
+
+  const missingFields = (): string | null => {
     const required: Array<[string, string]> = [
       ['fullName', shippingAddress.fullName], ['email', shippingAddress.email],
       ['phone', shippingAddress.phone], ['address', shippingAddress.address],
@@ -226,95 +254,103 @@ function CheckoutInner() {
     ];
     if (!billingSameAsShipping) {
       required.push(
-        ['billing fullName', billingAddress.fullName], ['billing address', billingAddress.address],
-        ['billing city', billingAddress.city], ['billing pincode', billingAddress.pincode],
+        ['billingFullName', billingAddress.fullName], ['billingAddress', billingAddress.address],
+        ['billingCity', billingAddress.city], ['billingPincode', billingAddress.pincode],
       );
     }
-    const missing = required.filter(([, v]) => !v?.trim()).map(([k]) => k);
-    if (missing.length) { setErrorMsg(`Please fill in: ${missing.join(', ')}`); return; }
+    const missing = required.filter(([, v]) => !v?.trim()).map(([k]) => FIELD_NAMES[k]);
+    return missing.length ? `Please fill in your ${missing.join(', ')}.` : null;
+  };
 
-    setSubmitting(true);
-    try {
-      await supabase.from('profiles').update({
-        full_name: profile?.full_name || shippingAddress.fullName,
-        phone: profile?.phone || shippingAddress.phone,
-        default_address: shippingAddress,
-      }).eq('id', user.id);
-      await refreshProfile();
+  // Saves the address to the profile and creates one order row per item,
+  // which holds each item for 5 minutes. If this buyer already holds one of
+  // them, the database replaces that hold rather than refusing.
+  const createOrders = async (key: string): Promise<string[]> => {
+    if (!user) throw new Error('Sign in to complete your purchase.');
+    await supabase.from('profiles').update({
+      full_name: profile?.full_name || shippingAddress.fullName,
+      phone: profile?.phone || shippingAddress.phone,
+      default_address: shippingAddress,
+    }).eq('id', user.id);
+    await refreshProfile();
 
-      const billingToSave = billingSameAsShipping
-        ? shippingAddress
-        : { ...billingAddress, email: shippingAddress.email, phone: shippingAddress.phone };
+    const billingToSave = billingSameAsShipping
+      ? shippingAddress
+      : { ...billingAddress, email: shippingAddress.email, phone: shippingAddress.phone };
 
-      const rows = items.map((i) => {
-        const itemPrice = Number(i.sale_price ?? i.price ?? 0);
-        // The server trigger (orders_snapshot_from_listing) recomputes
-        // amount/shipping_cost/buyer_protection_fee/total_amount from the
-        // live listing + pricing config on insert - these client values are
-        // only a display-matching best guess, never trusted for the charge.
-        const itemShip = shippingFor(i);
-        return {
-          listing_id: i.listing_id,
-          listing_sku: i.sku ?? null,
-          listing_title: i.title ?? null,
-          listing_image_url: i.image_url ?? null,
-          buyer_id: user.id,
-          buyer_email: shippingAddress.email.toLowerCase(),
-          buyer_name: shippingAddress.fullName,
-          buyer_phone: shippingAddress.phone,
-          seller_id: i.seller_id ?? null,
-          // Authoritative seller_email / seller_upi_vpa_snapshot are re-derived
-          // server-side by the orders_snapshot_from_listing trigger from the
-          // base listing; the client never carries seller PII.
-          seller_email: null,
-          seller_upi_vpa_snapshot: null,
-          // The state written here is the one DERIVED from the pincode, not
-          // one the buyer typed - so the address that reaches the courier,
-          // the invoice and the emails agrees with the place of supply the
-          // rule was decided on.
-          shipping_address: {
-            ...shippingAddress,
-            state: deliveryResolved.stateName ?? '',
-          } as unknown as Record<string, string>,
-          billing_address: {
-            ...billingToSave,
-            state: resolvePincode((billingToSave as { pincode?: string }).pincode).stateName
-              ?? deliveryResolved.stateName ?? '',
-          } as unknown as Record<string, string>,
-          // Snapshotted so a historical order stays readable after a pincode
-          // table is widened.
-          buyer_delivery_pincode: shippingAddress.pincode,
-          buyer_delivery_state_code: deliveryResolved.stateCode,
-          amount: itemPrice,
-          shipping_cost: itemShip,
-          total_amount: itemPrice + itemShip,
-          status: 'awaiting_payment',
-        };
-      });
+    const rows = items.map((i) => {
+      const itemPrice = Number(i.sale_price ?? i.price ?? 0);
+      // The server trigger (orders_snapshot_from_listing) recomputes
+      // amount/shipping_cost/buyer_protection_fee/total_amount from the
+      // live listing + pricing config on insert - these client values are
+      // only a display-matching best guess, never trusted for the charge.
+      const itemShip = shippingFor(i);
+      return {
+        listing_id: i.listing_id,
+        listing_sku: i.sku ?? null,
+        listing_title: i.title ?? null,
+        listing_image_url: i.image_url ?? null,
+        buyer_id: user.id,
+        buyer_email: shippingAddress.email.toLowerCase(),
+        buyer_name: shippingAddress.fullName,
+        buyer_phone: shippingAddress.phone,
+        seller_id: i.seller_id ?? null,
+        // Authoritative seller_email / seller_upi_vpa_snapshot are re-derived
+        // server-side by the orders_snapshot_from_listing trigger from the
+        // base listing; the client never carries seller PII.
+        seller_email: null,
+        seller_upi_vpa_snapshot: null,
+        // The state written here is the one DERIVED from the pincode, not
+        // one the buyer typed - so the address that reaches the courier,
+        // the invoice and the emails agrees with the place of supply the
+        // rule was decided on.
+        shipping_address: {
+          ...shippingAddress,
+          state: deliveryResolved.stateName ?? '',
+        } as unknown as Record<string, string>,
+        billing_address: {
+          ...billingToSave,
+          state: resolvePincode((billingToSave as { pincode?: string }).pincode).stateName
+            ?? deliveryResolved.stateName ?? '',
+        } as unknown as Record<string, string>,
+        // Snapshotted so a historical order stays readable after a pincode
+        // table is widened.
+        buyer_delivery_pincode: shippingAddress.pincode,
+        buyer_delivery_state_code: deliveryResolved.stateCode,
+        amount: itemPrice,
+        shipping_cost: itemShip,
+        total_amount: itemPrice + itemShip,
+        status: 'awaiting_payment',
+      };
+    });
 
-      const { data, error } = await supabase.from('orders').insert(rows).select('order_number, reservation_expires_at, amount, buyer_protection_fee, total_amount');
-      if (error) throw error;
-      {
-        const r = (data ?? []) as Array<{ amount: number; buyer_protection_fee: number | null; total_amount: number }>;
-        const sub = r.reduce((x, o) => x + Number(o.amount), 0);
-        const fee = r.reduce((x, o) => x + Number(o.buyer_protection_fee ?? 0), 0);
-        const tot = r.reduce((x, o) => x + Number(o.total_amount), 0);
-        if (r.length) setServerTotals({ subtotal: sub, fee, total: tot, shipping: Math.max(0, tot - sub - fee) });
-      }
-      const nums = (data ?? []).map((r: { order_number: string }) => r.order_number);
-      const expiresAt = (data ?? [])[0]?.reservation_expires_at ?? null;
-
-      setOrderNumbers(nums);
-      setReservationExpiresAt(expiresAt);
-      setStep('pay');
-      scrollToTop();
-      persistResume({ step: 'pay', order_numbers: nums, reservation_expires_at: expiresAt });
-    } catch (err: any) {
-      clog.error('createOrders failed', err);
-      setErrorMsg(err?.message || 'Failed to create order.');
-    } finally {
-      setSubmitting(false);
+    const { data, error } = await supabase.from('orders').insert(rows).select('order_number, reservation_expires_at, amount, buyer_protection_fee, total_amount');
+    if (error) throw error;
+    {
+      const r = (data ?? []) as Array<{ amount: number; buyer_protection_fee: number | null; total_amount: number }>;
+      const sub = r.reduce((x, o) => x + Number(o.amount), 0);
+      const fee = r.reduce((x, o) => x + Number(o.buyer_protection_fee ?? 0), 0);
+      const tot = r.reduce((x, o) => x + Number(o.total_amount), 0);
+      if (r.length) setServerTotals({ subtotal: sub, fee, total: tot, shipping: Math.max(0, tot - sub - fee) });
     }
+    const nums = (data ?? []).map((r: { order_number: string }) => r.order_number);
+    const expiresAt = (data ?? [])[0]?.reservation_expires_at ?? null;
+
+    setOrderNumbers(nums);
+    setReservationExpiresAt(expiresAt);
+    ordersKey.current = key;
+    persistResume({ step: 'checkout', order_numbers: nums, reservation_expires_at: expiresAt });
+    return nums;
+  };
+
+  // Lets go of the held orders on this page (not in the database, where they
+  // simply run out), so the next press of the button starts fresh.
+  const forgetOrders = () => {
+    clearResume();
+    setOrderNumbers([]);
+    setReservationExpiresAt(null);
+    setServerTotals(null);
+    ordersKey.current = null;
   };
 
   // Polls the order rows until razorpay-webhook has flipped their status.
@@ -376,70 +412,100 @@ function CheckoutInner() {
     if (step === 'confirming') void waitForConfirmation();
   }, [step, waitForConfirmation]);
 
-  const startPayment = async () => {
+  // Opens Razorpay for these orders. Takes the order numbers as an argument
+  // because it runs straight after createOrders, before the new numbers have
+  // reached state.
+  const openPayment = async (nums: string[]) => {
+    const { data, error } = await supabase.functions.invoke('create-razorpay-order', {
+      body: { order_numbers: nums },
+    });
+    if (error) throw error;
+    const { razorpay_order_id, amount, currency, key_id } = data as {
+      razorpay_order_id: string; amount: number; currency: string; key_id: string;
+    };
+
+    await loadRazorpayScript();
+
+    const rzp = new window.Razorpay({
+      key: key_id,
+      amount,
+      currency,
+      order_id: razorpay_order_id,
+      name: 'zarketplace',
+      description: `Order ${nums.join(', ')}`,
+      prefill: {
+        name: shippingAddress.fullName,
+        email: shippingAddress.email,
+        contact: shippingAddress.phone,
+      },
+      notes: { order_numbers: nums.join(',') },
+      handler: () => {
+        // Razorpay says the payment went through, but we don't trust that
+        // claim on its own — move to a waiting screen until the webhook
+        // (server-verified) confirms it.
+        paying.current = false;
+        setStep('confirming');
+        persistResume({ step: 'confirming', order_numbers: nums });
+      },
+      modal: {
+        ondismiss: () => {
+          paying.current = false;
+          setSubmitting(false);
+          setErrorMsg('Payment was not completed. You can try again.');
+        },
+      },
+    });
+    rzp.on('payment.failed', () => {
+      setSubmitting(false);
+      setErrorMsg('Payment failed. You can try again.');
+    });
+    paying.current = true;
+    rzp.open();
+  };
+
+  // The one button. Holds the items (or reuses the hold from a moment ago, if
+  // nothing has changed and it has not run out) and opens Razorpay.
+  const completePurchase = async () => {
     setErrorMsg(null);
     if (!user) return;
-    // Buyer pressed pay. The gap between this and order_completed is the
-    // payment-abandonment rate.
-    trackEvent('payment_started', { order_count: orderNumbers.length, total });
+    if (items.length === 0) { setErrorMsg('Your cart is empty.'); return; }
+    const missing = missingFields();
+    if (missing) { setErrorMsg(missing); return; }
+
     setSubmitting(true);
+    const key = checkoutKey();
+    const holdLeft = reservationExpiresAt ? new Date(reservationExpiresAt).getTime() - Date.now() : 0;
+    const reuse = orderNumbers.length > 0 && ordersKey.current === key && holdLeft > 15_000;
     try {
-      const { data, error } = await supabase.functions.invoke('create-razorpay-order', {
-        body: { order_numbers: orderNumbers },
-      });
-      if (error) throw error;
-      const { razorpay_order_id, amount, currency, key_id } = data as {
-        razorpay_order_id: string; amount: number; currency: string; key_id: string;
-      };
-
-      await loadRazorpayScript();
-
-      const rzp = new window.Razorpay({
-        key: key_id,
-        amount,
-        currency,
-        order_id: razorpay_order_id,
-        name: 'zarketplace',
-        description: `Order ${orderNumbers.join(', ')}`,
-        prefill: {
-          name: shippingAddress.fullName,
-          email: shippingAddress.email,
-          contact: shippingAddress.phone,
-        },
-        notes: { order_numbers: orderNumbers.join(',') },
-        handler: () => {
-          // Razorpay says the payment went through, but we don't trust that
-          // claim on its own — move to a waiting screen until the webhook
-          // (server-verified) confirms it.
-          setStep('confirming');
-          persistResume({ step: 'confirming' });
-        },
-        modal: {
-          ondismiss: () => {
-            setSubmitting(false);
-            setErrorMsg('Payment was not completed. You can try again.');
-          },
-        },
-      });
-      rzp.on('payment.failed', () => {
-        setSubmitting(false);
-        setErrorMsg('Payment failed. You can try again.');
-      });
-      rzp.open();
+      let nums = reuse ? orderNumbers : await createOrders(key);
+      // Buyer pressed pay. The gap between this and order_completed is the
+      // payment-abandonment rate.
+      trackEvent('payment_started', { order_count: nums.length, total });
+      try {
+        await openPayment(nums);
+      } catch (err: any) {
+        const status = err?.context?.status;
+        // The held orders can no longer be paid (they ran out, or were
+        // closed somewhere else). Hold the items again and carry on, once.
+        if (reuse && (status === 403 || status === 404 || status === 409)) {
+          nums = await createOrders(key);
+          await openPayment(nums);
+        } else {
+          throw err;
+        }
+      }
     } catch (err: any) {
-      clog.error('startPayment failed', err);
+      clog.error('completePurchase failed', err);
+      paying.current = false;
       const status = err?.context?.status;
       if (status === 403 || status === 404 || status === 409) {
-        // create-razorpay-order rejected these order_numbers — most likely
-        // stale resume state left over from an earlier session/account on
-        // this browser. Clear it and restart fresh rather than getting
-        // stuck retrying something that can never succeed.
-        clearResume();
-        setOrderNumbers([]);
-        setStep('address');
-        setErrorMsg('Your previous checkout session was invalid or expired. Please start again.');
+        // create-razorpay-order rejected these order numbers, most likely
+        // stale state from an earlier session on this browser. Start clean
+        // rather than retrying something that can never succeed.
+        forgetOrders();
+        setErrorMsg('Your checkout expired. Press Complete purchase to start again.');
       } else {
-        setErrorMsg(err?.message || 'Failed to start payment.');
+        setErrorMsg(err?.message || 'Could not start the payment. Please try again.');
       }
       setSubmitting(false);
     }
@@ -448,209 +514,168 @@ function CheckoutInner() {
   if (loadingBuyNow) {
     return (
       <div className="flex h-[80vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin ink-mid" />
+        <Loader2 className="h-6 w-6 animate-spin" />
       </div>
     );
   }
 
-  if (items.length === 0 && step === 'address') {
+  if (items.length === 0 && step === 'checkout') {
     return (
-      <div className="mx-auto max-w-2xl px-4 pt-24 sm:pt-32 pb-20 sm:pb-32 text-center flex flex-col items-center gap-8">
-        <h1 className="text-5xl font-black tracking-tighter uppercase">Nothing to check out</h1>
-        <p className="text-xs font-bold uppercase tracking-widest ink-mid max-w-md">
-          Your cart is empty.
-        </p>
-        <Link to="/browse" className="bg-black px-12 py-5 text-xs font-black uppercase tracking-[0.4em] text-white hover:bg-zinc-800">
-          Browse
-        </Link>
+      <div className="shell-wide pt-24 sm:pt-32 pb-16 sm:pb-20 flex flex-col gap-8 [&>*]:max-w-2xl">
+        <h1 className={ui.pageTitle}>Nothing to check out</h1>
+        <p className={ui.help}>Your cart is empty.</p>
+        <Link to="/browse" className={cn(ui.btnPrimary, 'self-start')}>Shop now</Link>
       </div>
     );
   }
 
   if (step === 'success') {
-    return (
-      <div className="mx-auto max-w-3xl px-4 pt-24 sm:pt-32 pb-20 sm:pb-32 text-center flex flex-col items-center gap-8">
-        <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-          className="h-24 w-24 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mb-4">
-          <CheckCircle2 className="h-12 w-12" />
-        </motion.div>
-        <h1 className="text-5xl font-black tracking-tighter uppercase">You bought it.</h1>
-        <p className="text-[11px] font-bold uppercase tracking-widest ink-mid max-w-md leading-relaxed">
-          Your payment has been received. We are bringing your item in, checking it and repacking it, then it ships to you. Track everything in My Orders.
-        </p>
-
-        {confirmedOrders.length > 0 && (
-          <div className="w-full max-w-md flex flex-col gap-6 text-left">
-            {confirmedOrders.map((o) => (
-              <div key={o.order_number} className="border border-black/10 p-5 flex flex-col gap-4">
-                <div className="flex gap-4">
-                  {o.listing_image_url && (
-                    <div className="h-20 w-16 flex-shrink-0 overflow-hidden border border-black/5">
-                      <img src={variantUrl(o.listing_image_url, 'thumb')} alt="" className="h-full w-full object-cover" />
-                    </div>
-                  )}
-                  <div className="flex flex-col gap-1 min-w-0">
-                    <span className="text-[11px] font-black uppercase tracking-widest ink-mid">#{o.order_number}</span>
-                    <h2 className="text-sm font-black uppercase tracking-tight truncate">{o.listing_title}</h2>
-                  </div>
-                </div>
-                <div className="border-t border-black/5 pt-3 flex flex-col gap-1.5 text-[11px] font-bold uppercase tracking-widest">
-                  <div className="flex justify-between"><span className="ink-mid">Item</span><span>{formatCurrency(Number(o.amount))}</span></div>
-                  <div className="flex justify-between">
-                    <span className="ink-mid">Shipping</span>
-                    <span>{o.free_shipping ? 'Free' : formatCurrency(Number(o.shipping_cost))}</span>
-                  </div>
-                  {Number(o.buyer_protection_fee) > 0 && <div className="flex justify-between"><span className="ink-mid">Buyer protection</span><span>{formatCurrency(Number(o.buyer_protection_fee))}</span></div>}
-                  <div className="flex justify-between border-t border-black/10 pt-1.5 mt-1"><span>Total paid</span><span>{formatCurrency(Number(o.total_amount))}</span></div>
-                </div>
-                {o.shipping_address && (
-                  <div className="border-t border-black/5 pt-3 text-[11px] font-bold uppercase tracking-widest ink-mid">
-                    Shipping to: <span className="normal-case font-medium">
-                      {[o.shipping_address.address, o.shipping_address.city, o.shipping_address.state, o.shipping_address.pincode].filter(Boolean).join(', ')}
-                    </span>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-        <p className="text-[11px] font-bold uppercase tracking-widest ink-mid max-w-md leading-relaxed">
-          For any questions or concerns, email{' '}
-          <a href="mailto:contact@zarketplace.com" className="text-black underline">contact@zarketplace.com</a>.
-        </p>
-        <div className="flex gap-3">
-          <Link to="/browse" className="bg-black px-12 py-5 text-xs font-black uppercase tracking-[0.4em] text-white hover:bg-zinc-800">Continue Shopping</Link>
-          <Link to="/track-order" className="border border-black px-12 py-5 text-xs font-black uppercase tracking-[0.4em] text-black hover:bg-black hover:text-white">My Orders</Link>
-        </div>
-      </div>
-    );
+    return <CheckoutSuccess orders={confirmedOrders} email={shippingAddress.email} />;
   }
 
   if (step === 'confirming') {
     return (
-      <div className="mx-auto max-w-3xl px-4 pt-24 sm:pt-32 pb-20 sm:pb-32 text-center flex flex-col items-center gap-8">
-        <Loader2 className="h-16 w-16 animate-spin ink-mid" />
-        <h1 className="text-3xl font-black tracking-tighter uppercase">Confirming your payment…</h1>
-        <p className="text-[11px] font-bold uppercase tracking-widest ink-mid max-w-md leading-relaxed">
-          This usually takes a few seconds. Please don't close this tab.
-        </p>
+      <div className="shell-wide pt-24 sm:pt-32 pb-16 sm:pb-20 flex flex-col gap-8 [&>*]:max-w-2xl">
+        <Loader2 className="h-6 w-6 animate-spin" />
+        <h1 className={ui.pageTitle}>Confirming your payment</h1>
+        <p className={ui.help}>This usually takes a few seconds. Please keep this tab open.</p>
       </div>
     );
   }
 
   if (step === 'failed') {
     return (
-      <div className="mx-auto max-w-3xl px-4 pt-24 sm:pt-32 pb-20 sm:pb-32 text-center flex flex-col items-center gap-8">
-        <div className="h-24 w-24 bg-red-50 text-red-600 rounded-full flex items-center justify-center mb-4">
-          <XCircle className="h-12 w-12" />
-        </div>
-        <h1 className="text-4xl font-black tracking-tighter uppercase">Payment not confirmed</h1>
-        <p className="text-[11px] font-bold uppercase tracking-widest ink-mid max-w-md leading-relaxed">
+      <div className="shell-wide pt-24 sm:pt-32 pb-16 sm:pb-20 flex flex-col gap-8 [&>*]:max-w-2xl">
+        <h1 className={ui.pageTitle}>Payment not confirmed</h1>
+        <p className={ui.help}>
           {errorMsg || 'We could not confirm your payment. No charge was completed for a failed attempt.'}
         </p>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <button
             type="button"
-            onClick={() => { setErrorMsg(null); setStep('pay'); persistResume({ step: 'pay' }); }}
-            className="bg-black px-12 py-5 text-xs font-black uppercase tracking-[0.4em] text-white hover:bg-zinc-800"
+            onClick={() => { setErrorMsg(null); forgetOrders(); setStep('checkout'); }}
+            className={ui.btnPrimary}
           >
-            Try Again
+            Try again
           </button>
-          <Link to="/track-order" className="border border-black px-12 py-5 text-xs font-black uppercase tracking-[0.4em] text-black hover:bg-black hover:text-white">My Orders</Link>
+          <Link to="/track-order" className={ui.btnSecondary}>My orders</Link>
         </div>
       </div>
     );
   }
 
+  // One page: the address and the button on the left, the order summary box
+  // and the good-to-know notes beside it.
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-28 pb-16 sm:pb-20">
-      <Link to={id ? `/product/${id}` : '/cart'} className="inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-12">
-        <ArrowLeft className="h-3 w-3" /> Back
+    <div className="shell-wide pt-24 sm:pt-32 pb-16 sm:pb-20">
+      <Link to={id ? `/product/${id}` : '/cart'} className="inline-flex items-center gap-2 text-sm font-medium text-black hover:underline underline-offset-4 mb-12">
+        <ArrowLeft className="h-4 w-4" /> Back
       </Link>
 
-      <StepHeader
-        step={step}
-        onGoToAddress={() => { setStep('address'); persistResume({ step: 'address' }); }}
-        onGoToPay={orderNumbers.length > 0 ? () => { setStep('pay'); persistResume({ step: 'pay' }); } : undefined}
-      />
+      <h1 className={ui.pageTitle}>Checkout</h1>
 
-      {step === 'address' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-20 mt-8 sm:mt-14">
-          <div className="lg:col-span-7 flex flex-col gap-10">
-            <AddressStep
-              addr={shippingAddress} onChange={setShippingAddress}
-              billingSame={billingSameAsShipping} onBillingSameChange={setBillingSameAsShipping}
-              billingAddr={billingAddress} onBillingChange={setBillingAddress}
-              onSubmit={submitAddress} submitting={submitting} errorMsg={errorMsg}
-              blockedNote={null}
-            />
-          </div>
-          <div className="lg:col-span-5">
-            <Summary items={items} subtotal={subtotal} shipping={shipping} shippingLoading={shippingCategories.length === 0} buyerProtection={buyerProtection} total={total} selfShip={anySelfShip} />
-          </div>
+      <div className="mt-10 grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-16">
+        <div className="flex flex-col gap-12 lg:col-span-7">
+          <AddressFields
+            addr={shippingAddress} onChange={setShippingAddress}
+            billingSame={billingSameAsShipping} onBillingSameChange={setBillingSameAsShipping}
+            billingAddr={billingAddress} onBillingChange={setBillingAddress}
+            blockedNote={null}
+          />
+          <PlaceOrder
+            amount={serverTotals?.total ?? total}
+            itemCount={items.length}
+            reservationExpiresAt={reservationExpiresAt}
+            onExpire={() => {
+              if (paying.current) return;
+              forgetOrders();
+              setErrorMsg(`Your hold ended and ${items.length === 1 ? 'the item is' : 'the items are'} back on sale. Press Complete purchase to hold ${items.length === 1 ? 'it' : 'them'} again.`);
+            }}
+            onPlace={completePurchase}
+            submitting={submitting}
+            errorMsg={errorMsg}
+          />
         </div>
-      )}
-
-      {step === 'pay' && (
-        <div className="max-w-xl mx-auto mt-8 sm:mt-14">
-          <RazorpayPayStep
+        <div className="flex flex-col gap-8 lg:col-span-5">
+          <Summary
             items={items}
             subtotal={serverTotals?.subtotal ?? subtotal}
             shipping={serverTotals?.shipping ?? shipping}
             shippingLoading={!serverTotals && shippingCategories.length === 0}
             buyerProtection={serverTotals?.fee ?? buyerProtection}
-            amount={serverTotals?.total ?? total}
-            reservationExpiresAt={reservationExpiresAt}
-            onPay={startPayment} submitting={submitting} errorMsg={errorMsg} selfShip={anySelfShip}
-            onExpire={() => {
-              clearResume();
-              setOrderNumbers([]);
-              setReservationExpiresAt(null);
-              setServerTotals(null);
-              setStep('address');
-              setErrorMsg('Your 5-minute hold ended and the item is back on sale. Continue to hold it again.');
-            }}
+            total={serverTotals?.total ?? total}
+            selfShip={anySelfShip}
           />
+          <Assurances />
         </div>
-      )}
+      </div>
     </div>
   );
 }
 
-function StepHeader({ step, onGoToAddress, onGoToPay }: {
-  step: Step;
-  onGoToAddress: () => void;
-  onGoToPay?: () => void;
-}) {
-  const steps: Array<{ key: Step; label: string; onClick?: () => void }> = [
-    { key: 'address', label: '1 · Address', onClick: step === 'pay' ? onGoToAddress : undefined },
-    { key: 'pay', label: '2 · Payment', onClick: step === 'address' ? onGoToPay : undefined },
-  ];
-  const idx = steps.findIndex((s) => s.key === step);
+type ConfirmedOrder = {
+  order_number: string; listing_title: string | null; listing_image_url: string | null;
+  amount: number; shipping_cost: number; buyer_protection_fee: number; total_amount: number;
+  free_shipping: boolean; shipping_address: Record<string, string> | null;
+};
+
+/**
+ * After payment: that it worked, where the confirmation went, what was
+ * bought, and how to reach us. The email is sent by the payment webhook
+ * (payment_confirmed_buyer) to the address on the order.
+ */
+export function CheckoutSuccess({ orders, email }: { orders: ConfirmedOrder[]; email: string }) {
   return (
-    <div className="flex flex-col gap-5">
-      <h1 className="text-4xl sm:text-6xl font-black tracking-tighter uppercase">Finalize Order</h1>
-      <div className="flex items-center gap-4 mt-6">
-        {steps.map((s, i) => (
-          <React.Fragment key={s.key}>
-            <button
-              type="button"
-              disabled={!s.onClick}
-              onClick={s.onClick}
-              className={cn(
-                'px-6 py-3 text-xs font-black uppercase tracking-widest border transition-colors',
-                i === idx ? 'bg-black border-black text-white' :
-                s.onClick ? 'border-black/20 text-black hover:border-black cursor-pointer' :
-                'border-black/10 ink-mid',
+    <div className="shell-wide pt-24 sm:pt-32 pb-16 sm:pb-20 flex flex-col gap-8 [&>*]:max-w-2xl">
+      <div className="flex flex-col gap-4">
+        <h1 className={ui.pageTitle}>Order placed</h1>
+        <p className={ui.help}>
+          Thank you. Your confirmation is on its way to{email ? <> <span className="font-bold">{email}</span></> : ' your email'}.
+          {' '}Not in your inbox? Check your spam folder.
+        </p>
+      </div>
+
+      {orders.length > 0 && (
+        <ul className="flex flex-col border-b border-black/10">
+          {orders.map((o) => (
+            <li key={o.order_number} className="flex flex-col gap-4 border-t border-black/10 py-5">
+              <div className="flex gap-4">
+                <div className="h-24 w-[72px] shrink-0 overflow-hidden bg-zinc-100">
+                  {o.listing_image_url && (
+                    <img src={variantUrl(o.listing_image_url, 'thumb')} alt="" className="h-full w-full object-cover" />
+                  )}
+                </div>
+                <div className="flex min-w-0 flex-col gap-1 text-sm">
+                  <span className="text-[15px] font-bold leading-snug">{o.listing_title}</span>
+                  <span>Order {o.order_number}</span>
+                </div>
+              </div>
+              <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-sm">
+                <dt>Item</dt><dd className="text-right tabular-nums">{formatCurrency(Number(o.amount))}</dd>
+                <dt>Shipping</dt><dd className="text-right tabular-nums">{o.free_shipping ? 'Free' : formatCurrency(Number(o.shipping_cost))}</dd>
+                {Number(o.buyer_protection_fee) > 0 && (
+                  <><dt>Buyer Protection</dt><dd className="text-right tabular-nums">{formatCurrency(Number(o.buyer_protection_fee))}</dd></>
+                )}
+                <dt className="font-bold">Total paid</dt><dd className="text-right font-bold tabular-nums">{formatCurrency(Number(o.total_amount))}</dd>
+              </dl>
+              {o.shipping_address && (
+                <p className="text-sm">
+                  <span className="font-bold">Shipping to </span>
+                  {[o.shipping_address.address, o.shipping_address.city, o.shipping_address.state, o.shipping_address.pincode].filter(Boolean).join(', ')}
+                </p>
               )}
-            >
-              {s.label}
-            </button>
-            {i < steps.length - 1 && (
-              <ArrowRight className={cn('h-5 w-5', idx > i ? 'text-black' : 'ink-mid')} />
-            )}
-          </React.Fragment>
-        ))}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <p className={ui.help}>
+        Questions? <Link to="/contact" className={cn(ui.link, 'font-bold')}>Contact us</Link>. Updates may also come on
+        WhatsApp from <a href="https://wa.me/918505927538" target="_blank" rel="noreferrer" className={cn(ui.link, 'font-bold')}>8505-ZARKET</a>.
+      </p>
+      <div className="flex flex-wrap gap-3">
+        <Link to="/track-order" className={ui.btnPrimary}>My orders</Link>
+        <Link to="/browse" className={ui.btnSecondary}>Keep shopping</Link>
       </div>
     </div>
   );
@@ -659,8 +684,10 @@ function StepHeader({ step, onGoToAddress, onGoToPay }: {
 type ShippingAddr = { fullName: string; email: string; phone: string; address: string; landmark: string; city: string; state: string; pincode: string };
 type BillingAddr = { fullName: string; address: string; landmark: string; city: string; state: string; pincode: string };
 
-function AddressStep({
-  addr, onChange, billingSame, onBillingSameChange, billingAddr, onBillingChange, onSubmit, submitting, errorMsg, blockedNote,
+// Where it is going and who it is billed to. The button that pays sits below
+// these, in PlaceOrder, so this is fields only.
+export function AddressFields({
+  addr, onChange, billingSame, onBillingSameChange, billingAddr, onBillingChange, blockedNote,
 }: {
   addr: ShippingAddr;
   onChange: (a: ShippingAddr) => void;
@@ -668,111 +695,104 @@ function AddressStep({
   onBillingSameChange: (v: boolean) => void;
   billingAddr: BillingAddr;
   onBillingChange: (a: BillingAddr) => void;
-  onSubmit: () => void;
-  submitting: boolean;
-  errorMsg: string | null;
   blockedNote: string | null;
 }) {
   return (
-    <section className="flex flex-col gap-8">
-      <h2 className="text-xs font-black uppercase tracking-widest border-b border-black pb-4">Shipping Information</h2>
+    <section className="flex flex-col gap-12">
+      <div className="flex flex-col gap-6">
+        <h2 className={ui.sectionTitle}>Shipping address</h2>
 
-      {/* Shown the moment the state is chosen, not held back until Continue.
-          Finding out at the payment step that the order was never possible is
-          the worst version of this. */}
-      {blockedNote && (
-        <div className="flex gap-3 border border-amber-500/40 bg-amber-50 px-5 py-4">
-          <MapPin className="h-4 w-4 shrink-0 mt-0.5 text-amber-700" />
-          <p className="text-[11px] font-bold uppercase tracking-widest leading-[1.9] text-amber-900">{blockedNote}</p>
-        </div>
-      )}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Field label="Full Name" value={addr.fullName} onChange={(v) => onChange({ ...addr, fullName: v })} placeholder="Jashok Dumar" />
-        <Field label="Email Address" type="email" value={addr.email} onChange={(v) => onChange({ ...addr, email: v })} placeholder="hello@example.com" />
-        <Field label="Phone Number" type="tel" inputMode="tel" value={addr.phone} onChange={(v) => onChange({ ...addr, phone: v })} placeholder="+91 98765 43210" />
-        <Field label="Pincode" inputMode="numeric" maxLength={6} value={addr.pincode} onChange={(v) => onChange({ ...addr, pincode: v.replace(/\D/g, '') })} placeholder="400001" />
-        <div className="md:col-span-2">
-          <Field label="Address" value={addr.address} onChange={(v) => onChange({ ...addr, address: v })} placeholder="House No, Street, Area" />
-        </div>
-        <div className="md:col-span-2">
-          <Field label="Landmark (Optional)" value={addr.landmark} onChange={(v) => onChange({ ...addr, landmark: v })} placeholder="(near Gate No. 4)" />
-        </div>
-        <Field label="City" value={addr.city} onChange={(v) => onChange({ ...addr, city: v })} placeholder="Mumbai" />
-        {/* Derived from the pincode, never asked. A buyer picking "Delhi" and
-            typing a Gurgaon pincode is not a contradiction they can be
-            expected to notice - Gurgaon is Haryana, and one metro is three
-            states to GST. Removing the question removes the contradiction. */}
-        <div className="flex flex-col gap-3">
-          <label className="text-[11px] font-black uppercase tracking-widest ink-mid">State</label>
-          <div className="border-b border-black/10 py-4 text-sm font-bold">
-            {addr.pincode.length === 6
-              ? (resolvePincode(addr.pincode).stateName ?? (
-                  <span className="text-red-600">We cannot place this pincode yet</span>
-                ))
-              : <span className="ink-mid">From your pincode</span>}
+        {/* Shown the moment the state is chosen, not held back until the
+            button. Finding out at payment that the order was never possible
+            is the worst version of this. */}
+        {blockedNote && <p className={ui.error}>{blockedNote}</p>}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+          <Field label="Full name" value={addr.fullName} onChange={(v) => onChange({ ...addr, fullName: v })} placeholder="Your name" autoComplete="name" />
+          <Field label="Email" type="email" value={addr.email} onChange={(v) => onChange({ ...addr, email: v })} placeholder="you@example.com" autoComplete="email" />
+          <Field label="Phone" type="tel" inputMode="tel" value={addr.phone} onChange={(v) => onChange({ ...addr, phone: v })} placeholder="98765 43210" autoComplete="tel" />
+          <Field label="Pincode" inputMode="numeric" maxLength={6} value={addr.pincode} onChange={(v) => onChange({ ...addr, pincode: v.replace(/\D/g, '') })} placeholder="400001" autoComplete="postal-code" />
+          <div className="md:col-span-2">
+            <Field label="Address" value={addr.address} onChange={(v) => onChange({ ...addr, address: v })} placeholder="House number, street, area" autoComplete="street-address" />
           </div>
+          <div className="md:col-span-2">
+            <Field label="Landmark" optional value={addr.landmark} onChange={(v) => onChange({ ...addr, landmark: v })} placeholder="Near gate 4" />
+          </div>
+          <Field label="City" value={addr.city} onChange={(v) => onChange({ ...addr, city: v })} placeholder="Mumbai" autoComplete="address-level2" />
+          {/* Derived from the pincode, never asked. A buyer picking "Delhi" and
+              typing a Gurgaon pincode is not a contradiction they can be
+              expected to notice - Gurgaon is Haryana, and one metro is three
+              states to GST. Removing the question removes the contradiction. */}
+          <StateFromPincode pincode={addr.pincode} />
         </div>
       </div>
 
-      <div className="flex flex-col gap-6 pt-6 border-t border-black/5">
-        <div className="flex items-center justify-between border-b border-black pb-4">
-          <h2 className="text-xs font-black uppercase tracking-widest">Billing Address</h2>
-          <label className="flex items-center gap-2 cursor-pointer">
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <h2 className={ui.sectionTitle}>Billing address</h2>
+          <label className="flex min-h-[44px] cursor-pointer items-center gap-2 text-sm">
             <input
               type="checkbox"
               checked={billingSame}
               onChange={(e) => onBillingSameChange(e.target.checked)}
               className="h-4 w-4 accent-black"
             />
-            <span className="text-[11px] font-black uppercase tracking-widest">Same as shipping address</span>
+            Same as shipping
           </label>
         </div>
 
         {!billingSame && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
             <div className="md:col-span-2">
-              <Field label="Full Name" value={billingAddr.fullName} onChange={(v) => onBillingChange({ ...billingAddr, fullName: v })} placeholder="Jashok Dumar" />
+              <Field label="Full name" value={billingAddr.fullName} onChange={(v) => onBillingChange({ ...billingAddr, fullName: v })} placeholder="Name on the bill" />
             </div>
             <Field label="Pincode" inputMode="numeric" maxLength={6} value={billingAddr.pincode} onChange={(v) => onBillingChange({ ...billingAddr, pincode: v.replace(/\D/g, '') })} placeholder="400001" />
             <Field label="City" value={billingAddr.city} onChange={(v) => onBillingChange({ ...billingAddr, city: v })} placeholder="Mumbai" />
-            <div className="flex flex-col gap-3">
-              <label className="text-[11px] font-black uppercase tracking-widest ink-mid">State</label>
-              <div className="border-b border-black/10 py-4 text-sm font-bold">
-                {billingAddr.pincode.length === 6
-                  ? (resolvePincode(billingAddr.pincode).stateName ?? <span className="ink-mid">Unrecognised pincode</span>)
-                  : <span className="ink-mid">From your pincode</span>}
-              </div>
+            <StateFromPincode pincode={billingAddr.pincode} lenient />
+            <div className="md:col-span-2">
+              <Field label="Address" value={billingAddr.address} onChange={(v) => onBillingChange({ ...billingAddr, address: v })} placeholder="House number, street, area" />
             </div>
             <div className="md:col-span-2">
-              <Field label="Address" value={billingAddr.address} onChange={(v) => onBillingChange({ ...billingAddr, address: v })} placeholder="House No, Street, Area" />
-            </div>
-            <div className="md:col-span-2">
-              <Field label="Landmark (Optional)" value={billingAddr.landmark} onChange={(v) => onBillingChange({ ...billingAddr, landmark: v })} placeholder="(near Gate No. 4)" />
+              <Field label="Landmark" optional value={billingAddr.landmark} onChange={(v) => onBillingChange({ ...billingAddr, landmark: v })} placeholder="Near gate 4" />
             </div>
           </div>
         )}
       </div>
-
-      {errorMsg && <p className="text-[11px] font-bold uppercase tracking-widest text-red-600">{errorMsg}</p>}
-      <button type="button" onClick={onSubmit} disabled={submitting}
-        className="w-full bg-black py-6 text-xs font-black uppercase tracking-[0.4em] text-white hover:bg-zinc-800 disabled:opacity-50 flex items-center justify-center gap-3">
-        {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-        <span>Continue to Payment</span>
-      </button>
     </section>
   );
 }
 
-function Field({ label, value, onChange, placeholder, type = 'text', inputMode, maxLength }: {
-  label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string;
-  inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode']; maxLength?: number;
-}) {
+function StateFromPincode({ pincode, lenient }: { pincode: string; lenient?: boolean }) {
+  const name = pincode.length === 6 ? resolvePincode(pincode).stateName : null;
   return (
     <div className="flex flex-col gap-2">
-      <label className="text-[11px] font-black uppercase tracking-widest text-black">{label}</label>
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
-        inputMode={inputMode} maxLength={maxLength}
-        className="border-b border-black/10 py-3 text-sm font-bold focus:border-black focus:outline-none transition-all" />
+      <span className={ui.label}>State</span>
+      <span className="border-b border-black/10 py-3 text-base md:text-sm">
+        {pincode.length !== 6
+          ? <span className="text-black/35">From your pincode</span>
+          : name ?? (lenient
+            ? <span className="text-black/35">Unrecognised pincode</span>
+            : <span className="text-red-600">We cannot place this pincode yet</span>)}
+      </span>
+    </div>
+  );
+}
+
+function Field({ label, value, onChange, placeholder, type = 'text', inputMode, maxLength, autoComplete, optional }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string;
+  inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode']; maxLength?: number; autoComplete?: string; optional?: boolean;
+}) {
+  const id = React.useId();
+  return (
+    <div className="flex flex-col gap-2">
+      <label htmlFor={id} className={ui.label}>
+        {label}{optional && <span className="font-normal"> (optional)</span>}
+      </label>
+      <input
+        id={id} type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+        inputMode={inputMode} maxLength={maxLength} autoComplete={autoComplete}
+        className={ui.input}
+      />
     </div>
   );
 }
@@ -800,152 +820,129 @@ function formatCountdown(seconds: number) {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-function RazorpayPayStep({
-  items, subtotal, shipping, shippingLoading, buyerProtection, amount, reservationExpiresAt, onPay, onExpire, submitting, errorMsg, selfShip,
+// The hold. Every item is one of one, so while you pay nobody else can buy
+// it: that protects you, and it is said as a plain sentence rather than a
+// ticking banner, which read as pressure. It appears once there is a hold (the
+// first press of the button takes it), and the clock only in the last minute,
+// so the end of the hold is never a surprise.
+function HoldNote({ secondsLeft, count }: { secondsLeft: number | null; count: number }) {
+  if (secondsLeft === null) return null;
+  const one = count === 1;
+  if (secondsLeft > 60) {
+    return (
+      <p className="text-sm">
+        {one ? 'This piece is' : 'These pieces are'} held for you while you pay. Nobody else can buy {one ? 'it' : 'them'}.
+      </p>
+    );
+  }
+  return (
+    <p role="status" className="text-sm font-bold">
+      Your hold ends in <span className="tabular-nums">{formatCountdown(secondsLeft)}</span>. After that {one ? 'it goes' : 'they go'} back on sale.
+    </p>
+  );
+}
+
+// Why buying here is safe: three short notes under the order summary box,
+// side information rather than part of the form, so no heading and no rules.
+export function Assurances() {
+  return (
+    <dl className="flex flex-col gap-5 text-sm">
+      <div className="flex flex-col gap-0.5">
+        <dt className="font-bold">Checked before it ships</dt>
+        <dd>Every piece comes to our hub and is checked against its listing first.</dd>
+      </div>
+      <div className="flex flex-col gap-0.5">
+        <dt className="font-bold">Refunded in full</dt>
+        <dd>If anything changes or your order is delayed, you get all of your money back.</dd>
+      </div>
+      <div className="flex flex-col gap-0.5">
+        <dt className="font-bold">A person answers</dt>
+        <dd>
+          Not heard from us?{' '}
+          <a href="https://wa.me/918505927538" target="_blank" rel="noreferrer" className={cn(ui.link, 'font-bold')}>WhatsApp 8505-ZARKET</a>.
+        </dd>
+      </div>
+    </dl>
+  );
+}
+
+// The end of the page: the hold once there is one, the total (on a phone,
+// where the summary box is further down), and the one button. It opens
+// Razorpay, which shows the amount again and takes the payment.
+export function PlaceOrder({
+  amount, itemCount, reservationExpiresAt, onExpire, onPlace, submitting, errorMsg,
 }: {
-  items: CartItem[]; subtotal: number; shipping: number; shippingLoading: boolean; buyerProtection: number; amount: number;
-  reservationExpiresAt: string | null; onPay: () => void;
-  onExpire?: () => void; submitting: boolean; errorMsg: string | null; selfShip: boolean;
+  amount: number; itemCount: number;
+  reservationExpiresAt: string | null; onExpire?: () => void;
+  onPlace: () => void; submitting: boolean; errorMsg: string | null;
 }) {
   const secondsLeft = useCountdown(reservationExpiresAt, onExpire);
 
   return (
-    <section className="flex flex-col gap-8 p-10 bg-zinc-50 border border-black/5">
-      <div className="flex flex-col gap-2 text-center">
-        <h2 className="text-sm font-black uppercase tracking-widest">Order Summary</h2>
-        <p className="text-xs ink-mid font-medium leading-relaxed">
-          Pay securely. Cards, UPI, netbanking and wallets all supported.
-        </p>
+    <section className="flex flex-col gap-4" aria-label="Payment">
+      <HoldNote secondsLeft={secondsLeft} count={itemCount} />
+      <div className="flex items-baseline justify-between border-t border-black/10 pt-4 lg:hidden">
+        <span className="text-sm font-bold">Total</span>
+        <span className="text-xl font-black tabular-nums">{formatCurrency(amount)}</span>
       </div>
-
-      {secondsLeft !== null && (
-        <div className="flex items-center justify-between border border-black bg-black text-white px-6 py-4">
-          <span className="text-[11px] font-black uppercase tracking-[0.2em]">Reserved for you</span>
-          <span className="text-sm font-black tabular-nums">{formatCountdown(secondsLeft)}</span>
-        </div>
-      )}
-
-      <div className="flex flex-col gap-4">
-        {items.map((i) => <React.Fragment key={i.listing_id}><SummaryItem item={i} /></React.Fragment>)}
-      </div>
-
-      <div className="flex flex-col gap-3 border-y border-black/10 py-6">
-        <Row label="Item price" value={formatCurrency(subtotal)} />
-        <Row
-          label="Shipping"
-          value={shippingLoading
-            ? 'Calculating...'
-            // Legacy rows only: some listings predate every item coming in to
-            // our hub. The buyer pays nothing extra on these, but the buyer
-            // never sees anything about where an item came from, so the line
-            // states the outcome rather than the route.
-            : selfShip ? 'Included'
-            : shipping === 0 ? 'Free'
-            : formatCurrency(shipping)}
-        />
-        {buyerProtection > 0 && <Row label="Buyer Protection" value={formatCurrency(buyerProtection)} />}
-      </div>
-
-      <div className="flex justify-between items-end">
-        <span className="text-sm font-black uppercase tracking-widest">Total</span>
-        <span className="text-4xl font-black tracking-tighter">{formatCurrency(amount)}</span>
-      </div>
-
-      {buyerProtection > 0 && (
-        <p className="text-[11px] font-bold uppercase tracking-widest ink-mid leading-relaxed -mt-2">
-          Every item is received, checked and repacked by us before it ships, with a refund if it arrives significantly not as described.{' '}
-          <Link to="/buyer-protection" className="underline ink-mid">Learn more</Link>
-        </p>
-      )}
-
-      {/* What the buyer is actually agreeing to, at the moment they agree to
-          it. This replaces a GST hold warning that told people their order
-          might not be fulfilled - true under the old model, false now, and
-          sitting directly above the pay button.
-
-          Two plain lines instead of a policy box: that we check it, and that
-          if anything goes wrong the money comes back and a person answers. */}
-      <div className="flex flex-col gap-2 text-sm leading-relaxed">
-        <p>Every piece is checked at our hub before it ships to you.</p>
-        <p className="ink-mid">
-          If anything changes or your order is delayed, we refund you in full. Not heard from us?{' '}
-          <a href="https://wa.me/918505927538" target="_blank" rel="noreferrer" className="underline underline-offset-4 text-black">WhatsApp 8505-ZARKET</a>.
-        </p>
-      </div>
-
-      {errorMsg && <p className="text-[11px] font-bold uppercase tracking-widest text-red-600 text-center">{errorMsg}</p>}
-
-      <button type="button" onClick={onPay}
-        disabled={submitting}
-        className="w-full bg-black py-6 text-sm font-black uppercase tracking-[0.3em] text-white hover:bg-zinc-800 disabled:opacity-30 flex items-center justify-center gap-3">
+      {errorMsg && <p className={ui.error}>{errorMsg}</p>}
+      <button type="button" onClick={onPlace} disabled={submitting} className={cn(ui.btnPrimary, 'w-full py-5')}>
         {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
-        <span>Place Secure Order</span>
+        Complete purchase
       </button>
-      <div className="flex items-center justify-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] ink-mid">
-        <ShieldCheck className="h-4 w-4" />
-        <span>Payments secured by Razorpay</span>
-      </div>
+      <p className="text-center text-sm">Pay by card, UPI, netbanking or wallet, securely through Razorpay.</p>
     </section>
   );
 }
 
-function Summary({ items, subtotal, shipping, shippingLoading, buyerProtection, total, reservationExpiresAt, selfShip }: {
-  items: CartItem[]; subtotal: number; shipping: number; shippingLoading: boolean; buyerProtection: number; total: number;
-  reservationExpiresAt?: string | null; selfShip: boolean;
+// The prices, and the total that is charged.
+function Totals({ subtotal, shipping, shippingLoading, buyerProtection, total, selfShip }: {
+  subtotal: number; shipping: number; shippingLoading: boolean; buyerProtection: number; total: number; selfShip: boolean;
 }) {
-  const secondsLeft = useCountdown(reservationExpiresAt ?? null);
   return (
-    <div className="sticky top-32 flex flex-col gap-8 p-10 bg-zinc-50 border border-black/5">
-      <h2 className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
-        <Package className="h-4 w-4" /> Order Summary
-      </h2>
-
-      {secondsLeft !== null && (
-        <div className="flex items-center justify-between border border-black px-4 py-3 -mt-2">
-          <span className="text-[11px] font-black uppercase tracking-[0.2em]">Reserved for you</span>
-          <span className="text-xs font-black tabular-nums">{formatCountdown(secondsLeft)}</span>
-        </div>
+    <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 text-sm">
+      <dt>Item price</dt>
+      <dd className="text-right tabular-nums">{formatCurrency(subtotal)}</dd>
+      <dt>Shipping</dt>
+      <dd className="text-right tabular-nums">
+        {shippingLoading
+          ? 'Calculating...'
+          // Legacy rows only: some listings predate every item coming in to
+          // our hub. The buyer pays nothing extra on these, but the buyer
+          // never sees anything about where an item came from, so the line
+          // states the outcome rather than the route.
+          : selfShip ? 'Included'
+          : shipping === 0 ? 'Free'
+          : formatCurrency(shipping)}
+      </dd>
+      {buyerProtection > 0 && (
+        <>
+          <dt>
+            <Link to="/buyer-protection" className={ui.link}>Buyer Protection</Link>
+          </dt>
+          <dd className="text-right tabular-nums">{formatCurrency(buyerProtection)}</dd>
+        </>
       )}
-
-      <div className="flex flex-col gap-4 max-h-72 overflow-y-auto">
-        {items.map((i) => <React.Fragment key={i.listing_id}><SummaryItem item={i} /></React.Fragment>)}
+      <div className="col-span-2 mt-3 flex items-baseline justify-between border-t border-black/10 pt-4">
+        <dt className="font-bold">Total</dt>
+        <dd className="text-xl font-black tabular-nums">{formatCurrency(total)}</dd>
       </div>
-
-      <div className="flex flex-col gap-3 border-y border-black/5 py-6">
-        <Row label="Item price" value={formatCurrency(subtotal)} />
-        <Row
-          label="Shipping"
-          value={shippingLoading
-            ? 'Calculating...'
-            // Legacy rows only: some listings predate every item coming in to
-            // our hub. The buyer pays nothing extra on these, but the buyer
-            // never sees anything about where an item came from, so the line
-            // states the outcome rather than the route.
-            : selfShip ? 'Included'
-            : shipping === 0 ? 'Free'
-            : formatCurrency(shipping)}
-        />
-        {buyerProtection > 0 && <Row label="Buyer Protection" value={formatCurrency(buyerProtection)} />}
-      </div>
-
-      <div className="flex justify-between items-end">
-        <span className="text-xs font-black uppercase tracking-widest">Total</span>
-        <span className="text-3xl font-black tracking-tighter">{formatCurrency(total)}</span>
-      </div>
-
-      <div className="flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-[0.2em] ink-mid">
-        <ShieldCheck className="h-4 w-4" />
-        <span>{buyerProtection > 0 ? 'Protected payment' : 'Secure payment'}</span>
-      </div>
-    </div>
+    </dl>
   );
 }
 
-function Row({ label, value, dim }: { label: string; value: string; dim?: boolean }) {
+export function Summary({ items, subtotal, shipping, shippingLoading, buyerProtection, total, selfShip }: {
+  items: CartItem[]; subtotal: number; shipping: number; shippingLoading: boolean; buyerProtection: number; total: number;
+  selfShip: boolean;
+}) {
   return (
-    <div className={cn('flex justify-between text-xs font-bold uppercase tracking-widest', dim && 'ink-mid text-[11px]')}>
-      <span>{label}</span>
-      <span>{value}</span>
+    <div className="flex flex-col gap-6 border border-black/15 p-6 sm:p-8">
+      <h2 className={ui.sectionTitle}>Order summary</h2>
+      <ul className="flex max-h-72 flex-col overflow-y-auto">
+        {items.map((i) => <li key={i.listing_id} className="border-t border-black/10 py-4 first:border-t-0 first:pt-0"><SummaryItem item={i} /></li>)}
+      </ul>
+      <Totals subtotal={subtotal} shipping={shipping} shippingLoading={shippingLoading} buyerProtection={buyerProtection} total={total} selfShip={selfShip} />
+      <p className="text-sm">Your order is covered by <Link to="/buyer-protection" className={cn(ui.link, 'font-bold')}>Buyer Protection</Link>.</p>
     </div>
   );
 }
@@ -957,17 +954,15 @@ function Row({ label, value, dim }: { label: string; value: string; dim?: boolea
 function SummaryItem({ item }: { item: CartItem }) {
   const href = item.sku ? `/item/${item.sku.toLowerCase()}` : `/product/${item.listing_id}`;
   return (
-    <div className="flex gap-4 items-center">
-      <Link to={href} className="h-20 w-16 bg-zinc-200 overflow-hidden border border-black/5 flex-shrink-0">
+    <div className="flex items-center gap-4">
+      <Link to={href} className="h-20 w-[60px] shrink-0 overflow-hidden bg-zinc-100">
         {item.image_url && <img src={variantUrl(item.image_url, 'thumb')} alt={item.title} className="h-full w-full object-cover" />}
       </Link>
-      <div className="flex flex-col justify-center gap-1 min-w-0 flex-1">
-        <Link to={href} className="text-xs font-bold uppercase tracking-widest truncate hover:underline underline-offset-4">
-          {item.title}
-        </Link>
-        {item.sku && <span className="text-[11px] font-black uppercase tracking-widest ink-mid tabular-nums">{item.sku}</span>}
+      <div className="flex min-w-0 flex-1 flex-col gap-1 text-sm">
+        <Link to={href} className="font-bold leading-snug hover:underline underline-offset-4">{item.title}</Link>
+        {item.sku && <span>{item.sku}</span>}
       </div>
-      <span className="text-sm font-black shrink-0">{formatCurrency(item.sale_price ?? item.price ?? 0)}</span>
+      <span className="shrink-0 text-sm font-bold tabular-nums">{formatCurrency(item.sale_price ?? item.price ?? 0)}</span>
     </div>
   );
 }

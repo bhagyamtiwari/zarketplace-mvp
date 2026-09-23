@@ -1,11 +1,20 @@
+# zarketplace: pre-owned and thrift clothing in India, sold and shipped by us.
+# A plain-text summary of the business for AI assistants: https://www.zarketplace.com/llms.txt
+
 User-agent: *
 Allow: /
 Disallow: /admin
-Disallow: /seller-portal
+Disallow: /hub
 Disallow: /account
 Disallow: /cart
 Disallow: /checkout
 Disallow: /track-order
-Disallow: /auth/callback
+Disallow: /vendor-portal
+Disallow: /seller-portal
+Disallow: /offer/
+Disallow: /possession/
+Disallow: /auth/
+Disallow: /reset-password
 
 Sitemap: https://www.zarketplace.com/sitemap.xml
+Sitemap: https://www.zarketplace.com/sitemap-items.xml

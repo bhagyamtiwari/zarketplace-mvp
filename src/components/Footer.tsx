@@ -1,9 +1,8 @@
-// Site footer. Desktop: 4 equal columns in one row, social icons under the
-// Company column, then a bottom bar (brand block left, legal block right).
-// Mobile: each column collapses into an accordion (one section open at a
-// time), social icons sit under the brand mark at the foot, and the bottom
-// block is just logo + wordmark + copyright (legal links and social folded
-// into the Company accordion instead of repeated separately).
+// Site footer. Desktop: five columns in one row (the four errands, then
+// Connect) and a bottom bar (wordmark left, copyright right), all inside the
+// same centred 64rem column as the pages above. Mobile: each column collapses
+// into an accordion (one section open at a time), and the social icons sit
+// under the wordmark at the foot.
 import * as React from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronUp, Instagram } from 'lucide-react';
@@ -45,14 +44,18 @@ interface FooterColumn {
 // A buyer's own orders and profile belong with Shop: same person, same errand,
 // one step later. Shipping and Returns are things you read when you want an
 // answer, so they sit with Contact and FAQ.
+// Balanced on purpose: three to five links a column, never six beside two.
+// Buyer Protection and Returns are the buyer's side of how an order works, so
+// they sit with Shop, as How Selling Works sits with Sell to Us. The
+// Conditions Guide is the scale a vendor grades their item on, so it sits
+// there too. Signed-in pages (orders, profile, your items) are not listed:
+// they live in the account menu. The Grievance Officer is Help.
 const SHOP: FooterColumn = {
   title: 'Shop',
   links: [
     { label: 'Available Now', to: '/browse' },
-    { label: 'Conditions Guide', to: '/conditions-guide' },
     { label: 'Buyer Protection', to: '/buyer-protection' },
-    { label: 'My Orders', to: '/track-order' },
-    { label: 'My Profile', to: '/account' },
+    { label: 'Returns and Refunds', to: '/returns' },
   ],
 };
 
@@ -60,8 +63,8 @@ const SELLING: FooterColumn = {
   title: 'Sell to Us',
   links: [
     { label: 'Get an Offer', to: '/sell' },
-    { label: 'How It Works', to: '/vendor-policy' },
-    { label: 'Your Items', to: '/vendor-portal' },
+    { label: 'How Selling Works', to: '/how-it-works' },
+    { label: 'Conditions Guide', to: '/conditions-guide' },
   ],
 };
 
@@ -71,7 +74,7 @@ const HELP: FooterColumn = {
     { label: 'Contact Us', to: '/contact' },
     { label: 'FAQ', to: '/faq' },
     { label: 'Shipping', to: '/shipping-policy' },
-    { label: 'Returns and Refunds', to: '/returns' },
+    { label: 'Grievance Officer', to: '/grievance-officer' },
   ],
 };
 
@@ -79,10 +82,10 @@ const COMPANY: FooterColumn = {
   title: 'Company',
   links: [
     { label: 'About Us', to: '/about' },
+    { label: 'Our Mission', to: '/our-mission' },
     { label: 'Terms', to: '/terms' },
     { label: 'Privacy', to: '/privacy' },
     { label: 'Trademark Notice', to: '/trademark-notice' },
-    { label: 'Grievance Officer', to: '/grievance-officer' },
   ],
 };
 
@@ -91,7 +94,7 @@ const COMPANY: FooterColumn = {
 // which is what that register is for. Two type styles in the footer, not one
 // used for both jobs.
 const LINK_CLASS = 'text-sm font-medium text-white hover:text-white/65 transition-colors rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2';
-const HEADER_CLASS = 'text-[11px] font-black uppercase tracking-[0.3em] text-white';
+const HEADER_CLASS = 'text-[11px] font-black uppercase tracking-[0.2em] text-white';
 
 // Brand marks, drawn inline. The icon set has an Instagram outline and a
 // YouTube outline but no X logo and no WhatsApp logo, so X was the retired
@@ -123,11 +126,11 @@ export function WhatsAppMark({ className }: { className?: string }) {
 }
 
 // Also used by the phone menu, so the two can never show different marks.
-export const SOCIALS: Array<{ label: string; href: string; icon: (cls: string) => React.ReactNode }> = [
-  { label: 'zarketplace on Instagram', href: 'https://www.instagram.com/zarketplace', icon: (c) => <Instagram className={c} strokeWidth={1.75} /> },
-  { label: 'zarketplace on X', href: 'https://x.com/zarketplace', icon: (c) => <XMark className={c} /> },
-  { label: 'zarketplace on YouTube', href: 'https://www.youtube.com/@zarketplace', icon: (c) => <YouTubeMark className={c} /> },
-  { label: 'zarketplace on WhatsApp', href: 'https://wa.me/918505927538', icon: (c) => <WhatsAppMark className={c} /> },
+export const SOCIALS: Array<{ label: string; name: string; href: string; icon: (cls: string) => React.ReactNode }> = [
+  { label: 'zarketplace on Instagram', name: 'Instagram', href: 'https://www.instagram.com/zarketplace', icon: (c) => <Instagram className={c} strokeWidth={1.75} /> },
+  { label: 'zarketplace on X', name: 'X', href: 'https://x.com/zarketplace', icon: (c) => <XMark className={c} /> },
+  { label: 'zarketplace on YouTube', name: 'YouTube', href: 'https://www.youtube.com/@zarketplace', icon: (c) => <YouTubeMark className={c} /> },
+  { label: 'zarketplace on WhatsApp', name: 'WhatsApp', href: 'https://wa.me/918505927538', icon: (c) => <WhatsAppMark className={c} /> },
 ];
 
 function SocialIcons() {
@@ -154,16 +157,38 @@ export function Footer() {
 
   return (
     <footer className="bg-black text-white py-16 sm:py-20">
-      <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8">
-        {/* Desktop: four equal columns across the page, set in from the
-            wordmark's edge so the lists read as a block of their own. The
-            socials are not here any more: they sit in the bottom bar with the
-            copyright, where the eye goes for "where else can I find you". */}
-        <div className="hidden md:grid grid-cols-4 gap-x-10 md:pl-8 lg:pl-12">
+      {/* The page column (shell-wide), not the full-bleed header width. At
+          full width the five short columns either bunched on the left or,
+          spread out, ran into both edges with a screen's width between them. */}
+      <div className="shell-wide">
+        {/* The four errands, then Connect, where the social links read as
+            named links like every other column rather than four loose marks.
+            Spread across the column, so the first starts over the wordmark and
+            the last ends over the copyright, with even gaps between. */}
+        <div className="hidden md:grid grid-cols-3 gap-x-10 gap-y-12 lg:flex lg:justify-between">
           <FooterColumnBlock column={SHOP} />
           <FooterColumnBlock column={SELLING} />
           <FooterColumnBlock column={HELP} />
           <FooterColumnBlock column={COMPANY} />
+          <div className="flex flex-col gap-6">
+            <h4 className={HEADER_CLASS}>Connect</h4>
+            <ul className="flex flex-col gap-4">
+              {SOCIALS.map((so) => (
+                <li key={so.name}>
+                  <a
+                    href={so.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={so.label}
+                    className={cn(LINK_CLASS, 'inline-flex items-center gap-2.5')}
+                  >
+                    {so.icon('h-4 w-4')}
+                    {so.name}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
 
         {/* Mobile: accordion sections, one open at a time */}
@@ -202,11 +227,9 @@ export function Footer() {
             page opens and closes on the same mark. */}
         <div className="hidden md:flex mt-16 pt-8 border-t border-white/10 items-center justify-between">
           <Link to="/" aria-label="zarketplace home" className="flex min-h-[44px] items-center">
-            <Wordmark on="dark" heightClassName="h-[30px]" />
+            <Wordmark on="dark" heightClassName="h-8" />
           </Link>
           <div className="flex items-center">
-            <SocialIcons />
-            <span aria-hidden className="mx-12 h-6 w-px bg-white/25" />
             <span className="text-[11px] font-bold uppercase tracking-widest text-white/80">© 2026 All rights reserved.</span>
           </div>
         </div>

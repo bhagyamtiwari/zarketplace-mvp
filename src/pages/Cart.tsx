@@ -1,7 +1,8 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingBag, Trash2, ArrowRight, ArrowLeft, Package } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useCart } from '../lib/cart';
+import type { CartItem } from '../types';
 import { formatCurrency } from '../lib/utils';
 import { variantUrl } from '../lib/images';
 import { RequireAuth } from '../components/RequireAuth';
@@ -16,9 +17,26 @@ export function Cart() {
 }
 
 function CartInner() {
-  const { items, remove, clear, count } = useCart();
+  const { items, remove, clear } = useCart();
   const navigate = useNavigate();
+  return (
+    <CartView
+      items={items}
+      onRemove={(id) => { void remove(id); }}
+      onClear={() => { void clear(); }}
+      onCheckout={() => navigate('/checkout')}
+    />
+  );
+}
 
+/** The page itself, from the cart's items. Separate from the cart context so it can be looked at. */
+export function CartView({ items, onRemove, onClear, onCheckout }: {
+  items: CartItem[];
+  onRemove: (listingId: string) => void;
+  onClear: () => void;
+  onCheckout: () => void;
+}) {
+  const count = items.length;
   const [shippingCategories, setShippingCategories] = React.useState<ShippingCategory[]>([]);
   React.useEffect(() => { getShippingCategories().then(setShippingCategories); }, []);
 
@@ -26,108 +44,97 @@ function CartInner() {
   const shipping = items.reduce((sum, i) => sum + (i.free_shipping ? 0 : shippingRateFor(i.shipping_category, shippingCategories)), 0);
   const total = subtotal + shipping;
 
+  const itemPath = (i: { sku?: string | null; listing_id: string }) =>
+    i.sku ? `/item/${i.sku.toLowerCase()}` : `/product/${i.listing_id}`;
+
+  // A centred column, like the sell form: a cart is one short task, and on a
+  // wide screen a list pinned to the left edge looked unfinished. The same
+  // type as the item page: bold for what matters, regular for the rest, the
+  // tracked label only on the buttons. A list with hairlines between items,
+  // not a grey panel.
   if (count === 0) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-20 sm:py-32 text-center flex flex-col items-center gap-8">
-        <div className="flex h-24 w-24 items-center justify-center rounded-full bg-zinc-100 ink-low">
-          <ShoppingBag className="h-10 w-10" />
-        </div>
+      <div className="shell-form pt-24 sm:pt-32 pb-16 sm:pb-20 flex flex-col gap-8">
         <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Your cart is empty</h1>
-        <p className="text-[15px] ink-mid max-w-md">
-          Find something you like and add it here.
-        </p>
+        <p className="text-sm">Find something you like and add it here.</p>
         <Link
           to="/browse"
-          className="bg-black px-12 py-5 text-xs font-black uppercase tracking-[0.4em] text-white hover:bg-zinc-800"
+          className="self-start bg-black px-8 py-4 text-[11px] font-black uppercase tracking-[0.2em] text-white hover:bg-zinc-800"
         >
-          Browse All
+          Shop now
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 sm:px-6 pt-24 sm:pt-28 pb-16 sm:pb-20">
-      <Link to="/browse" className="inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-6">
-        <ArrowLeft className="h-3 w-3" /> Continue Shopping
+    <div className="shell-form pt-24 sm:pt-32 pb-16 sm:pb-20">
+      <Link to="/browse" className="inline-flex items-center gap-2 text-sm font-medium text-black hover:underline underline-offset-4 mb-12">
+        <ArrowLeft className="h-4 w-4" /> Continue shopping
       </Link>
 
-      <h1 className="text-3xl sm:text-4xl font-black tracking-tighter uppercase mb-8">Your cart</h1>
+      <div className="flex flex-col gap-8">
+        <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Your Cart</h1>
 
-
-      <div className="flex flex-col gap-8 p-8 sm:p-10 bg-zinc-50 border border-black/5">
-        <h2 className="text-xs font-black uppercase tracking-widest flex items-center gap-2">
-          <Package className="h-4 w-4" /> Order Summary ({count})
-        </h2>
-
-        <div className="flex flex-col gap-5">
+        <ul className="flex flex-col border-t border-black/10">
           {items.map((item) => (
-            <div key={item.listing_id} className="flex gap-4 items-center">
-              <Link
-                to={item.sku ? `/item/${item.sku.toLowerCase()}` : `/product/${item.listing_id}`}
-                className="h-20 w-16 bg-zinc-200 overflow-hidden border border-black/5 flex-shrink-0"
-              >
+            <li key={item.listing_id} className="flex gap-4 border-b border-black/10 py-4">
+              <Link to={itemPath(item)} className="h-24 w-[72px] shrink-0 overflow-hidden bg-zinc-100">
                 {item.image_url && (
                   <img src={variantUrl(item.image_url, 'thumb')} alt={item.title} className="h-full w-full object-cover" />
                 )}
               </Link>
-              <div className="flex-1 flex flex-col gap-0.5 min-w-0">
-                <Link
-                  to={item.sku ? `/item/${item.sku.toLowerCase()}` : `/product/${item.listing_id}`}
-                  className="text-xs font-bold uppercase tracking-widest truncate"
-                >
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5 text-sm">
+                <Link to={itemPath(item)} className="font-bold leading-snug hover:underline underline-offset-4">
                   {item.title}
                 </Link>
-                {item.sku && <span className="text-[11px] font-black uppercase tracking-widest ink-mid tabular-nums">{item.sku}</span>}
-              </div>
-              <div className="flex flex-col items-end gap-1 shrink-0">
-                <span className="text-sm font-black">{formatCurrency(item.sale_price ?? item.price ?? 0)}</span>
+                {item.sku && <span>{item.sku}</span>}
                 <button
                   type="button"
-                  onClick={() => remove(item.listing_id)}
-                  className="ink-mid hover:text-red-600 transition-colors p-1 -m-1"
-                  aria-label="Remove item"
+                  onClick={() => onRemove(item.listing_id)}
+                  className="mt-auto self-start underline underline-offset-4 decoration-black/30 hover:decoration-black"
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
+                  Remove
                 </button>
               </div>
-            </div>
+              <span className="shrink-0 text-sm font-bold tabular-nums">
+                {formatCurrency(item.sale_price ?? item.price ?? 0)}
+              </span>
+            </li>
           ))}
-        </div>
+        </ul>
 
-        <div className="flex flex-col gap-3 border-y border-black/10 py-6">
-          <div className="flex justify-between text-xs font-bold uppercase tracking-widest">
-            <span>Subtotal</span>
-            <span>{formatCurrency(subtotal)}</span>
+        <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 text-sm">
+          <dt>Subtotal ({count} {count === 1 ? 'item' : 'items'})</dt>
+          <dd className="text-right tabular-nums">{formatCurrency(subtotal)}</dd>
+          <dt>Shipping</dt>
+          <dd className="text-right tabular-nums">
+            {shippingCategories.length === 0 ? 'Calculating...' : shipping === 0 ? 'Free' : formatCurrency(shipping)}
+          </dd>
+          <div className="col-span-2 mt-3 flex items-baseline justify-between border-t border-black/10 pt-4">
+            <dt className="font-bold">Total</dt>
+            <dd className="text-lg font-black tabular-nums">{formatCurrency(total)}</dd>
           </div>
-          <div className="flex justify-between text-xs font-bold uppercase tracking-widest">
-            <span>Shipping</span>
-            <span>{shippingCategories.length === 0 ? 'Calculating...' : shipping === 0 ? 'Free' : formatCurrency(shipping)}</span>
-          </div>
+        </dl>
+
+        <div className="flex flex-col gap-4">
+          <button
+            type="button"
+            onClick={onCheckout}
+            className="w-full bg-black py-5 text-xs font-black uppercase tracking-[0.3em] text-white transition-colors hover:bg-zinc-800"
+          >
+            Checkout
+          </button>
+          {/* Clearing also lets go of any checkout hold, so the items are back
+              on sale for everyone straight away. */}
+          <button
+            type="button"
+            onClick={() => { if (confirm('Clear your cart? Anything you were checking out goes back on sale.')) onClear(); }}
+            className="self-center text-sm underline underline-offset-4 decoration-black/30 hover:decoration-black"
+          >
+            Clear cart
+          </button>
         </div>
-
-        <div className="flex justify-between items-end">
-          <span className="text-xs font-black uppercase tracking-widest">Total</span>
-          <span className="text-3xl font-black tracking-tighter">{formatCurrency(total)}</span>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => navigate('/checkout')}
-          className="w-full bg-black py-6 text-xs font-black uppercase tracking-[0.4em] text-white transition-all hover:bg-zinc-800 flex items-center justify-center gap-3"
-        >
-          Checkout <ArrowRight className="h-4 w-4" />
-        </button>
-
-        {/* Clearing also lets go of any checkout hold, so the items are back
-            on sale for everyone straight away. */}
-        <button
-          type="button"
-          onClick={() => { if (confirm('Clear your cart? Anything you were checking out goes back on sale.')) void clear(); }}
-          className="self-center text-[11px] font-black uppercase tracking-widest ink-mid hover:text-black underline underline-offset-4"
-        >
-          Clear cart
-        </button>
       </div>
     </div>
   );

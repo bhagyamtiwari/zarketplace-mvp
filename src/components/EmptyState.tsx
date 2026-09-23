@@ -17,7 +17,7 @@ export function EmptyState({ children, detail, action, className }: {
 }) {
   return (
     <div className={cn(
-      'flex min-h-[16rem] flex-col items-center justify-center gap-6 border border-black/5 bg-zinc-50 px-8 py-16 text-center sm:px-12',
+      'flex min-h-[16rem] flex-col items-center justify-center gap-6 border border-black/10 px-8 py-16 text-center sm:px-12',
       className,
     )}>
       {detail ? (
@@ -25,10 +25,10 @@ export function EmptyState({ children, detail, action, className }: {
           <h2 className="max-w-[18ch] text-2xl sm:text-3xl font-black uppercase tracking-tighter leading-[0.95]">
             {children}
           </h2>
-          <p className="max-w-[48ch] text-sm font-normal leading-relaxed ink-mid">{detail}</p>
+          <p className="max-w-[48ch] text-sm font-normal leading-relaxed">{detail}</p>
         </>
       ) : (
-        <p className="text-xs font-bold uppercase tracking-[0.2em] ink-low">{children}</p>
+        <p className="text-sm font-bold">{children}</p>
       )}
       {action}
     </div>

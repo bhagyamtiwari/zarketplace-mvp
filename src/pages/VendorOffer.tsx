@@ -14,7 +14,8 @@
 import * as React from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'motion/react';
-import { ArrowLeft, ArrowRight, Check, Loader2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Check, Loader2 } from 'lucide-react';
+import { ui } from '../lib/ui';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { encodeVariants } from '../lib/images';
@@ -120,9 +121,9 @@ function VendorOfferInner() {
   if (loading) {
     return (
       <Shell>
-        <div className="flex items-center gap-3 ink-mid">
+        <div className="flex items-center gap-3 text-sm">
           <Loader2 className="h-4 w-4 animate-spin" />
-          <span className="text-[11px] font-black uppercase tracking-[0.3em]">Loading</span>
+          Loading
         </div>
       </Shell>
     );
@@ -190,11 +191,11 @@ function VendorOfferInner() {
 
 // ---------------------------------------------------------------------------
 
-function Shell({ children }: { children: React.ReactNode }) {
+export function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32 pb-20 sm:pb-28">
-      <Link to="/vendor-portal" className="inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-12">
-        <ArrowLeft className="h-3 w-3" /> Your items
+    <div className="shell-wide pt-24 sm:pt-32 pb-16 sm:pb-20 [&>*]:max-w-2xl">
+      <Link to="/vendor-portal" className="inline-flex items-center gap-2 text-sm font-medium text-black hover:underline underline-offset-4 mb-12">
+        <ArrowLeft className="h-4 w-4" /> Your items
       </Link>
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
         {children}
@@ -204,7 +205,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 }
 
 function Notice({ children }: { children: React.ReactNode }) {
-  return <p className="body-copy max-w-prose">{children}</p>;
+  return <p className={ui.help}>{children}</p>;
 }
 
 /**
@@ -212,7 +213,7 @@ function Notice({ children }: { children: React.ReactNode }) {
  * leads but does not shout: it is a figure someone reads and considers, not a
  * headline, and at poster size it read as a sales pitch.
  */
-function OfferScreen({
+export function OfferScreen({
   title, amount, expiresAt, onContinue, onDecline, submitting,
 }: {
   title: string; amount: number; expiresAt: string | null;
@@ -221,7 +222,7 @@ function OfferScreen({
   return (
     <div className="flex flex-col gap-10">
       <div className="flex flex-col gap-4 border-b border-black pb-8">
-        <span className="text-[11px] font-black uppercase tracking-[0.2em] ink-mid">Our offer</span>
+        <h1 className="text-sm font-bold">Our offer</h1>
         <span className="text-5xl sm:text-6xl font-black tracking-tighter leading-none tabular-nums">
           {formatCurrency(amount)}
         </span>
@@ -236,21 +237,15 @@ function OfferScreen({
 
       <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row gap-3">
-          <button
-            type="button" onClick={onContinue} disabled={submitting}
-            className="flex items-center justify-between gap-3 bg-black px-7 py-5 text-[11px] font-black uppercase tracking-widest text-white transition-colors hover:bg-zinc-800 disabled:opacity-50 sm:min-w-[260px]"
-          >
-            Accept this offer <ArrowRight className="h-4 w-4" />
+          <button type="button" onClick={onContinue} disabled={submitting} className={cn(ui.btnPrimary, 'py-5 sm:min-w-[240px]')}>
+            Accept this offer
           </button>
-          <button
-            type="button" onClick={onDecline} disabled={submitting}
-            className="px-7 py-5 text-[11px] font-black uppercase tracking-widest ink-mid transition-colors hover:text-black disabled:opacity-50"
-          >
+          <button type="button" onClick={onDecline} disabled={submitting} className={cn(ui.btnSecondary, 'py-5')}>
             No thanks
           </button>
         </div>
         {expiresAt && (
-          <p className="text-[13px] ink-mid">
+          <p className={ui.help}>
             Open until {new Date(expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long' })}.
           </p>
         )}
@@ -278,7 +273,7 @@ function Bullets({ items }: { items: React.ReactNode[] }) {
  * there is no "accept all": the record has to reflect three separate decisions
  * because that is what it will be read as later.
  */
-function AgreementScreen({
+export function AgreementScreen({
   amount, checked, onToggle, allChecked,
   pickupAddress, setPickupAddress, pickupCity, setPickupCity, pickupPincode, setPickupPincode, addressReady,
   submitting, onBack, onAccept,
@@ -292,14 +287,14 @@ function AgreementScreen({
   addressReady: boolean;
   submitting: boolean; onBack: () => void; onAccept: () => void;
 }) {
-  const field = 'border-b border-black/15 py-3 text-sm font-bold focus:border-black focus:outline-none placeholder:text-black/35';
+  const field = ui.input;
   return (
     <div className="flex flex-col gap-10">
       <div className="flex flex-col gap-3">
-        <h1 className="text-2xl sm:text-3xl font-black tracking-tighter uppercase leading-[0.95]">
+        <h1 className={ui.pageTitle}>
           Accept {formatCurrency(amount)}
         </h1>
-        <p className="text-sm leading-relaxed ink-mid">Tick all three. We keep a record of what you agreed to.</p>
+        <p className={ui.help}>Tick all three. We keep a record of what you agreed to.</p>
       </div>
 
       <ul className="flex flex-col border-t border-black/10">
@@ -334,8 +329,8 @@ function AgreementScreen({
           them, so nothing can be agreed with nowhere to collect from. */}
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <span className="text-[11px] font-black uppercase tracking-[0.2em]">Collection address</span>
-          <p className="text-[13px] ink-mid">Only used once it sells.</p>
+          <span className={ui.label}>Collection address</span>
+          <p className={ui.help}>Only used once someone buys it.</p>
         </div>
         <input type="text" value={pickupAddress} onChange={(e) => setPickupAddress(e.target.value)}
           placeholder="Flat / house no., street, area" className={field} />
@@ -351,16 +346,16 @@ function AgreementScreen({
       {/* What accepting commits you to, at the moment you commit to it. The
           same rules and numbers as "What happens next?" on the listing form,
           one sentence each. */}
-      <div className="flex flex-col gap-4 bg-zinc-50 p-6">
-        <span className="text-[11px] font-black uppercase tracking-[0.2em]">What you are agreeing to</span>
+      <div className="flex flex-col gap-4 border-t border-black/10 pt-8">
+        <span className={ui.label}>What you are agreeing to</span>
         <Bullets items={[
           'Keep it packed and unworn, and do not sell it anywhere else.',
           'When it sells, we email you a prepaid label and a courier collects it from your door, free.',
           <>It must be handed over within <strong>5 days</strong>, and you pay nothing for shipping.</>,
           <>If it does not match your photos, we can refuse it and return it <strong>at your expense</strong>.</>,
           'You are paid when it reaches our hub and matches your photos.',
-          'If it has not sold in 30 days, the offer ends and nothing is owed either way.',
-          'You can withdraw it from your vendor portal any time before it sells.',
+          'If we have not sold it in 30 days, the offer ends and nothing is owed either way.',
+          'You can withdraw it from Your items any time before someone buys it.',
         ]} />
       </div>
 
@@ -368,20 +363,17 @@ function AgreementScreen({
         <div className="flex flex-col sm:flex-row gap-3">
           <button
             type="button" onClick={onAccept} disabled={!allChecked || !addressReady || submitting}
-            className="flex items-center justify-between gap-3 bg-black px-7 py-5 text-[11px] font-black uppercase tracking-widest text-white transition-colors enabled:hover:bg-zinc-800 disabled:opacity-40 sm:min-w-[260px]"
+            className={cn(ui.btnPrimary, 'py-5 sm:min-w-[240px]')}
           >
-            {submitting ? 'Recording...' : 'Accept this offer'}
-            {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+            {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+            {submitting ? 'Recording' : 'Accept this offer'}
           </button>
-          <button
-            type="button" onClick={onBack} disabled={submitting}
-            className="px-7 py-5 text-[11px] font-black uppercase tracking-widest ink-mid transition-colors hover:text-black disabled:opacity-50"
-          >
+          <button type="button" onClick={onBack} disabled={submitting} className={cn(ui.btnSecondary, 'py-5')}>
             Back
           </button>
         </div>
         {(!allChecked || !addressReady) && (
-          <p className="text-[13px] ink-mid">
+          <p className={ui.help}>
             {!allChecked ? 'Tick all three to continue.' : 'Add the collection address to continue.'}
           </p>
         )}
@@ -390,26 +382,23 @@ function AgreementScreen({
   );
 }
 
-function Accepted({ amount }: { amount: number | null }) {
+export function Accepted({ amount }: { amount: number | null }) {
   return (
     <div className="flex flex-col gap-10">
       <div className="flex h-14 w-14 items-center justify-center bg-black text-white">
         <Check className="h-7 w-7" strokeWidth={3} />
       </div>
       <div className="flex flex-col gap-3">
-        <h1 className="text-3xl sm:text-4xl font-black tracking-tighter uppercase leading-[0.95]">
-          Agreed. It goes live shortly.
+        <h1 className={ui.pageTitle}>
+          Agreed. It goes on sale shortly.
         </h1>
-        <p className="body-copy max-w-prose">
+        <p className={ui.help}>
           {amount != null && <>Your {formatCurrency(amount)} is locked in and does not change. </>}
           Nothing to do now: keep the item safe and leave it with you. The moment somebody
           buys it we will message you with a prepaid label and a pickup date.
         </p>
       </div>
-      <Link
-        to="/vendor-portal"
-        className="self-start bg-black px-7 py-5 text-[11px] font-black uppercase tracking-widest text-white transition-transform hover:scale-[1.02] active:scale-95"
-      >
+      <Link to="/vendor-portal" className={cn(ui.btnPrimary, 'self-start')}>
         Your items
       </Link>
     </div>
@@ -418,10 +407,7 @@ function Accepted({ amount }: { amount: number | null }) {
 
 function ErrorNote({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mt-8 flex gap-3 border border-amber-500/40 bg-amber-50 px-5 py-4">
-      <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-amber-700" />
-      <p className="text-[11px] font-bold uppercase tracking-widest leading-[1.8] text-amber-900">{children}</p>
-    </div>
+    <p role="alert" className={cn(ui.error, 'mt-8')}>{children}</p>
   );
 }
 
@@ -430,13 +416,13 @@ function Waiting({ title, round }: { title: string; round: number }) {
   return (
     <div className="flex flex-col gap-10">
       <div className="flex flex-col gap-3">
-        <h1 className="text-3xl sm:text-4xl font-black tracking-tighter uppercase leading-[0.95]">
+        <h1 className={ui.pageTitle}>
           Back in 24 hours.
         </h1>
       </div>
-      <p className="body-copy max-w-prose">
+      <p className={ui.help}>
         Someone is looking at {title} now. You will hear either an offer, or what would
-        need to change before we can make one. Nothing is listed until you have seen a
+        need to change before we can make one. Nothing goes on sale until you have seen a
         number and agreed to it.
       </p>
     </div>
@@ -448,14 +434,14 @@ function Waiting({ title, round }: { title: string; round: number }) {
  * vendor turned a number down, or an offer went stale. All four say what
  * happened and, where there is one, offer the way forward.
  */
-function Verdict({ status, reasons, note, listingId, canSendBack, submitting, onResubmit }: {
+export function Verdict({ status, reasons, note, listingId, canSendBack, submitting, onResubmit }: {
   status: string; reasons: string[] | null; note: string | null; listingId: string;
   canSendBack: boolean; submitting: boolean; onResubmit: () => void;
 }) {
   const copy = {
     declined: {
       heading: 'We cannot make an offer on this yet',
-      body: 'This is not final. Sort out what is listed here, send the item back to us, and we will look again within 24 hours.',
+      body: 'This is not final. Sort out what is set out here, send the item back to us, and we will look again within 24 hours.',
     },
     offer_rejected: {
       heading: 'No problem',
@@ -473,31 +459,31 @@ function Verdict({ status, reasons, note, listingId, canSendBack, submitting, on
   return (
     <div className="flex flex-col gap-12">
       <div className="flex flex-col gap-3">
-        <h1 className="text-3xl sm:text-4xl font-black tracking-tighter uppercase leading-[0.95]">
+        <h1 className={ui.pageTitle}>
           {copy.heading}
         </h1>
       </div>
 
       {(reasons?.length || note) && (
         <div className="border-l-2 border-black pl-6 py-1 flex flex-col gap-4">
-          <span className="text-sm font-semibold tracking-tight text-black">
+          <span className={ui.label}>
             What needs fixing
           </span>
           {reasons && reasons.length > 0 && (
             <ul className="flex flex-col gap-2.5">
               {reasons.map((r) => (
-                <li key={r} className="body-copy text-black flex gap-3">
+                <li key={r} className="flex gap-3 text-sm leading-relaxed">
                   <span aria-hidden className="mt-[0.6em] h-1 w-1 shrink-0 bg-black" />
                   <span>{r}</span>
                 </li>
               ))}
             </ul>
           )}
-          {note && <p className="body-copy text-black">{note}</p>}
+          {note && <p className={ui.help}>{note}</p>}
         </div>
       )}
 
-      <p className="body-copy max-w-prose">{copy.body}</p>
+      <p className={ui.help}>{copy.body}</p>
 
       {canSendBack && (
         <ImprovePanel listingId={listingId} submitting={submitting} onResubmit={onResubmit} />
@@ -578,17 +564,11 @@ function ImprovePanel({ listingId, submitting, onResubmit }: {
   if (!open) {
     return (
       <div className="flex flex-col sm:flex-row gap-4">
-        <button
-          type="button" onClick={() => setOpen(true)}
-          className="flex items-center justify-between gap-3 bg-black px-7 py-5 text-[11px] font-black uppercase tracking-widest text-white transition-transform hover:scale-[1.02] active:scale-95 sm:min-w-[260px]"
-        >
-          Improve this item <ArrowRight className="h-4 w-4" />
+        <button type="button" onClick={() => setOpen(true)} className={cn(ui.btnPrimary, 'py-5 sm:min-w-[240px]')}>
+          Improve this item
         </button>
-        <button
-          type="button" onClick={onResubmit} disabled={submitting}
-          className="px-7 py-5 text-[11px] font-black uppercase tracking-widest ink-mid transition-colors hover:text-black disabled:opacity-50"
-        >
-          {submitting ? 'Sending...' : 'Send back as is'}
+        <button type="button" onClick={onResubmit} disabled={submitting} className={cn(ui.btnSecondary, 'py-5')}>
+          {submitting ? 'Sending' : 'Send back as is'}
         </button>
       </div>
     );
@@ -599,15 +579,15 @@ function ImprovePanel({ listingId, submitting, onResubmit }: {
   return (
     <div className="flex flex-col gap-10 border-t border-black/10 pt-12">
       <div className="flex flex-col gap-3">
-        <label className="text-[11px] font-black uppercase tracking-[0.4em] ink-mid">
+        <label className={ui.label}>
           Add photos
         </label>
         <input
           type="file" accept="image/*" multiple
           onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
-          className="text-xs font-bold file:mr-4 file:border file:border-black file:bg-white file:px-5 file:py-3 file:text-[11px] file:font-black file:uppercase file:tracking-widest hover:file:bg-black hover:file:text-white file:transition-colors"
+          className="text-sm file:mr-4 file:border file:border-black file:bg-white file:px-5 file:py-3 file:text-[11px] file:font-black file:uppercase file:tracking-[0.2em] hover:file:bg-black hover:file:text-white file:transition-colors"
         />
-        <p className="text-[11px] font-bold uppercase tracking-widest ink-mid leading-[1.9]">
+        <p className={ui.help}>
           {files.length > 0
             ? `${files.length} ${files.length === 1 ? 'photo' : 'photos'} will be added`
             : 'These are added to your existing photos, not swapped for them.'}
@@ -615,7 +595,7 @@ function ImprovePanel({ listingId, submitting, onResubmit }: {
       </div>
 
       <div className="flex flex-col gap-3">
-        <label className="text-[11px] font-black uppercase tracking-[0.4em] ink-mid">
+        <label className={ui.label}>
           Description
         </label>
         <textarea
@@ -623,26 +603,20 @@ function ImprovePanel({ listingId, submitting, onResubmit }: {
           onChange={(e) => setDescription(e.target.value)}
           rows={5}
           placeholder="Fit, material, how it runs, anything a photo cannot show."
-          className="border border-black/15 bg-white px-4 py-3 text-sm font-medium leading-relaxed focus:border-black focus:outline-none"
+          className="w-full border border-black/20 bg-white p-4 text-sm leading-relaxed placeholder:text-black/35 focus:border-black focus:outline-none"
         />
       </div>
 
       {saveError && (
-        <p className="text-[11px] font-bold uppercase tracking-widest text-red-700">{saveError}</p>
+        <p className={ui.error}>{saveError}</p>
       )}
 
       <div className="flex flex-col sm:flex-row gap-4">
-        <button
-          type="button" onClick={saveAndResend} disabled={busy}
-          className="flex items-center justify-between gap-3 bg-black px-7 py-5 text-[11px] font-black uppercase tracking-widest text-white transition-transform enabled:hover:scale-[1.02] enabled:active:scale-95 disabled:opacity-40 sm:min-w-[260px]"
-        >
-          {busy ? 'Sending...' : 'Send back to us'}
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+        <button type="button" onClick={saveAndResend} disabled={busy} className={cn(ui.btnPrimary, 'py-5 sm:min-w-[240px]')}>
+          {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+          {busy ? 'Sending' : 'Send back to us'}
         </button>
-        <button
-          type="button" onClick={() => setOpen(false)} disabled={busy}
-          className="px-7 py-5 text-[11px] font-black uppercase tracking-widest ink-mid transition-colors hover:text-black disabled:opacity-50"
-        >
+        <button type="button" onClick={() => setOpen(false)} disabled={busy} className={cn(ui.btnSecondary, 'py-5')}>
           Cancel
         </button>
       </div>

@@ -4,7 +4,6 @@
 // wraps identically instead of each page inventing its own.
 import * as React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface Props {
@@ -40,11 +39,13 @@ export function CampaignBand({
         aria-hidden
         loading="lazy"
         decoding="async"
-        className="absolute inset-0 h-full w-full object-cover opacity-45"
+        className="absolute inset-0 h-full w-full object-cover"
       />
-      {/* Fixed scrim rather than a per-image guess: the copy has to stay legible
-          whatever the photograph does behind it. */}
-      <div aria-hidden className="absolute inset-0 bg-black/45" />
+      {/* One fixed scrim rather than a per-image guess: dark enough for white
+          type over any photograph, light enough that the photograph is still
+          the thing you see. It was a faded image under a second dark layer,
+          which left a dark block with a rumour of a picture in it. */}
+      <div aria-hidden className="absolute inset-0 bg-black/60" />
 
       {/* Copy on one side, button on the other and vertically centred. The
           breathing room is padding inside the band, over the photograph - the
@@ -52,7 +53,7 @@ export function CampaignBand({
           block rather than three cards separated by white gutters. */}
       <div
         className={cn(
-          'relative mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-16 sm:py-24',
+          'relative mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-16 sm:py-24',
           // Alignment applies at every width now, not just md and up. Both
           // bands used to be left-aligned on a phone, so the pair lost the
           // alternation that makes them read as two separate statements rather
@@ -96,10 +97,9 @@ export function CampaignBand({
         {cta && (
           <Link
             to={cta.to}
-            className="group shrink-0 flex items-center gap-4 border border-white bg-black/60 backdrop-blur-sm px-8 py-4 text-[11px] font-black uppercase tracking-[0.3em] text-white hover:bg-white hover:text-black transition-colors"
+            className="shrink-0 border border-white px-8 py-4 text-[11px] font-black uppercase tracking-[0.2em] text-white hover:bg-white hover:text-black transition-colors"
           >
             {cta.label}
-            <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         )}
       </div>

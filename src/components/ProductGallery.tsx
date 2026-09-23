@@ -13,7 +13,7 @@
 
 import * as React from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronLeft, ChevronRight, X, ZoomIn, Minus, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Minus, Plus } from 'lucide-react';
 import { variantUrl, variantSrcSet } from '../lib/images';
 import { cn } from '../lib/utils';
 
@@ -30,7 +30,9 @@ export function ProductGallery({ images, alt }: Props) {
   const [zoomOpen, setZoomOpen] = React.useState(false);
   // The frame takes the shape of the cover photo, anywhere from square to
   // 3:4 portrait, rather than forcing every upload into one crop. Outside that
-  // range it stops at the nearer edge and the photo is fitted, never cut.
+  // range it stops at the nearer edge and the photo fills the frame, trimmed
+  // at the edges rather than letterboxed with bars. The zoom view always
+  // shows the whole photo. One measurement on load, no processing.
   const [ratio, setRatio] = React.useState(3 / 4);
 
   // Live horizontal offset while a finger or pointer is down, so the image
@@ -96,7 +98,27 @@ export function ProductGallery({ images, alt }: Props) {
   };
 
   return (
-    <div className="flex flex-col gap-3">
+    <div>
+      {/* Desktop: every photo, full width of the column, one under another,
+          each in its own shape (square to 3:4). This is how a garment is
+          looked at on a screen this size: by scrolling down it, not by
+          clicking through a frame. A click opens that photo in zoom. */}
+      <div className="hidden lg:flex flex-col gap-2">
+        {images.map((img, i) => (
+          <React.Fragment key={img + i}>
+            <StackedPhoto
+              src={img}
+              alt={i === 0 ? alt : `${alt}, image ${i + 1}`}
+              priority={i === 0}
+              onOpen={() => { setIndex(i); setZoomOpen(true); }}
+            />
+          </React.Fragment>
+        ))}
+      </div>
+
+      {/* Phone and tablet: one frame you swipe, with a count underneath
+          rather than dots, arrows or a hint laid over the photo. */}
+      <div className="lg:hidden flex flex-col gap-2">
       <div
         ref={frameRef}
         tabIndex={0}
@@ -108,7 +130,7 @@ export function ProductGallery({ images, alt }: Props) {
         onPointerUp={onPointerUp}
         onPointerCancel={() => { gesture.current = null; setDragX(0); setDragging(false); }}
         onContextMenu={(e) => e.preventDefault()}
-        className="relative overflow-hidden bg-zinc-50 touch-pan-y select-none outline-none focus-visible:ring-2 focus-visible:ring-black cursor-zoom-in"
+        className="relative overflow-hidden bg-zinc-100 touch-pan-y select-none outline-none focus-visible:ring-2 focus-visible:ring-black cursor-zoom-in"
         style={{ ...PROTECT, aspectRatio: String(ratio) }}
       >
         {/* One rail carrying every image, moved as a unit. The old version
@@ -126,7 +148,7 @@ export function ProductGallery({ images, alt }: Props) {
               key={img + i}
               src={variantUrl(img, 'full')}
               srcSet={variantSrcSet(img, ['grid', 'full'])}
-              sizes="(min-width: 1024px) 50vw, 100vw"
+              sizes="100vw"
               alt={i === index ? alt : ''}
               draggable={false}
               loading={i === 0 ? 'eager' : 'lazy'}
@@ -135,7 +157,7 @@ export function ProductGallery({ images, alt }: Props) {
                 const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
                 if (w && h) setRatio(Math.min(1, Math.max(3 / 4, w / h)));
               } : undefined}
-              className="h-full w-full shrink-0 object-contain"
+              className="h-full w-full shrink-0 object-cover"
               style={PROTECT}
             />
           ))}
@@ -143,48 +165,20 @@ export function ProductGallery({ images, alt }: Props) {
 
         {count > 1 && (
           <>
-            {/* Visible whenever a pointer exists, not only on hover: an arrow
-                that appears when you are already on top of it cannot tell you
-                there is more than one photo. */}
+            {/* Tablet widths have a pointer more often than not, and no
+                obvious swipe; a phone hides these and swipes. */}
             <GalleryArrow side="left" onClick={() => go(-1)} />
             <GalleryArrow side="right" onClick={() => go(1)} />
           </>
         )}
-
-        <span className="pointer-events-none absolute bottom-3 right-3 flex items-center gap-1.5 bg-white/90 px-2.5 py-1.5 text-[11px] font-black uppercase tracking-widest text-black">
-          <ZoomIn className="h-3 w-3" /> Tap to zoom
-        </span>
-
-        {count > 1 && (
-          <div className="pointer-events-none absolute bottom-3 left-3 flex gap-1.5">
-            {images.map((_, i) => (
-              <span key={i} className={cn('h-1.5 w-1.5 rounded-full transition-colors',
-                i === index ? 'bg-black' : 'bg-black/25')} />
-            ))}
-          </div>
-        )}
       </div>
 
       {count > 1 && (
-        <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-          {images.map((img, i) => (
-            <button
-              key={img + i}
-              type="button"
-              onClick={() => setIndex(i)}
-              aria-label={`Show image ${i + 1}`}
-              aria-current={i === index}
-              className={cn(
-                'h-16 w-12 shrink-0 overflow-hidden bg-zinc-50 border transition-colors',
-                i === index ? 'border-black' : 'border-transparent opacity-55 hover:opacity-100',
-              )}
-            >
-              <img src={variantUrl(img, 'thumb')} alt="" draggable={false}
-                className="h-full w-full object-cover" referrerPolicy="no-referrer" style={PROTECT} />
-            </button>
-          ))}
-        </div>
+        <p className="self-end text-xs font-medium tabular-nums" aria-hidden>
+          {index + 1} / {count}
+        </p>
       )}
+      </div>
 
       {zoomOpen && (
         <ZoomView
@@ -193,6 +187,41 @@ export function ProductGallery({ images, alt }: Props) {
         />
       )}
     </div>
+  );
+}
+
+// One photo in the desktop stack. Takes its own shape, square to 3:4, from
+// the photo itself once it loads; outside that range it fills the frame and
+// the edges are trimmed rather than barred. The full photo is in zoom.
+function StackedPhoto({ src, alt, priority, onOpen }: {
+  src: string; alt: string; priority: boolean; onOpen: () => void;
+}) {
+  const [ratio, setRatio] = React.useState(3 / 4);
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      onContextMenu={(e) => e.preventDefault()}
+      aria-label={`Zoom: ${alt}`}
+      className="block w-full overflow-hidden bg-zinc-100 cursor-zoom-in outline-none focus-visible:ring-2 focus-visible:ring-black"
+      style={{ ...PROTECT, aspectRatio: String(ratio) }}
+    >
+      <img
+        src={variantUrl(src, 'full')}
+        srcSet={variantSrcSet(src, ['grid', 'full'])}
+        sizes="(min-width: 1280px) 45vw, 55vw"
+        alt={alt}
+        draggable={false}
+        loading={priority ? 'eager' : 'lazy'}
+        referrerPolicy="no-referrer"
+        onLoad={(e) => {
+          const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
+          if (w && h) setRatio(Math.min(1, Math.max(3 / 4, w / h)));
+        }}
+        className="h-full w-full object-cover"
+        style={PROTECT}
+      />
+    </button>
   );
 }
 

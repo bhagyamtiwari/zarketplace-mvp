@@ -2,7 +2,6 @@ import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { usePageMeta, META } from '../lib/pageMeta';
-import { cn } from '../lib/utils';
 import { CONDITIONS } from '../lib/condition';
 
 export function Condition() {
@@ -10,8 +9,8 @@ export function Condition() {
 
   return (
     <div className="shell-wide pt-24 sm:pt-32 pb-16 sm:pb-20">
-      <Link to="/browse" className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest ink-mid hover:text-black mb-8 lg:mb-12">
-        <ArrowLeft className="h-3 w-3" /> Back to browse
+      <Link to="/" className="inline-flex items-center gap-2 text-sm font-medium text-black hover:underline underline-offset-4 mb-12">
+        <ArrowLeft className="h-4 w-4" /> Back to home
       </Link>
 
       <div className="flex flex-col">
@@ -19,7 +18,7 @@ export function Condition() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col gap-12 flex-1 min-w-0"
+          className="flex flex-col gap-8 flex-1 min-w-0"
         >
         <div className="flex flex-col gap-4">
           <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Conditions Guide</h1>
@@ -31,38 +30,36 @@ export function Condition() {
           </p>
         </div>
 
-        <section className="w-full p-6 sm:p-10 bg-black text-white flex flex-col gap-4">
-          <h3 className="text-sm font-black uppercase tracking-widest">Please note</h3>
-          <p className="body-longform">
-            Condition is a judgement, and an honest one can still be a close call between two tiers. We check every item against its listing before it ships, and anything that does not match does not go out.
-          </p>
-        </section>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {CONDITIONS.map((c, idx) => (
-            <div
+        {/* The four tiers are the page, so they come first and stack in rank
+            order, name on the left and definition on the right, so a scan
+            down the names is a scan down the scale. The two notes that used
+            to bracket them are one panel underneath: they qualify the scale,
+            they do not introduce it. */}
+        <ol className="flex flex-col gap-4">
+          {CONDITIONS.map((c) => (
+            <li
               key={c.name}
-              className={cn(
-                'relative flex flex-col gap-2 p-6 pl-7 bg-zinc-50 border border-black/5 overflow-hidden',
-                idx === CONDITIONS.length - 1 && CONDITIONS.length % 2 === 1 && 'sm:col-span-2'
-              )}
+              className="relative grid grid-cols-1 sm:grid-cols-[12rem_1fr] gap-2 sm:gap-6 p-6 pl-7 bg-zinc-50 border border-black/5 overflow-hidden"
             >
               <span
                 aria-hidden
                 className="absolute left-0 top-0 h-full w-1.5"
                 style={{ backgroundColor: c.rank }}
               />
-              <h2 className="flex items-baseline gap-2.5 text-lg font-black uppercase tracking-tight text-black">
+              <h2 className="flex items-baseline gap-2.5 text-lg font-bold text-black">
                 {c.name}
-                <span className="text-xs tracking-[0.2em] ink-mid">{c.grade}</span>
+                <span className="text-sm font-medium">{c.grade}</span>
               </h2>
-              <p className="body-longform">{c.desc}</p>
-            </div>
+              <p className="body-longform sm:pt-1">{c.desc}</p>
+            </li>
           ))}
-        </div>
+        </ol>
 
         <section className="w-full p-6 sm:p-10 bg-black text-white flex flex-col gap-4">
-          <h3 className="text-sm font-black uppercase tracking-widest">A note on pre-owned items</h3>
+          <h3 className="text-sm font-black uppercase tracking-widest">Please note</h3>
+          <p className="body-longform">
+            Condition is a judgement, and an honest one can still be a close call between two tiers. We check every item against its listing before it ships, and anything that does not match does not go out.
+          </p>
           <p className="body-longform">
             As pre-owned pieces, items may carry light odors or signs of storage. We recommend following care labels and washing, or dry cleaning, garments before first wear.
           </p>
