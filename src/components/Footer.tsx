@@ -1,8 +1,8 @@
 // Site footer. Desktop: five columns in one row (the four errands, then
-// Connect) and a bottom bar (wordmark left, copyright right), all inside the
-// same centred 64rem column as the pages above. Mobile: each column collapses
-// into an accordion (one section open at a time), and the social icons sit
-// under the wordmark at the foot.
+// Connect) spread evenly across the full width, with the same padding on the
+// left and the right, then a bottom bar with the wordmark on the left and the
+// copyright on the right. Mobile: each column collapses into an accordion (one
+// section open at a time), and the social icons sit under the wordmark.
 import * as React from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronUp, Instagram } from 'lucide-react';
@@ -157,15 +157,16 @@ export function Footer() {
 
   return (
     <footer className="bg-black text-white py-16 sm:py-20">
-      {/* The page column (shell-wide), not the full-bleed header width. At
-          full width the five short columns either bunched on the left or,
-          spread out, ran into both edges with a screen's width between them. */}
-      <div className="shell-wide">
+      {/* The header's full width, with more padding than the header so the
+          columns do not run into the edges: the same amount on both sides. */}
+      <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-16 xl:px-20">
         {/* The four errands, then Connect, where the social links read as
             named links like every other column rather than four loose marks.
-            Spread across the column, so the first starts over the wordmark and
-            the last ends over the copyright, with even gaps between. */}
-        <div className="hidden md:grid grid-cols-3 gap-x-10 gap-y-12 lg:flex lg:justify-between">
+            Spread with equal gaps, so the first column starts at the left
+            padding and the last ends at the right padding. Equal grid cells
+            left the short last column well short of the right edge, and the
+            whole block looked pushed to the left. */}
+        <div className="hidden md:grid md:grid-cols-3 md:gap-x-10 md:gap-y-12 lg:flex lg:justify-between">
           <FooterColumnBlock column={SHOP} />
           <FooterColumnBlock column={SELLING} />
           <FooterColumnBlock column={HELP} />
@@ -220,18 +221,14 @@ export function Footer() {
           })}
         </div>
 
-        {/* Desktop bottom bar, one row: the wordmark on the left; the socials,
-            a hairline, and the notice on the right. The divider is what makes
-            the icons and the copyright read as two things rather than one run
-            of small marks. The wordmark is the same one as the nav, so the
-            page opens and closes on the same mark. */}
+        {/* Desktop bottom bar: the wordmark on the left, the notice on the
+            right, on the same edges as the columns above. The wordmark is the
+            same one as the nav, so the page opens and closes on the same mark. */}
         <div className="hidden md:flex mt-16 pt-8 border-t border-white/10 items-center justify-between">
           <Link to="/" aria-label="zarketplace home" className="flex min-h-[44px] items-center">
             <Wordmark on="dark" heightClassName="h-8" />
           </Link>
-          <div className="flex items-center">
-            <span className="text-[11px] font-bold uppercase tracking-widest text-white/80">© 2026 All rights reserved.</span>
-          </div>
+          <span className="text-[11px] font-bold uppercase tracking-widest text-white/80">© 2026 All rights reserved.</span>
         </div>
 
         {/* Mobile bottom block: mark, socials under it, then the legal line.
