@@ -14,7 +14,8 @@ import { CampaignBand } from '../components/CampaignBand';
 import { cn } from '../lib/utils';
 import { log } from '../lib/log';
 import { usePageMeta, META } from '../lib/pageMeta';
-import { useFavorites } from '../lib/favorites';
+import { useFavorites, favoriteSnapshots, refreshSnapshots, removeFavorite, type FavoriteSnapshot } from '../lib/favorites';
+import { GoneFavorites } from '../components/GoneFavorites';
 import { CONDITIONS } from '../lib/condition';
 import { CATEGORY_SIZES, ALL_SIZES } from '../lib/sizes';
 
@@ -116,6 +117,9 @@ export function Marketplace() {
   const [state, setState] = React.useState<'loading' | 'paging' | 'ready' | 'error'>('loading');
   const [showFilters, setShowFilters] = React.useState(false);
   const [reloadKey, setReloadKey] = React.useState(0);
+  // Favorites that have left the shop (sold, or taken off it), shown under
+  // the ones still on sale so a hearted item never just disappears.
+  const [gone, setGone] = React.useState<FavoriteSnapshot[]>([]);
 
   // Search box is local so typing stays instant; the URL (the source of truth
   // for every other filter) catches up on a debounce.
@@ -123,7 +127,7 @@ export function Marketplace() {
   React.useEffect(() => { setSearchInput(searchQuery); }, [searchQuery]);
 
   // Read at fetch time rather than tracked as a dependency: un-hearting an item
-  // while looking at the Saved view should not yank the card out from under the
+  // while looking at the Favorites view should not yank the card out from under the
   // cursor, so the list stays as-fetched until the user changes something.
   const favoritesRef = React.useRef(favorites);
   favoritesRef.current = favorites;
@@ -177,13 +181,34 @@ export function Marketplace() {
           const ids = [...favoritesRef.current];
           if (ids.length === 0) {
             // `.in('id', [])` is a valid query that returns nothing, but short
-            // -circuiting keeps an empty Saved view off the network entirely.
+            // -circuiting keeps an empty Favorites view off the network entirely.
             setListings([]);
             setTotal(0);
+            setGone([]);
             setState('ready');
             return;
           }
           query = query.in('id', ids);
+          if (page === 0) {
+            // Which favorites are still on sale, all of them, not just this
+            // page: the rest have sold or come off the site. Those are shown
+            // from the snapshot taken when they were hearted; one hearted
+            // before snapshots existed has nothing to show, so it is dropped.
+            const { data: onSale } = await supabasePublic
+              .from('public_listings')
+              .select('id')
+              .eq('status', 'approved')
+              .or('is_sold.is.null,is_sold.eq.false')
+              .in('id', ids);
+            if (cancelled) return;
+            if (onSale) {
+              const available = new Set(onSale.map((r: { id: string }) => r.id));
+              const snaps = favoriteSnapshots();
+              const leftShop = ids.filter((id) => !available.has(id));
+              for (const id of leftShop) if (!snaps[id]) removeFavorite(id);
+              setGone(leftShop.map((id) => snaps[id]).filter(Boolean));
+            }
+          }
         }
 
         const safe = sanitizeSearch(searchQuery);
@@ -222,6 +247,8 @@ export function Marketplace() {
           totalCount = rows.length;
         }
 
+        // Keeps each favorite's snapshot current while it is still on sale.
+        refreshSnapshots(rows as Listing[]);
         setListings((prev) => (page === 0 ? rows : [...prev, ...rows]));
         if (page === 0) setTotal(totalCount);
         // A short page means we've reached the end; remember it via total.
@@ -239,6 +266,8 @@ export function Marketplace() {
   }, [filterKey, page, reloadKey]);
 
   const hasMore = total !== null && listings.length < total;
+  // Un-hearting one of these takes it off the list straight away.
+  const goneShown = gone.filter((g) => favorites.has(g.id));
 
   // Infinite scroll: load the next page as the sentinel comes into view.
   const sentinelRef = React.useRef<HTMLDivElement | null>(null);
@@ -312,7 +341,7 @@ export function Marketplace() {
             ))}
             <Tab active={quick === 'verified'} onClick={() => toggleParam('q', 'verified')}>Instant Ship</Tab>
             {favorites.size > 0 && (
-              <Tab active={quick === 'saved'} onClick={() => toggleParam('q', 'saved')}>Saved ({favorites.size})</Tab>
+              <Tab active={quick === 'saved'} onClick={() => toggleParam('q', 'saved')}>Favorites ({favorites.size})</Tab>
             )}
           </div>
 
@@ -368,21 +397,29 @@ export function Marketplace() {
                 <div key={i} className="aspect-[3/4] bg-zinc-50 animate-pulse border border-black/5" />
               ))}
             </FeedGrid>
-          ) : listings.length === 0 ? (
+          ) : listings.length === 0 && !(quick === 'saved' && goneShown.length > 0) ? (
             <EmptyState
               detail={
-                activeFilterCount > 0 || searchQuery || quick === 'saved'
+                quick === 'saved'
+                  ? 'Tap the heart on anything you like and it stays here, so you can come back to it.'
+                  : activeFilterCount > 0 || searchQuery
                   ? undefined
                   : 'Every piece here is one we sourced, checked, and dispatched ourselves, so the shelf fills one item at a time. Sell us something and it could be the next one.'
               }
               action={
-                <Link to="/sell" className="bg-black px-8 py-3 text-[10px] font-black uppercase tracking-[0.3em] text-white">
-                  Sell us something
-                </Link>
+                quick === 'saved' ? (
+                  <Link to="/" className="bg-black px-8 py-3 text-[10px] font-black uppercase tracking-[0.3em] text-white">
+                    Shop now
+                  </Link>
+                ) : (
+                  <Link to="/sell" className="bg-black px-8 py-3 text-[10px] font-black uppercase tracking-[0.3em] text-white">
+                    Sell us something
+                  </Link>
+                )
               }
             >
               {quick === 'saved'
-                ? 'Nothing saved yet'
+                ? 'No favorites yet'
                 : quick === 'verified' && activeFilterCount === 1 && !searchQuery
                   ? 'Nothing in our hub right now'
                 : activeFilterCount > 0 || searchQuery
@@ -394,7 +431,7 @@ export function Marketplace() {
             </EmptyState>
           ) : (
             <>
-              <FeedGrid>
+              {listings.length > 0 && <FeedGrid>
                 {listings.map((listing, i) => (
                   <React.Fragment key={listing.id}>
                     <ListingCard listing={listing} priority={i < 4} />
@@ -404,7 +441,10 @@ export function Marketplace() {
                     {i === 15 && <SellTile />}
                   </React.Fragment>
                 ))}
-              </FeedGrid>
+              </FeedGrid>}
+              {quick === 'saved' && listings.length === 0 && (
+                <p className="text-sm">None of your favorites are on sale right now.</p>
+              )}
 
               <div ref={sentinelRef} className="h-10" />
               {/* At the end of the feed, nothing. A closing line under the last
@@ -429,6 +469,8 @@ export function Marketplace() {
                   </button>
                 </div>
               ) : null}
+
+              {quick === 'saved' && goneShown.length > 0 && <GoneFavorites items={goneShown} />}
             </>
           )}
         </div>

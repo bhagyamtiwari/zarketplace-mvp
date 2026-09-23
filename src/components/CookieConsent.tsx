@@ -30,7 +30,7 @@ export function CookieConsent() {
             <span className="text-sm">Always on</span>
           </div>
           <p className="text-sm leading-relaxed -mt-2">
-            Your sign-in session, cart, saved items and checkout progress. Stored on this device, needed for the site to work at all.
+            Your sign-in session, cart, favorites and checkout progress. Stored on this device, needed for the site to work at all.
           </p>
           <div className="flex items-center justify-between pt-2 border-t border-white/10">
             <span className="text-sm font-bold">Analytics</span>

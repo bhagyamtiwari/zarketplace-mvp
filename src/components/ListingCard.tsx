@@ -49,7 +49,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing, priority = fa
     e.preventDefault();
     e.stopPropagation();
     if (sold) return;
-    toggleFavorite(listing.id);
+    toggleFavorite(listing);
   };
 
   const size = listing.size_type || listing.size;
@@ -137,7 +137,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing, priority = fa
           type="button"
           onClick={onHeart}
           disabled={sold}
-          aria-label={favorited ? 'Remove from saved' : 'Save'}
+          aria-label={favorited ? 'Remove from favorites' : 'Add to favorites'}
           aria-pressed={favorited}
           className={cn('-mr-3 -mt-3 flex h-11 w-11 shrink-0 items-center justify-center', sold && 'cursor-default')}
         >

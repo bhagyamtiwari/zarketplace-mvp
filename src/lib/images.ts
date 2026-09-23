@@ -34,6 +34,25 @@ const VARIANT_QUALITY: Record<ImageVariant, number> = {
 // Matches the -<width>.<ext> suffix this pipeline writes.
 const VARIANT_SUFFIX_RE = /-(?:400|800|1600)\.(webp|jpe?g|png)$/i;
 
+// Unsplash photos (the demo stock) are resized by Unsplash itself: the width
+// is a query parameter. Without this every demo card fetched a 1200px photo,
+// even on a phone showing it 180px wide.
+function isUnsplash(url: string): boolean {
+  return url.startsWith('https://images.unsplash.com/');
+}
+
+function unsplashAt(url: string, width: number): string {
+  try {
+    const u = new URL(url);
+    u.searchParams.set('w', String(width));
+    if (!u.searchParams.has('q')) u.searchParams.set('q', '75');
+    if (!u.searchParams.has('auto')) u.searchParams.set('auto', 'format');
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 /**
  * Pick a size for a stored image URL. Returns the URL untouched when it was
  * not produced by this pipeline (every listing uploaded before it), so callers
@@ -41,6 +60,7 @@ const VARIANT_SUFFIX_RE = /-(?:400|800|1600)\.(webp|jpe?g|png)$/i;
  */
 export function variantUrl(url: string | null | undefined, variant: ImageVariant): string {
   if (!url) return '';
+  if (isUnsplash(url)) return unsplashAt(url, VARIANT_WIDTH[variant]);
   const m = url.match(VARIANT_SUFFIX_RE);
   if (!m) return url;
   return url.replace(VARIANT_SUFFIX_RE, `-${VARIANT_WIDTH[variant]}.${m[1]}`);
@@ -52,7 +72,8 @@ export function variantUrl(url: string | null | undefined, variant: ImageVariant
  * srcset for pre-pipeline images, which is a no-op the browser ignores.
  */
 export function variantSrcSet(url: string | null | undefined, variants: ImageVariant[]): string | undefined {
-  if (!url || !VARIANT_SUFFIX_RE.test(url)) return undefined;
+  if (!url) return undefined;
+  if (!isUnsplash(url) && !VARIANT_SUFFIX_RE.test(url)) return undefined;
   return variants.map((v) => `${variantUrl(url, v)} ${VARIANT_WIDTH[v]}w`).join(', ');
 }
 
