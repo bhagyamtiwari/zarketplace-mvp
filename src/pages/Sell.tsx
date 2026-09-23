@@ -123,7 +123,7 @@ const WHAT_HAPPENS_NOTES: Array<{ title: string; body: string }> = [
   },
   {
     title: 'If we have not sold it',
-    body: 'After 30 days unsold, the offer ends and the item stays yours. Nothing is owed either way.',
+    body: 'After 30 days unsold, the offer expires and the item stays yours. Nothing is owed either way.',
   },
   {
     title: 'No GSTIN needed',
@@ -217,11 +217,14 @@ const MEASUREMENTS_BY_CATEGORY: Record<string, { required: Measure[]; optional: 
       { key: 'sleeve_cm', label: 'Sleeve', how: 'From the shoulder seam to the end of the cuff.', step: 3 },
     ],
   },
+  // Waist and inseam are what fit a pair of trousers, so both are required;
+  // outseam adds little once those two are known.
   Bottoms: {
-    required: [],
-    optional: [
+    required: [
       { key: 'waist_cm', label: 'Waist', how: 'Button them, lay flat, and measure straight across the top of the waistband.', step: 1 },
       { key: 'inseam_cm', label: 'Inseam', how: 'From the crotch seam down to the bottom of the leg.', step: 2 },
+    ],
+    optional: [
       { key: 'outseam_cm', label: 'Outseam', how: 'From the top of the waistband down the outside of the leg to the hem.', step: 3 },
     ],
   },
@@ -911,13 +914,9 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
 
         </div>
 
+        {/* What happens after "Get my offer" is said after it, on the
+            confirmation screen, not here as well. */}
         <div className="mt-12 pt-6 border-t border-black/10 flex flex-col items-center gap-3 text-center">
-          {isLastStep && (
-            <p className="text-sm font-normal leading-relaxed text-black">
-              Nothing goes on sale yet. We look at it and come back within 24 hours, with
-              either an offer or what needs changing first.
-            </p>
-          )}
           <p className="text-sm font-normal leading-relaxed">
             Something not working?{' '}
             <Link to="/contact" className="underline underline-offset-4 text-black">Tell us</Link>
@@ -941,12 +940,22 @@ export function SellSubmitted({ onItems, onAnother }: { onItems: () => void; onA
           nothing goes on sale until they have seen a number and agreed to it.
           Saying so is the difference between someone waiting and someone who
           thinks the form silently failed. */}
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-6">
         <h1 className={ui.pageTitle}>Back in 24 hours.</h1>
-        <p className="body-longform">
-          We are looking at your item now. You will get an offer, or a note on what to fix, by email. If it is
-          not in your inbox, check your spam folder. Nothing is on sale yet, and the item stays with you.
-        </p>
+        {/* Where things stand, in two lines. The item stays with them after
+            they accept too: the label is sent when someone buys it, not when
+            the offer is accepted. */}
+        <ul className="flex flex-col gap-2.5">
+          {[
+            'We will email you an offer, or what to fix, within 24 hours. Check your spam folder too.',
+            'Nothing is on sale yet, and the item stays with you until someone buys it. Then we send you a free prepaid label.',
+          ].map((line) => (
+            <li key={line} className="flex gap-3 text-[15px] leading-relaxed">
+              <span aria-hidden className="mt-[0.6em] h-1 w-1 shrink-0 bg-black" />
+              <span>{line}</span>
+            </li>
+          ))}
+        </ul>
       </div>
 
       <section className="flex flex-col gap-6" aria-labelledby="next-heading">
