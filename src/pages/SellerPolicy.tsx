@@ -2,29 +2,44 @@ import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { usePageMeta, META } from '../lib/pageMeta';
+import { ProcessFlow, type FlowStep } from '../components/ProcessFlow';
+
+// The seller's guide. Buyers have their own version on Buyer Protection, so
+// this page speaks to one reader: someone deciding whether to sell to us.
+const SELLING: FlowStep[] = [
+  { label: 'Add your item', detail: 'Photos, size and an honest condition. It takes a minute.' },
+  { label: 'Accept our offer', detail: 'A fixed amount in rupees. Once you accept, it is locked.' },
+  { label: 'We collect it', detail: 'When someone buys it, we send a prepaid label and a courier collects it.' },
+  { label: 'Get paid', detail: 'Once we have checked it at our hub. The amount you accepted, in full.' },
+];
 
 export function SellerPolicy() {
-  usePageMeta(META.vendorPolicy);
+  usePageMeta(META.howItWorks);
 
   return (
     <div className="shell-wide pt-24 sm:pt-32 pb-16 sm:pb-20">
-      <Link to="/browse" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-12">
-        <ArrowLeft className="h-3 w-3" /> Back to browse
+      <Link to="/" className="inline-flex items-center gap-2 text-sm font-medium text-black hover:underline underline-offset-4 mb-12">
+        <ArrowLeft className="h-4 w-4" /> Back to home
       </Link>
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col gap-14"
+        className="flex flex-col gap-8"
       >
         <div className="flex flex-col gap-4">
-          <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Selling to us</h1>
+          <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">How Selling Works</h1>
         </div>
 
-        <div className="flex flex-col gap-14 text-black body-longform">
-          <p>zarketplace buys your item and resells it. You tell us about it, and we make you an offer: a fixed amount in rupees, which you accept or decline. Once you accept, that amount is locked and it does not change. This is what we will pay you. We cover shipping both ways, payment fees and handling, and we carry the risk if it does not sell.</p>
+        <ProcessFlow steps={SELLING} />
 
-          <p>The item stays with you until someone buys it. Then we send you a prepaid label, a courier collects it from your door, and you are paid once it reaches us and has been checked.</p>
+        <div className="flex flex-col gap-12 text-black body-longform [&>p+p]:-mt-8">
+          {/* One thought in two paragraphs, so paragraph spacing, not the
+              gap between sections. */}
+          <div className="flex flex-col gap-4">
+            <p>zarketplace buys your item and resells it. You tell us about it, and we make you an offer: a fixed amount in rupees, which you accept or decline. Once you accept, that amount is locked and it does not change. This is what we will pay you. We cover shipping both ways, payment processing and handling, and we carry the risk if it does not sell.</p>
+            <p>The item stays with you until someone buys it. Then we send you a prepaid label, a courier collects it from your door, and you are paid once it reaches us and has been checked.</p>
+          </div>
 
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Accurate descriptions</h2>

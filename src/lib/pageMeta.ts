@@ -11,9 +11,13 @@
 import { useEffect } from 'react';
 
 const SITE = 'https://www.zarketplace.com';
-const DEFAULT_TITLE = 'zarketplace - pre-owned fashion, sold & shipped by us';
+// The name, then what it is, in the words people search with. "zarketplace"
+// alone reads as a typo for "marketplace", so the title says what the site
+// sells and where, and the description says how it works. Mirrored in
+// index.html, which is what a crawler reads first.
+const DEFAULT_TITLE = 'zarketplace | Pre-owned & thrift clothing in India';
 const DEFAULT_DESCRIPTION =
-  'zarketplace buys pre-owned fashion and resells it. Every piece is received, checked and repacked by us before it ships. Tracked delivery, one source, no DMs.';
+  'Pre-owned and thrift clothing in India, sold and shipped by zarketplace. Every piece checked, priced upfront and delivered free. Sell us yours for a fixed offer.';
 
 export interface PageMeta {
   /** Appended with " | zarketplace" unless it is the home page. */
@@ -66,68 +70,70 @@ export function usePageMeta({ title, description, path, noIndex }: PageMeta) {
   }, [title, description, path, noIndex]);
 }
 
-/** Every page's tags, in one place so they can be read as a set. */
+/** Every page's tags, in one place so they can be read as a set. Public
+    pages are kept in step with ROUTES in api/page.ts, which serves the same
+    tags to crawlers that do not run JavaScript. */
 export const META = {
   home: {
     title: DEFAULT_TITLE,
     description: DEFAULT_DESCRIPTION,
     path: '/',
   },
-  browse: {
-    title: 'Browse pre-owned fashion',
-    description: 'Every piece bought, checked and repacked by zarketplace before it ships. One-of-one items, priced upfront, delivered tracked.',
-    path: '/browse',
-  },
   sell: {
-    title: 'Sell us your clothes',
-    description: "Add your item and we'll make you an offer: a fixed amount we pay you, agreed before it is listed, that never changes.",
+    title: 'Sell your clothes for a fixed offer',
+    description: 'Get a fixed offer for clothes you no longer wear, within 24 hours. Selling to us is free, we pay for shipping, and the item stays with you until it sells.',
     path: '/sell',
   },
   buyerProtection: {
-    title: 'Buyer protection',
-    description: 'Every order is handled by zarketplace start to finish. We buy the items we sell, check them against their listing, and repack them before they ship.',
+    title: 'Buyer Protection',
+    description: 'Every zarketplace order is checked at our hub before it ships. Not as described, or the wrong item? Tell us within 7 days of delivery for a full refund.',
     path: '/buyer-protection',
   },
   shipping: {
     title: 'Shipping',
-    description: 'Every order ships from our own hub, in our packaging, under our name. We collect the item, check it and repack it before it goes out to you, tracked.',
+    description: 'Every zarketplace order ships from our own hub, checked and repacked, and tracked to your door. Instant Ship items are dispatched within 48 hours.',
     path: '/shipping-policy',
   },
-  vendorPolicy: {
-    title: 'Selling to us',
-    description: 'What we expect from every item we buy, how your offer is worked out, and when you get paid. We buy your item outright, at a fixed amount agreed before it is listed.',
-    path: '/vendor-policy',
+  howItWorks: {
+    title: 'How selling works',
+    description: 'How to sell clothes to zarketplace: a fixed offer in 24 hours, the item stays with you until it sells, free courier pickup, and payment once it reaches our hub.',
+    path: '/how-it-works',
   },
   faq: {
     title: 'FAQ',
-    description: 'Answers on buying from zarketplace, selling us an item, payouts, delivery and returns.',
+    description: 'Answers on buying pre-owned clothing from zarketplace, selling us your clothes, payouts, delivery, Buyer Protection and returns.',
     path: '/faq',
   },
   about: {
-    title: 'About zarketplace',
-    description: 'We buy pre-owned fashion from individuals and resell it ourselves. One source, one standard, one company answerable for every order.',
+    title: 'About us',
+    description: 'zarketplace is an Indian resale company. We buy pre-owned clothing from individuals, check every piece at our hub, and sell it ourselves at a fixed price.',
     path: '/about',
   },
   conditions: {
-    title: 'Condition guide',
-    description: 'How zarketplace grades condition, on a fixed scale, on every listing.',
+    title: 'Conditions guide',
+    description: 'How zarketplace grades every pre-owned item, on one four-tier scale: Pristine, Great, Good and Worn, and what each grade means.',
     path: '/conditions-guide',
   },
   returns: {
-    title: 'Returns',
-    description: 'What zarketplace refunds and what it does not. Wrong item or not as described, tell us within 7 days. Change of mind and wrong fit are not refundable.',
+    title: 'Returns and refunds',
+    description: 'What zarketplace refunds and what it does not. Wrong item or not as described: tell us within 7 days. Change of mind and wrong fit are not refundable.',
     path: '/returns',
   },
   refunds: {
     title: 'Refund policy',
-    description: 'How and when zarketplace refunds an order.',
+    description: 'How and when zarketplace refunds an order: cancellations before dispatch and approved claims, within 5 to 7 business days, to the way you paid.',
     path: '/refund-policy',
   },
-  terms: { title: 'Terms', description: 'The terms you agree to when buying from or selling to zarketplace.', path: '/terms' },
-  privacy: { title: 'Privacy', description: 'What zarketplace collects, why, and what we do with it.', path: '/privacy' },
-  contact: { title: 'Contact', description: 'Get in touch with zarketplace.', path: '/contact' },
-  grievance: { title: 'Grievance officer', description: 'Grievance officer details, as required under the Consumer Protection (E-Commerce) Rules 2020.', path: '/grievance-officer' },
-  trademark: { title: 'Trademark & brand notice', description: 'How brand names are used on zarketplace listings.', path: '/trademark-notice' },
+  terms: { title: 'Terms', description: 'The terms you agree to when buying from or selling to zarketplace, a trading name of ADNIZ Private Limited.', path: '/terms' },
+  privacy: { title: 'Privacy policy', description: 'What zarketplace collects, why, and what we do with it.', path: '/privacy' },
+  contact: { title: 'Contact us', description: 'Reach zarketplace by email at contact@zarketplace.com or on WhatsApp at 8505-ZARKET. A person answers.', path: '/contact' },
+  grievance: { title: 'Grievance Officer', description: 'Grievance officer details, as required under the Consumer Protection (E-Commerce) Rules 2020.', path: '/grievance-officer' },
+  mission: {
+    title: 'Our mission',
+    description: 'Keep good clothes in use. India throws away millions of tonnes of textiles a year; zarketplace only sells clothing that already exists.',
+    path: '/our-mission',
+  },
+  trademark: { title: 'Trademark & brand notice', description: 'zarketplace resells pre-owned clothing bought from individuals. How we use brand names, and how rights holders can reach us.', path: '/trademark-notice' },
   // Signed-in and operator surfaces: never indexed.
   cart: { title: 'Your cart', description: 'Your cart.', path: '/cart', noIndex: true },
   checkout: { title: 'Checkout', description: 'Checkout.', noIndex: true },
@@ -139,3 +145,28 @@ export const META = {
   admin: { title: 'Admin', description: 'Operations.', noIndex: true },
   resetPassword: { title: 'Reset password', description: 'Reset your password.', noIndex: true },
 } as const;
+
+// An item's name as a search result shows it: its brand at the front when
+// the title does not already carry it. Kept in step with api/item.ts, which
+// writes the same tags into the first response.
+export function itemName(title: string | null | undefined, brand: string | null | undefined): string {
+  const t = (title ?? '').trim() || 'Item';
+  const b = (brand ?? '').trim();
+  return b && !t.toLowerCase().includes(b.toLowerCase()) ? `${b} ${t}` : t;
+}
+
+export function itemMetaTitle(name: string, size: string | null | undefined): string {
+  const sz = (size ?? '').trim();
+  return `Pre-owned ${name}${sz ? `, size ${sz}` : ''}`;
+}
+
+export function itemMetaDescription(name: string, size: string | null | undefined, condition: string | null | undefined, freeDelivery: boolean): string {
+  const sz = (size ?? '').trim();
+  const cond = (condition ?? '').trim();
+  return `${name}${sz ? `, size ${sz}` : ''}${cond ? `, in ${cond} condition` : ''}. Sold and shipped by zarketplace${freeDelivery ? ' with free delivery' : ''}, and checked at our hub before it ships.`;
+}
+
+/** Demo listings show how the shop looks. They are never for sale, so never indexed. */
+export function isDemoTitle(title: string | null | undefined): boolean {
+  return /\(demo\)\s*$/i.test(title ?? '');
+}

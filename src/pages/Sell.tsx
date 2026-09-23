@@ -23,7 +23,8 @@ import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'motion/react';
-import { Loader2, Check, X, Plus, ChevronLeft, ChevronRight, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { Loader2, Check, X, Plus, ChevronLeft, ChevronRight, ChevronDown, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { ui } from '../lib/ui';
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
 import { getShippingCategories, type ShippingCategory } from '../lib/pricing';
@@ -118,11 +119,15 @@ const WHAT_HAPPENS_NEXT: Array<{ title: string; points: string[] }> = [
 const WHAT_HAPPENS_NOTES: Array<{ title: string; body: string }> = [
   {
     title: 'Changed your mind?',
-    body: 'Withdraw your item from your vendor portal any time until someone buys it.',
+    body: 'Withdraw your item from Your items any time until someone buys it.',
   },
   {
-    title: 'If it does not sell',
+    title: 'If we have not sold it',
     body: 'After 30 days unsold, the offer ends and the item stays yours. Nothing is owed either way.',
+  },
+  {
+    title: 'No GSTIN needed',
+    body: 'You do not need a GSTIN to sell to us.',
   },
 ];
 
@@ -293,13 +298,16 @@ export function Sell() {
   );
 }
 
-function SellInner() {
+export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
   const navigate = useNavigate();
   const { user, profile } = useAuth();
   const [loading, setLoading] = React.useState(false);
   const [submitted, setSubmitted] = React.useState(false);
-  const [step, setStep] = React.useState(0);
+  const [step, setStep] = React.useState(initialStep);
   const [stepError, setStepError] = React.useState<string | null>(null);
+  // Set when "Get my offer" is pressed with a confirmation unticked: the
+  // unticked ones are then marked as required, the way a required field is.
+  const [showRequired, setShowRequired] = React.useState(false);
   // Compressing eight photos takes a few seconds on a mid-range phone. A
   // spinner with no count reads as a hang, so say which photo we are on.
   const [uploadProgress, setUploadProgress] = React.useState<{ done: number; total: number } | null>(null);
@@ -585,12 +593,6 @@ function SellInner() {
 
   const undeclared = PUBLISH_CONFIRMATIONS.filter((c) => !declarations[c.key]).length;
   const allDeclared = undeclared === 0;
-  const canPublish = allDeclared && !loading;
-  // A disabled button that does not say why reads as a broken one.
-  const blockedReason = loading ? null
-    : undeclared === PUBLISH_CONFIRMATIONS.length ? 'Tick all three lines above to get your offer.'
-    : undeclared > 0 ? `${undeclared === 1 ? 'One line' : `${undeclared} lines`} above still unticked.`
-    : null;
 
   // The last step needs both its validator and the two confirmations: unlike
   // the others it carries something the vendor agrees to, not just fills in.
@@ -605,7 +607,7 @@ function SellInner() {
       const err = validateStep(s);
       if (err) { setStep(s); setStepError(err); scrollToTop(); return; }
     }
-    if (!allDeclared) { setStepError('Tick all three lines above before we can price this.'); scrollToTop(); return; }
+    if (!allDeclared) { setShowRequired(true); return; }
 
     setLoading(true);
     const tFull = slog.time('full submit');
@@ -743,63 +745,19 @@ function SellInner() {
     setSelectedCategory(''); setSizeType(''); setSizeDetail(''); setMeasurements({}); setUnit('cm');
     setCondition(''); setHasFlaws(null); setFlawsDescription('');
     setDeclarations(noDeclarations());
+    setShowRequired(false);
   };
 
   if (submitted) {
-    // Left-aligned, sentence case, one type size.
-    //
-    // This screen had four treatments for what is ordinary prose: 10px, 11px
-    // and 12px uppercase micro-type at three different greys, centred. That
-    // register is for labels, not for three paragraphs somebody has to read
-    // after filling in a form.
-    return (
-      <div className="shell-form pt-24 sm:pt-32 pb-24 flex flex-col">
-        <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase leading-[0.95] mb-5">
-          Back in 24 hours.
-        </h1>
-        {/* The vendor has not listed anything and should not think they have:
-            nothing goes on sale until they have seen a number and agreed to it.
-            Saying so is the difference between someone waiting and someone who
-            thinks the form silently failed. */}
-        <p className="text-[15px] leading-relaxed mb-8">
-          We are looking at your item now. You will get an offer, or a note on what to fix, by email.
-        </p>
-
-        <ul className="flex flex-col gap-2.5 border-y border-black/10 py-6 mb-10">
-          {[
-            'Nothing is on sale yet, and the item stays with you.',
-            'Check your spam folder and mark our email as safe.',
-            'You do not need a GSTIN to sell to us.',
-          ].map((line) => (
-            <li key={line} className="flex gap-3 text-sm leading-relaxed">
-              <span aria-hidden className="mt-[0.6em] h-1 w-1 shrink-0 bg-black" />
-              <span>{line}</span>
-            </li>
-          ))}
-        </ul>
-
-        <div className="flex flex-col sm:flex-row gap-3">
-          <button onClick={() => navigate('/vendor-portal')}
-            className="bg-black px-10 py-5 text-xs font-black uppercase tracking-widest text-white hover:bg-zinc-800">
-            Your items
-          </button>
-          <button onClick={resetForm}
-            className="border border-black px-10 py-5 text-xs font-black uppercase tracking-widest text-black hover:bg-black hover:text-white">
-            Send us another
-          </button>
-        </div>
-
-        <p className="mt-10 text-sm ink-mid">
-          Questions?{' '}
-          <a href="https://wa.me/918505927538" target="_blank" rel="noreferrer" className="underline underline-offset-4 text-black">WhatsApp us</a>.
-        </p>
-      </div>
-    );
+    return <SellSubmitted onItems={() => navigate('/vendor-portal')} onAnother={resetForm} />;
   }
 
+  // One centred column, the same as the intro before it: three steps, one at
+  // a time. What happens after the form is shown after the form, once the
+  // item is in, rather than in a sidebar competing with every step of it.
   return (
-    <div className="flex flex-col">
-      <div className="shell-form pt-24 sm:pt-32 pb-24">
+    <div className="shell-form pt-24 sm:pt-32 pb-16 sm:pb-20">
+      <div className="min-w-0">
         {/* Someone on this page has already decided to list something. The
             hero only has to confirm they are in the right place, so it is a
             headline and one sentence. Everything else that used to sit here
@@ -827,10 +785,10 @@ function SellInner() {
             step named once, on one line. The steps stay individually reachable
             for anyone going back to fix something. */}
         <div className="mb-12 flex flex-col gap-3">
-          <div className="flex items-baseline gap-2 text-[11px] font-black uppercase tracking-[0.2em]">
-            <span className="ink-mid">Step {step + 1} of {STEP_LABELS.length}</span>
-            <span className="ink-low" aria-hidden>/</span>
-            <span>{STEP_LABELS[step]}</span>
+          <div className="flex items-baseline gap-2 text-sm">
+            <span>Step {step + 1} of {STEP_LABELS.length}</span>
+            <span aria-hidden>·</span>
+            <span className="font-bold">{STEP_LABELS[step]}</span>
           </div>
 
           <div
@@ -899,17 +857,18 @@ function SellInner() {
                 hasFlaws={hasFlaws} setHasFlaws={setHasFlaws}
                 flawsDescription={flawsDescription} setFlawsDescription={setFlawsDescription}
                 declarations={declarations} setDeclarations={setDeclarations}
+                showRequired={showRequired}
               />
             )}
           </motion.div>
         </AnimatePresence>
 
         {stepError && (
-          <p className="mt-6 text-xs font-bold uppercase tracking-widest text-red-600">{stepError}</p>
+          <p className={cn(ui.error, 'mt-6')}>{stepError}</p>
         )}
 
         {uploadProgress && (
-          <p className="mt-6 text-xs font-bold uppercase tracking-widest ink-mid">
+          <p className="mt-6 text-sm font-bold">
             Finishing photo {uploadProgress.done + 1} of {uploadProgress.total}
           </p>
         )}
@@ -941,7 +900,7 @@ function SellInner() {
             <button
               type="button"
               onClick={isLastStep ? handlePublish : goNext}
-              disabled={isLastStep && !canPublish}
+              disabled={isLastStep && loading}
               className="flex-1 bg-black py-5 text-xs font-black uppercase tracking-[0.2em] text-white transition-colors hover:bg-zinc-800 disabled:bg-black/25 disabled:hover:bg-black/25 flex items-center justify-center gap-3"
             >
               {loading && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -950,19 +909,16 @@ function SellInner() {
             </button>
           </div>
 
-          {isLastStep && blockedReason && (
-            <p className="text-sm font-normal leading-relaxed text-black">{blockedReason}</p>
-          )}
         </div>
 
         <div className="mt-12 pt-6 border-t border-black/10 flex flex-col items-center gap-3 text-center">
           {isLastStep && (
             <p className="text-sm font-normal leading-relaxed text-black">
-              Nothing is listed yet. We look at it and come back within 24 hours, with
+              Nothing goes on sale yet. We look at it and come back within 24 hours, with
               either an offer or what needs changing first.
             </p>
           )}
-          <p className="text-sm font-normal leading-relaxed ink-mid">
+          <p className="text-sm font-normal leading-relaxed">
             Something not working?{' '}
             <Link to="/contact" className="underline underline-offset-4 text-black">Tell us</Link>
             {' or '}
@@ -974,13 +930,108 @@ function SellInner() {
   );
 }
 
+// After "Get my offer": what we are doing now, and then the whole sequence
+// from offer to payout, told once the item is in rather than beside the form.
+// Numbered because it is a sequence: the most common mistake is posting the
+// item the day the offer is accepted.
+export function SellSubmitted({ onItems, onAnother }: { onItems: () => void; onAnother: () => void }) {
+  return (
+    <div className="shell-form pt-24 sm:pt-32 pb-16 sm:pb-20 flex flex-col gap-12">
+      {/* The vendor has not listed anything and should not think they have:
+          nothing goes on sale until they have seen a number and agreed to it.
+          Saying so is the difference between someone waiting and someone who
+          thinks the form silently failed. */}
+      <div className="flex flex-col gap-4">
+        <h1 className={ui.pageTitle}>Back in 24 hours.</h1>
+        <p className="body-longform">
+          We are looking at your item now. You will get an offer, or a note on what to fix, by email. If it is
+          not in your inbox, check your spam folder. Nothing is on sale yet, and the item stays with you.
+        </p>
+      </div>
+
+      <section className="flex flex-col gap-6" aria-labelledby="next-heading">
+        <h2 id="next-heading" className={ui.sectionTitle}>What happens next</h2>
+        <ol className="flex flex-col gap-6">
+          {WHAT_HAPPENS_NEXT.map((step, i) => (
+            <li key={step.title} className="flex gap-4">
+              <span
+                aria-hidden
+                className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-black text-xs font-black leading-none text-white"
+              >
+                {i + 1}
+              </span>
+              <div className="flex min-w-0 flex-col gap-2">
+                <h3 className="text-[15px] font-bold leading-snug">{step.title}</h3>
+                {/* One line reads as a sentence; several read as a list, one
+                    sentence per bullet, so a step with three instructions
+                    does not look like a paragraph. */}
+                <ul className="flex flex-col gap-1.5">
+                  {step.points.map((point) => (
+                    <li key={point} className="flex gap-3 text-sm leading-relaxed">
+                      {step.points.length > 1 && (
+                        <span aria-hidden className="mt-[0.6em] h-1 w-1 shrink-0 bg-black" />
+                      )}
+                      <span>{point}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </li>
+          ))}
+        </ol>
+        <dl className="flex flex-col gap-4 border-t border-black/10 pt-6">
+          {WHAT_HAPPENS_NOTES.map((note) => (
+            <div key={note.title} className="flex flex-col gap-1 text-sm">
+              <dt className="font-bold">{note.title}</dt>
+              <dd className="leading-relaxed">{note.body}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button type="button" onClick={onItems} className={ui.btnPrimary}>
+            Your items
+          </button>
+          <button type="button" onClick={onAnother} className={ui.btnSecondary}>
+            Send us another
+          </button>
+        </div>
+        <p className="text-sm">
+          Questions?{' '}
+          <a href="https://wa.me/918505927538" target="_blank" rel="noreferrer" className={cn(ui.link, 'font-bold')}>WhatsApp us</a>.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// A select that looks like the inputs beside it and still says it opens:
+// the native control (so the phone's own picker), with the arrow drawn back.
+function SelectBox({ value, onChange, disabled, children }: {
+  value: string; onChange: (v: string) => void; disabled?: boolean; children: React.ReactNode;
+}) {
+  return (
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+        className={cn(ui.input, 'appearance-none bg-white pr-8 disabled:opacity-50')}
+      >
+        {children}
+      </select>
+      <ChevronDown aria-hidden className="pointer-events-none absolute right-0 top-1/2 h-4 w-4 -translate-y-1/2" />
+    </div>
+  );
+}
+
 function FieldLabel({ children, optional }: { children: React.ReactNode; optional?: boolean }) {
   return (
-    <label className="flex items-baseline gap-2 text-sm font-semibold tracking-tight text-black">
+    <label className={cn('flex items-baseline gap-2', ui.label)}>
       {children}
-      {optional && (
-        <span className="text-[11px] font-medium tracking-normal ink-mid">Optional</span>
-      )}
+      {optional && <span className="font-normal">(optional)</span>}
     </label>
   );
 }
@@ -999,7 +1050,7 @@ function Note({ children }: { children: React.ReactNode }) {
 function SectionHeading({ children, note }: { children: React.ReactNode; note?: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <h3 className="text-xl sm:text-2xl font-black uppercase tracking-tighter leading-none">{children}</h3>
+      <h3 className={ui.sectionTitle}>{children}</h3>
       {note && <p className="text-sm font-normal leading-relaxed text-black measure">{note}</p>}
     </div>
   );
@@ -1068,40 +1119,38 @@ function PhotosStep({ imagePreviews, onAdd, onRemove, originals, cleaning, onUse
           const required = slot?.required ?? false;
           const preview = imagePreviews[i];
           return preview ? (
-            <div key={i} className="relative aspect-[3/4] w-full overflow-hidden bg-zinc-50 border border-black/5 group">
+            <div key={i} className="relative aspect-[3/4] w-full overflow-hidden bg-zinc-100 group">
               <img src={preview} alt={label} className="h-full w-full object-cover" />
               {i === 0 && (
-                <span className="absolute top-2 left-2 bg-black px-2 py-1 text-[9px] font-black uppercase tracking-widest text-white">Cover</span>
+                <span className="absolute top-2 left-2 bg-black px-2 py-1 text-xs font-bold text-white">Cover</span>
               )}
               <button type="button" onClick={() => onRemove(i)}
                 className="absolute top-2 right-2 bg-black/70 p-2 text-white hover:bg-black transition-all">
                 <X className="h-3 w-3" />
               </button>
               {cleaning[i] && (
-                <span className="absolute bottom-2 left-2 bg-black/70 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-white">
+                <span className="absolute bottom-2 left-2 bg-black px-2 py-1 text-xs font-bold text-white">
                   Tidying…
                 </span>
               )}
               {originals[i] && (
                 <button
                   type="button" onClick={() => onUseOriginal(i)}
-                  className="absolute bottom-2 left-2 bg-white/90 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-black hover:bg-white"
+                  className="absolute bottom-2 left-2 bg-white px-2 py-1 text-xs font-bold text-black"
                 >
                   Use original
                 </button>
               )}
             </div>
           ) : (
-            <label key={i} className="flex aspect-[3/4] w-full cursor-pointer flex-col items-center justify-center gap-2 bg-zinc-50 border border-dashed border-black/15 hover:border-black/40 transition-all group p-3 text-center">
-              <div className="h-10 w-10 rounded-full border border-black/10 flex items-center justify-center group-hover:border-black/30 transition-all shrink-0">
-                <Plus className="h-4 w-4 ink-low group-hover:text-black" />
-              </div>
+            <label key={i} className="flex aspect-[3/4] w-full cursor-pointer flex-col items-center justify-center gap-2 border border-dashed border-black/25 p-3 text-center transition-colors hover:border-black">
+              <Plus className="h-5 w-5 shrink-0" />
               {/* Two lines, one size. This box had three stacked texts at three
                   sizes - name at 11px, hint at 10px, required/optional at 9px -
                   which is three type decisions inside a thumbnail. The second
                   line says whichever of the two is actually worth knowing. */}
-              <span className="text-[11px] font-black uppercase tracking-widest text-black">{label}</span>
-              <span className="text-[11px] font-medium uppercase tracking-widest ink-mid">
+              <span className="text-sm font-bold leading-snug">{label}</span>
+              <span className="text-xs leading-snug">
                 {slot?.hint ?? (required ? 'Required' : 'Optional')}
               </span>
               <input type="file" accept="image/*" className="hidden" onChange={onAdd} multiple />
@@ -1158,47 +1207,44 @@ function DetailsStep(props: {
           <div className="flex flex-col gap-3">
             <FieldLabel>What is it?</FieldLabel>
             <input value={title} onChange={(e) => setTitle(e.target.value)} type="text" placeholder="e.g. Vintage 90s Biker Jacket"
-              className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20" />
+              className={ui.input} />
           </div>
           <div className="flex flex-col gap-3">
             <FieldLabel>Brand</FieldLabel>
             <input value={brand} onChange={(e) => setBrand(e.target.value)} type="text" placeholder="e.g. Levi's"
-              className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20" />
+              className={ui.input} />
           </div>
           <div className="flex flex-col gap-3">
             <FieldLabel>Who is it for?</FieldLabel>
-            <select value={gender} onChange={(e) => setGender(e.target.value)}
-              className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none bg-white appearance-none">
-              <option value="">Select Gender</option>
+            <SelectBox value={gender} onChange={setGender}>
+              <option value="">Choose one</option>
               <option value="Men">Men</option>
               <option value="Women">Women</option>
               <option value="Unisex">Unisex</option>
-            </select>
+            </SelectBox>
           </div>
           <div className="flex flex-col gap-3">
             <FieldLabel>Category</FieldLabel>
-            <select value={selectedCategory} onChange={(e) => { setSelectedCategory(e.target.value); setSizeType(''); }}
-              className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none bg-white appearance-none">
-              <option value="">Select Category</option>
+            <SelectBox value={selectedCategory} onChange={(v) => { setSelectedCategory(v); setSizeType(''); }}>
+              <option value="">Choose a category</option>
               <option value="Tops">Tops</option>
               <option value="Bottoms">Bottoms</option>
               <option value="Outerwear">Outerwear</option>
               <option value="Accessories">Accessories</option>
               <option value="Shoes">Shoes</option>
-            </select>
+            </SelectBox>
           </div>
           <div className="flex flex-col gap-3">
             <FieldLabel>Size</FieldLabel>
-            <select value={sizeType} onChange={(e) => setSizeType(e.target.value)} disabled={!selectedCategory}
-              className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none bg-white appearance-none disabled:opacity-50">
-              <option value="">{selectedCategory ? 'Select Size' : 'Select Category First'}</option>
+            <SelectBox value={sizeType} onChange={setSizeType} disabled={!selectedCategory}>
+              <option value="">{selectedCategory ? 'Choose a size' : 'Choose a category first'}</option>
               {selectedCategory && CATEGORY_SIZES[selectedCategory]?.map((t) => (<option key={t} value={t}>{t}</option>))}
-            </select>
+            </SelectBox>
           </div>
           <div className="flex flex-col gap-3">
             <FieldLabel optional>Size detail</FieldLabel>
             <input value={sizeDetail} onChange={(e) => setSizeDetail(e.target.value)} type="text" placeholder="e.g. 34x30 or Oversized fit"
-              className="border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20" />
+              className={ui.input} />
           </div>
         </div>
 
@@ -1215,22 +1261,21 @@ function DetailsStep(props: {
               {/* Whichever tape someone owns. Stored in centimetres either way,
                   so a listing measured in inches and one measured in cm are the
                   same number in the database and filter identically later. */}
-              <div className="flex shrink-0 border border-black/15" role="group" aria-label="Measurement unit">
-                {(['in', 'cm'] as MeasureUnit[]).map((u) => (
-                  <button
-                    key={u}
-                    type="button"
-                    onClick={() => setUnit(u)}
-                    aria-pressed={unit === u}
-                    className={cn(
-                      'px-4 py-2 text-[11px] font-black uppercase tracking-[0.2em] transition-colors',
-                      unit === u ? 'bg-black text-white' : 'text-black hover:bg-black/5',
-                    )}
-                  >
-                    {u}
-                  </button>
+              <span role="group" aria-label="Measurement unit" className="flex shrink-0 items-baseline gap-1.5 text-sm">
+                {(['in', 'cm'] as MeasureUnit[]).map((u, i) => (
+                  <React.Fragment key={u}>
+                    {i > 0 && <span aria-hidden>/</span>}
+                    <button
+                      type="button"
+                      onClick={() => setUnit(u)}
+                      aria-pressed={unit === u}
+                      className={cn('min-h-[44px]', unit === u ? 'font-bold' : ui.link)}
+                    >
+                      {u}
+                    </button>
+                  </React.Fragment>
                 ))}
-              </div>
+              </span>
             </div>
             {/* Fields on the left, the drawing on the right. On a phone the two
                 stack, drawing first, so a seller sees what to measure before
@@ -1292,11 +1337,11 @@ function DetailsStep(props: {
                           value={measurements[m.key] ?? ''}
                           onChange={(e) => setMeasurements((prev) => ({ ...prev, [m.key]: e.target.value }))}
                           placeholder={unit === 'cm' ? '52' : '20.5'}
-                          className="w-full border-b border-black/10 py-4 text-sm font-bold focus:border-black focus:outline-none transition-all placeholder:text-black/20"
+                          className={ui.input}
                         />
-                        <span className="text-xs font-black uppercase tracking-[0.2em] ink-mid">{unit}</span>
+                        <span className="text-sm">{unit}</span>
                       </div>
-                      <span className="text-sm font-normal leading-relaxed ink-mid">{m.how}</span>
+                      <span className="text-sm font-normal leading-relaxed">{m.how}</span>
                     </div>
                   );
                 })}
@@ -1313,7 +1358,7 @@ function DetailsStep(props: {
           <FieldLabel optional>Anything a photo cannot show</FieldLabel>
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4}
             placeholder="Fit, material, how it runs, anything a photo can't show."
-            className="border border-black/10 p-6 text-sm font-medium focus:border-black focus:outline-none resize-none transition-all placeholder:text-black/20" />
+            className="w-full border border-black/20 p-4 text-sm focus:border-black focus:outline-none resize-none transition-colors placeholder:text-black/35" />
           <TrustNote>The more we know, the closer our offer lands.</TrustNote>
         </div>
       </div>
@@ -1339,8 +1384,8 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
             const chosen = condition === c.name;
             return (
               <button key={c.name} type="button" onClick={() => setCondition(c.name)}
-                className={cn('relative overflow-hidden border p-5 pl-6 text-left transition-all flex flex-col gap-1.5',
-                  chosen ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
+                className={cn('relative overflow-hidden border p-5 pl-6 text-left transition-colors flex flex-col gap-1.5',
+                  chosen ? 'bg-black text-white border-black' : 'border-black/15 hover:border-black')}>
                 {/* The same rank bar as the guide, in the same ink. On a chosen
                     card the ladder inverts to white so it stays visible. */}
                 <span
@@ -1348,11 +1393,11 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
                   className="absolute left-0 top-0 h-full w-1"
                   style={{ backgroundColor: chosen ? '#FFFFFF' : c.rank }}
                 />
-                <span className="flex items-baseline gap-2 text-xs font-black uppercase tracking-widest">
+                <span className="flex items-baseline gap-2 text-[15px] font-bold">
                   {c.name}
-                  <span className="text-[10px] tracking-[0.2em] ink-mid">{c.grade}</span>
+                  <span className="text-sm font-normal">{c.grade}</span>
                 </span>
-                <span className="text-[13px] font-normal normal-case tracking-normal leading-relaxed">{c.desc}</span>
+                <span className="text-sm leading-relaxed">{c.desc}</span>
               </button>
             );
           })}
@@ -1367,13 +1412,13 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
             answer that costs us a dispute. */}
         <div className="grid grid-cols-2 gap-3 max-w-xs">
           <button type="button" onClick={() => setHasFlaws(true)}
-            className={cn('border py-4 text-xs font-black uppercase tracking-widest transition-all',
-              hasFlaws === true ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
+            className={cn('border py-3.5 text-sm font-bold transition-colors',
+              hasFlaws === true ? 'bg-black text-white border-black' : 'border-black/15 hover:border-black')}>
             Yes
           </button>
           <button type="button" onClick={() => setHasFlaws(false)}
-            className={cn('border py-4 text-xs font-black uppercase tracking-widest transition-all',
-              hasFlaws === false ? 'bg-black text-white border-black' : 'border-black/10 hover:border-black')}>
+            className={cn('border py-3.5 text-sm font-bold transition-colors',
+              hasFlaws === false ? 'bg-black text-white border-black' : 'border-black/15 hover:border-black')}>
             No
           </button>
         </div>
@@ -1385,7 +1430,7 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
                 <FieldLabel>Describe the flaw</FieldLabel>
                 <textarea value={flawsDescription} onChange={(e) => setFlawsDescription(e.target.value)} rows={3}
                   placeholder="e.g. small stain on the left cuff, loose stitching on the hem"
-                  className="border border-black/10 p-6 text-sm font-medium focus:border-black focus:outline-none resize-none transition-all placeholder:text-black/20" />
+                  className="w-full border border-black/20 p-4 text-sm focus:border-black focus:outline-none resize-none transition-colors placeholder:text-black/35" />
                 <TrustNote>Add a close-up in Photos. Undisclosed flaws are what disputes are made of.</TrustNote>
               </div>
             </motion.div>
@@ -1407,13 +1452,14 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
 // where money is promised. Two lines here, three clauses there.
 function LastStep({
   condition, setCondition, hasFlaws, setHasFlaws, flawsDescription, setFlawsDescription,
-  declarations, setDeclarations,
+  declarations, setDeclarations, showRequired,
 }: {
   condition: string; setCondition: (v: string) => void;
   hasFlaws: boolean | null; setHasFlaws: (v: boolean) => void;
   flawsDescription: string; setFlawsDescription: (v: string) => void;
   declarations: Record<string, boolean>;
   setDeclarations: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+  showRequired: boolean;
 }) {
   return (
     <div className="flex flex-col gap-12">
@@ -1423,53 +1469,6 @@ function LastStep({
         flawsDescription={flawsDescription} setFlawsDescription={setFlawsDescription}
       />
 
-      {/* Not a question. There is one shipping method and we pay for it, so
-          this states what will happen rather than asking the vendor to choose
-          between options that differ only in who absorbs a cost they never
-          see. The two facts here are the ones vendors most often get wrong:
-          the item stays with them, and they have to be there when it goes. */}
-      <div className="flex flex-col gap-5">
-        <SectionHeading>What happens next?</SectionHeading>
-        {/* The same numbered mark as the measurement guide, so a sequence reads
-            as a sequence everywhere on this form. */}
-        <ol className="flex flex-col gap-6">
-          {WHAT_HAPPENS_NEXT.map((step, i) => (
-            <li key={step.title} className="flex gap-4">
-              <span
-                aria-hidden
-                className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-black text-xs font-black leading-none text-white"
-              >
-                {i + 1}
-              </span>
-              <div className="flex min-w-0 flex-col gap-2">
-                <h4 className="text-sm font-black text-black">{step.title}</h4>
-                {/* One line reads as a sentence; several read as a list, one
-                    sentence per bullet, so a step with three instructions
-                    does not look like a paragraph. */}
-                <ul className="flex flex-col gap-1.5">
-                  {step.points.map((point) => (
-                    <li key={point} className="flex gap-3 text-sm font-normal leading-relaxed text-black">
-                      {step.points.length > 1 && (
-                        <span aria-hidden className="mt-[0.6em] h-1 w-1 shrink-0 bg-black" />
-                      )}
-                      <span>{point}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </li>
-          ))}
-        </ol>
-        <div className="flex flex-col gap-4 border-t border-black/10 pt-5">
-          {WHAT_HAPPENS_NOTES.map((note) => (
-            <div key={note.title} className="flex flex-col gap-1">
-              <h4 className="text-sm font-black text-black">{note.title}</h4>
-              <p className="text-sm font-normal leading-relaxed text-black">{note.body}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* Three lines, all load-bearing. One item is the rule that makes a
           listing a listing; accuracy carries flaws and authenticity; and the
           third is the one the patient lane actually runs on. */}
@@ -1477,20 +1476,27 @@ function LastStep({
         <SectionHeading>Three things to confirm</SectionHeading>
         {PUBLISH_CONFIRMATIONS.map((item) => {
           const on = !!declarations[item.key];
+          const missing = showRequired && !on;
           return (
             <button
               key={item.key} type="button"
               onClick={() => setDeclarations((prev) => ({ ...prev, [item.key]: !prev[item.key] }))}
               aria-pressed={on}
+              aria-invalid={missing || undefined}
               className="group flex items-start gap-4 py-4 text-left border-b border-black/5 last:border-b-0"
             >
               <span className={cn(
                 'mt-px flex h-5 w-5 shrink-0 items-center justify-center border transition-colors',
-                on ? 'border-black bg-black text-white' : 'border-black/25 group-hover:border-black',
+                on ? 'border-black bg-black text-white'
+                  : missing ? 'border-2 border-red-600'
+                  : 'border-black/25 group-hover:border-black',
               )}>
                 {on && <Check className="h-3 w-3" strokeWidth={3} />}
               </span>
-              <span className="text-sm font-medium leading-relaxed text-black">{item.label}</span>
+              <span className="flex flex-col gap-1">
+                <span className="text-sm font-medium leading-relaxed text-black">{item.label}</span>
+                {missing && <span className={ui.error}>Required</span>}
+              </span>
             </button>
           );
         })}
@@ -1514,6 +1520,12 @@ function SellIntro({ onStart }: { onStart: () => void }) {
         <p className="body-longform measure">
           Add your item. We'll make you an offer within 24 hours.
         </p>
+        {/* The three things a first-time vendor is actually wondering, so they
+            sit under the question in full ink rather than grey under the
+            button, where they were read last if at all. */}
+        <p className="body-longform measure font-bold">
+          It takes a minute. You pay nothing to sell to us, and we cover shipping.
+        </p>
       </div>
 
       <ol className="flex flex-col gap-5 border-y border-black/10 py-8">
@@ -1527,21 +1539,20 @@ function SellIntro({ onStart }: { onStart: () => void }) {
             </span>
             <div className="flex min-w-0 flex-col gap-1">
               <h2 className="text-[15px] font-bold text-black">{step.title}</h2>
-              <p className="text-sm leading-relaxed ink-mid">{step.points[0]}</p>
+              <p className="text-sm leading-relaxed">{step.points[0]}</p>
             </div>
           </li>
         ))}
       </ol>
 
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col">
         <button
           type="button"
           onClick={onStart}
-          className="w-full sm:w-auto sm:self-start bg-black px-10 py-5 text-xs font-black uppercase tracking-[0.3em] text-white hover:bg-zinc-800"
+          className="w-full sm:w-auto sm:self-center bg-black px-10 py-5 text-xs font-black uppercase tracking-[0.3em] text-white hover:bg-zinc-800"
         >
           Start selling
         </button>
-        <p className="text-sm ink-mid">It takes a minute. You pay nothing to sell to us, and we cover shipping.</p>
       </div>
     </div>
   );

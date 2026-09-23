@@ -5,7 +5,7 @@
 
 import * as React from 'react';
 import { useLocation } from 'react-router-dom';
-import { Loader2, Lock } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { AuthModal } from './AuthModal';
 
@@ -54,18 +54,15 @@ export function RequireAuth({ children, requireAdmin = false, message, signedOut
     }
     return (
       <>
-        <div className="mx-auto max-w-xl px-4 pt-24 sm:pt-32 pb-20 sm:pb-32 text-center flex flex-col items-center gap-6">
-          <div className="h-16 w-16 bg-zinc-100 rounded-full flex items-center justify-center">
-            <Lock className="h-6 w-6 ink-low" />
-          </div>
-          <h1 className="text-4xl font-black tracking-tighter uppercase">Please sign in</h1>
-          <p className="text-[11px] font-bold uppercase tracking-widest ink-mid max-w-md leading-relaxed">
+        <div className="shell-wide pt-24 sm:pt-32 pb-16 sm:pb-20 flex flex-col gap-8 [&>*]:max-w-xl">
+          <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Please sign in</h1>
+          <p className="text-sm leading-relaxed">
             {message ?? 'You need an account to continue. It only takes a moment.'}
           </p>
           <button
             type="button"
             onClick={() => setModalOpen(true)}
-            className="bg-black px-12 py-5 text-xs font-black uppercase tracking-[0.4em] text-white hover:bg-zinc-800"
+            className="self-start bg-black px-8 py-4 text-[11px] font-black uppercase tracking-[0.2em] text-white hover:bg-zinc-800"
           >
             Sign in
           </button>
@@ -77,12 +74,9 @@ export function RequireAuth({ children, requireAdmin = false, message, signedOut
 
   if (requireAdmin && !profile?.is_admin) {
     return (
-      <div className="mx-auto max-w-xl px-4 pt-24 sm:pt-32 pb-20 sm:pb-32 text-center flex flex-col items-center gap-6">
-        <div className="h-16 w-16 bg-zinc-100 rounded-full flex items-center justify-center">
-          <Lock className="h-6 w-6 ink-low" />
-        </div>
-        <h1 className="text-4xl font-black tracking-tighter uppercase">Admins only</h1>
-        <p className="text-[11px] font-bold uppercase tracking-widest ink-mid max-w-md leading-relaxed">
+      <div className="shell-wide pt-24 sm:pt-32 pb-16 sm:pb-20 flex flex-col gap-8 [&>*]:max-w-xl">
+        <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Admins only</h1>
+        <p className="text-sm leading-relaxed">
           You don't have access to this area.
         </p>
       </div>

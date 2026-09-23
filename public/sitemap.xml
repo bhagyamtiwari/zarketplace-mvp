@@ -3,24 +3,28 @@
      site points at it, so listing the apex here handed crawlers fifteen URLs
      that contradicted our own canonicals.
 
-     Only pages that render themselves are listed. /seller-policy, /condition,
+     Only pages that render themselves are listed. /vendor-policy, /seller-policy, /condition,
      /trademark and /seller-portal are client-side redirects to the canonical
-     path and do not belong in a sitemap. -->
+     path and do not belong in a sitemap. Nor does /browse: it is the same feed
+     as the homepage and canonicalises to it.
+
+     Items on sale are in /sitemap-items.xml, built from the live catalogue by
+     api/sitemap-items.ts. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://www.zarketplace.com/</loc><lastmod>2026-09-15</lastmod><priority>1.0</priority></url>
-  <url><loc>https://www.zarketplace.com/browse</loc><lastmod>2026-09-15</lastmod><priority>0.9</priority></url>
-  <url><loc>https://www.zarketplace.com/sell</loc><lastmod>2026-09-15</lastmod><priority>0.9</priority></url>
-  <url><loc>https://www.zarketplace.com/about</loc><lastmod>2026-09-15</lastmod><priority>0.7</priority></url>
-  <url><loc>https://www.zarketplace.com/faq</loc><lastmod>2026-09-15</lastmod><priority>0.7</priority></url>
-  <url><loc>https://www.zarketplace.com/conditions-guide</loc><lastmod>2026-09-15</lastmod><priority>0.6</priority></url>
-  <url><loc>https://www.zarketplace.com/buyer-protection</loc><lastmod>2026-09-15</lastmod><priority>0.6</priority></url>
-  <url><loc>https://www.zarketplace.com/vendor-policy</loc><lastmod>2026-09-15</lastmod><priority>0.6</priority></url>
-  <url><loc>https://www.zarketplace.com/contact</loc><lastmod>2026-09-15</lastmod><priority>0.5</priority></url>
-  <url><loc>https://www.zarketplace.com/returns</loc><lastmod>2026-09-15</lastmod><priority>0.5</priority></url>
-  <url><loc>https://www.zarketplace.com/shipping-policy</loc><lastmod>2026-09-15</lastmod><priority>0.5</priority></url>
-  <url><loc>https://www.zarketplace.com/refund-policy</loc><lastmod>2026-09-15</lastmod><priority>0.4</priority></url>
-  <url><loc>https://www.zarketplace.com/terms</loc><lastmod>2026-09-15</lastmod><priority>0.4</priority></url>
-  <url><loc>https://www.zarketplace.com/privacy</loc><lastmod>2026-09-15</lastmod><priority>0.4</priority></url>
-  <url><loc>https://www.zarketplace.com/trademark-notice</loc><lastmod>2026-09-15</lastmod><priority>0.3</priority></url>
-  <url><loc>https://www.zarketplace.com/grievance-officer</loc><lastmod>2026-09-15</lastmod><priority>0.3</priority></url>
+  <url><loc>https://www.zarketplace.com/</loc><lastmod>2026-09-24</lastmod><priority>1.0</priority></url>
+  <url><loc>https://www.zarketplace.com/sell</loc><lastmod>2026-09-24</lastmod><priority>0.9</priority></url>
+  <url><loc>https://www.zarketplace.com/about</loc><lastmod>2026-09-24</lastmod><priority>0.7</priority></url>
+  <url><loc>https://www.zarketplace.com/our-mission</loc><lastmod>2026-09-24</lastmod><priority>0.6</priority></url>
+  <url><loc>https://www.zarketplace.com/faq</loc><lastmod>2026-09-24</lastmod><priority>0.7</priority></url>
+  <url><loc>https://www.zarketplace.com/conditions-guide</loc><lastmod>2026-09-24</lastmod><priority>0.6</priority></url>
+  <url><loc>https://www.zarketplace.com/buyer-protection</loc><lastmod>2026-09-24</lastmod><priority>0.6</priority></url>
+  <url><loc>https://www.zarketplace.com/how-it-works</loc><lastmod>2026-09-24</lastmod><priority>0.6</priority></url>
+  <url><loc>https://www.zarketplace.com/contact</loc><lastmod>2026-09-24</lastmod><priority>0.5</priority></url>
+  <url><loc>https://www.zarketplace.com/returns</loc><lastmod>2026-09-24</lastmod><priority>0.5</priority></url>
+  <url><loc>https://www.zarketplace.com/shipping-policy</loc><lastmod>2026-09-24</lastmod><priority>0.5</priority></url>
+  <url><loc>https://www.zarketplace.com/refund-policy</loc><lastmod>2026-09-24</lastmod><priority>0.4</priority></url>
+  <url><loc>https://www.zarketplace.com/terms</loc><lastmod>2026-09-24</lastmod><priority>0.4</priority></url>
+  <url><loc>https://www.zarketplace.com/privacy</loc><lastmod>2026-09-24</lastmod><priority>0.4</priority></url>
+  <url><loc>https://www.zarketplace.com/trademark-notice</loc><lastmod>2026-09-24</lastmod><priority>0.3</priority></url>
+  <url><loc>https://www.zarketplace.com/grievance-officer</loc><lastmod>2026-09-24</lastmod><priority>0.3</priority></url>
 </urlset>

@@ -21,7 +21,7 @@ import { chromium } from 'playwright';
 const BASE = process.env.BASE_URL ?? 'http://localhost:4173';
 const PAGES = [
   '/', '/browse', '/condition', '/about', '/faq', '/contact', '/returns',
-  '/refund-policy', '/shipping-policy', '/buyer-protection', '/vendor-policy',
+  '/refund-policy', '/shipping-policy', '/buyer-protection', '/how-it-works',
   '/terms', '/privacy', '/sell', '/cart',
 ];
 const WIDTHS = [375, 1440];

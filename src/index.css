@@ -80,8 +80,12 @@
 
      Which shell a page gets is mechanical, decided by its PRIMARY content:
 
-       a task flow  ->  .shell-form   (the listing form)
-       everything else  ->  .shell-wide   (every content page)
+       every page       ->  .shell-wide   (one left edge across the site)
+       a narrow task    ->  .shell-wide, with its column capped inside it
+                            ([&>*]:max-w-xl): profile, sign-in, the offer.
+                            The measure narrows; the edge does not.
+       a short flow     ->  .shell-form, a centred column of its own: the
+                            sell intro, form and confirmation, and the cart
 
      Two, not three. There was a narrower shell for continuous prose, which is
      better typography in isolation and was worse in practice: a policy page at
@@ -107,7 +111,7 @@
      (photo slots, paired fields) are components inside the column, not a
      reason to widen it.
 
-     A task flow gets this. Everything else gets shell-wide. */
+     The sell flow and the cart get this. Everything else gets shell-wide. */
   .shell-form {
     @apply mx-auto w-full px-4 sm:px-6 lg:px-8;
     max-width: 40rem; /* 640px */
@@ -174,4 +178,23 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+}
+
+/* Process flows: the parcel that runs down a connector as it draws.
+   The wrapper is the size of the track, so translating it by -100% of itself
+   starts the parcel exactly one track-length back, whichever way the track
+   runs. Down on a phone, across on desktop (lg, 64rem). */
+@keyframes hiw-along { from { transform: translateY(-100%); } to { transform: translateY(0); } }
+@keyframes hiw-along-x { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+@keyframes hiw-fade-out { to { opacity: 0; } }
+.hiw-parcel {
+  animation:
+    hiw-along 350ms cubic-bezier(.6, 0, .2, 1) both,
+    hiw-fade-out 200ms ease-out 350ms both;
+}
+@media (min-width: 64rem) {
+  .hiw-parcel { animation-name: hiw-along-x, hiw-fade-out; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hiw-parcel { display: none; }
 }

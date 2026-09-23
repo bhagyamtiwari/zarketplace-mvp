@@ -8,20 +8,20 @@ export function RefundPolicy() {
 
   return (
     <div className="shell-wide pt-24 sm:pt-32 pb-16 sm:pb-20">
-      <Link to="/browse" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-12">
-        <ArrowLeft className="h-3 w-3" /> Back to browse
+      <Link to="/" className="inline-flex items-center gap-2 text-sm font-medium text-black hover:underline underline-offset-4 mb-12">
+        <ArrowLeft className="h-4 w-4" /> Back to home
       </Link>
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col gap-12"
+        className="flex flex-col gap-8"
       >
         <div className="flex flex-col gap-4">
           <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Refund Policy</h1>
         </div>
 
-        <div className="flex flex-col gap-14 text-black body-longform">
+        <div className="flex flex-col gap-12 text-black body-longform [&>p+p]:-mt-8">
           <p>This page covers what happens to your money. For the process of cancelling an order or flagging an item to send back, see our <Link to="/returns" className="font-bold text-black underline">Returns</Link> page.</p>
 
           <section className="flex flex-col gap-4">

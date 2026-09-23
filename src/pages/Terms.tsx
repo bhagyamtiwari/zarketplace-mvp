@@ -8,26 +8,24 @@ export function Terms() {
 
   return (
     <div className="shell-wide pt-24 sm:pt-32 pb-16 sm:pb-20">
-      <Link to="/browse" className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-black hover:text-black/80 mb-12">
-        <ArrowLeft className="h-3 w-3" /> Back to browse
+      <Link to="/" className="inline-flex items-center gap-2 text-sm font-medium text-black hover:underline underline-offset-4 mb-12">
+        <ArrowLeft className="h-4 w-4" /> Back to home
       </Link>
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col gap-12"
+        className="flex flex-col gap-8"
       >
         <div className="flex flex-col gap-4">
           <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase">Terms of Service</h1>
         </div>
 
-        <div className="flex flex-col gap-14 text-black body-longform">
+        <div className="flex flex-col gap-12 text-black body-longform [&>p+p]:-mt-8">
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">What zarketplace Is</h2>
             <p>zarketplace buys pre-owned and one-of-one fashion from individuals and resells it under its own GST registration. When you buy from zarketplace you are buying from zarketplace: we are the seller of record for every listing, and every order is sold and shipped by us. When you sell to zarketplace you are selling us the item outright, for an amount agreed before the item is listed. These are two separate transactions.</p>
-          </section>
-
-          {/* The Consumer Protection (E-Commerce) Rules 2020 apply to us: being a
+            {/* The Consumer Protection (E-Commerce) Rules 2020 apply to us: being a
               principal rather than a marketplace keeps us out of the GST ECO and
               TCS regime, it does not put us outside consumer law. Rule 4(2) wants
               legal name, principal geographic address and customer care details
@@ -36,24 +34,22 @@ export function Terms() {
               TODO: the registered office reads "temporarily relocating" until
               the new address is settled. Replace it with the full address as
               soon as it is, and add the GSTIN in the same block once issued. */}
-          <section className="flex flex-col gap-4">
-            <h2 className="text-xl font-black uppercase tracking-tight text-black">Who you are contracting with</h2>
             <p>zarketplace is a trading name of <strong>ADNIZ Private Limited</strong>, a company incorporated in India.</p>
             <dl className="flex flex-col gap-4">
               <div className="flex flex-col gap-1">
-                <dt className="text-xs font-black uppercase tracking-[0.2em]">Legal name</dt>
+                <dt className="font-bold">Legal name</dt>
                 <dd>ADNIZ Private Limited</dd>
               </div>
               <div className="flex flex-col gap-1">
-                <dt className="text-xs font-black uppercase tracking-[0.2em]">CIN</dt>
+                <dt className="font-bold">CIN</dt>
                 <dd>U47711DL2023PTC418107</dd>
               </div>
               <div className="flex flex-col gap-1">
-                <dt className="text-xs font-black uppercase tracking-[0.2em]">Registered office</dt>
-                <dd>Temporarily relocating. Write to us at the customer care address below for any correspondence, and we will reply with our current postal address.</dd>
+                <dt className="font-bold">Registered office</dt>
+                <dd>Temporarily relocating. Email us and we will send you our current postal address.</dd>
               </div>
               <div className="flex flex-col gap-1">
-                <dt className="text-xs font-black uppercase tracking-[0.2em]">Customer care</dt>
+                <dt className="font-bold">Customer care</dt>
                 <dd>
                   <a href="mailto:contact@zarketplace.com" className="underline underline-offset-4">contact@zarketplace.com</a>
                   {' '}&middot;{' '}
@@ -75,7 +71,7 @@ export function Terms() {
 
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Payments & Policies</h2>
-            <p>All payments are processed securely through Razorpay. Shipping, vendor, and refund terms are governed by our <Link to="/shipping-policy" className="font-bold text-black underline">Shipping Policy</Link>, <Link to="/vendor-policy" className="font-bold text-black underline">Vendor Policy</Link>, and <Link to="/refund-policy" className="font-bold text-black underline">Refund Policy</Link>.</p>
+            <p>All payments are processed securely through Razorpay. Shipping, vendor, and refund terms are governed by our <Link to="/shipping-policy" className="font-bold text-black underline">Shipping Policy</Link>, <Link to="/how-it-works" className="font-bold text-black underline">Vendor Policy</Link>, and <Link to="/refund-policy" className="font-bold text-black underline">Refund Policy</Link>.</p>
           </section>
 
           <section className="flex flex-col gap-4">

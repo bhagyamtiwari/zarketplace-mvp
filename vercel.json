@@ -6,8 +6,8 @@
       "destination": "/api/item?sku=:sku"
     },
     {
-      "source": "/browse",
-      "destination": "/api/page?path=/browse"
+      "source": "/sitemap-items.xml",
+      "destination": "/api/sitemap-items"
     },
     {
       "source": "/sell",
@@ -22,8 +22,12 @@
       "destination": "/api/page?path=/shipping-policy"
     },
     {
-      "source": "/vendor-policy",
-      "destination": "/api/page?path=/vendor-policy"
+      "source": "/how-it-works",
+      "destination": "/api/page?path=/how-it-works"
+    },
+    {
+      "source": "/our-mission",
+      "destination": "/api/page?path=/our-mission"
     },
     {
       "source": "/about",

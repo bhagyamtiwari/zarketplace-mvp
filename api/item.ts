@@ -40,6 +40,9 @@ interface PublicListing {
   image_url: string | null;
   shipping_category: string | null;
   free_shipping: boolean | null;
+  description: string | null;
+  has_flaws: boolean | null;
+  flaws_description: string | null;
 }
 
 // Mirrors socialCardUrl() in src/lib/images.ts. Duplicated rather than
@@ -57,6 +60,32 @@ function escapeHtml(v: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+// The same three as itemName, itemMetaTitle and itemMetaDescription in
+// src/lib/pageMeta.ts, which set these tags when a visit arrives by clicking
+// through the shop. Duplicated for the same reason as socialCardUrl.
+function itemName(title: string | null, brand: string | null): string {
+  const t = (title ?? '').trim() || 'Item';
+  const b = (brand ?? '').trim();
+  return b && !t.toLowerCase().includes(b.toLowerCase()) ? `${b} ${t}` : t;
+}
+
+function itemMetaTitle(name: string, size: string | null | undefined): string {
+  const sz = (size ?? '').trim();
+  return `Pre-owned ${name}${sz ? `, size ${sz}` : ''}`;
+}
+
+function itemMetaDescription(name: string, size: string | null | undefined, condition: string | null, freeDelivery: boolean): string {
+  const sz = (size ?? '').trim();
+  const cond = (condition ?? '').trim();
+  return `${name}${sz ? `, size ${sz}` : ''}${cond ? `, in ${cond} condition` : ''}. Sold and shipped by zarketplace${freeDelivery ? ' with free delivery' : ''}, and checked at our hub before it ships.`;
+}
+
+// Demo listings show how the shop looks and are never for sale: no product
+// markup, and never indexed.
+function isDemo(l: PublicListing): boolean {
+  return /\(demo\)\s*$/i.test(l.title ?? '');
 }
 
 function rupees(n: number): string {
@@ -135,6 +164,13 @@ function productJsonLd(
       itemCondition: 'https://schema.org/UsedCondition',
       availability: 'https://schema.org/InStock',
       inventoryLevel: { '@type': 'QuantitativeValue', value: 1 },
+      ...(l.free_shipping ? {
+        shippingDetails: {
+          '@type': 'OfferShippingDetails',
+          shippingRate: { '@type': 'MonetaryAmount', value: 0, currency: 'INR' },
+          shippingDestination: { '@type': 'DefinedRegion', addressCountry: 'IN' },
+        },
+      } : {}),
       seller: {
         '@type': 'Organization',
         '@id': 'https://www.zarketplace.com/#organisation',
@@ -149,18 +185,18 @@ function productJsonLd(
 }
 
 function buildTags(l: PublicListing, total: number, canonical: string): string {
-  const name = l.title?.trim() || 'Item';
-  const parts = [name];
-  if (l.brand?.trim()) parts.push(l.brand.trim());
-  const size = l.size_type?.trim() || l.size?.trim();
-  if (size) parts.push(`Size ${size}`);
-  const title = parts.join(' - ');
-
-  const descBits: string[] = [];
-  if (total > 0) descBits.push(rupees(total));
-  if (l.condition?.trim()) descBits.push(l.condition.trim());
-  descBits.push('Buyer protection included');
-  const description = descBits.join(' · ');
+  const name = itemName(l.title, l.brand);
+  const size = l.size_type?.trim() || l.size?.trim() || null;
+  const title = itemMetaTitle(name, size);
+  // A sentence for search results, and the price first for a shared link's
+  // preview card, where it is what people want to see.
+  const description = itemMetaDescription(name, size, l.condition, !!l.free_shipping);
+  const cardBits: string[] = [];
+  if (total > 0) cardBits.push(rupees(total));
+  if (l.condition?.trim()) cardBits.push(`${l.condition.trim()} condition`);
+  cardBits.push('Sold and shipped by zarketplace');
+  const cardDescription = cardBits.join(' · ');
+  const demo = isDemo(l);
 
   // Absolute URL required: scrapers do not resolve relative paths. The stored
   // image_url is already an absolute Supabase public URL.
@@ -178,10 +214,11 @@ function buildTags(l: PublicListing, total: number, canonical: string): string {
   return [
     `<title>${escapeHtml(title)} | zarketplace</title>`,
     `<meta name="description" content="${escapeHtml(description)}" />`,
+    `<meta name="robots" content="${demo ? 'noindex, nofollow' : 'index, follow'}" />`,
     `<meta property="og:type" content="product" />`,
     `<meta property="og:site_name" content="zarketplace" />`,
     `<meta property="og:title" content="${escapeHtml(title)}" />`,
-    `<meta property="og:description" content="${escapeHtml(description)}" />`,
+    `<meta property="og:description" content="${escapeHtml(cardDescription)}" />`,
     `<meta property="og:url" content="${escapeHtml(canonical)}" />`,
     `<meta property="og:image" content="${escapeHtml(image)}" />`,
     ...(card || (image === FALLBACK_IMAGE && FALLBACK_IS_1200x630)
@@ -191,17 +228,42 @@ function buildTags(l: PublicListing, total: number, canonical: string): string {
     `<meta property="og:image:alt" content="${escapeHtml(name)}" />`,
     `<meta name="twitter:card" content="summary_large_image" />`,
     `<meta name="twitter:title" content="${escapeHtml(title)}" />`,
-    `<meta name="twitter:description" content="${escapeHtml(description)}" />`,
+    `<meta name="twitter:description" content="${escapeHtml(cardDescription)}" />`,
     `<meta name="twitter:image" content="${escapeHtml(image)}" />`,
     `<link rel="canonical" href="${escapeHtml(canonical)}" />`,
-    productJsonLd(l, total, canonical, image, name),
+    ...(demo ? [] : [productJsonLd(l, total, canonical, image, name)]),
   ].join('\n    ');
+}
+
+// What the item page says, in plain HTML, for anything that reads the first
+// response and does not run the app (the AI crawlers among them). Replaces
+// the homepage's summary; a browser running the app never shows it.
+function buildSummary(l: PublicListing, total: number): string {
+  const name = itemName(l.title, l.brand);
+  const size = l.size_type?.trim() || l.size?.trim() || null;
+  const facts = [
+    total > 0 ? rupees(total) : null,
+    size ? `Size ${size}` : null,
+    l.condition?.trim() ? `${l.condition.trim()} condition` : null,
+    l.free_shipping ? 'Free delivery' : null,
+  ].filter(Boolean).join('. ');
+  const parts = [
+    `<h1>${escapeHtml(itemMetaTitle(name, size))}</h1>`,
+    facts ? `<p>${escapeHtml(facts)}.</p>` : '',
+    l.description?.trim() ? `<p>${escapeHtml(l.description.trim())}</p>` : '',
+    l.has_flaws && l.flaws_description?.trim() ? `<p>Flaw: ${escapeHtml(l.flaws_description.trim())}</p>` : '',
+    '<p>Sold and shipped by zarketplace. Every item is checked at our hub against its listing before it ships, and every order is covered by Buyer Protection.</p>',
+    '<p><a href="/">Shop more pre-owned clothing</a></p>',
+  ];
+  return `<!--seo:start--><noscript>${parts.join('')}</noscript><!--seo:end-->`;
 }
 
 // Every sitewide tag this function replaces. Anything left behind would be a
 // duplicate, and scrapers pick unpredictably between duplicates.
 const STRIP_RE =
-  /[ \t]*<(?:title>[\s\S]*?<\/title|meta\s+(?:property="og:[^"]*"|name="(?:description|twitter:[^"]*)")[^>]*\/?|link\s+rel="canonical"[^>]*\/?)>\n?/gi;
+  /[ \t]*<(?:title>[\s\S]*?<\/title|meta\s+(?:property="og:[^"]*"|name="(?:description|robots|twitter:[^"]*)")[^>]*\/?|link\s+rel="canonical"[^>]*\/?)>\n?/gi;
+const SUMMARY_RE = /<!--seo:start-->[\s\S]*?<!--seo:end-->/;
+const HERO_RE = /<!--static-hero:start-->[\s\S]*?<!--static-hero:end-->/;
 
 export default async function handler(req: any, res: any) {
   const sku = String(req.query?.sku ?? '').trim();
@@ -235,15 +297,21 @@ export default async function handler(req: any, res: any) {
     // treat % and _ in a crafted URL as wildcards and could return an
     // unrelated listing.
     const rows = await pg<PublicListing>(
-      `public_listings?sku=eq.${encodeURIComponent(sku.toUpperCase())}&select=id,sku,title,brand,size_type,size,condition,price,sale_price,image_url,shipping_category,free_shipping&limit=1`,
+      `public_listings?sku=eq.${encodeURIComponent(sku.toUpperCase())}&select=id,sku,title,brand,size_type,size,condition,price,sale_price,image_url,shipping_category,free_shipping,description,has_flaws,flaws_description&limit=1`,
     );
     listing = rows[0];
   }
 
   if (listing) {
-    const canonical = `${origin}/item/${encodeURIComponent(listing.sku ?? sku)}`;
+    // Lowercase, the form every link on the site uses: an uppercase canonical
+    // pointed search engines at a URL the site itself never links to.
+    const canonical = `${origin}/item/${encodeURIComponent((listing.sku ?? sku).toLowerCase())}`;
     const total = await checkoutTotal(listing);
-    html = html.replace(STRIP_RE, '').replace('</head>', `  ${buildTags(listing, total, canonical)}\n  </head>`);
+    html = html
+      .replace(STRIP_RE, '')
+      .replace('</head>', `  ${buildTags(listing, total, canonical)}\n  </head>`)
+      .replace(HERO_RE, '')
+      .replace(SUMMARY_RE, buildSummary(listing, total));
     // Short shared cache: a scraper re-fetching after a price edit should not
     // see a week-old preview, but a link doing the rounds on WhatsApp should
     // not hit Postgres every time either.

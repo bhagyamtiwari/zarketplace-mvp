@@ -54,7 +54,7 @@ export function shipmentStatusLabel(shipmentStatus: string | null | undefined): 
     case 'in_transit': return 'In transit';
     case 'out_for_delivery': return 'Out for delivery';
     case 'delivered': return 'Delivered';
-    case 'rto': return 'Returning to seller';
+    case 'rto': return 'Returning to us';
     case 'ndr': return 'Delivery attempt failed';
     case 'cancelled': return 'Shipment cancelled';
     default: return null;
@@ -67,7 +67,7 @@ export function buyerStatusLabel(status: OrderStatus): string {
     case 'awaiting_verification':
       return 'Confirming your payment';
     case 'paid':
-      return 'Order confirmed, seller is packing it up';
+      return 'Order confirmed, we are packing it';
     case 'shipped':
       return 'On its way';
     case 'delivered':
