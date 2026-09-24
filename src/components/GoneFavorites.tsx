@@ -40,7 +40,7 @@ export function GoneFavorites({ items }: { items: FavoriteSnapshot[] }) {
                     <span className="font-bold">{f.title}</span>
                   )}
                 </h3>
-                <span className="mt-1 text-sm font-bold">No longer available</span>
+                <span className="mt-1 text-sm font-bold">{f.sold ? 'Sold' : 'No longer available'}</span>
               </div>
               <button
                 type="button"

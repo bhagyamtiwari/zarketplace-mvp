@@ -1,8 +1,8 @@
 // Site footer. Desktop: five columns in one row (the four errands, then
 // Connect) spread evenly across the full width, with the same padding on the
 // left and the right, then a bottom bar with the wordmark on the left and the
-// copyright on the right. Mobile: each column collapses into an accordion (one
-// section open at a time), and the social icons sit under the wordmark.
+// copyright on the right. Mobile: each column is a section that starts open
+// and can be folded away, and the social icons sit under the wordmark.
 import * as React from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronUp, Instagram } from 'lucide-react';
@@ -153,7 +153,16 @@ function SocialIcons() {
 }
 
 export function Footer() {
-  const [openSection, setOpenSection] = React.useState<string | null>(null);
+  // Phone: every section starts open, so all the links are there on arrival;
+  // each can still be folded away on its own.
+  const [closed, setClosed] = React.useState<Set<string>>(() => new Set());
+  const toggleSection = (title: string) =>
+    setClosed((prev) => {
+      const next = new Set(prev);
+      if (next.has(title)) next.delete(title);
+      else next.add(title);
+      return next;
+    });
 
   return (
     <footer className="bg-black text-white py-16 sm:py-20">
@@ -192,15 +201,15 @@ export function Footer() {
           </div>
         </div>
 
-        {/* Mobile: accordion sections, one open at a time */}
+        {/* Mobile: the four sections, open to begin with, each one foldable */}
         <div className="md:hidden flex flex-col">
           {[SHOP, SELLING, HELP, COMPANY].map((column) => {
-            const isOpen = openSection === column.title;
+            const isOpen = !closed.has(column.title);
             return (
               <div key={column.title} className="border-b border-white/10">
                 <button
                   type="button"
-                  onClick={() => setOpenSection(isOpen ? null : column.title)}
+                  onClick={() => toggleSection(column.title)}
                   aria-expanded={isOpen}
                   className="w-full flex items-center justify-between py-5 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-white focus-visible:outline-offset-2"
                 >

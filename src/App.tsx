@@ -12,6 +12,7 @@ import { ScrollToTop } from './components/ScrollToTop';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { CookieConsent } from './components/CookieConsent';
 import { PhoneCapturePrompt } from './components/PhoneCapturePrompt';
+import { FavoritesSync } from './components/FavoritesSync';
 import { useConsent } from './lib/cookieConsent';
 import { initAnalytics, trackPageview } from './lib/analytics';
 
@@ -90,6 +91,7 @@ export default function App() {
     <Router>
       <AuthProvider>
       <CartProvider>
+      <FavoritesSync />
       <ScrollToTop />
       {/* A column that is at least a screen tall, with the page taking the
           spare height, so a short page (an empty cart, a sign-in gate) keeps

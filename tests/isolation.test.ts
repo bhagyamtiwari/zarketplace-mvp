@@ -42,6 +42,8 @@ const OBJECTS = [
   // Aggregated per vendor, so it is a per-vendor key by construction and is
   // granted to nobody but an operator.
   "vendor_reliability",
+  // A buyer's own hearted items: owner-only, like cart_items.
+  "favorites",
 ];
 
 /**
