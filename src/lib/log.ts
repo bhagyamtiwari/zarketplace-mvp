@@ -24,6 +24,7 @@ type Tag =
   | 'resetpw'
   | 'navbar'
   | 'marketplace'
+  | 'favorites'
   | 'product'
   | 'sell'
   | 'payout'

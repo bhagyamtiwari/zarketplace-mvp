@@ -14,7 +14,7 @@ import { CampaignBand } from '../components/CampaignBand';
 import { cn } from '../lib/utils';
 import { log } from '../lib/log';
 import { usePageMeta, META } from '../lib/pageMeta';
-import { useFavorites, favoriteSnapshots, refreshSnapshots, removeFavorite, type FavoriteSnapshot } from '../lib/favorites';
+import { useFavorites, useFavoritesSyncTick, favoriteSnapshots, refreshSnapshots, removeFavorite, type FavoriteSnapshot } from '../lib/favorites';
 import { GoneFavorites } from '../components/GoneFavorites';
 import { CONDITIONS } from '../lib/condition';
 import { CATEGORY_SIZES, ALL_SIZES } from '../lib/sizes';
@@ -132,7 +132,11 @@ export function Marketplace() {
   const favoritesRef = React.useRef(favorites);
   favoritesRef.current = favorites;
 
-  const filterKey = [category, gender, sizeType, condition, quick, searchQuery, sortBy].join('|');
+  // The favorites view also reloads when the account's list has just been
+  // read (after signing in, or on returning to the tab), so a heart added on
+  // another device shows up without a refresh.
+  const syncTick = useFavoritesSyncTick();
+  const filterKey = [category, gender, sizeType, condition, quick, searchQuery, sortBy, quick === 'saved' ? syncTick : 0].join('|');
 
   // Any filter change starts a fresh feed rather than appending to the old one.
   React.useEffect(() => { setPage(0); }, [filterKey]);
