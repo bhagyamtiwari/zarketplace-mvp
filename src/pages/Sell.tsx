@@ -40,6 +40,7 @@ import { usePageMeta, META } from '../lib/pageMeta';
 import { resolvePincode } from '../lib/pincode';
 import { cn, formatCurrency } from '../lib/utils';
 import { CATEGORY_SIZES } from '../lib/sizes';
+import { LaunchOfferNote } from '../components/LaunchOfferNote';
 
 const slog = log('sell');
 
@@ -1603,6 +1604,8 @@ function SellIntro({ onStart }: { onStart: () => void }) {
           </li>
         ))}
       </ol>
+
+      <LaunchOfferNote />
 
       <div className="flex flex-col items-center gap-5">
         <button

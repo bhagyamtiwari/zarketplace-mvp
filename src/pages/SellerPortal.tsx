@@ -23,6 +23,7 @@ import { supabase } from '../lib/supabase';
 import { Listing } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { variantUrl } from '../lib/images';
+import { LaunchOfferNote } from '../components/LaunchOfferNote';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
@@ -173,6 +174,8 @@ export function VendorPortalView({ tab, onTab, listings, offers, loading, error,
         </nav>
 
         {error && <p className={ui.error}>{error}</p>}
+
+        {tab === 'listings' && <LaunchOfferNote />}
 
         {loading ? (
           <div className="flex h-64 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div>
