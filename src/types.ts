@@ -56,7 +56,10 @@ export interface Listing {
   original_packaging: boolean | null;
   item_altered: boolean | null;
   wear_frequency: string | null;
+  /** Ours to set, in the admin portal: puts "Authenticity: Confirmed" on the listing page. */
   authenticity_confirmed: boolean;
+  /** The vendor's own Yes or No on the sell form. Null for items sent before it was asked. */
+  vendor_confirms_authentic?: boolean | null;
   seller_declared_at?: string | null;
   status: ListingStatus;
   is_sold: boolean;
