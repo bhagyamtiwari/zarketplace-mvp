@@ -44,14 +44,14 @@ import { CATEGORY_SIZES } from '../lib/sizes';
 const slog = log('sell');
 
 
-// Two lines instead of six ticks and an authenticity radio. Every element of
-// the old set survives: one-item is its own rule, and accuracy now carries
-// photos, flaws and authenticity in a sentence someone reads rather than five
-// they scroll past. The binding version is the three-clause agreement at offer
-// acceptance.
+// Three lines instead of six ticks. One-item is its own rule, and accuracy
+// carries the photos and the answers given about condition, flaws and
+// authenticity (asked as its own Yes or No beside flaws, so this line cannot
+// claim the item is genuine for a vendor who answered No). The binding version
+// is the agreement at offer acceptance.
 const PUBLISH_CONFIRMATIONS: Array<{ key: string; label: string }> = [
   { key: 'oneItem', label: 'This is one item, and it is mine to sell.' },
-  { key: 'accurate', label: 'It is genuine, the photos are of this item, and I have described its condition and any flaws accurately.' },
+  { key: 'accurate', label: 'The photos are of this item, and I have answered honestly about its condition, flaws and authenticity.' },
   // The one the patient lane actually runs on. A listing is a promise that the
   // item is sitting somewhere, in the state described, ready to go: the two
   // ways that breaks are selling it elsewhere and wearing it in the meantime,
@@ -94,26 +94,22 @@ const WHAT_HAPPENS_NEXT: Array<{ title: string; points: string[] }> = [
   {
     title: 'The item stays with you until someone buys it',
     points: [
-      'Keep it packed, unworn, and in the condition you described.',
+      'Keep it packed, unworn and as you described it.',
       'Do not sell it anywhere else.',
-      'Watch your email for your shipping label.',
-      'If we cannot reach you by email, we may message you on WhatsApp.',
     ],
   },
   {
-    title: 'When it is bought, we send you a prepaid label',
+    title: 'When it is bought, we email you a free prepaid label',
     points: [
-      'Shipping to us is free: print the label and attach it to the parcel.',
       'A courier collects it from your door, usually within 48 hours.',
-      'It must be handed over within 5 days.',
-      'Send the exact item in your photos.',
+      'Hand it over within 5 days, and send the exact item in your photos.',
+      'If email does not reach you, we may message you on WhatsApp.',
     ],
   },
   {
     title: 'You are paid when it reaches our hub',
     points: [
       'We check it against your photos, then pay you the agreed amount.',
-      'We take care of delivery to the buyer.',
     ],
   },
 ];
@@ -129,7 +125,7 @@ const WHAT_HAPPENS_NOTES: Array<{ title: string; body: string }> = [
   },
   {
     title: 'No GSTIN needed',
-    body: 'You do not need a GSTIN to sell to us.',
+    body: 'You do not need a GSTIN to sell to us. We may ask to keep your PAN card on file.',
   },
 ];
 
@@ -374,6 +370,9 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
 
   const [condition, setCondition] = React.useState('');
   const [hasFlaws, setHasFlaws] = React.useState<boolean | null>(null);
+  // The vendor's answer only. Whether the listing page says "Confirmed" is
+  // decided by an operator in the admin portal.
+  const [confirmsAuthentic, setConfirmsAuthentic] = React.useState<boolean | null>(null);
   const [flawsDescription, setFlawsDescription] = React.useState('');
 
   const [shippingCategories, setShippingCategories] = React.useState<ShippingCategory[]>([]);
@@ -577,6 +576,7 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
     if (s === 2) {
       if (!condition) return 'Choose a condition.';
       if (hasFlaws === null) return 'Say whether this item has any flaws.';
+      if (confirmsAuthentic === null) return 'Say whether this item is confirmed authentic.';
       if (hasFlaws && !flawsDescription.trim()) return 'Describe the flaw, or answer No.';
       if (hasFlaws && imageFiles.length <= REQUIRED_PHOTOS) return 'Add a close-up of the flaw as an extra photo.';
     }
@@ -687,9 +687,10 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
         original_packaging: null,
         item_altered: null,
         wear_frequency: null,
-        // Carried by the accuracy line the vendor ticks, which says the item
-        // is genuine. Restated in full at the agreement screen.
-        authenticity_confirmed: !!declarations.accurate,
+        // The vendor's answer. authenticity_confirmed, which puts
+        // "Authenticity: Confirmed" on the listing page, is ours to set in
+        // the admin portal, and the database keeps it off for anyone else.
+        vendor_confirms_authentic: confirmsAuthentic,
         seller_declared_at: new Date().toISOString(),
         status: 'pending',
       }).select('id').single();
@@ -744,7 +745,7 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
     setImageFiles([]); setImagePreviews([]);
     setTitle(''); setBrand(''); setDescription('');
     setSelectedCategory(''); setSizeType(''); setSizeDetail(''); setMeasurements({}); setUnit('cm');
-    setCondition(''); setHasFlaws(null); setFlawsDescription('');
+    setCondition(''); setHasFlaws(null); setConfirmsAuthentic(null); setFlawsDescription('');
     setDeclarations(noDeclarations());
     setShowRequired(false);
     setPhotoNote(null);
@@ -860,6 +861,7 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
               <LastStep
                 condition={condition} setCondition={setCondition}
                 hasFlaws={hasFlaws} setHasFlaws={setHasFlaws}
+                confirmsAuthentic={confirmsAuthentic} setConfirmsAuthentic={setConfirmsAuthentic}
                 flawsDescription={flawsDescription} setFlawsDescription={setFlawsDescription}
                 declarations={declarations} setDeclarations={setDeclarations}
                 showRequired={showRequired}
@@ -938,26 +940,14 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
 export function SellSubmitted({ onItems, onAnother }: { onItems: () => void; onAnother: () => void }) {
   return (
     <div className="shell-form pt-24 sm:pt-32 pb-16 sm:pb-20 flex flex-col gap-12">
-      {/* The vendor has not listed anything and should not think they have:
-          nothing goes on sale until they have seen a number and agreed to it.
-          Saying so is the difference between someone waiting and someone who
-          thinks the form silently failed. */}
+      {/* Where things stand, in one line. The steps below say the rest, so
+          this does not repeat them: it used to add a second line about the
+          label that the list restates two sections down. */}
       <div className="flex flex-col gap-6">
         <h1 className={ui.pageTitle}>Back in 24 hours.</h1>
-        {/* Where things stand, in two lines. The item stays with them after
-            they accept too: the label is sent when someone buys it, not when
-            the offer is accepted. */}
-        <ul className="flex flex-col gap-2.5">
-          {[
-            'We will email you an offer, or what to fix, within 24 hours. Check your spam folder too.',
-            'Nothing is on sale yet, and the item stays with you until someone buys it. Then we send you a free prepaid label.',
-          ].map((line) => (
-            <li key={line} className="flex gap-3 text-[15px] leading-relaxed">
-              <span aria-hidden className="mt-[0.6em] h-1 w-1 shrink-0 bg-black" />
-              <span>{line}</span>
-            </li>
-          ))}
-        </ul>
+        <p className="text-[15px] leading-relaxed">
+          We will email you an offer, or what to fix. Check your spam folder too.
+        </p>
       </div>
 
       <section className="flex flex-col gap-6" aria-labelledby="next-heading">
@@ -1000,8 +990,8 @@ export function SellSubmitted({ onItems, onAnother }: { onItems: () => void; onA
         </dl>
       </section>
 
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col items-center gap-6 text-center">
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
           <button type="button" onClick={onItems} className={ui.btnPrimary}>
             Your items
           </button>
@@ -1409,9 +1399,30 @@ function DetailsStep(props: {
   );
 }
 
-function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDescription, setFlawsDescription }: {
+// Yes before No: the question is "any flaws?", and a Yes/No question reads
+// Yes-then-No everywhere else. Leading with No also nudged vendors toward the
+// answer that hides flaws, which is the one answer that costs us a dispute.
+function YesNo({ value, onChange }: { value: boolean | null; onChange: (v: boolean) => void }) {
+  return (
+    <div className="grid grid-cols-2 gap-3 max-w-xs">
+      {([true, false] as const).map((answer) => (
+        <button key={String(answer)} type="button" onClick={() => onChange(answer)} aria-pressed={value === answer}
+          className={cn('border py-3.5 text-sm font-bold transition-colors',
+            value === answer ? 'bg-black text-white border-black' : 'border-black/15 hover:border-black')}>
+          {answer ? 'Yes' : 'No'}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ConditionStep({
+  condition, setCondition, hasFlaws, setHasFlaws, confirmsAuthentic, setConfirmsAuthentic,
+  flawsDescription, setFlawsDescription,
+}: {
   condition: string; setCondition: (v: string) => void;
   hasFlaws: boolean | null; setHasFlaws: (v: boolean) => void;
+  confirmsAuthentic: boolean | null; setConfirmsAuthentic: (v: boolean) => void;
   flawsDescription: string; setFlawsDescription: (v: string) => void;
 }) {
   return (
@@ -1447,28 +1458,18 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
         </div>
       </div>
 
-      <div className="flex flex-col gap-6">
-        <SectionHeading>Any flaws?</SectionHeading>
-        {/* Yes before No: the question is "any flaws?", and a Yes/No question
-            reads Yes-then-No everywhere else. Leading with No also nudged
-            sellers toward the answer that hides flaws, which is the one
-            answer that costs us a dispute. */}
-        <div className="grid grid-cols-2 gap-3 max-w-xs">
-          <button type="button" onClick={() => setHasFlaws(true)}
-            className={cn('border py-3.5 text-sm font-bold transition-colors',
-              hasFlaws === true ? 'bg-black text-white border-black' : 'border-black/15 hover:border-black')}>
-            Yes
-          </button>
-          <button type="button" onClick={() => setHasFlaws(false)}
-            className={cn('border py-3.5 text-sm font-bold transition-colors',
-              hasFlaws === false ? 'bg-black text-white border-black' : 'border-black/15 hover:border-black')}>
-            No
-          </button>
+      {/* Two yes-or-no questions, side by side where there is room. On a
+          phone they stack, and a flaw's description stays right under the
+          flaws question rather than under the next one. */}
+      <div className="grid grid-cols-1 gap-y-6 sm:grid-cols-2 sm:gap-x-10">
+        <div className="flex flex-col gap-6">
+          <SectionHeading>Any flaws?</SectionHeading>
+          <YesNo value={hasFlaws} onChange={setHasFlaws} />
         </div>
 
         <AnimatePresence>
           {hasFlaws && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden sm:order-last sm:col-span-2">
               <div className="flex flex-col gap-3">
                 <FieldLabel>Describe the flaw</FieldLabel>
                 <textarea value={flawsDescription} onChange={(e) => setFlawsDescription(e.target.value)} rows={3}
@@ -1479,6 +1480,13 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* The vendor's answer. Whether the listing page says "Confirmed"
+            is decided by us, in the admin portal. */}
+        <div className="mt-6 flex flex-col gap-6 sm:mt-0">
+          <SectionHeading>Confirmed authentic?</SectionHeading>
+          <YesNo value={confirmsAuthentic} onChange={setConfirmsAuthentic} />
+        </div>
       </div>
     </div>
   );
@@ -1494,11 +1502,12 @@ function ConditionStep({ condition, setCondition, hasFlaws, setHasFlaws, flawsDe
 // consent that binds anyone is the agreement at offer acceptance, which is
 // where money is promised. Two lines here, three clauses there.
 function LastStep({
-  condition, setCondition, hasFlaws, setHasFlaws, flawsDescription, setFlawsDescription,
-  declarations, setDeclarations, showRequired,
+  condition, setCondition, hasFlaws, setHasFlaws, confirmsAuthentic, setConfirmsAuthentic,
+  flawsDescription, setFlawsDescription, declarations, setDeclarations, showRequired,
 }: {
   condition: string; setCondition: (v: string) => void;
   hasFlaws: boolean | null; setHasFlaws: (v: boolean) => void;
+  confirmsAuthentic: boolean | null; setConfirmsAuthentic: (v: boolean) => void;
   flawsDescription: string; setFlawsDescription: (v: string) => void;
   declarations: Record<string, boolean>;
   setDeclarations: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
@@ -1509,6 +1518,7 @@ function LastStep({
       <ConditionStep
         condition={condition} setCondition={setCondition}
         hasFlaws={hasFlaws} setHasFlaws={setHasFlaws}
+        confirmsAuthentic={confirmsAuthentic} setConfirmsAuthentic={setConfirmsAuthentic}
         flawsDescription={flawsDescription} setFlawsDescription={setFlawsDescription}
       />
 

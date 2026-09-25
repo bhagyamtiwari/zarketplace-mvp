@@ -19,7 +19,7 @@ import { formatCurrency, cn } from '../lib/utils';
 import { variantUrl } from '../lib/images';
 import {
   Loader2, Search, ChevronRight, X, ExternalLink, ArrowLeft, CheckCircle2, XCircle, Clock, AlertCircle, Archive, Zap, Package, CreditCard,
-  Truck, Wallet, Users as UsersIcon, LifeBuoy, Terminal, LayoutGrid, Boxes,
+  Truck, Wallet, Users as UsersIcon, LifeBuoy, Terminal, LayoutGrid, Boxes, ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
@@ -1184,6 +1184,27 @@ function ListingDrawer({ listing, acq, orders, payouts, audit, backLabel, onClos
     } catch (err: any) { alert(err?.message ?? 'Failed.'); } finally { setBusy(false); }
   };
 
+  // "Authenticity: Confirmed" on the listing page is a claim we make in our
+  // own name, so it is only ever switched on here. The vendor's own answer
+  // from the sell form is shown beside it; it never sets this by itself.
+  const toggleAuthentic = async () => {
+    const next = !listing.authenticity_confirmed;
+    if (next && !confirm('Mark this item confirmed authentic? The listing page will say "Authenticity: Confirmed".')) return;
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.from('listings').update({ authenticity_confirmed: next }).eq('id', listing.id).select('authenticity_confirmed');
+      if (error) throw error;
+      if (data?.[0]?.authenticity_confirmed !== next) throw new Error('Not saved. Check you are signed in as an admin.');
+      await writeAudit({
+        entity: 'listing', entity_id: listing.id,
+        action: next ? 'listing.authenticity.confirmed' : 'listing.authenticity.unconfirmed',
+        old_state: { authenticity_confirmed: !!listing.authenticity_confirmed }, new_state: { authenticity_confirmed: next }, reason: listing.title,
+      });
+      await onDone();
+    } catch (err: any) { alert(err?.message ?? 'Failed.'); } finally { setBusy(false); }
+  };
+  const vendorSaysAuthentic = listing.vendor_confirms_authentic == null ? 'Not asked' : listing.vendor_confirms_authentic ? 'Yes' : 'No';
+
   return (
     <DrawerShell title={listing.title} subtitle={listing.brand ?? ''} backLabel={backLabel} onClose={onClose}>
       {/* Full control of the listing, whatever the vendor sent: photos,
@@ -1240,6 +1261,24 @@ function ListingDrawer({ listing, acq, orders, payouts, audit, backLabel, onClos
         Turn on Instant ship only for items already in our hub. Buyers can filter for them, and they are promised dispatch within 48 hours.
       </p>
 
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <p className="text-sm">Vendor says authentic: <span className="font-bold">{vendorSaysAuthentic}</span></p>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={toggleAuthentic}
+          aria-pressed={!!listing.authenticity_confirmed}
+          className={cn('inline-flex items-center gap-2 border px-3.5 py-2 text-xs font-black uppercase tracking-wider transition-colors disabled:opacity-50',
+            listing.authenticity_confirmed ? 'border-black bg-black text-white' : 'border-black/20 hover:border-black')}
+        >
+          <ShieldCheck className="h-4 w-4" />
+          {listing.authenticity_confirmed ? 'Authentic: confirmed' : 'Authentic: not confirmed'}
+        </button>
+      </div>
+      <p className="-mt-4 text-xs ink-mid">
+        When confirmed, the listing page shows "Authenticity: Confirmed". Leave it off unless we have checked.
+      </p>
+
       {/* The decision first: it is why anyone opens a pending item. */}
       <AcquisitionPanel listingId={listing.id} listingTitle={listing.title} vendorEmail={listing.seller_email ?? null} askingPriceFallback={listing.sale_price ?? listing.price} onDone={onDone} />
 
@@ -1250,7 +1289,7 @@ function ListingDrawer({ listing, acq, orders, payouts, audit, backLabel, onClos
         <Row k="Condition" v={listing.condition} /><Row k="Shipping cat" v={listing.shipping_category} />
         <Row k="Delivery" v={listing.free_shipping ? 'Free to the buyer (we pay)' : 'Buyer pays'} />
         <Row k="Flaws" v={listing.has_flaws ? 'Disclosed' : 'None'} />
-        <Row k="Authenticity" v={listing.authenticity_confirmed ? 'Confirmed' : 'Not confirmed'} />
+        <Row k="Authenticity" v={`${listing.authenticity_confirmed ? 'Confirmed by us' : 'Not confirmed'} (vendor says: ${vendorSaysAuthentic})`} />
         {listing.has_flaws && listing.flaws_description && <p className="ink-mid mt-1">"{listing.flaws_description}"</p>}
       </Sec>
 
