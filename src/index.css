@@ -82,10 +82,11 @@
 
        every page       ->  .shell-wide   (one left edge across the site)
        a narrow task    ->  .shell-wide, with its column capped inside it
-                            ([&>*]:max-w-xl): profile, sign-in, the offer.
+                            ([&>*]:max-w-xl): profile, sign-in.
                             The measure narrows; the edge does not.
        a short flow     ->  .shell-form, a centred column of its own: the
-                            sell intro, form and confirmation, and the cart
+                            sell intro, form and confirmation, the offer and
+                            its agreement, and the cart
 
      Two, not three. There was a narrower shell for continuous prose, which is
      better typography in isolation and was worse in practice: a policy page at

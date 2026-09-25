@@ -30,6 +30,7 @@ import { RequireAuth } from '../components/RequireAuth';
 import { log } from '../lib/log';
 import { getPricingConfig, buyerProtectionFee, type PricingConfig, getShippingCategories, shippingRateFor, type ShippingCategory } from '../lib/pricing';
 import { trackEvent } from '../lib/analytics';
+import { itemPath } from '../lib/pageMeta';
 
 const clog = log('checkout');
 const RESUME_KEY = 'zk_checkout_v3';
@@ -952,7 +953,7 @@ export function Summary({ items, subtotal, shipping, shippingLoading, buyerProte
  * item, and the product code is there to quote if the buyer writes to us.
  */
 function SummaryItem({ item }: { item: CartItem }) {
-  const href = item.sku ? `/item/${item.sku.toLowerCase()}` : `/product/${item.listing_id}`;
+  const href = itemPath({ sku: item.sku, id: item.listing_id, title: item.title, brand: item.brand });
   return (
     <div className="flex items-center gap-4">
       <Link to={href} className="h-20 w-[60px] shrink-0 overflow-hidden bg-zinc-100">

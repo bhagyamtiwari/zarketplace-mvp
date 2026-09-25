@@ -13,6 +13,7 @@ import { X, Download, Loader2, Square, Smartphone } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { Listing } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
+import { itemPath } from '../lib/pageMeta';
 
 type Format = 'square' | 'story';
 
@@ -33,7 +34,7 @@ const LAYOUTS: Record<Format, {
 const PUBLIC_SITE_URL = 'https://zarketplace.com';
 
 function productUrl(listing: Listing): string {
-  const path = listing.sku ? `/item/${listing.sku}` : `/product/${listing.id}`;
+  const path = itemPath(listing);
   return `${PUBLIC_SITE_URL}${path}`;
 }
 

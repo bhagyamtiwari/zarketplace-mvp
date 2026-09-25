@@ -1293,8 +1293,15 @@ function ListingDrawer({ listing, acq, orders, payouts, audit, backLabel, onClos
         {listing.has_flaws && listing.flaws_description && <p className="ink-mid mt-1">"{listing.flaws_description}"</p>}
       </Sec>
 
+      {/* Everything a purchase invoice needs, as the vendor gave it when
+          they accepted: name, mobile, UPI ID and the collection address. */}
       <Sec title="Vendor">
+        <Row k="Name" v={listing.seller_display_name ?? listing.pickup_address?.fullName ?? null} />
+        <Row k="Mobile" v={listing.pickup_address?.phone || null} />
         <Row k="Email" v={listing.seller_email} /><Row k="UPI" v={listing.seller_upi_vpa} />
+        <Row k="Collect from" v={listing.pickup_address?.address
+          ? [listing.pickup_address.address, listing.pickup_address.landmark, listing.pickup_address.city, listing.pickup_address.state, listing.pickup_address.pincode].filter(Boolean).join(', ')
+          : null} />
         {listing.seller_instagram && <a href={listing.seller_instagram} target="_blank" rel="noreferrer" className="text-[11px] underline">Instagram</a>}
       </Sec>
 

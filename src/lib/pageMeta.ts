@@ -155,6 +155,38 @@ export function itemName(title: string | null | undefined, brand: string | null 
   return b && !t.toLowerCase().includes(b.toLowerCase()) ? `${b} ${t}` : t;
 }
 
+// An item's address carries its name after its code, /item/zv-83374-levis-
+// 501-jeans, because a search engine reads the words in a link as well as on
+// the page. Only the code finds the item: the words after it can change with
+// the title and old links still land. Kept in step with api/item.ts and
+// api/sitemap-items.ts, which build the same addresses on the server.
+export function itemSlug(title: string | null | undefined, brand: string | null | undefined): string {
+  let s = itemName(title, brand)
+    .normalize('NFKD').replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/['’]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  if (s.length > 80) s = s.slice(0, 81).replace(/-[^-]*$/, '');
+  return s;
+}
+
+/** The link to an item's page. Falls back to /product/<id> for the rare row with no code. */
+export function itemPath(l: { sku?: string | null; id?: string | null; title?: string | null; brand?: string | null }): string {
+  if (!l.sku) return `/product/${l.id ?? ''}`;
+  const code = l.sku.toLowerCase();
+  const slug = itemSlug(l.title, l.brand);
+  return `/item/${slug ? `${code}-${slug}` : code}`;
+}
+
+/** The item code at the front of an /item/ address: zv-83374 from zv-83374-levis-501-jeans. */
+export function skuFromItemParam(param: string | null | undefined): string {
+  const p = (param ?? '').trim();
+  const m = /^zv-[0-9a-f]+(?=-|$)/i.exec(p);
+  return m ? m[0] : p;
+}
+
 export function itemMetaTitle(name: string, size: string | null | undefined): string {
   const sz = (size ?? '').trim();
   return `Pre-owned ${name}${sz ? `, size ${sz}` : ''}`;
