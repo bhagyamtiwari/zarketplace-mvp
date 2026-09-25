@@ -1573,6 +1573,8 @@ function LastStep({
 function SellIntro({ onStart }: { onStart: () => void }) {
   return (
     <div className="shell-form pt-24 sm:pt-32 pb-24 flex flex-col gap-10">
+      <LaunchOfferNote />
+
       <div className="flex flex-col gap-4">
         <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase leading-[0.95]">
           How it works
@@ -1604,8 +1606,6 @@ function SellIntro({ onStart }: { onStart: () => void }) {
           </li>
         ))}
       </ol>
-
-      <LaunchOfferNote />
 
       <div className="flex flex-col items-center gap-5">
         <button

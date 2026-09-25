@@ -157,6 +157,8 @@ export function VendorPortalView({ tab, onTab, listings, offers, loading, error,
   return (
     <div className="shell-wide pt-24 sm:pt-32 pb-16 sm:pb-20">
       <div className="flex flex-col gap-8">
+        <LaunchOfferNote />
+
         <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex flex-col gap-4">
             <h1 className={ui.pageTitle}>Your Items</h1>
@@ -174,8 +176,6 @@ export function VendorPortalView({ tab, onTab, listings, offers, loading, error,
         </nav>
 
         {error && <p className={ui.error}>{error}</p>}
-
-        {tab === 'listings' && <LaunchOfferNote />}
 
         {loading ? (
           <div className="flex h-64 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div>
