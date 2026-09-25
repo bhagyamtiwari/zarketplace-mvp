@@ -12,10 +12,10 @@
 @layer base {
   /* The canvas behind the page is the footer's black, so pulling past the
      bottom on a phone shows more footer rather than a white strip under it.
-     The bounce itself is switched off where the browser allows. */
+     The overscroll is left on: switching it off (overscroll-behavior: none)
+     also switched off pull-to-refresh on phones. */
   html {
     background-color: #000;
-    overscroll-behavior-y: none;
   }
   /* The body is black too: iOS Safari tints the bar behind its floating
      address pill with the body's colour, so a white body put a white strip

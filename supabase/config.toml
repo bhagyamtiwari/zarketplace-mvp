@@ -434,3 +434,13 @@ verify_jwt = true
 [functions.razorpay-refund]
 enabled = true
 verify_jwt = true
+
+# Called every minute by pg_cron through public.dispatch_vendor_emails(),
+# which sends the publishable key as its bearer token (internal_config
+# 'functions_auth_key') for the gateway, and x-dispatch-secret, which the
+# function checks itself. With verify_jwt on and no bearer token, every call
+# was refused with 401 and no vendor email went out from 2026-09-17 to
+# 2026-09-25. See migration 20260925000001_dispatch_sends_auth.sql.
+[functions.dispatch-vendor-emails]
+enabled = true
+verify_jwt = true
