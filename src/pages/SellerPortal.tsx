@@ -23,7 +23,6 @@ import { supabase } from '../lib/supabase';
 import { Listing } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { variantUrl } from '../lib/images';
-import { LaunchOfferNote } from '../components/LaunchOfferNote';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
@@ -157,8 +156,6 @@ export function VendorPortalView({ tab, onTab, listings, offers, loading, error,
   return (
     <div className="shell-wide pt-24 sm:pt-32 pb-16 sm:pb-20">
       <div className="flex flex-col gap-8">
-        <LaunchOfferNote />
-
         <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex flex-col gap-4">
             <h1 className={ui.pageTitle}>Your Items</h1>

@@ -40,7 +40,6 @@ import { usePageMeta, META } from '../lib/pageMeta';
 import { resolvePincode } from '../lib/pincode';
 import { cn, formatCurrency } from '../lib/utils';
 import { CATEGORY_SIZES } from '../lib/sizes';
-import { LaunchOfferNote } from '../components/LaunchOfferNote';
 
 const slog = log('sell');
 
@@ -1573,8 +1572,6 @@ function LastStep({
 function SellIntro({ onStart }: { onStart: () => void }) {
   return (
     <div className="shell-form pt-24 sm:pt-32 pb-24 flex flex-col gap-10">
-      <LaunchOfferNote />
-
       <div className="flex flex-col gap-4">
         <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase leading-[0.95]">
           How it works
