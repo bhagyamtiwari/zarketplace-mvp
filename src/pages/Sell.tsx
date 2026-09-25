@@ -993,11 +993,11 @@ export function SellSubmitted({ onItems, onAnother }: { onItems: () => void; onA
 
       <div className="flex flex-col items-center gap-6 text-center">
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-          <button type="button" onClick={onItems} className={ui.btnPrimary}>
-            Your items
+          <button type="button" onClick={onAnother} className={ui.btnPrimary}>
+            Sell another item
           </button>
-          <button type="button" onClick={onAnother} className={ui.btnSecondary}>
-            Send us another
+          <button type="button" onClick={onItems} className={ui.btnSecondary}>
+            Your items
           </button>
         </div>
         <p className="text-sm">
