@@ -70,7 +70,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
       setError(null);
       setNotice(null);
       setLoading(false);
-      // Reopens on Create account, which is what most people arriving here
+      // Reopens on the free-account tab, which is what most people arriving here
       // actually need. Switching to Sign in after a successful signup is
       // handled separately and deliberately.
       setMode('signup');
@@ -164,11 +164,11 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
             <form onSubmit={handleSubmit} className="flex flex-col gap-5 overflow-y-auto px-8 pt-10 pb-8">
               <div className="flex flex-col items-center gap-2 text-center">
                 <h2 className="text-2xl font-black uppercase tracking-tighter">
-                  {mode === 'signup' ? 'Create Account' : mode === 'forgot' ? 'Reset Password' : 'Sign In'}
+                  {mode === 'signup' ? 'Create free account' : mode === 'forgot' ? 'Reset Password' : 'Sign In'}
                 </h2>
                 <p className="text-[11px] font-bold uppercase tracking-widest">
                   {message ?? (mode === 'signup'
-                    ? 'Email and password'
+                    ? 'Free, and it takes a minute'
                     : mode === 'forgot'
                     ? "Enter your email and we'll send you a reset link."
                     : 'Sign in with your email and password')}
@@ -180,16 +180,16 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                   <button
                     type="button"
                     onClick={() => switchMode('signup')}
-                    className={`py-3 text-[11px] font-black uppercase tracking-widest transition-colors ${
+                    className={`px-2 py-3 text-[11px] font-black uppercase tracking-wider leading-tight transition-colors ${
                       mode === 'signup' ? 'bg-black text-white' : 'bg-white text-black hover:bg-black/5'
                     }`}
                   >
-                    Create Account
+                    Create free account
                   </button>
                   <button
                     type="button"
                     onClick={() => switchMode('signin')}
-                    className={`py-3 text-[11px] font-black uppercase tracking-widest transition-colors ${
+                    className={`px-2 py-3 text-[11px] font-black uppercase tracking-wider leading-tight transition-colors ${
                       mode === 'signin' ? 'bg-black text-white' : 'bg-white text-black hover:bg-black/5'
                     }`}
                   >
@@ -329,7 +329,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                 disabled={loading || !canSubmit}
                 className="w-full bg-black py-4 text-xs font-black uppercase tracking-[0.4em] text-white hover:bg-zinc-800 disabled:opacity-50 flex items-center justify-center gap-3"
               >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === 'signup' ? 'Create Account' : mode === 'forgot' ? 'Send Reset Link' : 'Sign In'}
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === 'signup' ? 'Create free account' : mode === 'forgot' ? 'Send Reset Link' : 'Sign In'}
               </button>
 
               {mode === 'forgot' ? (

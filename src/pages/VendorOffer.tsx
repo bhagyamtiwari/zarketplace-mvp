@@ -310,12 +310,25 @@ function photosOf(item: OfferItem | null): string[] {
   return list.length ? list : item.image_url ? [item.image_url] : [];
 }
 
-/** "Birkenstock Arizona, size 42, Great condition": the item as the vendor described it. */
+/** "Size: 42, Condition: Great": the two labelled facts, in that order. */
 function itemFacts(item: OfferItem | null): string {
   if (!item) return '';
   const size = item.size_type?.trim() || item.size?.trim();
-  return [size ? `Size ${size}` : null, item.condition ? `${item.condition} condition` : null]
+  return [size ? `Size: ${size}` : null, item.condition ? `Condition: ${item.condition}` : null]
     .filter(Boolean).join(', ');
+}
+
+/**
+ * The brand, then the item's own name. The brand leads because it is what a
+ * vendor recognises first, but it is dropped when the title already carries
+ * it: plenty of titles end in the label they are for, and "Ralph Lauren Red
+ * T-Shirt Denim & Supply Ralph Lauren" is what saying it twice looks like.
+ */
+function itemName(item: OfferItem | null): { brand: string | null; title: string } {
+  const title = item?.title?.trim() || 'Your item';
+  const brand = item?.brand?.trim();
+  if (!brand || title.toLowerCase().includes(brand.toLowerCase())) return { brand: null, title };
+  return { brand, title };
 }
 
 /** Every photo the vendor sent, in a row that scrolls sideways on a phone. */
@@ -338,6 +351,7 @@ function ItemPhotos({ item }: { item: OfferItem | null }) {
 function ItemLine({ item }: { item: OfferItem | null }) {
   const cover = photosOf(item)[0];
   const facts = itemFacts(item);
+  const { brand, title } = itemName(item);
   return (
     <div className="flex items-center gap-4">
       {cover && (
@@ -346,7 +360,8 @@ function ItemLine({ item }: { item: OfferItem | null }) {
         </div>
       )}
       <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="text-[15px] font-bold leading-snug">{item?.title ?? 'Your item'}</span>
+        {brand && <span className="text-xs font-black uppercase tracking-widest">{brand}</span>}
+        <span className="text-[15px] font-bold leading-snug">{title}</span>
         <span className="text-sm">{[item?.sku, facts].filter(Boolean).join(', ')}</span>
       </div>
     </div>
@@ -384,6 +399,7 @@ export function OfferScreen({
   onContinue: () => void; onDecline: () => void; submitting: boolean;
 }) {
   const facts = itemFacts(item);
+  const { brand, title } = itemName(item);
   return (
     <div className="flex flex-col gap-10">
       <ItemPhotos item={item} />
@@ -394,9 +410,10 @@ export function OfferScreen({
           <span className="text-4xl sm:text-5xl font-black tracking-tighter leading-none tabular-nums">
             {formatCurrency(amount)}
           </span>
-          <span className="text-sm leading-snug sm:max-w-[58%] sm:text-right">
-            <span className="font-bold">{item?.title ?? 'Your item'}</span>
-            {facts && <>, {facts}</>}
+          <span className="flex flex-col gap-0.5 text-sm leading-snug sm:max-w-[58%] sm:text-right">
+            {brand && <span className="text-xs font-black uppercase tracking-widest">{brand}</span>}
+            <span className="font-bold">{title}</span>
+            {facts && <span>{facts}</span>}
           </span>
         </div>
         {expiresAt && (
