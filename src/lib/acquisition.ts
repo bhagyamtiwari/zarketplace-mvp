@@ -90,55 +90,76 @@ export async function getVendorOffer(listingId: string): Promise<VendorOffer | n
 // Bumped whenever a clause's wording changes. Each acceptance stores the version
 // and the exact text it agreed to, so an older acceptance is never read against
 // newer words.
-export const AGREEMENT_VERSION = '2026-09-17.1';
+export const AGREEMENT_VERSION = '2026-09-25.1';
 
 export interface AgreementClause { key: string; text: string }
 
 // Same three commitments, in sentences a person reads rather than scrolls
-// past. Nothing is compressed out: genuine and accurately described, return
-// postage at the vendor's cost on refusal, and forfeiture after 60 days are
-// each still their own tick. They are never collapsed behind a link - someone
-// who loses an item after 60 days has to have seen that sentence.
+// past. Nothing is compressed out: the exact item, accurately described and
+// not a counterfeit; return postage at the vendor's cost on refusal; and
+// forfeiture after 60 days are each still their own tick. They are never
+// collapsed behind a link: someone who loses an item after 60 days has to
+// have seen that sentence.
 export const AGREEMENT_CLAUSES: AgreementClause[] = [
   {
     key: 'genuine_and_accurate',
-    text: "This item is genuine and described accurately, it's the exact item in my photos, and I'll keep it packed and unworn until it's bought or I withdraw it.",
+    text: 'It is the exact item in my photos, described accurately and not a counterfeit, and I will keep it packed and unworn until it is bought or I withdraw it.',
   },
   {
     key: 'return_shipping_payable',
-    text: "If it doesn't match when it reaches you, you won't take it, and I can pay the return postage to get it back.",
+    text: 'If it does not match my photos when it reaches you, you can refuse it, and I will pay the postage to get it back.',
   },
   {
     key: 'sixty_day_forfeit',
-    text: "If I don't claim it back within 60 days, zarketplace can donate or dispose of it.",
+    text: 'If I do not claim a refused item within 60 days, zarketplace can donate or dispose of it.',
   },
 ];
+
+/** What accepting asks for: who the vendor is, where we pay them, and where we collect from. */
+export interface AcceptanceDetails {
+  fullName: string;
+  /** Ten digits; the database adds +91. */
+  phone: string;
+  /** Empty when a confirmed UPI ID is already on file: the database uses that one. */
+  upiVpa: string;
+  address: string;
+  landmark: string;
+  city: string;
+  pincode: string;
+}
 
 /**
  * Accept the offer and sign the agreement. Both happen inside one database
  * function, in one transaction: there is no path that records an acceptance
- * without the agreement, or the other way round.
+ * without the agreement, or the other way round. The same call saves the
+ * vendor's name, mobile number and UPI ID (confirmed here once, then fixed)
+ * to their account, the item and the signed agreement.
  */
 export async function acceptOffer(
   listingId: string,
-  pickup: { address: string; city: string; pincode: string },
-): Promise<{ offer_amount: number }> {
+  d: AcceptanceDetails,
+): Promise<{ offer_amount: number; upi_vpa: string }> {
+  const place = resolvePincode(d.pincode);
   const { data, error } = await supabase.rpc('accept_acquisition_offer', {
     p_listing_id: listingId,
     p_terms_version: AGREEMENT_VERSION,
     p_terms_text: AGREEMENT_CLAUSES,
+    p_full_name: d.fullName,
+    p_phone: d.phone,
+    p_upi_vpa: d.upiVpa,
     p_user_agent: typeof navigator === 'undefined' ? null : navigator.userAgent,
-    p_pickup_address: pickup.address,
-    p_pickup_city: pickup.city,
-    p_pickup_pincode: pickup.pincode,
+    p_pickup_address: d.address,
+    p_pickup_landmark: d.landmark,
+    p_pickup_city: d.city,
+    p_pickup_pincode: d.pincode,
     // Resolved here, from the pincode we just collected, so a vendor is asked
     // once and the two answers cannot disagree. The mapping lives in
     // lib/pincode.ts and has no database equivalent to do this server-side.
-    p_pickup_state: resolvePincode(pickup.pincode).stateName,
-    p_pickup_state_code: resolvePincode(pickup.pincode).stateCode,
+    p_pickup_state: place.stateName,
+    p_pickup_state_code: place.stateCode,
   });
   if (error) throw error;
-  return data as { offer_amount: number };
+  return data as { offer_amount: number; upi_vpa: string };
 }
 
 /** The vendor turns our number down. The item stays theirs and can be reworked. */

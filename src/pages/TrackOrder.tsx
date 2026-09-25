@@ -26,7 +26,7 @@ import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
 import { log } from '../lib/log';
 import { shipmentStatusLabel } from '../lib/orderStatus';
-import { usePageMeta, META } from '../lib/pageMeta';
+import { usePageMeta, META, itemPath } from '../lib/pageMeta';
 import { ui } from '../lib/ui';
 
 const tlog = log('track');
@@ -139,7 +139,7 @@ function formatDateTime(iso: string): string {
 
 export function OrderCard({ order }: { order: Order }) {
   const idx = stepIndex(order.status);
-  const itemHref = order.listing_sku ? `/item/${order.listing_sku.toLowerCase()}` : null;
+  const itemHref = order.listing_sku ? itemPath({ sku: order.listing_sku, title: order.listing_title }) : null;
 
   return (
     <div className="flex flex-col gap-6">

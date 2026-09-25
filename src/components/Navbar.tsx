@@ -20,8 +20,8 @@ import { useFavorites } from '../lib/favorites';
 // Everything is a word, not an icon, set in the micro-label: an icon row of
 // search, bag and person is the default of every template, and each one had
 // to be decoded. Search lives on the Shop page, next to the catalogue it
-// searches. The cart only appears once you are signed in, because the cart
-// needs an account and a bag icon that answers with a sign-in box is a trick.
+// searches. The cart appears once you are signed in or have put something in
+// it: a cart needs no account, and sign-in is asked for at checkout.
 const NAV = 'text-[11px] font-black uppercase tracking-[0.2em]';
 
 export function Navbar() {
@@ -156,7 +156,7 @@ export function Navbar() {
                 </NavLink>
               )}
 
-              {user && (
+              {(user || cartCount > 0) && (
                 <NavLink to="/cart" active={location.pathname === '/cart'}>{cartLabel}</NavLink>
               )}
 
@@ -169,7 +169,7 @@ export function Navbar() {
             </div>
 
             {/* A phone shows the cart only when there is something in it. */}
-            {user && cartCount > 0 && (
+            {cartCount > 0 && (
               <Link to="/cart" className={cn(NAV, 'md:hidden', onFeed && 'text-white')}>
                 {cartLabel}
               </Link>
@@ -232,7 +232,7 @@ export function Navbar() {
                   <MainLink to="/sell" onClick={closeMenu}>Get an offer</MainLink>
                   <MainLink to="/how-it-works" onClick={closeMenu}>Sell to us</MainLink>
                   <MainLink to="/browse?q=saved" onClick={closeMenu}>{favorites.size > 0 ? `Favorites (${favorites.size})` : 'Favorites'}</MainLink>
-                  {user && <MainLink to="/cart" onClick={closeMenu}>{cartLabel}</MainLink>}
+                  {(user || cartCount > 0) && <MainLink to="/cart" onClick={closeMenu}>{cartLabel}</MainLink>}
                 </nav>
 
                 <div className="flex flex-col gap-1 border-t border-black/10 pt-6">

@@ -16,7 +16,7 @@ import { ListingCard } from '../components/ListingCard';
 import { formatCurrency as fmt } from '../lib/utils';
 import { getShippingCategories, shippingRateFor, type ShippingCategory } from '../lib/pricing';
 import { conditionByName } from '../lib/condition';
-import { usePageMeta, itemName, itemMetaTitle, itemMetaDescription, isDemoTitle } from '../lib/pageMeta';
+import { usePageMeta, itemName, itemMetaTitle, itemMetaDescription, isDemoTitle, itemPath, skuFromItemParam } from '../lib/pageMeta';
 import { toggleFavorite, useFavorites } from '../lib/favorites';
 
 const plog = log('product');
@@ -72,7 +72,9 @@ const SAFE_LISTING_COLUMNS =
 
 export function ProductPage() {
   const params = useParams();
-  const slug = (params.sku || params.id || '').trim();
+  // /item/zv-83374-levis-501-jeans: only the code finds the item, so a link
+  // made before a title change still lands.
+  const slug = params.sku ? skuFromItemParam(params.sku) : (params.id || '').trim();
   const navigate = useNavigate();
   const { add, has } = useCart();
   const { user } = useAuth();
@@ -174,6 +176,17 @@ export function ProductPage() {
     fetchListing();
   }, [slug, user]);
 
+  // A link with no name in it (every link made before names were added), or
+  // an old name, moves the address bar to the item's current address without
+  // a reload. The code in it is unchanged, so nothing is fetched again.
+  React.useEffect(() => {
+    if (!listing?.sku) return;
+    const want = itemPath(listing);
+    if (window.location.pathname !== want) {
+      navigate({ pathname: want, search: window.location.search, hash: window.location.hash }, { replace: true });
+    }
+  }, [listing, navigate]);
+
   // "You might like": same category first, backfilled with newest listings
   // so the section is never empty while supply is thin.
   const [youMayLike, setYouMayLike] = React.useState<Listing[]>([]);
@@ -217,9 +230,7 @@ export function ProductPage() {
     description: listing
       ? itemMetaDescription(metaName, metaSize, listing.condition, !!listing.free_shipping)
       : 'Pre-owned clothing, sold and shipped by zarketplace.',
-    path: listing
-      ? (listing.sku ? `/item/${listing.sku.toLowerCase()}` : `/product/${listing.id}`)
-      : window.location.pathname,
+    path: listing ? itemPath(listing) : window.location.pathname,
     noIndex: listing ? isDemoTitle(listing.title) : !loading,
   });
 
@@ -495,18 +506,9 @@ export function ProductPage() {
                   onClick={async () => {
                     if (has(listing.id)) { navigate('/cart'); return; }
                     setCartMsg(null);
-                    if (!user) {
-                      const target = listing;
-                      setAuthModal({
-                        redirectTo: `/product/${listing.id}`,
-                        message: 'Sign in to add to cart.',
-                        onSuccess: async () => {
-                          await add(target);
-                          setCartMsg('Added to cart');
-                        },
-                      });
-                      return;
-                    }
+                    // No account needed to fill a cart: it is kept on this
+                    // device and moves to the account at sign-in, which is
+                    // asked for at checkout.
                     await add(listing);
                     setCartMsg('Added to cart');
                   }}

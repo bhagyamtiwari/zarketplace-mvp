@@ -5,6 +5,7 @@ import { Listing } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import { variantUrl, variantSrcSet } from '../lib/images';
 import { toggleFavorite, useFavorites } from '../lib/favorites';
+import { itemPath } from '../lib/pageMeta';
 
 interface ListingCardProps {
   listing: Listing;
@@ -56,7 +57,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing, priority = fa
 
   return (
     <Link
-      to={listing.sku ? `/item/${listing.sku.toLowerCase()}` : `/product/${listing.id}`}
+      to={itemPath(listing)}
       onMouseEnter={() => { if (second && !sold) setShowSecond(true); }}
       className="group flex flex-col gap-3"
     >

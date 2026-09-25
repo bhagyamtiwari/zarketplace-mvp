@@ -71,6 +71,34 @@ function itemName(title: string | null, brand: string | null): string {
   return b && !t.toLowerCase().includes(b.toLowerCase()) ? `${b} ${t}` : t;
 }
 
+// Item addresses: /item/zv-83374-levis-501-jeans. The same functions as
+// itemSlug, itemPath and skuFromItemParam in src/lib/pageMeta.ts, duplicated
+// for the same reason as socialCardUrl. Change all three copies together.
+function itemSlug(title: string | null | undefined, brand: string | null | undefined): string {
+  let s = itemName(title ?? null, brand ?? null)
+    .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/&/g, ' and ')
+    .replace(/['\u2019]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  if (s.length > 80) s = s.slice(0, 81).replace(/-[^-]*$/, '');
+  return s;
+}
+
+function itemPath(l: { sku?: string | null; id?: string | null; title?: string | null; brand?: string | null }): string {
+  if (!l.sku) return `/product/${l.id ?? ''}`;
+  const code = l.sku.toLowerCase();
+  const slug = itemSlug(l.title, l.brand);
+  return `/item/${slug ? `${code}-${slug}` : code}`;
+}
+
+function skuFromItemParam(param: string | null | undefined): string {
+  const p = (param ?? '').trim();
+  const m = /^zv-[0-9a-f]+(?=-|$)/i.exec(p);
+  return m ? m[0] : p;
+}
+
 function itemMetaTitle(name: string, size: string | null | undefined): string {
   const sz = (size ?? '').trim();
   return `Pre-owned ${name}${sz ? `, size ${sz}` : ''}`;
@@ -266,7 +294,9 @@ const SUMMARY_RE = /<!--seo:start-->[\s\S]*?<!--seo:end-->/;
 const HERO_RE = /<!--static-hero:start-->[\s\S]*?<!--static-hero:end-->/;
 
 export default async function handler(req: any, res: any) {
-  const sku = String(req.query?.sku ?? '').trim();
+  // Everything after /item/: the code, then the item's name in words.
+  const param = String(req.query?.sku ?? '').trim();
+  const sku = skuFromItemParam(param);
   const host = req.headers['x-forwarded-host'] || req.headers.host || 'zarketplace.com';
   const proto = req.headers['x-forwarded-proto'] || 'https';
   const origin = `${proto}://${host}`;
@@ -303,9 +333,26 @@ export default async function handler(req: any, res: any) {
   }
 
   if (listing) {
+    const path = itemPath({ sku: listing.sku ?? sku, title: listing.title, brand: listing.brand });
+    // A link with the code alone (every link made before names were added to
+    // addresses) is sent on, permanently, to the address with the name in it,
+    // so search engines move their record over rather than keeping two. Only
+    // the bare code is redirected: a name that is merely out of date is served
+    // as it is, with the canonical below naming the current address.
+    if (param.toLowerCase() === sku.toLowerCase() && path !== `/item/${sku.toLowerCase()}`) {
+      const rest = new URLSearchParams();
+      for (const [k, v] of Object.entries(req.query ?? {})) {
+        if (k !== 'sku' && typeof v === 'string') rest.append(k, v);
+      }
+      const qs = rest.toString();
+      res.setHeader('Location', `${path}${qs ? `?${qs}` : ''}`);
+      res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=300');
+      res.status(301).end();
+      return;
+    }
     // Lowercase, the form every link on the site uses: an uppercase canonical
     // pointed search engines at a URL the site itself never links to.
-    const canonical = `${origin}/item/${encodeURIComponent((listing.sku ?? sku).toLowerCase())}`;
+    const canonical = `${origin}${path}`;
     const total = await checkoutTotal(listing);
     html = html
       .replace(STRIP_RE, '')

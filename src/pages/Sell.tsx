@@ -570,6 +570,7 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
           : `${Math.floor(MAX_CM[tooBig.key] / CM_PER_INCH)} in`;
         return `That ${tooBig.label.toLowerCase()} measurement is over ${limit}. Check the number and the unit.`;
       }
+      if (description.trim().length < 20) return 'Add a description: a sentence or two on the brand, material, condition and when to wear it.';
       const banned = findBannedPhrase(`${title} ${brand} ${description}`);
       if (banned) return `Remove "${banned}" - each listing is one item, not a batch or store catalogue.`;
     }
@@ -1387,12 +1388,19 @@ function DetailsStep(props: {
           </div>
         )}
 
+        {/* Required: it becomes the listing's description, and buyers ask
+            about material and season more than anything else a photo leaves
+            out. */}
         <div className="flex flex-col gap-3">
-          <FieldLabel optional>Anything a photo cannot show</FieldLabel>
-          <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4}
-            placeholder="Fit, material, how it runs, anything a photo can't show."
+          <FieldLabel>Description</FieldLabel>
+          <p className={ui.help}>
+            Mention the brand, the material (like cotton), its condition, when to wear it (season
+            or occasion) and anything a buyer should know.
+          </p>
+          <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={5}
+            placeholder="e.g. Heavyweight cotton hoodie, fits true to size. Made for winter layering. Light fading on the cuffs."
             className="w-full border border-black/20 p-4 text-sm focus:border-black focus:outline-none resize-none transition-colors placeholder:text-black/35" />
-          <TrustNote>The more we know, the closer our offer lands.</TrustNote>
+          <TrustNote>Feel free to use AI to help you write it. The more we know, the closer our offer lands.</TrustNote>
         </div>
       </div>
     </div>

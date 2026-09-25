@@ -5,27 +5,28 @@ import { useCart } from '../lib/cart';
 import type { CartItem } from '../types';
 import { formatCurrency } from '../lib/utils';
 import { variantUrl } from '../lib/images';
-import { RequireAuth } from '../components/RequireAuth';
+import { AuthModal } from '../components/AuthModal';
+import { useAuth } from '../lib/auth';
 import { getShippingCategories, shippingRateFor, type ShippingCategory } from '../lib/pricing';
+import { itemPath } from '../lib/pageMeta';
 
+// Open to everyone: a cart is kept on the device until sign-in, and signing
+// in is asked for at checkout, where an account is actually needed.
 export function Cart() {
-  return (
-    <RequireAuth message="Sign in to see your cart.">
-      <CartInner />
-    </RequireAuth>
-  );
-}
-
-function CartInner() {
   const { items, remove, clear } = useCart();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const [signIn, setSignIn] = React.useState(false);
   return (
-    <CartView
-      items={items}
-      onRemove={(id) => { void remove(id); }}
-      onClear={() => { void clear(); }}
-      onCheckout={() => navigate('/checkout')}
-    />
+    <>
+      <CartView
+        items={items}
+        onRemove={(id) => { void remove(id); }}
+        onClear={() => { void clear(); }}
+        onCheckout={() => (user ? navigate('/checkout') : setSignIn(true))}
+      />
+      <AuthModal open={signIn} onClose={() => setSignIn(false)} redirectTo="/checkout" message="Sign in to check out." />
+    </>
   );
 }
 
@@ -44,8 +45,8 @@ export function CartView({ items, onRemove, onClear, onCheckout }: {
   const shipping = items.reduce((sum, i) => sum + (i.free_shipping ? 0 : shippingRateFor(i.shipping_category, shippingCategories)), 0);
   const total = subtotal + shipping;
 
-  const itemPath = (i: { sku?: string | null; listing_id: string }) =>
-    i.sku ? `/item/${i.sku.toLowerCase()}` : `/product/${i.listing_id}`;
+  const itemHref = (i: { sku?: string | null; listing_id: string; title?: string; brand?: string | null }) =>
+    itemPath({ sku: i.sku, id: i.listing_id, title: i.title, brand: i.brand });
 
   // A centred column, like the sell form: a cart is one short task, and on a
   // wide screen a list pinned to the left edge looked unfinished. The same
@@ -79,13 +80,13 @@ export function CartView({ items, onRemove, onClear, onCheckout }: {
         <ul className="flex flex-col border-t border-black/10">
           {items.map((item) => (
             <li key={item.listing_id} className="flex gap-4 border-b border-black/10 py-4">
-              <Link to={itemPath(item)} className="h-24 w-[72px] shrink-0 overflow-hidden bg-zinc-100">
+              <Link to={itemHref(item)} className="h-24 w-[72px] shrink-0 overflow-hidden bg-zinc-100">
                 {item.image_url && (
                   <img src={variantUrl(item.image_url, 'thumb')} alt={item.title} className="h-full w-full object-cover" />
                 )}
               </Link>
               <div className="flex min-w-0 flex-1 flex-col gap-0.5 text-sm">
-                <Link to={itemPath(item)} className="font-bold leading-snug hover:underline underline-offset-4">
+                <Link to={itemHref(item)} className="font-bold leading-snug hover:underline underline-offset-4">
                   {item.title}
                 </Link>
                 {item.sku && <span>{item.sku}</span>}
