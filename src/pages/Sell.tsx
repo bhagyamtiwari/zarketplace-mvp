@@ -32,7 +32,9 @@ import { trackEvent } from '../lib/analytics';
 import { CONDITIONS } from '../lib/condition';
 import { log } from '../lib/log';
 import { scrollToTop } from '../lib/scrollToTop';
-import { encodeVariants, encodeSocialCard, SOCIAL_CARD_SUFFIX, normalizePhoto } from '../lib/images';
+import { normalizePhoto } from '../lib/images';
+import { uploadListingPhoto } from '../lib/listingPhotos';
+import { usePhotoDrop } from '../lib/photoDrop';
 import { removeBackground } from '../lib/backgroundRemoval';
 import { usePageMeta, META } from '../lib/pageMeta';
 import { resolvePincode } from '../lib/pincode';
@@ -340,27 +342,7 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
     if (existing) return existing;
     const job = (async () => {
       if (!user) throw new Error('Sign in first.');
-      const base = `listings/${user.id}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const put = async (path: string, blob: Blob) => {
-        const { error } = await supabase.storage
-          .from('listing-images')
-          .upload(path, blob, { contentType: blob.type || 'image/jpeg', cacheControl: '31536000' });
-        if (error) throw error;
-      };
-      // Three sizes per photo; the stored URL is the 1600px one and
-      // variantUrl() derives the other two from its name.
-      const variants = await encodeVariants(file);
-      let fullUrl = '';
-      for (const variant of ['thumb', 'grid', 'full'] as const) {
-        const { blob, width, ext } = variants[variant];
-        const path = `${base}-${width}.${ext}`;
-        await put(path, blob);
-        if (variant === 'full') fullUrl = supabase.storage.from('listing-images').getPublicUrl(path).data.publicUrl;
-      }
-      // The 1200x630 link-preview card, made for every photo because any of
-      // them can end up as the cover. socialCardUrl() finds it by name.
-      await put(`${base}${SOCIAL_CARD_SUFFIX}`, await encodeSocialCard(file));
-      return fullUrl;
+      return uploadListingPhoto(file, user.id);
     })();
     uploadsRef.current.set(file, job);
     job.catch((err) => {
@@ -464,16 +446,13 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
   }, [shippingCategories, selectedCategory]);
 
 
-  // Photos from a phone, however many are picked at once. The first ones up
-  // to the limit are kept and the rest left out with a note, never a refusal.
-  // Each is decoded and resized here (normalizePhoto), one at a time, so an
-  // iPhone HEIC, a 20 MB original or a pick with no file type all just work,
-  // and background removal and upload handle a small JPEG, not the original.
-  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const input = e.target;
-    const picked: File[] = input.files ? Array.from(input.files) : [];
-    // Cleared straight away, so the same photo can be picked again.
-    input.value = '';
+  // Photos picked on a phone or dragged in from a computer, however many at
+  // once. The first ones up to the limit are kept and the rest left out with
+  // a note, never a refusal. Each is decoded and resized here
+  // (normalizePhoto), one at a time, so an iPhone HEIC, a 20 MB original or a
+  // pick with no file type all just work, and background removal and upload
+  // handle a small JPEG, not the original.
+  const addPhotos = async (picked: File[]) => {
     if (picked.length === 0 || adding) return;
     setPhotoNote(null);
 
@@ -483,6 +462,7 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
       return;
     }
     const candidates = picked.filter((f) => !f.type || f.type.startsWith('image/'));
+    const notPhotos = picked.length - candidates.length;
     const overLimit = Math.max(0, candidates.length - remaining);
 
     setAdding(true);
@@ -502,6 +482,7 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
     }
 
     const notes: string[] = [];
+    if (notPhotos > 0) notes.push(notPhotos === 1 ? 'One file is not a photo, so it was left out.' : `${notPhotos} files are not photos, so they were left out.`);
     if (overLimit > 0) notes.push(`${MAX_IMAGES} photos is the most, so the first ${remaining === 1 ? 'one was' : `${remaining} were`} added.`);
     if (unreadable > 0) notes.push(`${unreadable === 1 ? 'One photo' : `${unreadable} photos`} could not be opened. Try a screenshot of ${unreadable === 1 ? 'it' : 'them'} instead.`);
     if (notes.length) setPhotoNote(notes.join(' '));
@@ -530,6 +511,14 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
         setCleaning((prev) => { const next = { ...prev }; delete next[index]; return next; });
       });
     });
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const input = e.target;
+    const picked: File[] = input.files ? Array.from(input.files) : [];
+    // Cleared straight away, so the same photo can be picked again.
+    input.value = '';
+    void addPhotos(picked);
   };
 
   const removeImage = (index: number) => {
@@ -846,6 +835,7 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
                 originals={originals} cleaning={cleaning} onUseOriginal={useOriginal}
                 imagePreviews={imagePreviews}
                 onAdd={handleImageChange}
+                onDropFiles={(files) => { void addPhotos(files); }}
                 onRemove={(i) => { setPhotoNote(null); removeImage(i); }}
                 adding={adding}
                 note={photoNote}
@@ -1095,9 +1085,10 @@ function TrustNote({ children, full }: { children: React.ReactNode; full?: boole
   );
 }
 
-function PhotosStep({ imagePreviews, onAdd, onRemove, originals, cleaning, onUseOriginal, adding, note }: {
+function PhotosStep({ imagePreviews, onAdd, onDropFiles, onRemove, originals, cleaning, onUseOriginal, adding, note }: {
   imagePreviews: string[];
   onAdd: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onDropFiles: (files: File[]) => void;
   onRemove: (i: number) => void;
   originals: Record<number, { file: File; preview: string }>;
   cleaning: Record<number, boolean>;
@@ -1107,9 +1098,11 @@ function PhotosStep({ imagePreviews, onAdd, onRemove, originals, cleaning, onUse
 }) {
   const slotCount = Math.max(PHOTO_SLOT_LABELS.length, imagePreviews.length + 1);
   const slots = Array.from({ length: Math.min(slotCount, MAX_IMAGES) }, (_, i) => i);
+  // Photos dropped anywhere on this step are added, in the order dropped.
+  const drop = usePhotoDrop(onDropFiles, adding);
 
   return (
-    <div className="flex flex-col gap-12">
+    <div className="flex flex-col gap-12" {...drop.bind}>
       {/* One heading and one line. This was a kicker, a headline, three
           numbered tips, a footnote and a plug for a third-party background
           remover - six pieces of chrome to say "lay it flat in daylight". The
@@ -1167,8 +1160,10 @@ function PhotosStep({ imagePreviews, onAdd, onRemove, originals, cleaning, onUse
             </div>
           ) : (
             <label key={i} className={cn(
-              'relative flex aspect-[3/4] w-full flex-col items-center justify-center gap-2 border border-dashed border-black/25 p-3 text-center transition-colors',
-              adding ? 'cursor-wait' : 'cursor-pointer hover:border-black',
+              'relative flex aspect-[3/4] w-full flex-col items-center justify-center gap-2 border border-dashed p-3 text-center transition-colors',
+              'has-[:focus-visible]:border-solid has-[:focus-visible]:border-black',
+              drop.over ? 'border-solid border-black bg-black/[0.04]' : 'border-black/25',
+              !adding && 'hover:border-black',
             )}>
               {adding ? (
                 <>
@@ -1189,9 +1184,14 @@ function PhotosStep({ imagePreviews, onAdd, onRemove, originals, cleaning, onUse
                 </>
               )}
               {/* Every empty box opens the same picker, which takes several
-                  photos at once. Visually hidden rather than display:none,
-                  which some phone browsers will not open from a label. */}
-              <input type="file" accept="image/*" className="sr-only" onChange={onAdd} multiple disabled={adding} />
+                  photos at once. The file input itself covers the whole box,
+                  invisibly, so a tap lands on it directly. Hidden inside the
+                  box and reached through the label, iOS Safari did not open
+                  the picker at all. */}
+              <input
+                type="file" accept="image/*" multiple onChange={onAdd} disabled={adding}
+                className="absolute inset-0 h-full w-full cursor-pointer opacity-0 file:cursor-pointer disabled:cursor-wait"
+              />
             </label>
           );
         })}
@@ -1202,6 +1202,8 @@ function PhotosStep({ imagePreviews, onAdd, onRemove, originals, cleaning, onUse
           {imagePreviews.length}/{MAX_IMAGES} uploaded.
           {imagePreviews.length < REQUIRED_PHOTOS && ` ${REQUIRED_PHOTOS - imagePreviews.length} more needed.`}
         </p>
+        {/* Only where there is a mouse to drag with. */}
+        <p className="hidden text-sm pointer-fine:block">You can also drag photos from your computer onto the boxes.</p>
         {note && <p role="status" className="text-sm">{note}</p>}
       </div>
     </div>
