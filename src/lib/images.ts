@@ -118,16 +118,31 @@ async function loadBitmap(file: File): Promise<ImageBitmap | HTMLImageElement> {
   }
 }
 
+const NORMALIZE_TIMEOUT_MS = 30_000;
+
+/** Rejects if `promise` has not settled within `ms`. */
+function within<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Could not read that image.')), ms);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (err) => { clearTimeout(timer); reject(err); },
+    );
+  });
+}
+
 /**
  * A photo straight off a phone, made into something every later step can
  * handle: decoded (which is what makes an iPhone HEIC or an untyped pick
  * usable), turned the right way up, no longer than `maxEdge` on its long side,
  * and saved as a JPEG on white. A 48MP phone photo was 10-20 MB, which the old
  * size check refused outright, and which was then sent whole to background
- * removal. Throws only when the browser cannot read the image at all.
+ * removal. Throws when the browser cannot read the image at all, or has not
+ * managed to in 30 seconds: a decode that stalls must not leave the page
+ * saying "Adding photos" for good.
  */
 export async function normalizePhoto(file: File, maxEdge = 2400): Promise<File> {
-  const bitmap = await loadBitmap(file);
+  const bitmap = await within(loadBitmap(file), NORMALIZE_TIMEOUT_MS);
   const srcW = 'naturalWidth' in bitmap ? bitmap.naturalWidth : bitmap.width;
   const srcH = 'naturalHeight' in bitmap ? bitmap.naturalHeight : bitmap.height;
   if (!srcW || !srcH) throw new Error('Could not read that image.');
@@ -146,7 +161,10 @@ export async function normalizePhoto(file: File, maxEdge = 2400): Promise<File> 
   ctx.drawImage(bitmap, 0, 0, w, h);
   if ('close' in bitmap && typeof bitmap.close === 'function') bitmap.close();
 
-  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+  const blob = await within(
+    new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92)),
+    NORMALIZE_TIMEOUT_MS,
+  );
   canvas.width = 0;
   canvas.height = 0;
   if (!blob) throw new Error('Could not read that image.');

@@ -28,6 +28,7 @@ import { shipmentStatusLabel } from '../lib/orderStatus';
 import { log } from '../lib/log';
 import { sendEmail } from '../lib/email';
 import { writeAudit, AuditEntry } from '../lib/adminAudit';
+import { ListingEditor } from '../components/admin/ListingEditor';
 
 const adlog = log('admin');
 
@@ -1138,6 +1139,7 @@ function ListingDrawer({ listing, acq, orders, payouts, audit, backLabel, onClos
   backLabel: string; onClose: () => void; onDone: () => Promise<void> | void; onOpenOrder: (id: string) => void;
 }) {
   const [busy, setBusy] = React.useState(false);
+  const [editing, setEditing] = React.useState(false);
   const order = orders.find((o) => o.listing_id === listing.id && o.status !== 'cancelled' && o.status !== 'refunded');
   // Via the acquisition, never via the order: the payout exists because we
   // bought this item, not because someone bought it from us.
@@ -1184,13 +1186,32 @@ function ListingDrawer({ listing, acq, orders, payouts, audit, backLabel, onClos
 
   return (
     <DrawerShell title={listing.title} subtitle={listing.brand ?? ''} backLabel={backLabel} onClose={onClose}>
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
-        {listing.image_urls.slice(0, 6).map((u, i) => (
-          <a key={i} href={u} target="_blank" rel="noreferrer" className="block aspect-[3/4] overflow-hidden bg-zinc-100 border border-black/5">
-            <img src={u} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-          </a>
-        ))}
-      </div>
+      {/* Full control of the listing, whatever the vendor sent: photos,
+          words, filing, condition, measurements and price. */}
+      {editing ? (
+        <ListingEditor
+          listing={listing}
+          onCancel={() => setEditing(false)}
+          onSaved={async () => { setEditing(false); await onDone(); }}
+        />
+      ) : (
+        <>
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+            {listing.image_urls.slice(0, 10).map((u, i) => (
+              <a key={i} href={u} target="_blank" rel="noreferrer" className="block aspect-[3/4] overflow-hidden bg-zinc-100 border border-black/5">
+                <img src={variantUrl(u, 'thumb')} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+              </a>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="self-start bg-black px-5 py-2.5 text-[11px] font-black uppercase tracking-[0.2em] text-white hover:bg-zinc-800"
+          >
+            Edit listing
+          </button>
+        </>
+      )}
 
       <div className="flex items-center gap-2">
         <span className={cn('text-[11px] font-black uppercase tracking-widest', listing.is_sold ? 'text-red-600' : listing.status === 'approved' ? 'text-emerald-700' : 'ink-mid')}>
