@@ -32,7 +32,7 @@ import { trackEvent } from '../lib/analytics';
 import { CONDITIONS } from '../lib/condition';
 import { log } from '../lib/log';
 import { scrollToTop } from '../lib/scrollToTop';
-import { encodeVariants, encodeSocialCard, SOCIAL_CARD_SUFFIX } from '../lib/images';
+import { encodeVariants, encodeSocialCard, SOCIAL_CARD_SUFFIX, normalizePhoto } from '../lib/images';
 import { removeBackground } from '../lib/backgroundRemoval';
 import { usePageMeta, META } from '../lib/pageMeta';
 import { resolvePincode } from '../lib/pincode';
@@ -321,6 +321,12 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
   // put it back. Only populated where background removal produced something.
   const [originals, setOriginals] = React.useState<Record<number, { file: File; preview: string }>>({});
   const [cleaning, setCleaning] = React.useState<Record<number, boolean>>({});
+  // True while picked photos are being read and resized, which on a phone can
+  // take a moment per photo; the add boxes say so instead of looking dead.
+  const [adding, setAdding] = React.useState(false);
+  // One quiet line under the photos when something was left out, instead of
+  // an alert per file.
+  const [photoNote, setPhotoNote] = React.useState<string | null>(null);
 
   // Photos are resized, encoded and uploaded in the background from the
   // moment they are added, while the vendor fills in the rest of the form, so
@@ -458,69 +464,72 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
   }, [shippingCategories, selectedCategory]);
 
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const fileList = e.target.files;
+  // Photos from a phone, however many are picked at once. The first ones up
+  // to the limit are kept and the rest left out with a note, never a refusal.
+  // Each is decoded and resized here (normalizePhoto), one at a time, so an
+  // iPhone HEIC, a 20 MB original or a pick with no file type all just work,
+  // and background removal and upload handle a small JPEG, not the original.
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const input = e.target;
-    if (!fileList || fileList.length === 0) return;
-    const remaining = MAX_IMAGES - imageFiles.length;
-    if (remaining <= 0) { input.value = ''; return; }
-    // Match the bucket limits (8 MiB, png/jpeg/webp) so users get a friendly
-    // error here instead of a failed upload against storage.
-    const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
-    const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
-    const accepted: File[] = [];
-    for (let i = 0; i < fileList.length && accepted.length < remaining; i++) {
-      const f = fileList[i];
-      if (!f) continue;
-      if (!ALLOWED_IMAGE_TYPES.includes(f.type)) {
-        alert(`"${f.name}" is not a supported image. Use PNG, JPG, or WebP.`);
-        continue;
-      }
-      if (f.size > MAX_IMAGE_BYTES) {
-        alert(`"${f.name}" is too large. Each image must be 8 MB or smaller.`);
-        continue;
-      }
-      accepted.push(f);
-    }
-    if (accepted.length === 0) { input.value = ''; return; }
-    Promise.all(
-      accepted.map((file) => new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = () => reject(reader.error);
-        reader.readAsDataURL(file);
-      })),
-    ).then((urls) => {
-      const startIndex = imageFiles.length;
-      setImageFiles((prev) => [...prev, ...accepted]);
-      setImagePreviews((prev) => [...prev, ...urls]);
+    const picked: File[] = input.files ? Array.from(input.files) : [];
+    // Cleared straight away, so the same photo can be picked again.
+    input.value = '';
+    if (picked.length === 0 || adding) return;
+    setPhotoNote(null);
 
-      // Strip the background in the background, so to speak. The photo is
-      // already usable and already on screen; this swaps it if and when it
-      // succeeds. It can never block, never rejects a photo, and every
-      // failure quietly leaves the vendor's original in place.
-      accepted.forEach((file, offset) => {
-        const index = startIndex + offset;
-        setCleaning((prev) => ({ ...prev, [index]: true }));
-        void removeBackground(file).then(({ processed }) => {
-          if (processed) {
-            setOriginals((prev) => ({ ...prev, [index]: { file, preview: urls[offset] } }));
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              const preview = reader.result as string;
-              setImageFiles((prev) => prev.map((f, i) => (i === index ? processed : f)));
-              setImagePreviews((prev) => prev.map((u, i) => (i === index ? preview : u)));
-            };
-            reader.readAsDataURL(processed);
-          }
-        }).finally(() => {
-          setCleaning((prev) => { const next = { ...prev }; delete next[index]; return next; });
-        });
+    const remaining = MAX_IMAGES - imageFiles.length;
+    if (remaining <= 0) {
+      setPhotoNote(`That is ${MAX_IMAGES} photos already. Remove one to add another.`);
+      return;
+    }
+    const candidates = picked.filter((f) => !f.type || f.type.startsWith('image/'));
+    const overLimit = Math.max(0, candidates.length - remaining);
+
+    setAdding(true);
+    const accepted: File[] = [];
+    let unreadable = 0;
+    try {
+      for (const f of candidates.slice(0, remaining)) {
+        try {
+          accepted.push(await normalizePhoto(f));
+        } catch (err) {
+          slog.warn('could not read a photo', err);
+          unreadable++;
+        }
+      }
+    } finally {
+      setAdding(false);
+    }
+
+    const notes: string[] = [];
+    if (overLimit > 0) notes.push(`${MAX_IMAGES} photos is the most, so the first ${remaining === 1 ? 'one was' : `${remaining} were`} added.`);
+    if (unreadable > 0) notes.push(`${unreadable === 1 ? 'One photo' : `${unreadable} photos`} could not be opened. Try a screenshot of ${unreadable === 1 ? 'it' : 'them'} instead.`);
+    if (notes.length) setPhotoNote(notes.join(' '));
+    if (accepted.length === 0) return;
+
+    const urls = accepted.map((f) => URL.createObjectURL(f));
+    const startIndex = imageFiles.length;
+    setImageFiles((prev) => [...prev, ...accepted]);
+    setImagePreviews((prev) => [...prev, ...urls]);
+
+    // Strip the background in the background, so to speak. The photo is
+    // already usable and already on screen; this swaps it if and when it
+    // succeeds. It can never block, never rejects a photo, and every
+    // failure quietly leaves the vendor's original in place.
+    accepted.forEach((file, offset) => {
+      const index = startIndex + offset;
+      setCleaning((prev) => ({ ...prev, [index]: true }));
+      void removeBackground(file).then(({ processed }) => {
+        if (processed) {
+          setOriginals((prev) => ({ ...prev, [index]: { file, preview: urls[offset] } }));
+          const preview = URL.createObjectURL(processed);
+          setImageFiles((prev) => prev.map((f, i) => (i === index ? processed : f)));
+          setImagePreviews((prev) => prev.map((u, i) => (i === index ? preview : u)));
+        }
+      }).finally(() => {
+        setCleaning((prev) => { const next = { ...prev }; delete next[index]; return next; });
       });
-    }).catch((err) => {
-      slog.error('FileReader failed', err);
-      alert('Failed to read one of the images.');
-    }).finally(() => { input.value = ''; });
+    });
   };
 
   const removeImage = (index: number) => {
@@ -749,6 +758,7 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
     setCondition(''); setHasFlaws(null); setFlawsDescription('');
     setDeclarations(noDeclarations());
     setShowRequired(false);
+    setPhotoNote(null);
   };
 
   if (submitted) {
@@ -836,7 +846,9 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
                 originals={originals} cleaning={cleaning} onUseOriginal={useOriginal}
                 imagePreviews={imagePreviews}
                 onAdd={handleImageChange}
-                onRemove={removeImage}
+                onRemove={(i) => { setPhotoNote(null); removeImage(i); }}
+                adding={adding}
+                note={photoNote}
               />
             )}
 
@@ -1083,13 +1095,15 @@ function TrustNote({ children, full }: { children: React.ReactNode; full?: boole
   );
 }
 
-function PhotosStep({ imagePreviews, onAdd, onRemove, originals, cleaning, onUseOriginal }: {
+function PhotosStep({ imagePreviews, onAdd, onRemove, originals, cleaning, onUseOriginal, adding, note }: {
   imagePreviews: string[];
   onAdd: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onRemove: (i: number) => void;
   originals: Record<number, { file: File; preview: string }>;
   cleaning: Record<number, boolean>;
   onUseOriginal: (i: number) => void;
+  adding: boolean;
+  note: string | null;
 }) {
   const slotCount = Math.max(PHOTO_SLOT_LABELS.length, imagePreviews.length + 1);
   const slots = Array.from({ length: Math.min(slotCount, MAX_IMAGES) }, (_, i) => i);
@@ -1152,26 +1166,44 @@ function PhotosStep({ imagePreviews, onAdd, onRemove, originals, cleaning, onUse
               )}
             </div>
           ) : (
-            <label key={i} className="flex aspect-[3/4] w-full cursor-pointer flex-col items-center justify-center gap-2 border border-dashed border-black/25 p-3 text-center transition-colors hover:border-black">
-              <Plus className="h-5 w-5 shrink-0" />
-              {/* Two lines, one size. This box had three stacked texts at three
-                  sizes - name at 11px, hint at 10px, required/optional at 9px -
-                  which is three type decisions inside a thumbnail. The second
-                  line says whichever of the two is actually worth knowing. */}
-              <span className="text-sm font-bold leading-snug">{label}</span>
-              <span className="text-xs leading-snug">
-                {slot?.hint ?? (required ? 'Required' : 'Optional')}
-              </span>
-              <input type="file" accept="image/*" className="hidden" onChange={onAdd} multiple />
+            <label key={i} className={cn(
+              'relative flex aspect-[3/4] w-full flex-col items-center justify-center gap-2 border border-dashed border-black/25 p-3 text-center transition-colors',
+              adding ? 'cursor-wait' : 'cursor-pointer hover:border-black',
+            )}>
+              {adding ? (
+                <>
+                  <Loader2 className="h-5 w-5 shrink-0 animate-spin" />
+                  <span className="text-sm font-bold leading-snug">Adding photos</span>
+                </>
+              ) : (
+                <>
+                  <Plus className="h-5 w-5 shrink-0" />
+                  {/* Two lines, one size. This box had three stacked texts at three
+                      sizes - name at 11px, hint at 10px, required/optional at 9px -
+                      which is three type decisions inside a thumbnail. The second
+                      line says whichever of the two is actually worth knowing. */}
+                  <span className="text-sm font-bold leading-snug">{label}</span>
+                  <span className="text-xs leading-snug">
+                    {slot?.hint ?? (required ? 'Required' : 'Optional')}
+                  </span>
+                </>
+              )}
+              {/* Every empty box opens the same picker, which takes several
+                  photos at once. Visually hidden rather than display:none,
+                  which some phone browsers will not open from a label. */}
+              <input type="file" accept="image/*" className="sr-only" onChange={onAdd} multiple disabled={adding} />
             </label>
           );
         })}
       </div>
 
-      <p className="text-sm font-bold text-black">
-        {imagePreviews.length}/{MAX_IMAGES} uploaded.
-        {imagePreviews.length < REQUIRED_PHOTOS && ` ${REQUIRED_PHOTOS - imagePreviews.length} more needed.`}
-      </p>
+      <div className="flex flex-col gap-1">
+        <p className="text-sm font-bold text-black">
+          {imagePreviews.length}/{MAX_IMAGES} uploaded.
+          {imagePreviews.length < REQUIRED_PHOTOS && ` ${REQUIRED_PHOTOS - imagePreviews.length} more needed.`}
+        </p>
+        {note && <p role="status" className="text-sm">{note}</p>}
+      </div>
     </div>
   );
 }

@@ -12,6 +12,7 @@
 // drives the order/escrow state machine; every other sub-state is display-only.
 
 import React from 'react';
+import { isDemoTitle } from '../lib/pageMeta';
 import { supabase } from '../lib/supabase';
 import { Listing, ListingStatus, Order, OrderStatus, VendorPayout } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
@@ -258,7 +259,10 @@ function Console() {
       const { data: v } = await supabase.from('vendors').select('id, upi_vpa');
       setVendorUpi(new Map(((v as Array<{ id: string; upi_vpa: string | null }>) ?? []).map((x) => [x.id, x.upi_vpa])));
       setOrders((o.data as Order[]) ?? []);
-      setListings((l.data as Listing[]) ?? []);
+      // The demo items that filled the shop before launch (titles ending in
+      // "(Demo)") are archived and never real stock: kept out of every queue
+      // and count here so the portal shows only real items.
+      setListings(((l.data as Listing[]) ?? []).filter((x) => !isDemoTitle(x.title)));
       setPayouts((p.data as VendorPayout[]) ?? []);
       setUsers((u.data as AdminUser[]) ?? []);
       setEmails((e.data as EmailLogRow[]) ?? []);

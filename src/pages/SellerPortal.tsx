@@ -28,7 +28,7 @@ import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
 import { ShareInstagramModal } from '../components/ShareInstagramModal';
 import { log } from '../lib/log';
-import { usePageMeta, META } from '../lib/pageMeta';
+import { usePageMeta, META, isDemoTitle } from '../lib/pageMeta';
 import { ui } from '../lib/ui';
 import { getVendorOffers, vendorStatus, withdrawItem, canWithdraw, canDelete, type VendorOffer, type VendorStatusView } from '../lib/acquisition';
 
@@ -99,7 +99,9 @@ function SellerInner() {
         getVendorOffers(),
       ]);
       if (le) throw le;
-      setListings((l as Listing[]) ?? []);
+      // Demo items (titles ending in "(Demo)") were never real submissions:
+      // they are left out so Your Items shows only what was actually sent.
+      setListings(((l as Listing[]) ?? []).filter((x) => !isDemoTitle(x.title)));
       setOffers(new Map(offerRows.map((o) => [o.listing_id, o])));
     } catch (err: any) {
       splog.error('fetchAll', err);
