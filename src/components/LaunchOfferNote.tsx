@@ -4,32 +4,42 @@
 // email the code, which is why it says we send it rather than telling anyone
 // to claim it.
 //
-// One compact strip, sat at the top of both pages rather than in the body.
-// An offer nobody sees until they scroll is not an offer, and at this length
-// it can lead a page without taking it over.
+// An inverted panel in the house band voice (see CampaignBand): the reward in
+// display type, the condition under it as tracked uppercase body, Sparkles
+// because that is the offers icon in the kit. It was a hairline box with two
+// lines of small text in it, which read as a disclaimer sat above the page
+// rather than the one promotional thing on it.
 //
-// Worded to MODEL.md and COPY_RULES.md: a vendor accepts our offers, they do
-// not list items, and the reward is a rupee amount off a purchase, never a
-// share or a percentage of anything.
+// It leads with the money because that is the hook, and because money in
+// display type is what the rest of this flow already does.
+//
+// Worded to MODEL.md and COPY_RULES.md: a vendor sends us items and accepts
+// our offers, they never "list", and the reward is a rupee amount off a
+// purchase, never a share or a percentage of anything.
+import { Sparkles } from 'lucide-react';
+import { LAUNCH_OFFER_TERMS } from '../lib/launchOffer';
 import { cn } from '../lib/utils';
 
-/** The threshold and the amount, together, so the two never drift apart. */
-export const LAUNCH_OFFER = { acceptedOffers: 10, credit: 500 } as const;
+export { LAUNCH_OFFER } from '../lib/launchOffer';
 
 export function LaunchOfferNote({ className }: { className?: string }) {
   return (
     <aside
       className={cn(
-        'flex w-full flex-col gap-1.5 self-start border border-black px-4 py-3',
-        'sm:w-auto sm:flex-row sm:items-baseline sm:gap-3',
+        'flex w-full max-w-xl flex-col gap-2.5 bg-black px-5 py-5 text-white sm:px-7 sm:py-6',
         className,
       )}
     >
-      <span className="shrink-0 text-[11px] font-black uppercase tracking-[0.2em]">Launch offer</span>
-      <span className="text-sm leading-snug">
-        Accept {LAUNCH_OFFER.acceptedOffers} offers and we email you{' '}
-        <span className="font-bold">Rs. {LAUNCH_OFFER.credit} off</span> your next order.
+      <span className="inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em] text-white/60">
+        <Sparkles aria-hidden className="h-3.5 w-3.5" />
+        Launch offer
       </span>
+      <p className="text-2xl font-black uppercase leading-[0.9] tracking-tighter sm:text-3xl">
+        {LAUNCH_OFFER_TERMS.reward}
+      </p>
+      <p className="text-[11px] font-bold uppercase leading-[1.7] tracking-[0.15em] text-white/70 sm:text-xs">
+        {LAUNCH_OFFER_TERMS.condition}
+      </p>
     </aside>
   );
 }
