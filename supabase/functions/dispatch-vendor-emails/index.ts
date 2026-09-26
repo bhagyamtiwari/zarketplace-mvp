@@ -65,6 +65,21 @@ serve(async (req) => {
     });
   }
 
+  // The cover photos for the whole batch, in one query.
+  //
+  // This was a lookup per notification, which put a query inside a loop that
+  // pg_cron already holds a connection for. Under a backlog the run outlived
+  // its own schedule, the next run started on top of it, and the database ran
+  // out of connections: the site could not load listings and the job could
+  // not start. One query for fifty rows cannot do that.
+  const listingIds = [...new Set((rows ?? []).map((r) => r.listing_id).filter(Boolean))];
+  const covers = new Map<string, string>();
+  if (listingIds.length) {
+    const { data: listings } = await db
+      .from("listings").select("id, image_url, image_urls").in("id", listingIds);
+    for (const l of listings ?? []) covers.set(String(l.id), coverImage(l));
+  }
+
   let sent = 0, failed = 0;
 
   for (const row of rows ?? []) {
@@ -73,17 +88,10 @@ serve(async (req) => {
       .from("vendors").select("email").eq("id", row.vendor_id).single();
     const to = vendor?.email;
 
-    // The item's cover photo, so an email says which item it is about before
-    // it says anything else. Only the image columns are selected: the
-    // templates still cannot reach a price, because nothing here carries one.
-    const { data: listing } = row.listing_id
-      ? await db.from("listings").select("image_url, image_urls").eq("id", row.listing_id).maybeSingle()
-      : { data: null };
-
     const payload = {
       ...(row.payload as Record<string, unknown>),
       listing_id: row.listing_id,
-      item_image: coverImage(listing),
+      item_image: covers.get(String(row.listing_id)) ?? "",
     };
     const email = renderVendorEmail(row.kind, payload, SITE);
 
