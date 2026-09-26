@@ -17,6 +17,22 @@ import { renderVendorEmail } from "./templates.ts";
 const BATCH = 50;
 const MAX_ATTEMPTS = 4;
 
+// The upload pipeline writes each photo at three widths, named by the suffix
+// the web app's variantUrl() swaps on. The 400px one is the right size for an
+// 88px-wide cell on a retina screen, and it is the smallest thing we can put
+// in an inbox. Images from before that pipeline have no suffix and are used
+// as they are.
+const VARIANT_SUFFIX = /-(?:400|800|1600)\.(webp|jpe?g|png)$/i;
+
+function coverImage(listing: { image_url?: unknown; image_urls?: unknown } | null): string {
+  if (!listing) return "";
+  const list = Array.isArray(listing.image_urls) ? listing.image_urls : [];
+  const first = list.find((u) => typeof u === "string" && u) ?? listing.image_url;
+  if (typeof first !== "string" || !first) return "";
+  const m = first.match(VARIANT_SUFFIX);
+  return m ? first.replace(VARIANT_SUFFIX, `-400.${m[1]}`) : first;
+}
+
 serve(async (req) => {
   const secret = Deno.env.get("DISPATCH_SECRET");
   const provided = req.headers.get("x-dispatch-secret");
@@ -56,7 +72,18 @@ serve(async (req) => {
       .from("vendors").select("email").eq("id", row.vendor_id).single();
     const to = vendor?.email;
 
-    const payload = { ...(row.payload as Record<string, unknown>), listing_id: row.listing_id };
+    // The item's cover photo, so an email says which item it is about before
+    // it says anything else. Only the image columns are selected: the
+    // templates still cannot reach a price, because nothing here carries one.
+    const { data: listing } = row.listing_id
+      ? await db.from("listings").select("image_url, image_urls").eq("id", row.listing_id).maybeSingle()
+      : { data: null };
+
+    const payload = {
+      ...(row.payload as Record<string, unknown>),
+      listing_id: row.listing_id,
+      item_image: coverImage(listing),
+    };
     const email = renderVendorEmail(row.kind, payload, SITE);
 
     if (!to || !email) {

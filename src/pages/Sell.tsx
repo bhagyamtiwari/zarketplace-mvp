@@ -1189,7 +1189,7 @@ function PhotosStep({ imagePreviews, onAdd, onDropFiles, onRemove, originals, cl
       <div className="flex flex-col gap-1">
         <p className="text-sm font-bold text-black">
           {imagePreviews.length}/{MAX_IMAGES} uploaded.
-          {imagePreviews.length < REQUIRED_PHOTOS && ` ${REQUIRED_PHOTOS - imagePreviews.length} more needed.`}
+          {imagePreviews.length < REQUIRED_PHOTOS && ` At least ${REQUIRED_PHOTOS} needed.`}
         </p>
         {/* Only where there is a mouse to drag with. */}
         <p className="hidden text-sm pointer-fine:block">You can also drag photos from your computer onto the boxes.</p>
@@ -1234,7 +1234,7 @@ function DetailsStep(props: {
       </div>
 
       <div className="flex flex-col gap-6">
-        <SectionHeading>The item</SectionHeading>
+        <SectionHeading>Item details</SectionHeading>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-8">
           <div className="flex flex-col gap-3">
             <FieldLabel>What is it?</FieldLabel>
@@ -1392,13 +1392,13 @@ function DetailsStep(props: {
         <div className="flex flex-col gap-3">
           <FieldLabel>Description</FieldLabel>
           <p className={ui.help}>
-            Mention the brand, the material (like cotton), its condition, when to wear it (season
-            or occasion) and anything a buyer should know.
+            Mention the brand, material, condition, when to wear it, and anything a buyer should
+            know. Feel free to use AI to help you write it. The more we know, the closer our offer
+            lands.
           </p>
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={5}
             placeholder="e.g. Heavyweight cotton hoodie, fits true to size. Made for winter layering. Light fading on the cuffs."
             className="w-full border border-black/20 p-4 text-sm focus:border-black focus:outline-none resize-none transition-colors placeholder:text-black/35" />
-          <TrustNote>Feel free to use AI to help you write it. The more we know, the closer our offer lands.</TrustNote>
         </div>
       </div>
     </div>
