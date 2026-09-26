@@ -15,8 +15,13 @@ const MUTED = "#5a5a5a";
 const PAPER = "#ffffff";
 const RULE = "#e6e6e6";
 
+// Single quotes around 'Segoe UI' on purpose. This string is interpolated
+// into a double-quoted style attribute, so a double-quoted font name closed
+// the attribute at the font stack and threw away everything after it: the
+// max-width, the padding and the rest of the font stack. Every vendor email
+// was going out full-bleed, unpadded and in the client's default serif.
 const WRAP =
-  `font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color:${INK}; background-color:${PAPER}; max-width:560px; margin:0 auto; padding:32px;`;
+  `font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color:${INK}; background-color:${PAPER}; max-width:560px; margin:0 auto; padding:32px;`;
 
 /**
  * Full document with the background painted by a table and by bgcolor
@@ -78,8 +83,42 @@ function header(site: string): string {
   // width rather than stopping at the image edge.
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" bgcolor="#000000" style="margin-bottom:28px; width:100%; background-color:#000000;">
     <tr>
-      <td bgcolor="#000000" style="background-color:#000000; line-height:0; font-size:0;">
-        <img src="${site}/images/email-wordmark-dark.png" alt="zarketplace" width="216" height="57" style="display:block; width:216px; height:57px; border:0; outline:none; text-decoration:none;" />
+      <td align="center" bgcolor="#000000" style="background-color:#000000; line-height:0; font-size:0; text-align:center;">
+        <img src="${site}/images/email-wordmark-dark.png" alt="zarketplace" width="216" height="57" style="display:block; width:216px; height:57px; border:0; outline:none; text-decoration:none; margin:0 auto;" />
+      </td>
+    </tr>
+  </table>`;
+}
+
+/**
+ * The item the email is about, as its photo and its name.
+ *
+ * It is here so that neither side has to read a sentence to work out which
+ * item an email concerns: a vendor with three items in with us recognises the
+ * photograph before the words, and so does anyone of ours looking over a
+ * forwarded copy.
+ *
+ * The photo is whatever the vendor uploaded, which this pipeline writes as
+ * webp. Gmail and Apple Mail render that; Outlook's desktop engine does not,
+ * which is why the name sits beside the image as text rather than inside it,
+ * and why the alt carries the name too. A missing or unrenderable photo costs
+ * the reader nothing.
+ */
+function itemCard(image: string, title: string): string {
+  const cell = image
+    ? `<td width="88" valign="top" style="width:88px; padding-right:16px;">
+         <img src="${image}" alt="${title}" width="88" height="110" style="display:block; width:88px; height:110px; border:0; outline:none; object-fit:cover; background-color:#f4f4f4;" />
+       </td>`
+    : "";
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%; margin:0 0 24px; border-top:1px solid ${RULE}; border-bottom:1px solid ${RULE};">
+    <tr>
+      <td style="padding:16px 0;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" align="center" style="margin:0 auto;">
+          <tr>
+            ${cell}
+            <td valign="middle" style="color:${INK}; font-weight:700; font-size:15px; line-height:1.4;">${title}</td>
+          </tr>
+        </table>
       </td>
     </tr>
   </table>`;
@@ -128,6 +167,10 @@ export function renderVendorEmail(
   const offerUrl = `${site}/offer/${listingId}`;
   const portalUrl = `${site}/vendor-portal`;
   const top = header(site);
+  // Resolved by the dispatcher from the listing, which is the only thing it
+  // reads beyond the notification. It selects the image column and nothing
+  // else, so this stays a template that cannot reach a price.
+  const card = itemCard(esc(payload.item_image ?? ""), title);
 
   switch (kind) {
     // The amount is deliberately absent. A number in an inbox is a number to
@@ -139,11 +182,11 @@ export function renderVendorEmail(
         subject: `Your offer is ready · ${payload.item_title ?? "your item"}`,
         html: shell(`<div style="${WRAP}">${top}
           ${h1("We want to buy it.")}
-          <p style="color:#111111; margin:0 0 14px;">We have made you an offer on your ${title}. It is waiting on your offer page.</p>
-          <p style="color:#111111; margin:0 0 14px;">Whatever the amount is, it is fixed from the moment you accept and it does not change afterwards for any reason. Not if it takes us months to sell it, and not if it never sells at all. That risk is ours, not yours.</p>
-          <p style="color:#111111; margin:0 0 14px;">Accepting does not mean posting anything today. The item stays with you until somebody buys it, and then we send a prepaid label and a courier comes to your door.</p>
+          ${card}
+          <p style="color:#111111; margin:0 0 14px;">Your offer is waiting on your offer page. Accept it and the amount is fixed. It does not change if the item takes months to sell, or if it never sells at all. That risk is ours.</p>
+          <p style="color:#111111; margin:0 0 14px;">Nothing gets posted today. The item stays with you until somebody buys it, and then we send a prepaid label and a courier collects it from your door.</p>
           ${button(offerUrl, "See your offer")}
-          <p style="color:#5a5a5a; font-size:13px;">Not for you? Turn it down and nothing happens. You can improve the item and send it to us again.</p>
+          <p style="color:#5a5a5a; font-size:13px;">Not for you? Turn it down and nothing happens.</p>
         </div>`),
       };
 
@@ -155,10 +198,9 @@ export function renderVendorEmail(
         subject: `We have your ${payload.item_title ?? "item"}`,
         html: shell(`<div style="${WRAP}">${top}
           ${h1("Got it.")}
-          <p style="color:#111111; margin:0 0 14px;">Your ${title} is with us and someone is looking at it properly. You will hear back <strong>within 24 hours</strong>.</p>
-          <p style="color:#111111; margin:0 0 14px;">There are three ways that can go: an offer, a request for a better photo or two, or a no. We tell you which either way.</p>
-          <p style="color:#111111; margin:0 0 14px;">Keep hold of the item. Nothing needs posting unless and until it sells.</p>
-          <p style="color:#5a5a5a; font-size:13px;">Nothing is needed from you until then.</p>
+          ${card}
+          <p style="color:#111111; margin:0 0 14px;">Someone is looking at it properly. You will hear back <strong>within 24 hours</strong>, either an offer, a request for a better photo, or a no.</p>
+          <p style="color:#111111; margin:0 0 14px;">Keep hold of the item. Nothing gets posted unless it sells.</p>
         </div>`),
       };
 
@@ -170,9 +212,9 @@ export function renderVendorEmail(
         subject: `Sold · hand over your ${payload.item_title ?? "item"} by ${shortDate(payload.ship_by)}`,
         html: shell(`<div style="${WRAP}">${top}
           ${h1("It sold. Time to send it.")}
-          <p style="color:#111111; margin:0 0 14px;">Your ${title} has been bought. Pack it and have it ready for the courier <strong>by ${esc(longDate(payload.ship_by))}</strong>.</p>
-          <p style="color:#111111; margin:0 0 14px;">We have paid for the label and booked the pickup. A courier will collect it from your door, usually within 48 hours. You do not arrange a courier, you do not go anywhere, and you do not pay for postage.</p>
-          <p style="color:#111111; margin:0 0 14px;">Once it reaches us and we have checked it, your ${rupees(payload.offer_amount)} is sent.</p>
+          <p style="color:#111111; margin:0 0 14px;">It has been bought. Pack it and have it ready by <strong>${esc(longDate(payload.ship_by))}</strong>.</p>
+          <p style="color:#111111; margin:0 0 14px;">The label and the pickup are paid for and booked. A courier collects it from your door, usually within 48 hours. You arrange nothing and pay nothing.</p>
+          <p style="color:#111111; margin:0 0 14px;">Your ${rupees(payload.offer_amount)} is sent once it reaches us and we have checked it.</p>
           ${button(portalUrl, "See what to do")}
           <p style="color:#5a5a5a; font-size:13px;">Cannot send it? Tell us before the date above rather than letting it pass.</p>
         </div>`),
@@ -189,10 +231,9 @@ export function renderVendorEmail(
         subject: `Still have your ${payload.item_title ?? "item"}?`,
         html: shell(`<div style="${WRAP}">${top}
           ${h1("Quick check.")}
-          <p style="color:#111111; margin:0 0 14px;">Your ${title} is still listed on zarketplace. Do you still have it, ready to send if somebody buys it?</p>
+          <p style="color:#111111; margin:0 0 14px;">Your ${title} is still on the site. Do you still have it, ready to send if somebody buys it?</p>
           ${buttonPair(yes, "Yes, still have it", no, "No, it is gone")}
-          <p style="color:#5a5a5a; font-size:13px;">One tap, nothing to fill in. If we do not hear back by ${esc(shortDate(payload.due_at))} we will ask once more, and after that we take the listing down.</p>
-          <p style="color:#5a5a5a; font-size:13px;">Saying no costs you nothing. Telling us now is far better than a courier arriving for something you no longer have.</p>
+          <p style="color:#5a5a5a; font-size:13px;">One tap, nothing to fill in. Saying no costs you nothing, and it beats a courier arriving for something you no longer have. If we do not hear back by ${esc(shortDate(payload.due_at))} we ask once more, then take it down.</p>
         </div>`),
       };
     }
@@ -205,8 +246,8 @@ export function renderVendorEmail(
         subject: `A second go at your ${payload.item_title ?? "item"}?`,
         html: shell(`<div style="${WRAP}">${top}
           ${h1("Want to try again, lower?")}
-          <p style="color:#111111; margin:0 0 14px;">Your ${title} did not sell at the price we listed it at. That is on us, not on you: we set that price.</p>
-          <p style="color:#111111; margin:0 0 14px;">We would like to try again at a lower one. There is a new offer waiting on your offer page, fixed the same way as the last one, for a shorter run this time.</p>
+          <p style="color:#111111; margin:0 0 14px;">Your ${title} did not sell at the price we set. That is on us, not on you.</p>
+          <p style="color:#111111; margin:0 0 14px;">We would like to try again lower. A new offer is waiting on your offer page, fixed the same way as the last one, for a shorter run.</p>
           ${button(offerUrl, "See the new offer")}
           <p style="color:#5a5a5a; font-size:13px;">Or say no and keep it. The item has been yours the whole time, and you owe us nothing either way.</p>
         </div>`),
@@ -217,8 +258,8 @@ export function renderVendorEmail(
         subject: `Your ${payload.item_title ?? "item"} has come off the site`,
         html: shell(`<div style="${WRAP}">${top}
           ${h1("It did not sell this time.")}
-          <p style="color:#111111; margin:0 0 14px;">Your ${title} was listed for 30 days and has now come off the site. It is yours, it always was, and you owe us nothing.</p>
-          <p style="color:#111111; margin:0 0 14px;">Not everything sells at the first price. If you would like us to take another look, send it to us again and we will.</p>
+          <p style="color:#111111; margin:0 0 14px;">Your ${title} was on the site for 30 days and has now come off. It is yours, it always was, and you owe us nothing.</p>
+          <p style="color:#111111; margin:0 0 14px;">Not everything sells at the first price. Send it to us again and we will take another look.</p>
           ${button(`${site}/sell`, "Send it to us again")}
         </div>`),
       };
@@ -229,7 +270,7 @@ export function renderVendorEmail(
         html: shell(`<div style="${WRAP}">${top}
           ${h1("We could not reach you.")}
           <p style="color:#111111; margin:0 0 14px;">We asked twice whether you still had your ${title} and did not hear back, so we have taken it off the site.</p>
-          <p style="color:#111111; margin:0 0 14px;">Nothing has gone wrong and you owe us nothing. We only do this because an item we cannot actually send should not stay on sale.</p>
+          <p style="color:#111111; margin:0 0 14px;">Nothing has gone wrong and you owe us nothing. An item we cannot actually send should not stay on sale.</p>
           <p style="color:#111111; margin:0 0 14px;">Still have it? Send it to us again for a fresh offer.</p>
           ${button(`${site}/sell`, "Send it to us again")}
         </div>`),
@@ -246,9 +287,9 @@ export function renderVendorEmail(
         subject: `About your ${payload.item_title ?? "item"}`,
         html: shell(`<div style="${WRAP}">${top}
           ${h1("Not this time.")}
-          <p style="color:#111111; margin:0 0 14px;">We are not able to make an offer on your ${title} as it stands.</p>
+          <p style="color:#111111; margin:0 0 14px;">We cannot make an offer on your ${title} as it stands.</p>
           ${list}${note}
-          <p style="color:#111111; margin:0 0 14px;">This is not final. Sort out what is listed above, send the item back to us, and we will look again within 24 hours.</p>
+          <p style="color:#111111; margin:0 0 14px;">This is not final. Fix what is above, send it back to us, and we look again within 24 hours.</p>
           ${button(offerUrl, "Improve and resend")}
         </div>`),
       };
@@ -259,8 +300,8 @@ export function renderVendorEmail(
         subject: `Your label is ready · ${payload.item_title ?? "your item"}`,
         html: shell(`<div style="${WRAP}">${top}
           ${h1("Your label is ready.")}
-          <p style="color:#111111; margin:0 0 14px;">Print it, attach it to the parcel, and hand it over by <strong>${esc(longDate(payload.ship_by))}</strong>. A courier will collect it from your door, usually within 48 hours, and the postage is ours.
-             Courier: ${esc(payload.courier ?? "—")}. Tracking: ${esc(payload.awb ?? "—")}.</p>
+          <p style="color:#111111; margin:0 0 14px;">Print it, attach it to the parcel, and have it ready by <strong>${esc(longDate(payload.ship_by))}</strong>. A courier collects it from your door, usually within 48 hours. The postage is ours.</p>
+          <p style="color:#5a5a5a; font-size:13px;">Courier: ${esc(payload.courier ?? "not assigned yet")}. Tracking: ${esc(payload.awb ?? "not assigned yet")}.</p>
           ${button(portalUrl, "Get your label")}
         </div>`),
       };
@@ -271,8 +312,7 @@ export function renderVendorEmail(
         html: shell(`<div style="${WRAP}">${top}
           ${h1("Two days left.")}
           <p style="color:#111111; margin:0 0 14px;">Your ${title} needs to be with the courier by <strong>${esc(longDate(payload.ship_by))}</strong>. We have not seen a pickup scan yet.</p>
-          <p style="color:#111111; margin:0 0 14px;">If it has already gone, ignore this — scans can take a day to appear.</p>
-          <p style="color:#111111; margin:0 0 14px;">If you cannot send it, tell us now rather than letting the date pass.</p>
+          <p style="color:#111111; margin:0 0 14px;">Already gone? Ignore this, scans can take a day to appear. Cannot send it? Tell us now rather than letting the date pass.</p>
           ${button(portalUrl, "I cannot send this")}
         </div>`),
       };
@@ -282,7 +322,7 @@ export function renderVendorEmail(
         subject: `We have your ${payload.item_title ?? "item"}`,
         html: shell(`<div style="${WRAP}">${top}
           ${h1("It arrived.")}
-          <p style="color:#111111; margin:0 0 14px;">Your ${title} reached us today. We are checking it against your photos and description now, and you will hear from us within 24 hours.</p>
+          <p style="color:#111111; margin:0 0 14px;">Your ${title} reached us today. We are checking it against your photos now, and you will hear from us within 24 hours.</p>
         </div>`),
       };
 
@@ -291,8 +331,8 @@ export function renderVendorEmail(
         subject: `Accepted · ${rupees(payload.offer_amount)} on its way`,
         html: shell(`<div style="${WRAP}">${top}
           ${h1("Accepted.")}
-          <p style="color:#111111; margin:0 0 14px;">Your ${title} is checked in and it is ours now. Your ${rupees(payload.offer_amount)} is being sent to you.</p>
-          <p style="color:#111111; margin:0 0 14px;">Nothing further is needed from you.</p>
+          <p style="color:#111111; margin:0 0 14px;">Your ${title} is checked in and ours now. Your ${rupees(payload.offer_amount)} is on its way.</p>
+          <p style="color:#5a5a5a; font-size:13px;">Nothing further is needed from you.</p>
         </div>`),
       };
 
@@ -301,8 +341,8 @@ export function renderVendorEmail(
         subject: `${rupees(payload.offer_amount)} sent`,
         html: shell(`<div style="${WRAP}">${top}
           ${h1(`${rupees(payload.offer_amount)} sent.`)}
-          <p style="color:#111111; margin:0 0 14px;">We have sent your payout for the ${title} to your UPI ID, ${esc(payload.upi_vpa ?? "on file")}. It usually lands within a few hours.</p>
-          <p style="color:#111111; margin:0 0 14px;">If it has not arrived in two working days, reply to this email.</p>
+          <p style="color:#111111; margin:0 0 14px;">Your payout for the ${title} has gone to ${esc(payload.upi_vpa ?? "your UPI ID on file")}. It usually lands within a few hours.</p>
+          <p style="color:#5a5a5a; font-size:13px;">Not there in two working days? Reply to this email.</p>
         </div>`),
       };
 
@@ -311,10 +351,9 @@ export function renderVendorEmail(
         subject: `We could not accept your ${payload.item_title ?? "item"}`,
         html: shell(`<div style="${WRAP}">${top}
           ${h1("We could not accept this item.")}
-          <p style="color:#111111; margin:0 0 14px;">Your ${title} reached us, but we cannot take it: <strong>${esc(payload.reason_detail ?? "it did not match its listing")}</strong>.</p>
-          <p style="color:#111111; margin:0 0 14px;">No payout is due for this item.</p>
+          <p style="color:#111111; margin:0 0 14px;">Your ${title} reached us, but we cannot take it: <strong>${esc(payload.reason_detail ?? "it did not match what was listed")}</strong>. No payout is due.</p>
           <p style="color:#111111; margin:0 0 14px;"><strong>You can have it back.</strong> Tell us and we will send it, and you cover the return postage.</p>
-          <p style="color:#111111; margin:0 0 14px;">We will hold it until <strong>${esc(shortDate(payload.abandonment_deadline))}</strong>. After that date we may donate or dispose of it, as you agreed when you accepted our offer.</p>
+          <p style="color:#111111; margin:0 0 14px;">We hold it until <strong>${esc(shortDate(payload.abandonment_deadline))}</strong>. After that we may donate or dispose of it, as you agreed when you accepted our offer.</p>
           ${button(portalUrl, "Ask for it back")}
         </div>`),
       };
@@ -324,7 +363,7 @@ export function renderVendorEmail(
         subject: `30 days to claim your ${payload.item_title ?? "item"}`,
         html: shell(`<div style="${WRAP}">${top}
           ${h1("30 days left.")}
-          <p style="color:#111111; margin:0 0 14px;">We are still holding your ${title}. If you want it back, tell us and we will send it — you cover the return postage.</p>
+          <p style="color:#111111; margin:0 0 14px;">We are still holding your ${title}. Want it back? Tell us and we will send it, and you cover the return postage.</p>
           <p style="color:#111111; margin:0 0 14px;">We hold it until <strong>${esc(shortDate(payload.abandonment_deadline))}</strong>, after which we may donate or dispose of it.</p>
           ${button(portalUrl, "Ask for it back")}
         </div>`),
@@ -335,8 +374,8 @@ export function renderVendorEmail(
         subject: `Last week to claim your ${payload.item_title ?? "item"}`,
         html: shell(`<div style="${WRAP}">${top}
           ${h1("7 days left.")}
-          <p style="color:#111111; margin:0 0 14px;">This is the last reminder about your ${title}. We hold it until <strong>${esc(shortDate(payload.abandonment_deadline))}</strong>.</p>
-          <p style="color:#111111; margin:0 0 14px;">After that date it is donated or disposed of and cannot be recovered.</p>
+          <p style="color:#111111; margin:0 0 14px;">Last reminder about your ${title}. We hold it until <strong>${esc(shortDate(payload.abandonment_deadline))}</strong>.</p>
+          <p style="color:#111111; margin:0 0 14px;">After that it is donated or disposed of and cannot be recovered.</p>
           ${button(portalUrl, "Ask for it back")}
         </div>`),
       };
@@ -347,7 +386,7 @@ export function renderVendorEmail(
         html: shell(`<div style="${WRAP}">${top}
           ${h1("Cancelled.")}
           <p style="color:#111111; margin:0 0 14px;">We have taken your ${title} off the site as you asked. Nothing further is needed and no payout is due.</p>
-          <p style="color:#111111; margin:0 0 14px;">Thanks for telling us early rather than letting the date pass — it genuinely helps.</p>
+          <p style="color:#111111; margin:0 0 14px;">Thanks for telling us early rather than letting the date pass. It genuinely helps.</p>
         </div>`),
       };
 
