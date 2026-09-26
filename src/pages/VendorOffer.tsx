@@ -12,7 +12,7 @@
 // because it is a legal record and it should feel like one. It is also where
 // we ask, once, for everything we need to pay the vendor and to raise the
 // purchase invoice if we buy the item: name, mobile number, UPI ID (typed
-// twice, then fixed) and where the courier collects from. Accepting is one
+// twice, then fixed) and their pickup address. Accepting is one
 // action that writes the acceptance, the signed clauses and those details
 // together (accept_acquisition_offer).
 
@@ -88,7 +88,7 @@ function whatIsMissing(
     if (!VPA_REGEX.test(d.upiVpa.trim())) return 'Add your UPI ID, like name@okaxis.';
     if (d.upiVpa.trim().toLowerCase() !== upiConfirm.trim().toLowerCase()) return 'Type your UPI ID a second time. The two do not match yet.';
   }
-  if (d.address.trim().length < 5) return 'Add the address the courier should collect from.';
+  if (d.address.trim().length < 5) return 'Add your pickup address.';
   if (!/^[1-9]\d{5}$/.test(d.pincode.trim())) return 'Add your 6-digit pincode.';
   if (!resolvePincode(d.pincode).stateName) return 'We do not recognise that pincode. Check it.';
   if (d.city.trim().length < 2) return 'Add your city.';
@@ -310,12 +310,25 @@ function photosOf(item: OfferItem | null): string[] {
   return list.length ? list : item.image_url ? [item.image_url] : [];
 }
 
-/** "Birkenstock Arizona, size 42, Great condition": the item as the vendor described it. */
+/** "Size: 42, Condition: Great": the two labelled facts, in that order. */
 function itemFacts(item: OfferItem | null): string {
   if (!item) return '';
   const size = item.size_type?.trim() || item.size?.trim();
-  return [size ? `Size ${size}` : null, item.condition ? `${item.condition} condition` : null]
+  return [size ? `Size: ${size}` : null, item.condition ? `Condition: ${item.condition}` : null]
     .filter(Boolean).join(', ');
+}
+
+/**
+ * The brand, then the item's own name. The brand leads because it is what a
+ * vendor recognises first, but it is dropped when the title already carries
+ * it: plenty of titles end in the label they are for, and "Ralph Lauren Red
+ * T-Shirt Denim & Supply Ralph Lauren" is what saying it twice looks like.
+ */
+function itemName(item: OfferItem | null): { brand: string | null; title: string } {
+  const title = item?.title?.trim() || 'Your item';
+  const brand = item?.brand?.trim();
+  if (!brand || title.toLowerCase().includes(brand.toLowerCase())) return { brand: null, title };
+  return { brand, title };
 }
 
 /** Every photo the vendor sent, in a row that scrolls sideways on a phone. */
@@ -338,6 +351,7 @@ function ItemPhotos({ item }: { item: OfferItem | null }) {
 function ItemLine({ item }: { item: OfferItem | null }) {
   const cover = photosOf(item)[0];
   const facts = itemFacts(item);
+  const { brand, title } = itemName(item);
   return (
     <div className="flex items-center gap-4">
       {cover && (
@@ -346,7 +360,8 @@ function ItemLine({ item }: { item: OfferItem | null }) {
         </div>
       )}
       <div className="flex min-w-0 flex-col gap-0.5">
-        <span className="text-[15px] font-bold leading-snug">{item?.title ?? 'Your item'}</span>
+        {brand && <span className="text-xs font-black uppercase tracking-widest">{brand}</span>}
+        <span className="text-[15px] font-bold leading-snug">{title}</span>
         <span className="text-sm">{[item?.sku, facts].filter(Boolean).join(', ')}</span>
       </div>
     </div>
@@ -367,9 +382,15 @@ function Questions({ code, className }: { code: string | null | undefined; class
 }
 
 /**
- * The offer, the item it is for, and the four facts that make it safe to say
- * yes. The number leads but does not shout: it is a figure someone reads and
- * considers, not a headline.
+ * The offer, the item it is for, and the six facts that make it safe to say
+ * yes. The number leads but does not shout: the amount sits on the left with
+ * the item it buys beside it, so the two are read as one statement rather
+ * than a headline and a caption.
+ *
+ * The last two facts are the ones a vendor otherwise finds out later: that we
+ * set the sale price and may move it, and that their number does not move
+ * with it. Saying so here is both fairer and the principal model stated
+ * plainly, so it belongs above the button, not in the small print.
  */
 export function OfferScreen({
   item, amount, expiresAt, onContinue, onDecline, submitting,
@@ -378,45 +399,52 @@ export function OfferScreen({
   onContinue: () => void; onDecline: () => void; submitting: boolean;
 }) {
   const facts = itemFacts(item);
+  const { brand, title } = itemName(item);
   return (
     <div className="flex flex-col gap-10">
       <ItemPhotos item={item} />
 
-      <div className="flex flex-col gap-4 border-b border-black pb-8">
-        <h1 className="text-sm font-bold">Our offer{item?.sku ? ` for ${item.sku}` : ''}</h1>
-        <span className="text-5xl sm:text-6xl font-black tracking-tighter leading-none">
-          {formatCurrency(amount)}
-        </span>
-        <div className="flex flex-col gap-0.5">
-          <span className="text-[15px] font-bold leading-snug">{item?.title ?? 'Your item'}</span>
-          {facts && <span className="text-sm">{facts}</span>}
-        </div>
-      </div>
-
-      <Bullets items={[
-        'This is what we pay you. It is fixed and does not change.',
-        'The item stays with you until someone buys it.',
-        'Then we email you a free prepaid label, and a courier collects it from your door.',
-        'We pay you by UPI once it reaches our hub and matches your photos.',
-      ]} />
-
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <button type="button" onClick={onContinue} disabled={submitting} className={cn(ui.btnPrimary, 'py-5 sm:min-w-[240px]')}>
-            Accept this offer
-          </button>
-          <button type="button" onClick={onDecline} disabled={submitting} className={cn(ui.btnSecondary, 'py-5')}>
-            No thanks
-          </button>
+      <div className="flex flex-col gap-5">
+        <h1 className="text-sm font-bold">Your payout{item?.sku ? ` for ${item.sku}` : ''}</h1>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-10">
+          <span className="text-4xl sm:text-5xl font-black tracking-tighter leading-none tabular-nums">
+            {formatCurrency(amount)}
+          </span>
+          <span className="flex flex-col gap-0.5 text-sm leading-snug sm:max-w-[58%] sm:text-right">
+            {brand && <span className="text-xs font-black uppercase tracking-widest">{brand}</span>}
+            <span className="font-bold">{title}</span>
+            {facts && <span>{facts}</span>}
+          </span>
         </div>
         {expiresAt && (
           <p className={ui.help}>
-            Open until {new Date(expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long' })}.
+            Yours to accept until{' '}
+            <span className="font-bold">
+              {new Date(expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long' })}
+            </span>.
           </p>
         )}
       </div>
 
-      <Questions code={item?.sku} className="border-t border-black/10 pt-6" />
+      <Bullets items={[
+        <><strong>This is your payout.</strong> It is fixed and does not change.</>,
+        'The item stays with you until someone buys it.',
+        'Then we email you a free prepaid label, and a courier collects it from your door.',
+        'We pay you by UPI once it reaches our hub and matches your photos.',
+        'Once you accept, it goes on sale at a price we set. We may reduce that price to sell it, and what we pay you stays the same.',
+        'If we have not sold it within 30 days, the offer ends and nothing is owed either way.',
+      ]} />
+
+      <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
+        <button type="button" onClick={onContinue} disabled={submitting} className={cn(ui.btnPrimary, 'w-full py-5 sm:w-auto sm:min-w-[240px]')}>
+          Accept this offer
+        </button>
+        <button type="button" onClick={onDecline} disabled={submitting} className={cn(ui.btnSecondary, 'w-full py-5 sm:w-auto')}>
+          No thanks
+        </button>
+      </div>
+
+      <Questions code={item?.sku} className="text-center" />
     </div>
   );
 }
@@ -512,12 +540,19 @@ export function AgreementScreen({
         <ItemLine item={item} />
       </div>
 
-      <Step n={1} title="Your details" note="For your invoice, and so the courier can reach you.">
+      <Step
+        n={1}
+        title="Your details"
+        note="For your invoice, and so the courier can reach you. Anything already filled in came from your account, so check it and change what is wrong."
+      >
         <Field label="Full name" hint="As on your UPI or bank account.">
-          <input value={details.fullName} onChange={set('fullName')} autoComplete="name" className={ui.input} />
+          <input
+            value={details.fullName} onChange={set('fullName')} autoComplete="name"
+            placeholder="Your full name" className={ui.inputBox}
+          />
         </Field>
-        <Field label="Mobile number">
-          <div className="flex items-center gap-2 border-b border-black/20 focus-within:border-black transition-colors">
+        <Field label="Mobile number" hint="So the courier can reach you on collection day.">
+          <div className="flex items-center gap-2 border border-black/25 bg-zinc-50 px-3.5 transition-colors focus-within:border-black focus-within:bg-white">
             <span className="text-sm">+91</span>
             <input
               type="tel" inputMode="numeric" autoComplete="tel-national" placeholder="98765 43210"
@@ -546,12 +581,16 @@ export function AgreementScreen({
         ) : (
           <>
             <Field label="UPI ID" hint="The one you use on GPay, PhonePe or Paytm.">
-              <input value={details.upiVpa} onChange={set('upiVpa')} placeholder="name@okaxis" {...plain} className={ui.input} />
+              <input value={details.upiVpa} onChange={set('upiVpa')} placeholder="name@okaxis" {...plain} className={ui.inputBox} />
             </Field>
-            <Field label="Type your UPI ID again">
+            <p className="text-sm leading-relaxed">
+              Do not know your UPI ID? Open your UPI app, GPay, PhonePe or Paytm, and look under your
+              profile or payment settings. It looks like <span className="font-bold">name@okaxis</span>.
+            </p>
+            <Field label="Type your UPI ID again" hint="Typed, not pasted, so a typo gets caught here.">
               <input
                 value={upiConfirm} onChange={(e) => setUpiConfirm(e.target.value)} onPaste={noPaste} onDrop={noPaste}
-                placeholder="name@okaxis" {...plain} className={ui.input}
+                placeholder="name@okaxis" {...plain} className={ui.inputBox}
               />
               {upiConfirm && (
                 <span className={cn('text-sm font-bold', upiMatches ? 'text-emerald-700' : 'text-red-600')}>
@@ -563,19 +602,22 @@ export function AgreementScreen({
         )}
       </Step>
 
-      <Step n={3} title="Where the courier collects from" note="Only used once someone buys it.">
+      <Step n={3} title="Your pickup address" note="Where the courier collects from, only once someone buys it.">
         <Field label="Flat, house number and street">
-          <input value={details.address} onChange={set('address')} autoComplete="street-address" className={ui.input} />
+          <input
+            value={details.address} onChange={set('address')} autoComplete="street-address"
+            placeholder="Flat 4B, 12 Linking Road" className={ui.inputBox}
+          />
         </Field>
         <Field label="Area or landmark" optional>
-          <input value={details.landmark} onChange={set('landmark')} className={ui.input} />
+          <input value={details.landmark} onChange={set('landmark')} placeholder="Near the post office" className={ui.inputBox} />
         </Field>
         <div className="grid grid-cols-2 gap-4">
           <Field label="Pincode">
             <input
               inputMode="numeric" autoComplete="postal-code" maxLength={6} value={details.pincode}
               onChange={(e) => { const v = e.target.value.replace(/\D/g, '').slice(0, 6); setDetails((d) => ({ ...d, pincode: v })); }}
-              className={ui.input}
+              placeholder="400050" className={ui.inputBox}
             />
             {place && (
               <span className={cn('text-sm', !place.stateName && 'font-bold text-red-600')}>
@@ -584,7 +626,10 @@ export function AgreementScreen({
             )}
           </Field>
           <Field label="City">
-            <input value={details.city} onChange={set('city')} autoComplete="address-level2" className={ui.input} />
+            <input
+              value={details.city} onChange={set('city')} autoComplete="address-level2"
+              placeholder="Mumbai" className={ui.inputBox}
+            />
           </Field>
         </div>
       </Step>
@@ -617,6 +662,7 @@ export function AgreementScreen({
           <span className={ui.label}>Also part of this agreement</span>
           <Bullets items={[
             <>We pay you <strong>{formatCurrency(amount)}</strong> by UPI once it reaches our hub and matches your photos. The amount does not change.</>,
+            'We set the price we sell it at, and we may reduce it. What we pay you stays the same.',
             'Until someone buys it, keep it packed and unworn, and do not sell it anywhere else.',
             'When it is bought, we email you a free prepaid label, and a courier collects it from your door, usually within 48 hours.',
             <>Hand it over within <strong>5 days</strong> of the sale.</>,
@@ -630,20 +676,20 @@ export function AgreementScreen({
         </div>
       </Step>
 
-      <div className="flex flex-col gap-3 border-t border-black pt-8">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <button type="button" onClick={onAccept} disabled={submitting} className={cn(ui.btnPrimary, 'py-5 sm:min-w-[240px]')}>
+      <div className="flex flex-col items-center gap-4">
+        <div className="flex w-full flex-col items-center gap-3 sm:w-auto sm:flex-row sm:justify-center">
+          <button type="button" onClick={onAccept} disabled={submitting} className={cn(ui.btnPrimary, 'w-full py-5 sm:w-auto sm:min-w-[240px]')}>
             {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
             {submitting ? 'Recording' : `Accept ${formatCurrency(amount)}`}
           </button>
-          <button type="button" onClick={onBack} disabled={submitting} className={cn(ui.btnSecondary, 'py-5')}>
+          <button type="button" onClick={onBack} disabled={submitting} className={cn(ui.btnSecondary, 'w-full py-5 sm:w-auto')}>
             Back
           </button>
         </div>
-        {problem && <p role="alert" className={ui.error}>{problem}</p>}
+        {problem && <p role="alert" className={cn(ui.error, 'text-center')}>{problem}</p>}
       </div>
 
-      <Questions code={item?.sku} />
+      <Questions code={item?.sku} className="text-center" />
     </div>
   );
 }
@@ -715,8 +761,8 @@ export function Accepted({ item, amount, paidTo, justNow }: {
 
       <div className="flex flex-col items-center gap-6 text-center">
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-          <Link to="/vendor-portal" className={ui.btnPrimary}>Your items</Link>
-          <Link to="/sell" className={ui.btnSecondary}>Send us another</Link>
+          <Link to="/sell" className={ui.btnPrimary}>Sell another item</Link>
+          <Link to="/vendor-portal" className={ui.btnSecondary}>Your items</Link>
         </div>
         <Questions code={item?.sku} />
       </div>

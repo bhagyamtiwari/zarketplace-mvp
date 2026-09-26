@@ -325,29 +325,9 @@ function NeedsYou({ rows, offers, statusOf, onDelete, deletingId }: {
 
   return (
     <div className="flex flex-col gap-8">
-      {withOffer.map((l) => {
-        const amount = offers.get(l.id)?.offer_amount;
-        return (
-          <div key={l.id} className="flex flex-col gap-6 border-2 border-black p-6 sm:p-10">
-            <div className="flex flex-col gap-2">
-              <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tighter leading-none">Your offer is ready</h2>
-              <p className={ui.help}>
-                For <span className="font-bold">{l.title}</span>. This is what we will pay you for it.
-              </p>
-            </div>
-            {amount != null && (
-              <p className="text-4xl sm:text-5xl font-black tracking-tighter leading-none tabular-nums">
-                {formatCurrency(Number(amount))}
-              </p>
-            )}
-            <p className={ui.help}>
-              Accept it and the amount is locked. The item stays with you and goes on sale. When someone
-              buys it we send a prepaid label, collect from your door, and pay you once we have checked it in.
-            </p>
-            <Link to={`/offer/${l.id}`} className={cn(ui.btnPrimary, 'self-start')}>Review and accept</Link>
-          </div>
-        );
-      })}
+      {withOffer.map((l) => (
+        <OfferReadyCard key={l.id} listing={l} amount={offers.get(l.id)?.offer_amount ?? null} />
+      ))}
 
       {others.length > 0 && (
         <ItemSection title="Needs you">
@@ -370,6 +350,40 @@ function NeedsYou({ rows, offers, statusOf, onDelete, deletingId }: {
           ))}
         </ItemSection>
       )}
+    </div>
+  );
+}
+
+/**
+ * The open offer, as its own black-bordered card: the photo they sent, the
+ * number, and what accepting does. The photo is here because an offer lands
+ * days after the item was sent, and the number means nothing until the vendor
+ * has recognised which item it is for.
+ */
+export function OfferReadyCard({ listing, amount }: { key?: string; listing: Listing; amount: number | null }) {
+  return (
+    <div className="flex flex-col gap-6 border-2 border-black p-6 sm:p-10">
+      <div className="flex items-start gap-5">
+        <div className="h-24 w-[72px] shrink-0 overflow-hidden bg-zinc-100 sm:h-28 sm:w-[84px]">
+          <img src={variantUrl(listing.image_url, 'thumb')} alt="" className="h-full w-full object-cover" />
+        </div>
+        <div className="flex flex-col gap-2">
+          <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tighter leading-none">Your offer is ready</h2>
+          <p className={ui.help}>
+            For <span className="font-bold">{listing.title}</span>. This is what we will pay you for it.
+          </p>
+        </div>
+      </div>
+      {amount != null && (
+        <p className="text-4xl sm:text-5xl font-black tracking-tighter leading-none tabular-nums">
+          {formatCurrency(Number(amount))}
+        </p>
+      )}
+      <p className={ui.help}>
+        Accept it and the amount is locked. The item stays with you and goes on sale. When someone
+        buys it we send a prepaid label, collect from your door, and pay you once we have checked it in.
+      </p>
+      <Link to={`/offer/${listing.id}`} className={cn(ui.btnPrimary, 'self-start')}>Review and accept</Link>
     </div>
   );
 }

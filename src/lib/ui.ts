@@ -6,6 +6,8 @@
 //   section title  uppercase, one step down
 //   label          bold, sentence case, full ink
 //   input          an underline, not a box; the value in regular weight
+//   inputBox       a bordered rectangle, where a prefilled value has to
+//                  still read as something you can change
 //   help           body text, full ink (never grey: guidance is content)
 //   buttons        the tracked micro-label, the one place it belongs
 export const ui = {
@@ -15,6 +17,13 @@ export const ui = {
   input:
     'w-full border-b border-black/20 bg-transparent py-3 text-sm text-black placeholder:text-black/35 ' +
     'focus:border-black focus:outline-none transition-colors disabled:text-black/50',
+  // The boxed variant, for forms where a value arrives already filled in from
+  // the account. An underline under a prefilled name reads as a printed fact;
+  // a bordered rectangle reads as a field to check and correct. Sharp corners,
+  // like every other rectangle in the kit.
+  inputBox:
+    'w-full border border-black/25 bg-zinc-50 px-3.5 py-3 text-sm text-black placeholder:text-black/35 ' +
+    'focus:border-black focus:bg-white focus:outline-none transition-colors disabled:text-black/50',
   help: 'text-sm leading-relaxed text-black',
   error: 'text-sm font-bold text-red-600',
   btnPrimary:

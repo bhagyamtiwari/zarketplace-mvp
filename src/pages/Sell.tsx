@@ -79,16 +79,14 @@ const PUBLISH_CONFIRMATIONS: Array<{ key: string; label: string }> = [
 // .ship_by_days). The 48 hours is the courier's usual collection time, which
 // sits inside those 5 days rather than replacing them.
 const WHAT_HAPPENS_NEXT: Array<{ title: string; points: string[] }> = [
+  // Making the offer and deciding on it used to be two steps. They are one
+  // here because they are one wait: nothing is asked of the vendor between
+  // them, and a four-step list is read where a five-step list is skimmed.
   {
     title: 'We make you an offer',
     points: [
       'A fixed amount in rupees. This is your payout, and it does not change.',
-    ],
-  },
-  {
-    title: 'You decide whether to accept it',
-    points: [
-      'You have 7 days. Saying no costs you nothing.',
+      'You have 7 days to accept it. Saying no costs you nothing.',
     ],
   },
   {
@@ -993,11 +991,11 @@ export function SellSubmitted({ onItems, onAnother }: { onItems: () => void; onA
 
       <div className="flex flex-col items-center gap-6 text-center">
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-          <button type="button" onClick={onItems} className={ui.btnPrimary}>
-            Your items
+          <button type="button" onClick={onAnother} className={ui.btnPrimary}>
+            Sell another item
           </button>
-          <button type="button" onClick={onAnother} className={ui.btnSecondary}>
-            Send us another
+          <button type="button" onClick={onItems} className={ui.btnSecondary}>
+            Your items
           </button>
         </div>
         <p className="text-sm">
@@ -1576,7 +1574,7 @@ function SellIntro({ onStart }: { onStart: () => void }) {
     <div className="shell-form pt-24 sm:pt-32 pb-24 flex flex-col gap-10">
       <div className="flex flex-col gap-4">
         <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase leading-[0.95]">
-          What are you selling?
+          How it works
         </h1>
         <p className="body-longform measure">
           Add your item. We'll make you an offer within 24 hours.
@@ -1606,14 +1604,18 @@ function SellIntro({ onStart }: { onStart: () => void }) {
         ))}
       </ol>
 
-      <div className="flex flex-col">
+      <div className="flex flex-col items-center gap-5">
         <button
           type="button"
           onClick={onStart}
-          className="w-full sm:w-auto sm:self-center bg-black px-10 py-5 text-xs font-black uppercase tracking-[0.3em] text-white hover:bg-zinc-800"
+          className="w-full sm:w-auto bg-black px-10 py-5 text-xs font-black uppercase tracking-[0.3em] text-white hover:bg-zinc-800"
         >
           Start selling
         </button>
+        <p className="text-sm leading-relaxed text-center">
+          Want the detail first? Read{' '}
+          <Link to="/how-it-works" className={cn(ui.link, 'font-bold')}>How selling works</Link>.
+        </p>
       </div>
     </div>
   );
