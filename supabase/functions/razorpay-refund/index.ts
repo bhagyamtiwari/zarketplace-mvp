@@ -18,6 +18,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeadersFor } from "../_shared/cors.ts";
+import { htmlToText } from "../_shared/plainText.ts";
 import { buildEmail } from "../send-email/templates/index.ts";
 
 interface RequestBody {
@@ -187,6 +188,6 @@ async function sendRefundEmail(order: Record<string, unknown>) {
   await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${RESEND_API_KEY}` },
-    body: JSON.stringify({ from: EMAIL_FROM, to: built.to, subject: built.subject, html: built.html }),
+    body: JSON.stringify({ from: EMAIL_FROM, to: built.to, subject: built.subject, html: built.html, text: htmlToText(built.html) }),
   });
 }

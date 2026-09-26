@@ -13,6 +13,7 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { renderVendorEmail } from "./templates.ts";
+import { htmlToText } from "../_shared/plainText.ts";
 
 const BATCH = 50;
 const MAX_ATTEMPTS = 4;
@@ -104,7 +105,7 @@ serve(async (req) => {
           Authorization: `Bearer ${RESEND_API_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ from: EMAIL_FROM, to, subject: email.subject, html: email.html }),
+        body: JSON.stringify({ from: EMAIL_FROM, to, subject: email.subject, html: email.html, text: htmlToText(email.html) }),
       });
 
       if (!res.ok) throw new Error(`Resend ${res.status}: ${await res.text()}`);

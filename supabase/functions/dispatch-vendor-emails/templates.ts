@@ -212,7 +212,7 @@ export function renderVendorEmail(
         subject: `Sold · hand over your ${payload.item_title ?? "item"} by ${shortDate(payload.ship_by)}`,
         html: shell(`<div style="${WRAP}">${top}
           ${h1("It sold. Time to send it.")}
-          <p style="color:#111111; margin:0 0 14px;">It has been bought. Pack it and have it ready by <strong>${esc(longDate(payload.ship_by))}</strong>.</p>
+          <p style="color:#111111; margin:0 0 14px;">Your ${title} has been bought. Pack it and have it ready by <strong>${esc(longDate(payload.ship_by))}</strong>.</p>
           <p style="color:#111111; margin:0 0 14px;">The label and the pickup are paid for and booked. A courier collects it from your door, usually within 48 hours. You arrange nothing and pay nothing.</p>
           <p style="color:#111111; margin:0 0 14px;">Your ${rupees(payload.offer_amount)} is sent once it reaches us and we have checked it.</p>
           ${button(portalUrl, "See what to do")}
