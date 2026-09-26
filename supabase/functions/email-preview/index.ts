@@ -18,6 +18,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeadersFor } from "../_shared/cors.ts";
 import { buildEmail } from "../send-email/templates/index.ts";
+import { htmlToText } from "../_shared/plainText.ts";
 import { renderVendorEmail } from "../dispatch-vendor-emails/templates.ts";
 
 const SAMPLE_ORDER = {
@@ -92,7 +93,7 @@ serve(async (req) => {
         headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
         // Prefixed so a preview is never mistaken for a real send, and
         // numbered so a client that threads by subject keeps them apart.
-        body: JSON.stringify({ from: EMAIL_FROM, to, subject: `[PREVIEW ${sent.length + failed.length + 1}] ${subject}`, html }),
+        body: JSON.stringify({ from: EMAIL_FROM, to, subject: `[PREVIEW ${sent.length + failed.length + 1}] ${subject}`, html, text: htmlToText(html) }),
       });
       if (res.ok) sent.push(name);
       else failed.push({ name, error: `${res.status} ${await res.text()}` });

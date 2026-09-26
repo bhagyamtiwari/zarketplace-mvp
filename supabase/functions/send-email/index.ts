@@ -32,6 +32,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeadersFor } from "../_shared/cors.ts";
 import { buildEmail } from "./templates/index.ts";
+import { htmlToText } from "../_shared/plainText.ts";
 
 interface SendEmailRequest {
   template: string;
@@ -159,6 +160,7 @@ serve(async (req) => {
         to: recipient,
         subject: built.subject,
         html: built.html,
+        text: htmlToText(built.html),
       }),
     });
 
