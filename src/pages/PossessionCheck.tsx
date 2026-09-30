@@ -128,7 +128,7 @@ export function PossessionCheck() {
 
       {state.kind !== 'working' && (
         <Link
-          to="/vendor-portal"
+          to="/account/items"
           className="mt-10 bg-black px-8 py-4 text-[11px] font-black uppercase tracking-[0.3em] text-white hover:bg-zinc-800"
         >
           Your items

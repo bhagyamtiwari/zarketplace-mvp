@@ -91,7 +91,7 @@ export const META = {
   },
   shipping: {
     title: 'Shipping',
-    description: 'Every zarketplace order ships from our own hub, checked and repacked, and tracked to your door. Instant Ship items are dispatched within 48 hours.',
+    description: 'Every zarketplace order ships from our own hub, checked and repacked, and tracked to your door. Instant Ship items are dispatched within 24 hours.',
     path: '/shipping-policy',
   },
   howItWorks: {

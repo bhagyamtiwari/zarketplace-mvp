@@ -15,6 +15,8 @@ import { PhoneCapturePrompt } from './components/PhoneCapturePrompt';
 import { FavoritesSync } from './components/FavoritesSync';
 import { useConsent } from './lib/cookieConsent';
 import { initAnalytics, trackPageview } from './lib/analytics';
+import { AdminBar } from './components/AdminBar';
+import { ADMIN_ORIGIN, isAdminHost } from './lib/adminHost';
 
 // Route-level code splitting. The entry bundle was 917 KB, and a first-time
 // visitor on mobile data was downloading the admin console, checkout and the
@@ -47,6 +49,15 @@ const GrievanceOfficer = lazy(() => import('./pages/GrievanceOfficer').then((m) 
 const AuthCallback = lazy(() => import('./pages/AuthCallback').then((m) => ({ default: m.AuthCallback })));
 const ResetPassword = lazy(() => import('./pages/ResetPassword').then((m) => ({ default: m.ResetPassword })));
 const Cart = lazy(() => import('./pages/Cart').then((m) => ({ default: m.Cart })));
+const AccountHome = lazy(() => import('./pages/AccountHome').then((m) => ({ default: m.AccountHome })));
+
+// An old address, sent on to its new one with its query intact: links in
+// emails already sent (/vendor-portal?tab=tools, /track-order?order=...) keep
+// working.
+function KeepSearch({ to }: { to: string }) {
+  const { search, hash } = useLocation();
+  return <Navigate to={{ pathname: to, search, hash }} replace />;
+}
 
 
 // Keying by pathname remounts the boundary (clearing any caught error) the
@@ -86,7 +97,103 @@ function PageviewTracker() {
   return null;
 }
 
+// Every page of the shop. Shared by the shop's host and the admin host, where
+// they are the preview an operator browses as a buyer or a vendor.
+const shopRoutes = (
+  <>
+    {/* Home *is* browse. Both paths render the same feed so existing
+        /browse links (and every filter query string on them) keep
+        working, with no "landing page" in between. */}
+    <Route path="/" element={<Marketplace />} />
+    <Route path="/browse" element={<Marketplace />} />
+    <Route path="/product/:id" element={<ProductPage />} />
+    <Route path="/item/:sku" element={<ProductPage />} />
+    <Route path="/sell" element={<Sell />} />
+    <Route path="/returns" element={<Returns />} />
+    <Route path="/privacy" element={<Privacy />} />
+    <Route path="/trademark-notice" element={<Trademark />} />
+    <Route path="/trademark" element={<Navigate to="/trademark-notice" replace />} />
+    <Route path="/conditions-guide" element={<Condition />} />
+    <Route path="/condition" element={<Navigate to="/conditions-guide" replace />} />
+    <Route path="/grievance-officer" element={<GrievanceOfficer />} />
+    <Route path="/cart" element={<Cart />} />
+    <Route path="/checkout" element={<Checkout />} />
+    <Route path="/checkout/:id" element={<Checkout />} />
+    <Route path="/about" element={<About />} />
+    <Route path="/our-mission" element={<Mission />} />
+    <Route path="/contact" element={<Contact />} />
+    <Route path="/account/orders" element={<TrackOrder />} />
+    <Route path="/track-order" element={<KeepSearch to="/account/orders" />} />
+    {/* Reached from a possession-check email. No auth: the token in the
+        path is the authorisation, and a login here would turn a
+        one-tap answer into a chore nobody does. */}
+    <Route path="/possession/:token" element={<PossessionCheck />} />
+    <Route path="/account/items" element={<SellerPortal />} />
+    <Route path="/vendor-portal" element={<KeepSearch to="/account/items" />} />
+    <Route path="/offer/:listingId" element={<VendorOfferPage />} />
+    <Route path="/hub" element={<Hub />} />
+    {/* Old public URLs. Kept as redirects so links already shared, and
+        anything search engines have indexed, still land somewhere. */}
+    <Route path="/seller-portal" element={<KeepSearch to="/account/items" />} />
+    <Route path="/account" element={<AccountHome />} />
+    <Route path="/account/profile" element={<Account />} />
+    <Route path="/faq" element={<Faq />} />
+    <Route path="/shipping-policy" element={<ShippingPolicy />} />
+    <Route path="/how-it-works" element={<SellerPolicy />} />
+    <Route path="/vendor-policy" element={<Navigate to="/how-it-works" replace />} />
+    <Route path="/seller-policy" element={<Navigate to="/how-it-works" replace />} />
+    <Route path="/refund-policy" element={<RefundPolicy />} />
+    <Route path="/buyer-protection" element={<BuyerProtection />} />
+    <Route path="/terms" element={<Terms />} />
+    <Route path="/auth/callback" element={<AuthCallback />} />
+    <Route path="/reset-password" element={<ResetPassword />} />
+  </>
+);
+
+// On the shop's host, /admin belongs to the admin host once that exists
+// (VITE_ADMIN_ORIGIN), so an operator is sent across, to the same page.
+function AdminRoute() {
+  const { pathname, search } = useLocation();
+  useEffect(() => {
+    if (ADMIN_ORIGIN) window.location.replace(`${ADMIN_ORIGIN}${pathname}${search}`);
+  }, [pathname, search]);
+  return ADMIN_ORIGIN ? null : <Admin />;
+}
+
+// admin.zarketplace.com: the console is the home page, under a black admin
+// bar instead of the shop's header, and the shop is there only as a preview.
+function AdminHostApp() {
+  useEffect(() => {
+    document.documentElement.style.backgroundColor = '#000';
+    document.querySelector('meta[name="robots"]')?.setAttribute('content', 'noindex, nofollow');
+  }, []);
+  return (
+    <Router>
+      <AuthProvider>
+      <CartProvider>
+      <ScrollToTop />
+      <div className="flex min-h-screen flex-col bg-white font-sans text-black selection:bg-black selection:text-white overflow-x-clip">
+        <AdminBar />
+        <main className="flex-1">
+          <RoutedErrorBoundary>
+          <Suspense fallback={<div className="min-h-screen bg-black" aria-busy="true" />}>
+          <Routes>
+            <Route path="/" element={<Navigate to="/admin/today" replace />} />
+            <Route path="/admin/*" element={<Admin />} />
+            {shopRoutes}
+          </Routes>
+          </Suspense>
+          </RoutedErrorBoundary>
+        </main>
+      </div>
+      </CartProvider>
+      </AuthProvider>
+    </Router>
+  );
+}
+
 export default function App() {
+  if (isAdminHost) return <AdminHostApp />;
   return (
     <Router>
       <AuthProvider>
@@ -106,50 +213,8 @@ export default function App() {
               from. Below the fold, the same growth costs nothing. */}
           <Suspense fallback={<div className="min-h-[220vh]" aria-busy="true" />}>
           <Routes>
-            {/* Home *is* browse. Both paths render the same feed so existing
-                /browse links (and every filter query string on them) keep
-                working, with no "landing page" in between. */}
-            <Route path="/" element={<Marketplace />} />
-            <Route path="/browse" element={<Marketplace />} />
-            <Route path="/product/:id" element={<ProductPage />} />
-            <Route path="/item/:sku" element={<ProductPage />} />
-            <Route path="/sell" element={<Sell />} />
-            <Route path="/admin" element={<Admin />} />
-            <Route path="/returns" element={<Returns />} />
-            <Route path="/privacy" element={<Privacy />} />
-            <Route path="/trademark-notice" element={<Trademark />} />
-            <Route path="/trademark" element={<Navigate to="/trademark-notice" replace />} />
-            <Route path="/conditions-guide" element={<Condition />} />
-            <Route path="/condition" element={<Navigate to="/conditions-guide" replace />} />
-            <Route path="/grievance-officer" element={<GrievanceOfficer />} />
-            <Route path="/cart" element={<Cart />} />
-            <Route path="/checkout" element={<Checkout />} />
-            <Route path="/checkout/:id" element={<Checkout />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/our-mission" element={<Mission />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/track-order" element={<TrackOrder />} />
-            {/* Reached from a possession-check email. No auth: the token in the
-                path is the authorisation, and a login here would turn a
-                one-tap answer into a chore nobody does. */}
-            <Route path="/possession/:token" element={<PossessionCheck />} />
-            <Route path="/vendor-portal" element={<SellerPortal />} />
-            <Route path="/offer/:listingId" element={<VendorOfferPage />} />
-            <Route path="/hub" element={<Hub />} />
-            {/* Old public URLs. Kept as redirects so links already shared, and
-                anything search engines have indexed, still land somewhere. */}
-            <Route path="/seller-portal" element={<Navigate to="/vendor-portal" replace />} />
-            <Route path="/account" element={<Account />} />
-            <Route path="/faq" element={<Faq />} />
-            <Route path="/shipping-policy" element={<ShippingPolicy />} />
-            <Route path="/how-it-works" element={<SellerPolicy />} />
-            <Route path="/vendor-policy" element={<Navigate to="/how-it-works" replace />} />
-            <Route path="/seller-policy" element={<Navigate to="/how-it-works" replace />} />
-            <Route path="/refund-policy" element={<RefundPolicy />} />
-            <Route path="/buyer-protection" element={<BuyerProtection />} />
-            <Route path="/terms" element={<Terms />} />
-            <Route path="/auth/callback" element={<AuthCallback />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
+            {shopRoutes}
+            <Route path="/admin/*" element={<AdminRoute />} />
           </Routes>
           </Suspense>
           </RoutedErrorBoundary>

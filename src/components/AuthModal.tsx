@@ -33,11 +33,13 @@ interface AuthModalProps {
   message?: string;
   redirectTo?: string;
   onSuccess?: () => void;
+  /** Sign in only, no account creation: the admin portal's gate. */
+  signInOnly?: boolean;
 }
 
 type Mode = 'signin' | 'signup' | 'forgot';
 
-export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: AuthModalProps) {
+export function AuthModal({ open, onClose, message, redirectTo, onSuccess, signInOnly = false }: AuthModalProps) {
   const { signInWithPassword, signUpWithPassword, sendPasswordReset } = useAuth();
   const navigate = useNavigate();
   const succeed = React.useCallback(() => {
@@ -46,7 +48,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
     if (redirectTo) navigate(redirectTo);
   }, [onClose, onSuccess, redirectTo, navigate]);
 
-  const [mode, setMode] = React.useState<Mode>('signup');
+  const [mode, setMode] = React.useState<Mode>(signInOnly ? 'signin' : 'signup');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [confirmPassword, setConfirmPassword] = React.useState('');
@@ -73,9 +75,9 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
       // Reopens on the free-account tab, which is what most people arriving here
       // actually need. Switching to Sign in after a successful signup is
       // handled separately and deliberately.
-      setMode('signup');
+      setMode(signInOnly ? 'signin' : 'signup');
     }
-  }, [open]);
+  }, [open, signInOnly]);
 
   const emailValid = EMAIL_RE.test(email);
   const passwordValid = mode === 'forgot' ? true : PASSWORD_RE.test(password);
@@ -175,7 +177,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess }: Aut
                 </p>
               </div>
 
-              {mode !== 'forgot' && (
+              {mode !== 'forgot' && !signInOnly && (
                 <div className="grid grid-cols-2 gap-0 border border-black/10">
                   <button
                     type="button"

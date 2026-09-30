@@ -77,7 +77,7 @@ export function ProductPage() {
   const slug = params.sku ? skuFromItemParam(params.sku) : (params.id || '').trim();
   const navigate = useNavigate();
   const { add, has } = useCart();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [authModal, setAuthModal] = React.useState<null | { redirectTo: string; onSuccess?: () => void; message?: string }>(null);
   const [listing, setListing] = React.useState<Listing | null>(null);
   const [shippingCategories, setShippingCategories] = React.useState<ShippingCategory[]>([]);
@@ -372,7 +372,7 @@ export function ProductPage() {
                 <Zap aria-hidden className="h-3.5 w-3.5" strokeWidth={2} />
                 Instant Ship
               </span>
-              <span>Dispatched within 48 hours.</span>
+              <span>Dispatched within 24 hours.</span>
             </p>
           )}
 
@@ -491,6 +491,13 @@ export function ProductPage() {
             ) : listing.is_sold ? (
               <div className="w-full border border-black py-5 text-center text-xs font-black uppercase tracking-[0.3em]">
                 Sold
+              </div>
+            ) : profile?.is_admin ? (
+              // The admin preview. The database refuses an admin's order
+              // anyway; this says so before anyone tries.
+              <div className="flex flex-col gap-1 border-t border-black pt-4">
+                <span className="text-[15px] font-bold">Admin preview</span>
+                <span className="text-sm">Admin accounts cannot buy. Use a customer account to test a purchase.</span>
               </div>
             ) : (
               <>
@@ -667,7 +674,7 @@ export function ProductPage() {
         </section>
       )}
 
-      {purchasable && stickyBarVisible && (
+      {purchasable && stickyBarVisible && !profile?.is_admin && (
         <div className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-black/10 px-4 py-3 flex items-center gap-4 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
           <div className="min-w-0 flex-1">
             <p className="text-sm truncate">{listing.title}</p>

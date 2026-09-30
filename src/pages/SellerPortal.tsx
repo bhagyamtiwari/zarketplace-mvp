@@ -26,6 +26,7 @@ import { variantUrl } from '../lib/images';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
+import { AccountLayout } from '../components/AccountLayout';
 import { ShareInstagramModal } from '../components/ShareInstagramModal';
 import { log } from '../lib/log';
 import { usePageMeta, META, isDemoTitle } from '../lib/pageMeta';
@@ -154,23 +155,20 @@ export function VendorPortalView({ tab, onTab, listings, offers, loading, error,
   const inProgress = listings.filter((l) => !l.is_sold && !withYou.includes(l) && !needsYou.includes(l));
 
   return (
-    <div className="shell-wide pt-24 sm:pt-32 pb-16 sm:pb-20">
+    <AccountLayout tab="items">
       <div className="flex flex-col gap-8">
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-          <div className="flex flex-col gap-4">
-            <h1 className={ui.pageTitle}>Your Items</h1>
-            <p className={ui.help}>What you have asked us to buy, and what we are paying you.</p>
-          </div>
-          <Link to="/sell" className={cn(ui.btnPrimary, 'shrink-0 self-start sm:self-auto')}>Get an offer</Link>
-        </div>
-
-        <nav className="flex items-center gap-6 border-b border-black/10" aria-label="Your items">
+        {/* Sending another item is the thing to do most often from here, so
+            it is the one button on the page, beside the item tabs. */}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+        <nav className="flex items-center gap-6" aria-label="Your items">
           <TabButton active={tab === 'listings'} onClick={() => onTab('listings')}>
             Items{listings.length > 0 ? ` (${listings.length})` : ''}
           </TabButton>
           <TabButton active={tab === 'payouts'} onClick={() => onTab('payouts')}>Payouts</TabButton>
           <TabButton active={tab === 'tools'} onClick={() => onTab('tools')}>Share</TabButton>
         </nav>
+          <Link to="/sell" className={cn(ui.btnPrimary, 'shrink-0')}>Sell another item</Link>
+        </div>
 
         {error && <p className={ui.error}>{error}</p>}
 
@@ -223,7 +221,7 @@ export function VendorPortalView({ tab, onTab, listings, offers, loading, error,
           <ShareTab listings={listings.filter((l) => withYou.includes(l))} />
         )}
       </div>
-    </div>
+    </AccountLayout>
   );
 }
 
@@ -370,19 +368,19 @@ export function OfferReadyCard({ listing, amount }: { key?: string; listing: Lis
         <div className="flex flex-col gap-2">
           <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tighter leading-none">Your offer is ready</h2>
           <p className={ui.help}>
-            For <span className="font-bold">{listing.title}</span>. This is what we will pay you for it.
+            For <span className="font-bold">{listing.title}</span>.
           </p>
         </div>
       </div>
       {amount != null && (
-        <p className="text-4xl sm:text-5xl font-black tracking-tighter leading-none tabular-nums">
-          {formatCurrency(Number(amount))}
-        </p>
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-bold">Your payout</span>
+          <p className="text-4xl sm:text-5xl font-black tracking-tighter leading-none tabular-nums">
+            {formatCurrency(Number(amount))}
+          </p>
+        </div>
       )}
-      <p className={ui.help}>
-        Accept it and the amount is locked. The item stays with you and goes on sale. When someone
-        buys it we send a prepaid label, collect from your door, and pay you once we have checked it in.
-      </p>
+      <p className="text-[15px] font-bold">We pay you this if your item sells within 30 days.</p>
       <Link to={`/offer/${listing.id}`} className={cn(ui.btnPrimary, 'self-start')}>Review and accept</Link>
     </div>
   );

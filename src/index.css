@@ -199,3 +199,16 @@
 @media (prefers-reduced-motion: reduce) {
   .hiw-parcel { display: none; }
 }
+
+/* The admin console, dark by default so it never passes for the shop at a
+   glance. One inversion of the whole console (the hue turned back, so amber
+   still reads as amber and green as green), with photos inverted again so
+   they show as they are. Cheaper and safer than a second palette on every
+   element of a console that changes weekly. */
+.admin-dark {
+  filter: invert(1) hue-rotate(180deg);
+}
+.admin-dark img,
+.admin-dark video {
+  filter: invert(1) hue-rotate(180deg);
+}

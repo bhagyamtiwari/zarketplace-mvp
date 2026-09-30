@@ -10,6 +10,7 @@ import { AuthModal } from './AuthModal';
 import { Wordmark } from './Wordmark';
 import { SOCIALS } from './Footer';
 import { useFavorites } from '../lib/favorites';
+import { useOpenOfferCount } from '../lib/openOffers';
 
 // The header answers two questions and offers one action.
 //
@@ -26,12 +27,11 @@ const NAV = 'text-[11px] font-black uppercase tracking-[0.2em]';
 
 export function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
-  const [isAccountOpen, setIsAccountOpen] = React.useState(false);
   const [showAuth, setShowAuth] = React.useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, profile, emailVerified, resendVerification, signOut } = useAuth();
-  const [verifyNotice, setVerifyNotice] = React.useState<string | null>(null);
+  const { user, signOut } = useAuth();
+  const offers = useOpenOfferCount();
   const { count: cartCount } = useCart();
 
   const closeMenu = () => setIsMenuOpen(false);
@@ -44,8 +44,6 @@ export function Navbar() {
     return () => { document.body.style.overflow = prev; };
   }, [isMenuOpen]);
 
-  // Close the account menu on navigation.
-  React.useEffect(() => { setIsAccountOpen(false); }, [location.pathname]);
 
   // The feed opens on a black hero. On a phone the bar sits directly on
   // top of it, so it goes black and merges into the banner rather than cutting a
@@ -86,60 +84,16 @@ export function Navbar() {
           <div className="flex items-center gap-6 lg:gap-8">
             <div className="hidden md:flex items-center gap-6 lg:gap-8">
               {user ? (
-                <div
-                  className="relative"
-                  onMouseEnter={() => setIsAccountOpen(true)}
-                  onMouseLeave={() => setIsAccountOpen(false)}
+                // A link, not a menu: the account is one screen now, with its
+                // three tabs, and the dot says an offer is waiting on it.
+                <Link
+                  to="/account"
+                  aria-label={offers > 0 ? `Account, ${offers} ${offers === 1 ? 'offer' : 'offers'} waiting` : undefined}
+                  className={cn(NAV, 'relative py-7 hover:underline underline-offset-[6px] decoration-2')}
                 >
-                  <button
-                    type="button"
-                    aria-expanded={isAccountOpen}
-                    aria-haspopup="menu"
-                    onClick={() => setIsAccountOpen((v) => !v)}
-                    className={cn(NAV, 'py-7 hover:underline underline-offset-[6px] decoration-2')}
-                  >
-                    Account
-                  </button>
-                  {isAccountOpen && (
-                    <div
-                      role="menu"
-                      className="absolute right-0 top-full w-64 border border-black bg-white p-5 flex flex-col gap-3 text-sm"
-                    >
-                      <div className="flex flex-col gap-1 border-b border-black/10 pb-4">
-                        <span className="truncate font-bold">{profile?.email ?? user.email}</span>
-                        {!emailVerified && (
-                          <span>
-                            Email not verified.{' '}
-                            <button
-                              type="button"
-                              onClick={async () => {
-                                setVerifyNotice(null);
-                                const { error } = await resendVerification();
-                                setVerifyNotice(error ? error : 'Verification email sent.');
-                              }}
-                              className="underline underline-offset-4"
-                            >
-                              Resend link
-                            </button>
-                          </span>
-                        )}
-                        {verifyNotice && <span>{verifyNotice}</span>}
-                      </div>
-                      <MenuLink to="/track-order">My orders</MenuLink>
-                      <MenuLink to="/vendor-portal">Your items</MenuLink>
-                      <MenuLink to="/account">My profile</MenuLink>
-                      {profile?.is_admin && <MenuLink to="/admin">Admin</MenuLink>}
-                      <button
-                        type="button"
-                        role="menuitem"
-                        onClick={async () => { await signOut(); setIsAccountOpen(false); navigate('/'); }}
-                        className="border-t border-black/10 pt-3 text-left hover:underline underline-offset-4"
-                      >
-                        Sign out
-                      </button>
-                    </div>
-                  )}
-                </div>
+                  Account
+                  {offers > 0 && <span aria-hidden className="absolute -right-3 top-[1.6rem] h-2 w-2 rounded-full bg-amber-400" />}
+                </Link>
               ) : (
                 <button
                   type="button"
@@ -238,10 +192,9 @@ export function Navbar() {
                 <div className="flex flex-col gap-1 border-t border-black/10 pt-6">
                   {user ? (
                     <>
-                      <SubLink to="/track-order" onClick={closeMenu}>My orders</SubLink>
-                      <SubLink to="/vendor-portal" onClick={closeMenu}>Your items</SubLink>
-                      <SubLink to="/account" onClick={closeMenu}>My profile</SubLink>
-                      {profile?.is_admin && <SubLink to="/admin" onClick={closeMenu}>Admin</SubLink>}
+                      <SubLink to="/account" onClick={closeMenu}>
+                        {offers > 0 ? `Your account (${offers} ${offers === 1 ? 'offer' : 'offers'} waiting)` : 'Your account'}
+                      </SubLink>
                       <SubLink to="/contact" onClick={closeMenu}>Contact us</SubLink>
                       <button
                         onClick={async () => { await signOut(); closeMenu(); navigate('/'); }}
@@ -302,14 +255,6 @@ function NavLink({ to, active, className, children }: { to: string; active?: boo
         className,
       )}
     >
-      {children}
-    </Link>
-  );
-}
-
-function MenuLink({ to, children }: { to: string; children: React.ReactNode }) {
-  return (
-    <Link to={to} role="menuitem" className="hover:underline underline-offset-4">
       {children}
     </Link>
   );
