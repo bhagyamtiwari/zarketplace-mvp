@@ -33,7 +33,10 @@ import { ShareInstagramModal } from '../components/ShareInstagramModal';
 import { log } from '../lib/log';
 import { usePageMeta, META, isDemoTitle } from '../lib/pageMeta';
 import { ui } from '../lib/ui';
-import { getVendorOffers, vendorStatus, withdrawItem, canWithdraw, canDelete, type VendorOffer, type VendorStatusView } from '../lib/acquisition';
+import {
+  getVendorOffers, vendorStatus, withdrawItem, canWithdraw, canDelete, getInboundShipments, pickedUp, cancelSoldItem,
+  type VendorOffer, type VendorStatusView, type InboundShipment,
+} from '../lib/acquisition';
 import { Loading } from '../components/Loading';
 
 const splog = log('seller');
@@ -69,6 +72,7 @@ function SellerInner() {
   const [loading, setLoading] = React.useState(false);
   const [listings, setListings] = React.useState<Listing[]>([]);
   const [offers, setOffers] = React.useState<Map<string, VendorOffer>>(new Map());
+  const [shipments, setShipments] = React.useState<Map<string, InboundShipment>>(new Map());
   const [error, setError] = React.useState<string | null>(null);
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
 
@@ -104,8 +108,17 @@ function SellerInner() {
       if (le) throw le;
       // Demo items (titles ending in "(Demo)") were never real submissions:
       // they are left out so Your Items shows only what was actually sent.
-      setListings(((l as Listing[]) ?? []).filter((x) => !isDemoTitle(x.title)));
+      const mine = ((l as Listing[]) ?? []).filter((x) => !isDemoTitle(x.title));
+      setListings(mine);
       setOffers(new Map(offerRows.map((o) => [o.listing_id, o])));
+      // The courier leg for anything sold: its label, and whether it has been
+      // collected. Missing it only costs the label link, so it never fails the page.
+      try {
+        const legs = await getInboundShipments(mine.filter((x) => x.is_sold).map((x) => x.id));
+        setShipments(new Map(legs.map((sh) => [sh.listing_id, sh])));
+      } catch (shipErr) {
+        splog.warn('shipments', shipErr);
+      }
     } catch (err: any) {
       splog.error('fetchAll', err);
       setError(err?.message ?? 'Failed to load your items');
@@ -120,6 +133,7 @@ function SellerInner() {
       onTab={setTab}
       listings={listings}
       offers={offers}
+      shipments={shipments}
       loading={loading}
       error={error}
       onDelete={deleteListing}
@@ -129,12 +143,39 @@ function SellerInner() {
   );
 }
 
+const NO_SHIPMENTS = new Map<string, InboundShipment>();
+
+/**
+ * What a sold item's row says, from what we know after the sale: the offer's
+ * intake status, and the courier leg if one is booked. vendorStatus reads the
+ * offer alone, so it cannot tell collected from waiting, or checked from
+ * accepted, and it does not know an Instant Ship item never leaves our shelf.
+ */
+function afterSale(l: Listing, offer: VendorOffer | undefined, ship: InboundShipment | undefined, base: VendorStatusView): VendorStatusView {
+  if (!l.is_sold) return base;
+  // Instant Ship is stock already with us: the sale asks nothing of the vendor.
+  if (l.is_verified && (base.key === 'sold' || base.key === 'awaiting_pickup')) {
+    return { key: 'sold', label: 'Sold', detail: 'It is already with us, so there is nothing to send. We pay you once we have checked it.', needsAction: false };
+  }
+  if (base.key === 'awaiting_pickup' && pickedUp(ship)) {
+    return { key: 'in_transit', label: 'On its way to us', detail: 'We pay you once it arrives and passes our check.', needsAction: false };
+  }
+  if (offer?.intake_status === 'accepted_into_inventory') {
+    return { ...base, label: 'Accepted', detail: 'Checked and accepted. Your payout is on its way.' };
+  }
+  if (base.key === 'paid' && offer?.paid_at) {
+    return { ...base, detail: `Sent to your UPI ID on ${formatDate(offer.paid_at)}.` };
+  }
+  return base;
+}
+
 /** The page, from data. Kept apart from the fetching so it can be looked at. */
-export function VendorPortalView({ tab, onTab, listings, offers, loading, error, onDelete, deletingId, onChanged }: {
+export function VendorPortalView({ tab, onTab, listings, offers, shipments = NO_SHIPMENTS, loading, error, onDelete, deletingId, onChanged }: {
   tab: PortalTab;
   onTab: (t: PortalTab) => void;
   listings: Listing[];
   offers: Map<string, VendorOffer>;
+  shipments?: Map<string, InboundShipment>;
   loading: boolean;
   error: string | null;
   onDelete: (l: Listing) => void;
@@ -142,8 +183,8 @@ export function VendorPortalView({ tab, onTab, listings, offers, loading, error,
   onChanged: () => void;
 }) {
   const statusOf = React.useCallback(
-    (l: Listing) => vendorStatus(l.status, !!l.is_sold, offers.get(l.id)),
-    [offers],
+    (l: Listing) => afterSale(l, offers.get(l.id), shipments.get(l.id), vendorStatus(l.status, !!l.is_sold, offers.get(l.id))),
+    [offers, shipments],
   );
 
   // The patient lane's defining fact, given its own shelf: these are the items
@@ -154,7 +195,10 @@ export function VendorPortalView({ tab, onTab, listings, offers, loading, error,
   });
   // Bought and not yet handed over: the one time a vendor has a deadline, so
   // it has its own section at the top rather than sharing "Needs you".
-  const shipNow = listings.filter((l) => SHIP_NOW.has(statusOf(l).key));
+  const shipNow = listings.filter((l) => {
+    const k = statusOf(l).key;
+    return k === 'awaiting_pickup' || (k === 'sold' && !l.is_verified);
+  });
   const needsYou = listings.filter((l) => statusOf(l).needsAction && !withYou.includes(l) && !shipNow.includes(l));
   const sold = listings.filter((l) => l.is_sold && !needsYou.includes(l) && !shipNow.includes(l));
   const inProgress = listings.filter((l) => !l.is_sold && !withYou.includes(l) && !needsYou.includes(l) && !shipNow.includes(l));
@@ -187,7 +231,7 @@ export function VendorPortalView({ tab, onTab, listings, offers, loading, error,
           ) : (
             <div className="flex flex-col gap-14">
               <PayoutSummary listings={listings} offers={offers} statusOf={statusOf} />
-              {shipNow.length > 0 && <ShipNow rows={shipNow} offers={offers} statusOf={statusOf} />}
+              {shipNow.length > 0 && <ShipNow rows={shipNow} offers={offers} shipments={shipments} onChanged={onChanged} />}
               {needsYou.length > 0 && <NeedsYou rows={needsYou} offers={offers} statusOf={statusOf} onDelete={onDelete} deletingId={deletingId} />}
               {withYou.length > 0 && <WithYou rows={withYou} offers={offers} statusOf={statusOf} onChanged={onChanged} />}
               {inProgress.length > 0 && (
@@ -311,33 +355,161 @@ function ItemRow({ listing, offer, status, aside, children, showStatus = true }:
   );
 }
 
-// Bought: pack it and hand it over. The date is the one from the email, the
-// label is ours, and the courier comes to the door.
-function ShipNow({ rows, offers, statusOf }: {
+// Bought and waiting on the vendor: the one time they have a deadline. A card
+// each, like an open offer, because each has its own date and its own label.
+function ShipNow({ rows, offers, shipments, onChanged }: {
   rows: Listing[];
   offers: Map<string, VendorOffer>;
-  statusOf: (l: Listing) => VendorStatusView;
+  shipments: Map<string, InboundShipment>;
+  onChanged: () => void;
 }) {
   return (
-    <ItemSection
-      title="Ship now"
-      intro="Someone bought it. We email you a prepaid label, and a courier collects it from your door."
-    >
-      {rows.map((l) => {
-        const offer = offers.get(l.id);
-        const by = offer?.ship_by_deadline;
-        return (
-          <React.Fragment key={l.id}>
-            <ItemRow
-              listing={l}
-              offer={offer}
-              status={statusOf(l)}
-              aside={by && <span className="text-sm font-bold">By {formatDate(by)}</span>}
-            />
-          </React.Fragment>
-        );
-      })}
-    </ItemSection>
+    <section className="flex flex-col gap-4">
+      <h2 className={ui.sectionTitle}>Ship now</h2>
+      <div className="flex flex-col gap-6">
+        {rows.map((l) => (
+          <ShipNowCard key={l.id} listing={l} offer={offers.get(l.id)} shipment={shipments.get(l.id)} onChanged={onChanged} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function handOverDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+/**
+ * Everything a vendor needs once their item is bought, and nothing else: the
+ * date, three steps, their payout, and the consequence of missing the date
+ * (MODEL.md §5; the seller terms on How selling works say the same).
+ */
+export function ShipNowCard({ listing, offer, shipment, onChanged }: {
+  key?: string;
+  listing: Listing;
+  offer: VendorOffer | undefined;
+  shipment: InboundShipment | undefined;
+  onChanged: () => void;
+}) {
+  const by = offer?.ship_by_deadline ?? null;
+  const overdue = !!by && new Date(by).getTime() < Date.now();
+  const label = shipment?.label_url ?? null;
+  const payout = offer?.offer_amount != null ? formatCurrency(Number(offer.offer_amount)) : null;
+
+  return (
+    <article className="flex flex-col gap-6 border-2 border-black p-6 sm:p-8">
+      <div className="flex items-start gap-4">
+        <Link to={`/product/${listing.id}`} className="h-24 w-[72px] shrink-0 overflow-hidden bg-zinc-100">
+          <img src={variantUrl(listing.image_url, 'thumb')} alt="" className="h-full w-full object-cover" />
+        </Link>
+        <div className="flex min-w-0 flex-col gap-1 text-sm">
+          <span className="font-bold">Sold</span>
+          <span className="text-[15px] font-bold leading-snug">{listing.title}</span>
+          {listing.sku && <span>{listing.sku}</span>}
+        </div>
+      </div>
+
+      {by && (
+        <div className="flex flex-col gap-1">
+          <span className="text-sm font-bold">{overdue ? 'This was due' : 'Hand it over by'}</span>
+          <p className={cn('text-3xl sm:text-4xl font-black tracking-tighter leading-none', overdue && 'text-red-700')}>{handOverDate(by)}</p>
+          {overdue && <p className="text-sm">Hand it over today, or tell us below.</p>}
+        </div>
+      )}
+
+      <ol className="flex flex-col gap-3 text-sm leading-relaxed">
+        <Step n={1}>Pack it, exactly as in your photos.</Step>
+        <Step n={2}>
+          {label ? (
+            <span className="flex flex-col items-start gap-2">
+              <span>Your prepaid label is ready. Print it and stick it on the parcel.</span>
+              <a href={label} target="_blank" rel="noopener noreferrer" className={cn(ui.link, 'font-bold')}>Download label</a>
+              {(shipment?.courier || shipment?.awb) && (
+                <span className="text-xs">{[shipment?.courier, shipment?.awb && `Tracking ${shipment.awb}`].filter(Boolean).join(' · ')}</span>
+              )}
+            </span>
+          ) : (
+            <>Look out for your prepaid label in your email. We may also send it on WhatsApp.</>
+          )}
+        </Step>
+        <Step n={3}>A courier collects it from your door, usually within 48 hours.</Step>
+      </ol>
+
+      {payout && (
+        <p className="text-sm">Your payout: <span className="font-bold">{payout}</span>, paid once it reaches us and passes our check.</p>
+      )}
+
+      <p className="text-xs leading-relaxed">
+        We will contact you if we need anything.{' '}
+        {overdue
+          ? 'The date has passed, so we may cancel the order at any time, and it counts against your account.'
+          : by
+            ? `If it is not handed over by ${handOverDate(by)}, we cancel the order and it counts against your account.`
+            : 'If it is not handed over in time, we cancel the order and it counts against your account.'}
+      </p>
+
+      <CantSend listing={listing} onChanged={onChanged} />
+    </article>
+  );
+}
+
+function Step({ n, children }: { n: number; children: React.ReactNode }) {
+  return (
+    <li className="flex gap-3">
+      <span aria-hidden className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-black text-xs font-black leading-none text-white">{n}</span>
+      <span className="min-w-0">{children}</span>
+    </li>
+  );
+}
+
+// The honest way out, which the reminder email already points here for. It
+// costs the vendor less than letting the date pass, and it lets us refund the
+// buyer today instead of on the deadline.
+function CantSend({ listing, onChanged }: { listing: Listing; onChanged: () => void }) {
+  const [open, setOpen] = React.useState(false);
+  const [reason, setReason] = React.useState('');
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const id = React.useId();
+
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)} className={cn(ui.link, 'self-start text-sm')}>
+        Can't send it?
+      </button>
+    );
+  }
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reason.trim() || busy) return;
+    if (!window.confirm(`Cancel the sale of "${listing.title}"? The buyer is refunded, and it counts against your account, though less than missing the date.`)) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await cancelSoldItem(listing.id, reason.trim());
+      onChanged();
+    } catch (err: any) {
+      setError(err?.message ?? 'That did not work. Try again, or get in touch.');
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} className="flex flex-col gap-3 border-t border-black/10 pt-5">
+      <label htmlFor={id} className={ui.label}>What happened?</label>
+      <textarea
+        id={id} value={reason} onChange={(e) => setReason(e.target.value)} rows={2} required
+        className="w-full border border-black/20 px-3 py-2.5 text-sm focus:border-black focus:outline-none"
+      />
+      {error && <p role="alert" className={ui.error}>{error}</p>}
+      <div className="flex flex-wrap items-center gap-5">
+        <button type="submit" disabled={busy || !reason.trim()} className={cn(ui.btnPrimary, 'disabled:opacity-50')}>
+          {busy ? 'Cancelling' : 'Cancel this sale'}
+        </button>
+        <button type="button" onClick={() => { setOpen(false); setError(null); }} className={cn(ui.link, 'text-sm')}>Keep it</button>
+      </div>
+    </form>
   );
 }
 
@@ -507,8 +679,6 @@ function WithYou({ rows, offers, statusOf, onChanged }: {
 // sold one pays once it reaches us and passes our check, a paid one is done.
 const ON_SALE = new Set(['live', 'live_check_due']);
 const ON_ITS_WAY = new Set(['sold', 'awaiting_pickup', 'in_transit', 'received']);
-// Bought, and waiting on the vendor to hand it to the courier.
-const SHIP_NOW = new Set(['sold', 'awaiting_pickup']);
 
 /**
  * The vendor's payouts, at the top of their items and at display size: the

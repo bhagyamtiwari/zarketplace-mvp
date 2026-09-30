@@ -23,9 +23,11 @@ const KINDS = [
 // these two must never carry it. The emails sent after acceptance may, and do:
 // by then the number is something we are confirming, not something we are
 // asking someone to decide on from their inbox.
+// item_sold is here too: a sale notification lands on a lock screen, and the
+// number is on Your items for anyone who wants it.
 const KINDS_WITHOUT_THE_AMOUNT = [
   "offer_made", "item_submitted", "possession_check", "listing_expired",
-  "delisted_no_response", "reoffer_made",
+  "delisted_no_response", "reoffer_made", "item_sold",
 ];
 
 // Every field a vendor must never receive, stuffed into the payload under both

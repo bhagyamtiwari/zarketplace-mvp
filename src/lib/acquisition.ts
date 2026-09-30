@@ -183,6 +183,42 @@ export async function resubmitListing(listingId: string): Promise<void> {
  * counts. The database enforces all of this; the check below only decides
  * whether to show the button.
  */
+/** The courier leg from the vendor's door to our hub. RLS shows a vendor only their own. */
+export interface InboundShipment {
+  listing_id: string;
+  courier: string | null;
+  awb: string | null;
+  label_url: string | null;
+  status: string | null;
+  picked_up_at: string | null;
+}
+
+export async function getInboundShipments(listingIds: string[]): Promise<InboundShipment[]> {
+  if (listingIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from('shipments')
+    .select('listing_id, courier, awb, label_url, status, picked_up_at')
+    .eq('leg', 'INBOUND')
+    .in('listing_id', listingIds);
+  if (error) throw error;
+  return (data as InboundShipment[]) ?? [];
+}
+
+/** Has the courier taken it? Then it is on its way, and nothing is left for the vendor to do. */
+export function pickedUp(s: InboundShipment | undefined): boolean {
+  return !!s && (!!s.picked_up_at || ['picked_up', 'in_transit', 'delivered'].includes(s.status ?? ''));
+}
+
+/**
+ * A sold item the vendor cannot send after all. The buyer is refunded and it
+ * counts against the vendor's account, though less than letting the date
+ * pass. The server allows it only until the courier has collected it.
+ */
+export async function cancelSoldItem(listingId: string, reason: string): Promise<void> {
+  const { error } = await supabase.rpc('vendor_cancel_item', { p_listing_id: listingId, p_reason: reason });
+  if (error) throw new Error(error.message);
+}
+
 export async function withdrawItem(listingId: string): Promise<void> {
   const { error } = await supabase.rpc('withdraw_acquisition', { p_listing_id: listingId });
   if (error) throw error;
@@ -244,10 +280,10 @@ const STATUS_COPY: Record<VendorStatus, { label: string; detail: string; needsAc
   // common patient-lane mistake is assuming the item has already been sent.
   live:            { label: 'Live, with you',  detail: 'On the site. Keep it packed and unworn, and stay reachable.', needsAction: false },
   live_check_due:  { label: 'Answer needed',   detail: 'We asked whether you still have this. Two unanswered and it comes down.', needsAction: true },
-  sold:            { label: 'Sold',           detail: 'Bought. We are sending a prepaid label and booking a pickup.', needsAction: false },
-  awaiting_pickup: { label: 'Post it now',     detail: 'Pack it and hand it to the courier by the date we sent you.', needsAction: true },
-  in_transit:      { label: 'In transit',     detail: 'On its way to us.', needsAction: false },
-  received:        { label: 'Received',       detail: 'With us and being checked.', needsAction: false },
+  sold:            { label: 'Sold',           detail: 'Bought. Look out for your prepaid label.', needsAction: false },
+  awaiting_pickup: { label: 'Ship now',       detail: 'Pack it and hand it to the courier by your hand-over date.', needsAction: true },
+  in_transit:      { label: 'On its way to us', detail: 'We pay you once it arrives and passes our check.', needsAction: false },
+  received:        { label: 'With us',        detail: 'Being checked. You will hear from us within 24 hours.', needsAction: false },
   paid:            { label: 'Paid',           detail: 'Your payout has been sent.', needsAction: false },
   not_accepted:    { label: 'Not accepted',   detail: 'This item did not match what you described. Get in touch about returning it.', needsAction: true },
   expired:         { label: 'Came off the site', detail: 'It did not sell this time. It is yours, and you owe us nothing.', needsAction: false },
