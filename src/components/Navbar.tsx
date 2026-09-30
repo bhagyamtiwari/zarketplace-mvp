@@ -2,11 +2,12 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
-import { AnimatePresence, motion } from 'motion/react';
 import { cn } from '../lib/utils';
-import { useAuth, useFirstName } from '../lib/auth';
+import { useAuth } from '../lib/auth';
 import { useCart } from '../lib/cart';
-import { AuthModal } from './AuthModal';
+// Loaded when first opened. It and the header were the only things putting the
+// animation library into the first download every visitor makes.
+const AuthModal = React.lazy(() => import('./AuthModal').then((m) => ({ default: m.AuthModal })));
 import { Wordmark } from './Wordmark';
 import { SOCIALS } from './Footer';
 import { useFavorites } from '../lib/favorites';
@@ -31,11 +32,17 @@ export function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const firstName = useFirstName();
   const offers = useOpenOfferCount();
   const { count: cartCount } = useCart();
 
   const closeMenu = () => setIsMenuOpen(false);
+
+  // Fetch the sign-in modal once the page has settled, so opening it is
+  // instant without it weighing on the first load.
+  React.useEffect(() => {
+    const idle = (window as any).requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 2500));
+    idle(() => { void import('./AuthModal'); });
+  }, []);
 
   // Lock background scroll while the mobile drawer is open.
   React.useEffect(() => {
@@ -89,10 +96,10 @@ export function Navbar() {
                 // three tabs, and the dot says an offer is waiting on it.
                 <Link
                   to="/account"
-                  aria-label={offers > 0 ? `Account, ${offers} ${offers === 1 ? 'offer' : 'offers'} waiting` : undefined}
+                  aria-label={offers > 0 ? `Your account, ${offers} ${offers === 1 ? 'offer' : 'offers'} waiting` : undefined}
                   className={cn(NAV, 'relative py-7 hover:underline underline-offset-[6px] decoration-2')}
                 >
-                  <span className="block max-w-[12rem] truncate">{firstName ? `Hi ${firstName}` : 'Account'}</span>
+                  Your account
                   {offers > 0 && <span aria-hidden className="absolute -right-3 top-[1.6rem] h-2 w-2 rounded-full bg-amber-400" />}
                 </Link>
               ) : (
@@ -144,27 +151,30 @@ export function Navbar() {
           nav's own stacking context. Drawer and its scrim sit above the
           consent bar (z-60): an open drawer with its own primary action hidden
           behind the cookie notice is unusable. */}
+      {/* Always mounted and slid with CSS rather than an animation library:
+          closed, it is off screen, invisible once the slide ends, and inert,
+          so nothing inside it can be reached by keyboard or screen reader. */}
       {createPortal(
-      <AnimatePresence>
-        {isMenuOpen && [
-          <motion.div
-            key="drawer-overlay"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+        <>
+          <div
+            aria-hidden
             onClick={() => setIsMenuOpen(false)}
             // Runs past the bottom of the screen: on iOS Safari the floating
             // toolbar sits over the page, and a scrim that stopped at
             // bottom: 0 left a strip of undimmed page underneath it.
-            className="md:hidden fixed inset-x-0 top-0 -bottom-[30vh] z-[65] bg-black/40"
-          />,
-          <motion.div
-            key="drawer-panel"
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'tween', duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="md:hidden fixed inset-y-0 right-0 z-[70] w-full max-w-xs bg-white border-l border-black/10 flex flex-col"
+            className={cn(
+              'md:hidden fixed inset-x-0 top-0 -bottom-[30vh] z-[65] bg-black/40 transition-opacity duration-200',
+              isMenuOpen ? 'opacity-100' : 'pointer-events-none opacity-0',
+            )}
+          />
+          <div
+            inert={!isMenuOpen}
+            aria-hidden={!isMenuOpen}
+            className={cn(
+              'md:hidden fixed inset-y-0 right-0 z-[70] w-full max-w-xs bg-white border-l border-black/10 flex flex-col',
+              'transition-[transform,visibility] duration-[250ms] ease-[cubic-bezier(0.16,1,0.3,1)]',
+              isMenuOpen ? 'visible translate-x-0' : 'invisible translate-x-full',
+            )}
           >
               {/* The panel's content ends where the screen does; its white
                   carries on beneath Safari's toolbar, for the same reason as
@@ -232,12 +242,15 @@ export function Navbar() {
                   </a>
                 ))}
               </div>
-            </motion.div>,
-        ]}
-      </AnimatePresence>,
-      document.body,
+          </div>
+        </>,
+        document.body,
       )}
-      <AuthModal open={showAuth} onClose={() => setShowAuth(false)} />
+      {showAuth && (
+        <React.Suspense fallback={null}>
+          <AuthModal open onClose={() => setShowAuth(false)} />
+        </React.Suspense>
+      )}
     </nav>
   );
 }

@@ -10,6 +10,7 @@ import { SpeedInsights } from '@vercel/speed-insights/react';
 
 import { ScrollToTop } from './components/ScrollToTop';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { Loading } from './components/Loading';
 import { CookieConsent } from './components/CookieConsent';
 import { PhoneCapturePrompt } from './components/PhoneCapturePrompt';
 import { FavoritesSync } from './components/FavoritesSync';
@@ -176,7 +177,7 @@ function AdminHostApp() {
         <AdminBar />
         <main className="flex-1">
           <RoutedErrorBoundary>
-          <Suspense fallback={<div className="min-h-screen bg-black" aria-busy="true" />}>
+          <Suspense fallback={<div className="min-h-screen bg-black pt-40 text-white [&_button]:bg-white [&_button]:text-black" aria-busy="true"><Loading delayMs={400} /></div>}>
           <Routes>
             <Route path="/" element={<Navigate to="/admin/today" replace />} />
             <Route path="/admin/*" element={<Admin />} />
@@ -211,7 +212,9 @@ export default function App() {
               80vh the footer sat on screen and was then shoved down as the real
               page mounted, which is where most of the site's layout shift came
               from. Below the fold, the same growth costs nothing. */}
-          <Suspense fallback={<div className="min-h-[220vh]" aria-busy="true" />}>
+          {/* The spinner waits 400ms, so a quick load shows nothing, and after
+              ten seconds it asks for a reload instead of spinning forever. */}
+          <Suspense fallback={<div className="min-h-[220vh] pt-40" aria-busy="true"><Loading delayMs={400} /></div>}>
           <Routes>
             {shopRoutes}
             <Route path="/admin/*" element={<AdminRoute />} />

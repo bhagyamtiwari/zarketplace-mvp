@@ -26,7 +26,6 @@ import { supabase } from '../lib/supabase';
 import { Listing } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { variantUrl } from '../lib/images';
-import { Loader2 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
 import { AccountLayout } from '../components/AccountLayout';
@@ -35,6 +34,7 @@ import { log } from '../lib/log';
 import { usePageMeta, META, isDemoTitle } from '../lib/pageMeta';
 import { ui } from '../lib/ui';
 import { getVendorOffers, vendorStatus, withdrawItem, canWithdraw, canDelete, type VendorOffer, type VendorStatusView } from '../lib/acquisition';
+import { Loading } from '../components/Loading';
 
 const splog = log('seller');
 
@@ -152,9 +152,12 @@ export function VendorPortalView({ tab, onTab, listings, offers, loading, error,
     const k = statusOf(l).key;
     return k === 'live' || k === 'live_check_due';
   });
-  const needsYou = listings.filter((l) => statusOf(l).needsAction && !withYou.includes(l));
-  const sold = listings.filter((l) => l.is_sold && !needsYou.includes(l));
-  const inProgress = listings.filter((l) => !l.is_sold && !withYou.includes(l) && !needsYou.includes(l));
+  // Bought and not yet handed over: the one time a vendor has a deadline, so
+  // it has its own section at the top rather than sharing "Needs you".
+  const shipNow = listings.filter((l) => SHIP_NOW.has(statusOf(l).key));
+  const needsYou = listings.filter((l) => statusOf(l).needsAction && !withYou.includes(l) && !shipNow.includes(l));
+  const sold = listings.filter((l) => l.is_sold && !needsYou.includes(l) && !shipNow.includes(l));
+  const inProgress = listings.filter((l) => !l.is_sold && !withYou.includes(l) && !needsYou.includes(l) && !shipNow.includes(l));
 
   return (
     <AccountLayout tab="items">
@@ -174,7 +177,7 @@ export function VendorPortalView({ tab, onTab, listings, offers, loading, error,
         {error && <p className={ui.error}>{error}</p>}
 
         {loading ? (
-          <div className="flex h-64 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div>
+          <Loading className="h-64" />
         ) : tab === 'listings' ? (
           listings.length === 0 ? (
             <div className="flex flex-col items-start gap-6">
@@ -184,6 +187,7 @@ export function VendorPortalView({ tab, onTab, listings, offers, loading, error,
           ) : (
             <div className="flex flex-col gap-14">
               <PayoutSummary listings={listings} offers={offers} statusOf={statusOf} />
+              {shipNow.length > 0 && <ShipNow rows={shipNow} offers={offers} statusOf={statusOf} />}
               {needsYou.length > 0 && <NeedsYou rows={needsYou} offers={offers} statusOf={statusOf} onDelete={onDelete} deletingId={deletingId} />}
               {withYou.length > 0 && <WithYou rows={withYou} offers={offers} statusOf={statusOf} onChanged={onChanged} />}
               {inProgress.length > 0 && (
@@ -307,6 +311,36 @@ function ItemRow({ listing, offer, status, aside, children, showStatus = true }:
   );
 }
 
+// Bought: pack it and hand it over. The date is the one from the email, the
+// label is ours, and the courier comes to the door.
+function ShipNow({ rows, offers, statusOf }: {
+  rows: Listing[];
+  offers: Map<string, VendorOffer>;
+  statusOf: (l: Listing) => VendorStatusView;
+}) {
+  return (
+    <ItemSection
+      title="Ship now"
+      intro="Someone bought it. We email you a prepaid label, and a courier collects it from your door."
+    >
+      {rows.map((l) => {
+        const offer = offers.get(l.id);
+        const by = offer?.ship_by_deadline;
+        return (
+          <React.Fragment key={l.id}>
+            <ItemRow
+              listing={l}
+              offer={offer}
+              status={statusOf(l)}
+              aside={by && <span className="text-sm font-bold">By {formatDate(by)}</span>}
+            />
+          </React.Fragment>
+        );
+      })}
+    </ItemSection>
+  );
+}
+
 // An open offer is the one thing a vendor is actually waiting for, so it is
 // the loudest thing on the page: the number at display size, and what
 // accepting does said outright (people did not know accepting is what puts
@@ -425,12 +459,11 @@ function WithYou({ rows, offers, statusOf, onChanged }: {
   const one = rows.length === 1;
   return (
     <ItemSection
-      title="With you now"
+      title="Keep packed, ready to ship"
       intro={
         <>
-          On the site and waiting for a buyer. Keep {one ? 'it' : 'them'} packed and unworn, do not sell{' '}
-          {one ? 'it' : 'them'} anywhere else, and watch your email. The day {one ? 'it is' : 'one is'} bought
-          we send a prepaid label and a courier comes to your door.
+          On sale now. Keep {one ? 'it' : 'them'} unworn and do not sell {one ? 'it' : 'them'} anywhere else.
+          When {one ? 'it is' : 'one is'} bought, we email you a prepaid label.
         </>
       }
     >
@@ -474,6 +507,8 @@ function WithYou({ rows, offers, statusOf, onChanged }: {
 // sold one pays once it reaches us and passes our check, a paid one is done.
 const ON_SALE = new Set(['live', 'live_check_due']);
 const ON_ITS_WAY = new Set(['sold', 'awaiting_pickup', 'in_transit', 'received']);
+// Bought, and waiting on the vendor to hand it to the courier.
+const SHIP_NOW = new Set(['sold', 'awaiting_pickup']);
 
 /**
  * The vendor's payouts, at the top of their items and at display size: the
@@ -487,6 +522,7 @@ function PayoutSummary({ listings, offers, statusOf }: {
   offers: Map<string, VendorOffer>;
   statusOf: (l: Listing) => VendorStatusView;
 }) {
+  const onSale = listings.filter((l) => ON_SALE.has(statusOf(l).key)).length;
   const sum = (keys: Set<string>) => listings.reduce((total, l) => {
     const amount = offers.get(l.id)?.offer_amount;
     return amount != null && keys.has(statusOf(l).key) ? total + Number(amount) : total;
@@ -495,7 +531,7 @@ function PayoutSummary({ listings, offers, statusOf }: {
   const stats = [
     { label: 'Paid to you', amount: sum(new Set(['paid'])), note: 'Sent to your UPI ID.' },
     { label: 'On its way to you', amount: sum(ON_ITS_WAY), note: 'Sold. Paid once it reaches us and passes our check.' },
-    { label: 'On sale now', amount: sum(ON_SALE), note: 'Yours if it sells within 30 days.' },
+    { label: 'Your estimated payout', amount: sum(ON_SALE), note: onSale === 1 ? 'If it sells within 30 days.' : 'If each item sells within 30 days.' },
   ].filter((x) => x.amount > 0);
 
   if (stats.length === 0) return null;

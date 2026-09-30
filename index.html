@@ -49,7 +49,17 @@
          visible font-swap reflow on first load. -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
+    <!-- Loaded without holding up the first paint: the page draws in the
+         system font at once and swaps to Inter when it arrives (display=swap
+         already did this for the font files; now the stylesheet that names
+         them no longer blocks rendering either). -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet"></noscript>
+    <!-- The shop's listings and photos come from Supabase. Opening that
+         connection now, while the app's code downloads, takes the handshake
+         off the first request instead of adding it after. -->
+    <link rel="preconnect" href="https://wfaxtxprngyrxsmahxxa.supabase.co" crossorigin>
+    <link rel="dns-prefetch" href="https://wfaxtxprngyrxsmahxxa.supabase.co">
 
     <!-- Critical inline styles so the page never paints as unstyled HTML
          while the rest of the stylesheet loads. -->
@@ -181,6 +191,17 @@
          between the markers. Every sentence must stay true. -->
     <!--seo:start--><noscript><h2>zarketplace: pre-owned and thrift clothing in India</h2><p>zarketplace is a resale company. We buy pre-owned clothing from individuals and sell it in our own name, so every item is sold and shipped by zarketplace, at a fixed price shown on the listing. There is no haggling and no DM for price.</p><p>Every item comes to our hub, is checked against its listing and photos, and is repacked before it ships to you, tracked. Delivery is free, and Buyer Protection covers every order: if an item arrives not as described or is the wrong item, tell us within 7 days of delivery for a full refund.</p><p>Selling to us: add photos and details of an item, and within 24 hours we make you an offer, a fixed amount in rupees. Accept it and the item goes on sale while it stays with you. When someone buys it, we send a prepaid label, a courier collects it from your door, and we pay you once it reaches our hub and has been checked.</p><ul><li><a href="/sell">Get an offer</a></li><li><a href="/how-it-works">How selling works</a></li><li><a href="/buyer-protection">Buyer Protection</a></li><li><a href="/returns">Returns and refunds</a></li><li><a href="/shipping-policy">Shipping</a></li><li><a href="/conditions-guide">Conditions guide</a></li><li><a href="/faq">FAQ</a></li><li><a href="/about">About zarketplace</a></li><li><a href="/our-mission">Our mission</a></li><li><a href="/contact">Contact us</a></li></ul></noscript><!--seo:end-->
     <div id="root"></div>
+    <!-- If the app has not started after 15 seconds (its script failed to
+         download, or the connection is very slow), say so instead of leaving
+         a blank page. React clears this the moment it mounts. -->
+    <script>
+      setTimeout(function () {
+        var r = document.getElementById('root');
+        if (r && !r.firstChild) {
+          r.innerHTML = '<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;padding:24px;text-align:center;font-family:Inter,-apple-system,sans-serif;color:#000"><p style="margin:0;font-size:14px">zarketplace is taking longer than usual to load. Please reload.</p><button type="button" onclick="location.reload()" style="background:#000;color:#fff;border:0;padding:14px 32px;font-size:11px;font-weight:900;letter-spacing:.2em;text-transform:uppercase;cursor:pointer">Reload</button></div>';
+        }
+      }, 15000);
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

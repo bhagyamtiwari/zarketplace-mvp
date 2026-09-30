@@ -31,7 +31,9 @@ import { log } from '../lib/log';
 import { getPricingConfig, buyerProtectionFee, type PricingConfig, getShippingCategories, shippingRateFor, type ShippingCategory } from '../lib/pricing';
 import { trackEvent } from '../lib/analytics';
 import { itemPath } from '../lib/pageMeta';
-import { checkDiscountCode, applyDiscountCode, removeDiscountCode } from '../lib/discounts';
+import { checkDiscountCode, applyDiscountCode, removeDiscountCode, getPendingCode, setPendingCode } from '../lib/discounts';
+import { PromoCodeField } from '../components/PromoCodeField';
+import { Loading } from '../components/Loading';
 
 const clog = log('checkout');
 const RESUME_KEY = 'zk_checkout_v3';
@@ -154,6 +156,9 @@ function CheckoutInner() {
   // (apply_discount_code), and discountOnOrders says whether it is there now.
   const [discount, setDiscount] = React.useState<{ code: string; amountOff: number } | null>(null);
   const [discountOnOrders, setDiscountOnOrders] = React.useState(false);
+  // Why a code brought over from the cart could not be used, shown at the box.
+  const [codeNotice, setCodeNotice] = React.useState<string | null>(null);
+  const codeCarried = React.useRef(false);
   // Full order rows once payment is confirmed, so the success screen can show
   // exactly what was bought and for how much - not just an order number.
   const [confirmedOrders, setConfirmedOrders] = React.useState<Array<{
@@ -375,9 +380,26 @@ function CheckoutInner() {
     const res = await checkDiscountCode(code, preDiscountTotal, orderNumbers);
     if (res.ok === false) return res.message;
     setDiscount({ code: res.code, amountOff: res.amountOff });
+    setPendingCode(res.code);
+    setCodeNotice(null);
     trackEvent('discount_code_entered', { code: res.code });
     return null;
   };
+  const removeCode = () => { setDiscount(null); setPendingCode(null); };
+
+  // A code entered in the cart is applied on arrival, once the items and the
+  // shipping rates are in so it is checked against the real total. Tried once:
+  // a code that cannot be used says why, at the box, and is forgotten.
+  React.useEffect(() => {
+    if (codeCarried.current || discount || items.length === 0 || shippingCategories.length === 0) return;
+    const carried = getPendingCode();
+    if (!carried) return;
+    codeCarried.current = true;
+    void applyCode(carried).then((problem) => {
+      if (problem) { setPendingCode(null); setCodeNotice(`${carried}: ${problem}`); }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items.length, shippingCategories.length, discount]);
 
   // Just before payment: put the chosen code on the held orders, or take off
   // one that was put on earlier, so the charge is exactly what the summary
@@ -390,6 +412,7 @@ function CheckoutInner() {
         setDiscountOnOrders(true);
       } catch (err: any) {
         setDiscount(null);
+        setPendingCode(null);
         throw new Error(`${err?.message || 'That code could not be used.'} Your total is now shown without it: press Complete purchase to pay.`);
       }
     } else if (discountOnOrders) {
@@ -433,6 +456,7 @@ function CheckoutInner() {
       setStep('success');
       scrollToTop();
       clearResume();
+      setPendingCode(null);
       if (!id) await cart.clear();
     } else if (result === 'payment_failed') {
       trackEvent('order_payment_failed', { order_numbers: orderNumbers.join(',') });
@@ -561,9 +585,7 @@ function CheckoutInner() {
 
   if (loadingBuyNow) {
     return (
-      <div className="flex h-[80vh] items-center justify-center">
-        <Loader2 className="h-6 w-6 animate-spin" />
-      </div>
+      <Loading className="h-[80vh]" />
     );
   }
 
@@ -654,7 +676,8 @@ function CheckoutInner() {
             discountCode={discount?.code ?? null}
             discountAmount={discountAmount}
             onApplyCode={applyCode}
-            onRemoveCode={() => setDiscount(null)}
+            onRemoveCode={removeCode}
+            codeNotice={codeNotice}
             codeLocked={submitting}
             total={payable}
             selfShip={anySelfShip}
@@ -1007,12 +1030,12 @@ function Totals({ subtotal, shipping, shippingLoading, buyerProtection, discount
 
 export function Summary({
   items, subtotal, shipping, shippingLoading, buyerProtection,
-  discountCode = null, discountAmount = 0, onApplyCode, onRemoveCode, codeLocked = false,
+  discountCode = null, discountAmount = 0, onApplyCode, onRemoveCode, codeLocked = false, codeNotice = null,
   total, selfShip,
 }: {
   items: CartItem[]; subtotal: number; shipping: number; shippingLoading: boolean; buyerProtection: number;
   discountCode?: string | null; discountAmount?: number;
-  onApplyCode?: (code: string) => Promise<string | null>; onRemoveCode?: () => void; codeLocked?: boolean;
+  onApplyCode?: (code: string) => Promise<string | null>; onRemoveCode?: () => void; codeLocked?: boolean; codeNotice?: string | null;
   total: number; selfShip: boolean;
 }) {
   return (
@@ -1022,73 +1045,14 @@ export function Summary({
         {items.map((i) => <li key={i.listing_id} className="border-t border-black/10 py-4 first:border-t-0 first:pt-0"><SummaryItem item={i} /></li>)}
       </ul>
       {onApplyCode && onRemoveCode && (
-        <DiscountCodeField applied={discountCode} onApply={onApplyCode} onRemove={onRemoveCode} locked={codeLocked} />
+        <PromoCodeField applied={discountCode} onApply={onApplyCode} onRemove={onRemoveCode} locked={codeLocked} notice={codeNotice} />
       )}
       <Totals
         subtotal={subtotal} shipping={shipping} shippingLoading={shippingLoading} buyerProtection={buyerProtection}
         discountAmount={discountAmount} total={total} selfShip={selfShip}
       />
-      <p className="text-sm">Your order is covered by <Link to="/buyer-protection" className={cn(ui.link, 'font-bold')}>Buyer Protection</Link>.</p>
+      <p className="text-xs">Your order is covered by <Link to="/buyer-protection" className={cn(ui.link, 'font-bold')}>Buyer Protection</Link>.</p>
     </div>
-  );
-}
-
-/**
- * The promo code box, above the totals it changes. Always open: a code is
- * something we hand to a particular person, and they should not have to hunt
- * for where it goes.
- */
-function DiscountCodeField({ applied, onApply, onRemove, locked }: {
-  applied: string | null;
-  onApply: (code: string) => Promise<string | null>;
-  onRemove: () => void;
-  locked: boolean;
-}) {
-  const [value, setValue] = React.useState('');
-  const [busy, setBusy] = React.useState(false);
-  const [message, setMessage] = React.useState<string | null>(null);
-  const id = React.useId();
-
-  if (applied) {
-    return (
-      <div className="flex items-center justify-between gap-4 border-t border-black/10 pt-5 text-sm">
-        <span>Promo code <span className="font-bold">{applied}</span> applied</span>
-        <button type="button" onClick={onRemove} disabled={locked} className={cn(ui.link, 'disabled:opacity-40')}>Remove</button>
-      </div>
-    );
-  }
-
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!value.trim() || busy) return;
-    setBusy(true);
-    setMessage(null);
-    const problem = await onApply(value);
-    setBusy(false);
-    if (problem) setMessage(problem);
-    else setValue('');
-  };
-
-  // One line: the box says what it is for, so it needs no label above it.
-  return (
-    <form onSubmit={submit} className="flex flex-col gap-2 border-t border-black/10 pt-5">
-      <div className="flex items-stretch gap-3">
-        <input
-          id={id} value={value} aria-label="Promo code" placeholder="Promo code"
-          onChange={(e) => { setValue(e.target.value.toUpperCase().replace(/\s+/g, '')); setMessage(null); }}
-          autoComplete="off" autoCapitalize="characters" spellCheck={false} maxLength={32}
-          className="min-w-0 flex-1 border border-black/20 px-3 py-2.5 text-sm uppercase tracking-wider placeholder:normal-case placeholder:tracking-normal placeholder:text-black/40 focus:border-black focus:outline-none"
-        />
-        <button
-          type="submit" disabled={busy || !value.trim() || locked}
-          className="inline-flex shrink-0 items-center gap-2 border border-black px-5 text-[11px] font-black uppercase tracking-[0.2em] transition-colors hover:bg-black hover:text-white disabled:opacity-40"
-        >
-          {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-          Apply
-        </button>
-      </div>
-      {message && <p role="alert" className={ui.error}>{message}</p>}
-    </form>
   );
 }
 

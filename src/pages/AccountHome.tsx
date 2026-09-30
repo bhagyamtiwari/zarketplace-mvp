@@ -3,10 +3,10 @@
 // else on Your orders.
 import * as React from 'react';
 import { Navigate } from 'react-router-dom';
-import { Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
+import { Loading } from '../components/Loading';
 
 export function AccountHome() {
   return (
@@ -29,6 +29,6 @@ function Choose() {
     })();
     return () => { alive = false; };
   }, [user]);
-  if (!to) return <div className="flex h-[60vh] items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (!to) return <Loading className="h-[60vh]" />;
   return <Navigate to={to} replace />;
 }

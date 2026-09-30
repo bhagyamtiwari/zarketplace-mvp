@@ -31,6 +31,7 @@ import { sendEmail } from '../lib/email';
 import { writeAudit, AuditEntry } from '../lib/adminAudit';
 import { ListingEditor } from '../components/admin/ListingEditor';
 import { DiscountCodes } from '../components/admin/DiscountCodes';
+import { Loading } from '../components/Loading';
 
 const adlog = log('admin');
 
@@ -450,7 +451,7 @@ function Console() {
                 <p className="text-sm ink-mid">{leaf.hint}</p>
               </div>
               {loading ? (
-                <div className="flex h-64 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin ink-mid" /></div>
+                <Loading className="h-64" />
               ) : (
                 <LeafView
                   leaf={leaf} orders={orders} listings={listings} acqByListing={acqByListing} payouts={payouts} users={users}

@@ -21,7 +21,7 @@ import { supabase } from '../lib/supabase';
 import { Order, OrderStatus } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { variantUrl } from '../lib/images';
-import { Loader2, Check } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
 import { AccountLayout } from '../components/AccountLayout';
@@ -29,6 +29,7 @@ import { log } from '../lib/log';
 import { shipmentStatusLabel } from '../lib/orderStatus';
 import { usePageMeta, META, itemPath } from '../lib/pageMeta';
 import { ui } from '../lib/ui';
+import { Loading } from '../components/Loading';
 
 const tlog = log('track');
 
@@ -74,7 +75,7 @@ export function OrdersView({ orders, loading, error }: { orders: Order[]; loadin
       <div className="flex max-w-2xl flex-col gap-8">
 
         {loading ? (
-          <div className="flex h-64 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div>
+          <Loading className="h-64" />
         ) : error ? (
           <p className={ui.error}>{error}</p>
         ) : orders.length === 0 ? (
