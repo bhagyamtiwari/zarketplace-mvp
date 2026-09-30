@@ -1591,7 +1591,7 @@ function AcquisitionPanel({ listingId, listingTitle, vendorEmail, askingPriceFal
     const t = setTimeout(async () => {
       // We carry both freight legs on every item, so there is nothing about
       // this vendor that changes the arithmetic.
-      const { data } = await supabase.rpc('compute_acquisition_offer', { resale: amount });
+      const { data } = await supabase.rpc('preview_acquisition_offer', { resale: amount });
       if (alive && data) setSuggestion(Number((data as any).offer_amount));
     }, 300);
     return () => { alive = false; clearTimeout(t); };
