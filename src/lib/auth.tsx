@@ -276,14 +276,15 @@ export function useAuth(): AuthContextValue {
 }
 
 /**
- * The name to greet someone by: the first name they gave at sign-up, or the
- * first word of the name on their profile. Null when we have neither, and
- * the caller falls back to something that does not need a name.
+ * The name to greet someone by. The first name given at sign-up, while the
+ * profile's name still begins with it (so "Mary Ann" stays whole); once the
+ * name is changed on the Profile tab, the first word of the new one. Null
+ * when we have neither, and the caller falls back to wording without a name.
  */
 export function useFirstName(): string | null {
   const { user, profile } = useAuth();
-  const meta = (user?.user_metadata?.first_name as string | undefined)?.trim();
-  if (meta) return meta;
-  const full = profile?.full_name?.trim();
-  return full ? full.split(/\s+/)[0] : null;
+  const meta = (user?.user_metadata?.first_name as string | undefined)?.trim() || null;
+  const full = profile?.full_name?.trim() || null;
+  if (meta && (!full || full.toLowerCase().startsWith(meta.toLowerCase()))) return meta;
+  return full ? full.split(/\s+/)[0] : meta;
 }
