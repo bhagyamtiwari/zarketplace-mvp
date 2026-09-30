@@ -51,10 +51,15 @@ export function normalizeCode(raw: string): string {
 
 export const CODE_RE = /^[A-Z0-9-]{3,32}$/;
 
-/** A fresh code to hand out, like THANKS-7KQ2. No 0, O, 1 or I, which are misread. */
+/**
+ * A fresh code to hand out, like THANKS-7KQ2M9XP. No 0, O, 1 or I, which are
+ * misread. Eight characters after the prefix: the prefixes are guessable and
+ * any signed-in account can ask check_discount_code, so four (about a million
+ * codes) could be tried in an afternoon; eight is about a trillion.
+ */
 export function makeCode(prefix: string): string {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const bytes = new Uint32Array(4);
+  const bytes = new Uint32Array(8);
   crypto.getRandomValues(bytes);
   const tail = Array.from(bytes, (b) => alphabet[b % alphabet.length]).join('');
   return `${prefix}-${tail}`;
