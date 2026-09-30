@@ -1,6 +1,7 @@
 // My Profile - a signed-in user's details and how we pay them.
 //
-// Editable: name, UPI ID (until the first sale locks it), and PAN.
+// Editable: first name and surname, UPI ID (until the first sale locks it),
+// and PAN.
 // Shown but not editable: email and phone. Both are how we reach someone
 // about an order in flight, and the phone is the number a courier already
 // holds, so changing either mid-delivery loses parcels. They are also the two
@@ -43,7 +44,8 @@ export function Account() {
 
 function AccountInner() {
   const { user, profile, refreshProfile } = useAuth();
-  const [fullName, setFullName] = React.useState('');
+  const [firstName, setFirstName] = React.useState('');
+  const [lastName, setLastName] = React.useState('');
   const [upiVpa, setUpiVpa] = React.useState('');
   const [pan, setPan] = React.useState('');
   const [savedPan, setSavedPan] = React.useState('');
@@ -52,10 +54,23 @@ function AccountInner() {
   const [saved, setSaved] = React.useState(false);
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
 
+  // The two halves as given at sign-up when the profile still agrees with
+  // them; otherwise the profile's name, split at its first space. Accounts
+  // from before sign-up asked for a name start with whatever is on file.
   React.useEffect(() => {
-    setFullName(profile?.full_name ?? '');
+    const full = (profile?.full_name ?? '').trim();
+    const metaFirst = String(user?.user_metadata?.first_name ?? '').trim();
+    const metaLast = String(user?.user_metadata?.last_name ?? '').trim();
+    if (metaFirst && full === `${metaFirst} ${metaLast}`.trim()) {
+      setFirstName(metaFirst);
+      setLastName(metaLast);
+    } else {
+      const space = full.indexOf(' ');
+      setFirstName(space === -1 ? full : full.slice(0, space));
+      setLastName(space === -1 ? '' : full.slice(space + 1).trim());
+    }
     setUpiVpa(profile?.default_upi_vpa ?? '');
-  }, [profile]);
+  }, [profile, user]);
 
   // The vendor record, if there is one. Its existence is what decides whether
   // PAN is asked for at all.
@@ -82,6 +97,12 @@ function AccountInner() {
     if (!user) return;
     setErrorMsg(null);
     setSaved(false);
+    const first = firstName.trim().replace(/\s+/g, ' ');
+    const last = lastName.trim().replace(/\s+/g, ' ');
+    if (!first || !last) {
+      setErrorMsg('Enter your first name and surname.');
+      return;
+    }
     if (upiVpa && !upiValid) {
       setErrorMsg('Enter a valid UPI ID like name@upi, or leave it blank.');
       return;
@@ -95,11 +116,17 @@ function AccountInner() {
       const { error } = await supabase
         .from('profiles')
         .update({
-          full_name: fullName.trim() || null,
+          full_name: `${first} ${last}`,
           ...(upiLocked ? {} : { default_upi_vpa: upiVpa.trim() || null }),
         })
         .eq('id', user.id);
       if (error) throw error;
+      // Kept in step on the sign-in record too, which is where the greeting
+      // looks first. A failure here costs nothing: the profile is the record.
+      const { error: metaError } = await supabase.auth.updateUser({
+        data: { first_name: first, last_name: last, full_name: `${first} ${last}` },
+      });
+      if (metaError) acclog.warn('name metadata update failed', metaError);
       // Only an update, never an insert: the vendor record is created by a
       // first submission, not by saving a profile.
       if (isVendor && pan !== savedPan) {
@@ -121,7 +148,8 @@ function AccountInner() {
     <AccountForm
       email={user?.email ?? ''}
       phone={profile?.phone ?? null}
-      fullName={fullName} onFullName={setFullName}
+      firstName={firstName} onFirstName={setFirstName}
+      lastName={lastName} onLastName={setLastName}
       upiVpa={upiVpa} onUpiVpa={setUpiVpa} upiValid={upiValid} upiLocked={upiLocked}
       showPan={isVendor} pan={pan} onPan={setPan} panValid={panValid}
       saving={saving} saved={saved} errorMsg={errorMsg} onSave={handleSave}
@@ -131,11 +159,12 @@ function AccountInner() {
 
 /** The page, from values. Kept apart from loading and saving so it can be looked at. */
 export function AccountForm({
-  email, phone, fullName, onFullName, upiVpa, onUpiVpa, upiValid, upiLocked,
+  email, phone, firstName, onFirstName, lastName, onLastName, upiVpa, onUpiVpa, upiValid, upiLocked,
   showPan, pan, onPan, panValid, saving, saved, errorMsg, onSave,
 }: {
   email: string; phone: string | null;
-  fullName: string; onFullName: (v: string) => void;
+  firstName: string; onFirstName: (v: string) => void;
+  lastName: string; onLastName: (v: string) => void;
   upiVpa: string; onUpiVpa: (v: string) => void; upiValid: boolean; upiLocked: boolean;
   showPan: boolean; pan: string; onPan: (v: string) => void; panValid: boolean;
   saving: boolean; saved: boolean; errorMsg: string | null; onSave: () => void;
@@ -146,17 +175,31 @@ export function AccountForm({
 
         <section className="flex flex-col gap-6">
           <h2 className={ui.sectionTitle}>Your details</h2>
-          <div className="flex flex-col gap-2">
-            <label htmlFor="acc-name" className={ui.label}>Full name</label>
-            <input
-              id="acc-name"
-              type="text"
-              value={fullName}
-              onChange={(e) => onFullName(e.target.value)}
-              placeholder="Your name"
-              autoComplete="name"
-              className={ui.input}
-            />
+          <div className="grid grid-cols-2 gap-6">
+            <div className="flex min-w-0 flex-col gap-2">
+              <label htmlFor="acc-first" className={ui.label}>First name</label>
+              <input
+                id="acc-first"
+                type="text"
+                value={firstName}
+                onChange={(e) => onFirstName(e.target.value)}
+                autoComplete="given-name"
+                autoCapitalize="words"
+                className={ui.input}
+              />
+            </div>
+            <div className="flex min-w-0 flex-col gap-2">
+              <label htmlFor="acc-last" className={ui.label}>Surname</label>
+              <input
+                id="acc-last"
+                type="text"
+                value={lastName}
+                onChange={(e) => onLastName(e.target.value)}
+                autoComplete="family-name"
+                autoCapitalize="words"
+                className={ui.input}
+              />
+            </div>
           </div>
           <ReadOnly label="Email" value={email} />
           <ReadOnly label="Phone" value={phone || 'Not on file'} />

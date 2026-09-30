@@ -3,6 +3,24 @@ import { log } from '../lib/log';
 
 const elog = log('error-boundary');
 
+// A page's code is fetched when the page is first opened. After a deploy, a
+// tab opened before it asks for files that no longer exist, and the import
+// fails. Reloading picks up the new files, so that one case reloads by itself,
+// at most once a minute so a real outage cannot loop.
+const CHUNK_ERROR = /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module|Loading chunk [\w-]+ failed|ChunkLoadError/i;
+const RELOADED_AT = 'zk-chunk-reload-at';
+
+function reloadForNewVersion(error: Error): boolean {
+  if (!CHUNK_ERROR.test(String(error?.message ?? error))) return false;
+  try {
+    const last = Number(sessionStorage.getItem(RELOADED_AT) ?? 0);
+    if (Date.now() - last < 60_000) return false;
+    sessionStorage.setItem(RELOADED_AT, String(Date.now()));
+  } catch { return false; }
+  window.location.reload();
+  return true;
+}
+
 interface Props {
   children: React.ReactNode;
   // No @types/react in this repo, so JSX's special `key` prop isn't known
@@ -38,6 +56,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
   }
 
   componentDidCatch(error: Error, info: React.ErrorInfo) {
+    if (reloadForNewVersion(error)) return;
     elog.error('render crash caught', error, info.componentStack);
   }
 
@@ -46,8 +65,8 @@ export class ErrorBoundary extends React.Component<Props, State> {
       return (
         <div className="flex min-h-[70vh] flex-col items-center justify-center gap-8 px-4 text-center">
           <h1 className="text-3xl font-black uppercase tracking-tighter">Something went wrong</h1>
-          <p className="max-w-md text-xs font-bold uppercase tracking-widest ink-mid">
-            This page hit an unexpected error. Refreshing usually fixes it.
+          <p className="max-w-md text-sm">
+            This page did not load properly. Please reload.
           </p>
           <button
             type="button"

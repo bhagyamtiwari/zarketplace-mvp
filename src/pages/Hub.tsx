@@ -18,6 +18,7 @@ import { usePageMeta, META } from '../lib/pageMeta';
 import { variantUrl } from '../lib/images';
 import { cn, formatCurrency } from '../lib/utils';
 import { log } from '../lib/log';
+import { Loading } from '../components/Loading';
 
 const hlog = log('hub');
 
@@ -138,7 +139,7 @@ function HubInner() {
       {error && <p className="mb-8 text-xs font-bold uppercase tracking-widest text-red-700">{error}</p>}
 
       {loading ? (
-        <div className="flex h-64 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin ink-low" /></div>
+        <Loading className="h-64" />
       ) : tab === 'refunds' ? (
         <RefundQueue rows={refunds} onDone={load} />
       ) : tab === 'holding' ? (

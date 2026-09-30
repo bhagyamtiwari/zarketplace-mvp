@@ -9,6 +9,8 @@ import { AuthModal } from '../components/AuthModal';
 import { useAuth } from '../lib/auth';
 import { getShippingCategories, shippingRateFor, type ShippingCategory } from '../lib/pricing';
 import { itemPath } from '../lib/pageMeta';
+import { PromoCodeField } from '../components/PromoCodeField';
+import { CODE_RE, checkDiscountCode, getPendingCode, normalizeCode, setPendingCode, type CheckResult } from '../lib/discounts';
 
 // Open to everyone: a cart is kept on the device until sign-in, and signing
 // in is asked for at checkout, where an account is actually needed.
@@ -17,10 +19,17 @@ export function Cart() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [signIn, setSignIn] = React.useState(false);
+  // Only a signed-in buyer can have a code checked. Signed out, the cart keeps
+  // the code and checkout checks it once they have signed in.
+  const checkCode = React.useCallback(
+    (code: string, total: number) => checkDiscountCode(code, total, null),
+    [],
+  );
   return (
     <>
       <CartView
         items={items}
+        checkCode={user ? checkCode : null}
         onRemove={(id) => { void remove(id); }}
         onClear={() => { void clear(); }}
         onCheckout={() => (user ? navigate('/checkout') : setSignIn(true))}
@@ -31,11 +40,13 @@ export function Cart() {
 }
 
 /** The page itself, from the cart's items. Separate from the cart context so it can be looked at. */
-export function CartView({ items, onRemove, onClear, onCheckout }: {
+export function CartView({ items, onRemove, onClear, onCheckout, checkCode = null }: {
   items: CartItem[];
   onRemove: (listingId: string) => void;
   onClear: () => void;
   onCheckout: () => void;
+  /** Prices a code against this total. Null when signed out, where it cannot be checked yet. */
+  checkCode?: ((code: string, total: number) => Promise<CheckResult>) | null;
 }) {
   const count = items.length;
   const [shippingCategories, setShippingCategories] = React.useState<ShippingCategory[]>([]);
@@ -44,6 +55,47 @@ export function CartView({ items, onRemove, onClear, onCheckout }: {
   const subtotal = items.reduce((sum, i) => sum + (i.sale_price ?? i.price ?? 0), 0);
   const shipping = items.reduce((sum, i) => sum + (i.free_shipping ? 0 : shippingRateFor(i.shipping_category, shippingCategories)), 0);
   const total = subtotal + shipping;
+  const shippingReady = shippingCategories.length > 0;
+
+  // The code, carried for this visit so checkout applies it. amountOff is
+  // null until the server has priced it, which needs a signed-in buyer.
+  const [promo, setPromo] = React.useState<{ code: string; amountOff: number | null } | null>(() => {
+    const carried = getPendingCode();
+    return carried ? { code: carried, amountOff: null } : null;
+  });
+  const [promoNotice, setPromoNotice] = React.useState<string | null>(null);
+
+  // A code carried in from earlier is priced once the total is known.
+  React.useEffect(() => {
+    if (!checkCode || !promo || promo.amountOff != null || !shippingReady) return;
+    let live = true;
+    void checkCode(promo.code, total).then((r) => {
+      if (!live) return;
+      if (r.ok === false) { setPromo(null); setPendingCode(null); setPromoNotice(`${promo.code}: ${r.message}`); }
+      else setPromo({ code: r.code, amountOff: r.amountOff });
+    });
+    return () => { live = false; };
+  }, [checkCode, promo, shippingReady, total]);
+
+  const applyPromo = async (raw: string): Promise<string | null> => {
+    const code = normalizeCode(raw);
+    if (!CODE_RE.test(code)) return 'We do not recognise that code.';
+    setPromoNotice(null);
+    if (!checkCode) {
+      setPromo({ code, amountOff: null });
+      setPendingCode(code);
+      return null;
+    }
+    const r = await checkCode(code, total);
+    if (r.ok === false) return r.message;
+    setPromo({ code: r.code, amountOff: r.amountOff });
+    setPendingCode(r.code);
+    return null;
+  };
+  const removePromo = () => { setPromo(null); setPendingCode(null); setPromoNotice(null); };
+
+  // Never more than the order less a rupee, the same rule as the server.
+  const promoOff = promo?.amountOff != null ? Math.max(0, Math.min(promo.amountOff, total - 1)) : 0;
 
   const itemHref = (i: { sku?: string | null; listing_id: string; title?: string; brand?: string | null }) =>
     itemPath({ sku: i.sku, id: i.listing_id, title: i.title, brand: i.brand });
@@ -105,6 +157,15 @@ export function CartView({ items, onRemove, onClear, onCheckout }: {
           ))}
         </ul>
 
+        <PromoCodeField
+          applied={promo?.code ?? null}
+          appliedNote={promo && promo.amountOff == null ? 'applied at checkout' : 'applied'}
+          onApply={applyPromo}
+          onRemove={removePromo}
+          notice={promoNotice}
+          divider={false}
+        />
+
         <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 text-sm">
           <dt>Subtotal ({count} {count === 1 ? 'item' : 'items'})</dt>
           <dd className="text-right tabular-nums">{formatCurrency(subtotal)}</dd>
@@ -112,9 +173,15 @@ export function CartView({ items, onRemove, onClear, onCheckout }: {
           <dd className="text-right tabular-nums">
             {shippingCategories.length === 0 ? 'Calculating...' : shipping === 0 ? 'Free' : formatCurrency(shipping)}
           </dd>
+          {promoOff > 0 && (
+            <>
+              <dt>Promo code</dt>
+              <dd className="text-right tabular-nums">&minus;{formatCurrency(promoOff)}</dd>
+            </>
+          )}
           <div className="col-span-2 mt-3 flex items-baseline justify-between border-t border-black/10 pt-4">
             <dt className="font-bold">Total</dt>
-            <dd className="text-lg font-black tabular-nums">{formatCurrency(total)}</dd>
+            <dd className="text-lg font-black tabular-nums">{formatCurrency(total - promoOff)}</dd>
           </div>
         </dl>
 

@@ -6,7 +6,7 @@ import { formatCurrency, cn } from '../lib/utils';
 import { variantUrl } from '../lib/images';
 import { ProductGallery } from '../components/ProductGallery';
 import { motion } from 'motion/react';
-import { Loader2, ArrowLeft, Zap, Heart } from 'lucide-react';
+import { ArrowLeft, Zap, Heart } from 'lucide-react';
 import { log } from '../lib/log';
 import { useCart } from '../lib/cart';
 import { useAuth } from '../lib/auth';
@@ -18,6 +18,7 @@ import { getShippingCategories, shippingRateFor, type ShippingCategory } from '.
 import { conditionByName } from '../lib/condition';
 import { usePageMeta, itemName, itemMetaTitle, itemMetaDescription, isDemoTitle, itemPath, skuFromItemParam } from '../lib/pageMeta';
 import { toggleFavorite, useFavorites } from '../lib/favorites';
+import { Loading, LoadError } from '../components/Loading';
 
 const plog = log('product');
 
@@ -83,6 +84,9 @@ export function ProductPage() {
   const [shippingCategories, setShippingCategories] = React.useState<ShippingCategory[]>([]);
   React.useEffect(() => { getShippingCategories().then(setShippingCategories); }, []);
   const [loading, setLoading] = React.useState(true);
+  // A failed read is not a missing item: it says so and asks for a reload,
+  // instead of "Listing not found".
+  const [loadFailed, setLoadFailed] = React.useState(false);
   const [cartMsg, setCartMsg] = React.useState<string | null>(null);
   const [shareOpen, setShareOpen] = React.useState(false);
   // 'copied' after a copied link; 'manual' when the browser refused both
@@ -141,6 +145,7 @@ export function ProductPage() {
       if (!slug) return;
       const t = plog.time(`fetch ${slug}`);
       setLoading(true);
+      setLoadFailed(false);
       try {
         // SKU lookup is case-insensitive; UUID lookup uses .eq on id.
         const isUuid = UUID_RE.test(slug);
@@ -168,6 +173,7 @@ export function ProductPage() {
         setListing(data);
       } catch (err) {
         plog.error('fetch THREW', err);
+        setLoadFailed(true);
       } finally {
         setLoading(false);
       }
@@ -246,11 +252,13 @@ export function ProductPage() {
   if (loading) {
     return (
       <div className="mx-auto max-w-[1600px] min-h-[220vh] px-4 sm:px-6 lg:px-8 pt-24 sm:pt-32" aria-busy="true">
-        <div className="flex justify-center pt-24">
-          <Loader2 className="h-8 w-8 animate-spin ink-low" />
-        </div>
+        <Loading className="pt-24" iconClassName="h-8 w-8" />
       </div>
     );
+  }
+
+  if (loadFailed) {
+    return <LoadError message="We could not load this item." className="min-h-[60vh] pt-24 sm:pt-32" />;
   }
 
   if (!listing) {

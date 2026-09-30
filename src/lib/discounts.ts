@@ -89,3 +89,19 @@ export async function removeDiscountCode(orderNumbers: string[]): Promise<void> 
   const { error } = await supabase.rpc('remove_discount_code', { p_order_numbers: orderNumbers });
   if (error) throw new Error(error.message);
 }
+
+// A code entered in the cart, carried to checkout for the rest of this visit.
+// The cart can be used signed out, and only a signed-in buyer can have a code
+// checked, so the cart keeps it here and checkout applies it on arrival.
+const PENDING_KEY = 'zk-promo-code';
+
+export function getPendingCode(): string | null {
+  try { return sessionStorage.getItem(PENDING_KEY); } catch { return null; }
+}
+
+export function setPendingCode(code: string | null): void {
+  try {
+    if (code) sessionStorage.setItem(PENDING_KEY, code);
+    else sessionStorage.removeItem(PENDING_KEY);
+  } catch { /* private mode: the code is simply not carried over */ }
+}
