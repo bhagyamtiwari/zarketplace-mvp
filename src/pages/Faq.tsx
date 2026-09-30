@@ -49,7 +49,7 @@ const SECTIONS: FaqSection[] = [
       },
       {
         q: 'How long do I have to send it?',
-        a: 'Once your item is bought, we email you a prepaid label. Print it and attach it to the parcel. A courier will collect it from your door, usually within 48 hours, and it must be handed over within 5 days. We pay for shipping. If it does not go in that time we cancel the order and refund the buyer.',
+        a: 'Once your item is bought, we send you a prepaid label by email or WhatsApp. Print it and attach it to the parcel. A courier will collect it from your door, usually within 48 hours, and it must be handed over within 5 days. We pay for shipping. If it does not go in that time we cancel the order and refund the buyer.',
       },
       {
         q: 'What happens if I miss the pickup deadline?',

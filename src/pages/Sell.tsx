@@ -97,11 +97,10 @@ const WHAT_HAPPENS_NEXT: Array<{ title: string; points: string[] }> = [
     ],
   },
   {
-    title: 'When it is bought, we email you a free prepaid label',
+    title: 'When it is bought, we send you a free prepaid label',
     points: [
-      'A courier collects it from your door, usually within 48 hours.',
+      'By email or WhatsApp. A courier collects it from your door, usually within 48 hours.',
       'Hand it over within 5 days, and send the exact item in your photos.',
-      'If email does not reach you, we may message you on WhatsApp.',
     ],
   },
   {

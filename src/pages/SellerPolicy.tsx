@@ -66,7 +66,7 @@ export function SellerPolicy() {
           <section className="flex flex-col gap-4">
             <h2 className={H2}>When it is bought</h2>
             <ul className={LIST}>
-              <li>We email you a prepaid label. A courier collects the parcel from your door, <strong>usually within 48 hours</strong>. You never pay for postage.</li>
+              <li>We send you a prepaid label by email or WhatsApp. A courier collects the parcel from your door, <strong>usually within 48 hours</strong>. You never pay for postage.</li>
               <li><strong>Hand it over within 5 days.</strong> If it does not go, we cancel the order and it counts against your account.</li>
               <li><strong>Send the exact item in your photos.</strong> Once someone has bought it, it can no longer be withdrawn.</li>
             </ul>
