@@ -1,6 +1,7 @@
 // Email + password only. No Google, no magic link.
 //  - Sign-in tab: email + password.
-//  - Sign-up tab: email + password + confirm password.
+//  - Sign-up tab: first name + surname, email, phone, password, confirm
+//    password. All required.
 // Passwords must be 10+ chars with a letter AND a digit.
 //
 // Signup behavior is driven by Supabase's "Confirm email" project setting:
@@ -49,6 +50,8 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess, signI
   }, [onClose, onSuccess, redirectTo, navigate]);
 
   const [mode, setMode] = React.useState<Mode>(signInOnly ? 'signin' : 'signup');
+  const [firstName, setFirstName] = React.useState('');
+  const [lastName, setLastName] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [confirmPassword, setConfirmPassword] = React.useState('');
@@ -64,6 +67,8 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess, signI
 
   React.useEffect(() => {
     if (!open) {
+      setFirstName('');
+      setLastName('');
       setEmail('');
       setPassword('');
       setConfirmPassword('');
@@ -84,10 +89,11 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess, signI
   const confirmValid = mode === 'signup' ? password === confirmPassword : true;
   const e164 = `${dialCode}${phoneDigits}`;
   const phoneValid = mode === 'signup' ? E164_RE.test(e164) : true;
+  const namesValid = mode === 'signup' ? firstName.trim().length > 0 && lastName.trim().length > 0 : true;
   const canSubmit =
     mode === 'forgot'
       ? emailValid
-      : emailValid && passwordValid && confirmValid && phoneValid
+      : emailValid && passwordValid && confirmValid && phoneValid && namesValid
         && (mode === 'signin' || confirmPassword.length > 0);
 
   const switchMode = (next: Mode) => {
@@ -100,6 +106,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess, signI
     e.preventDefault();
     setError(null);
     setNotice(null);
+    if (mode === 'signup' && !namesValid) { setError('Enter your first name and surname.'); return; }
     if (!emailValid) { setError('Enter a valid email address.'); return; }
     if (mode !== 'forgot' && !passwordValid) { setError('Password must be 10+ characters and include a letter and a digit.'); return; }
     if (mode === 'signup' && !confirmValid) { setError('Passwords do not match.'); return; }
@@ -121,7 +128,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess, signI
         else succeed();
       } else {
         const t = mlog.time('signUpWithPassword');
-        const { error: err, needsConfirmation } = await signUpWithPassword(email, password, e164);
+        const { error: err, needsConfirmation } = await signUpWithPassword(email, password, e164, firstName, lastName);
         t.end({ error: err, needsConfirmation });
         if (err) { setError(err); return; }
         if (needsConfirmation) {
@@ -163,18 +170,22 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess, signI
               <X className="h-5 w-5" />
             </button>
 
-            <form onSubmit={handleSubmit} className="flex flex-col gap-5 overflow-y-auto px-8 pt-10 pb-8">
-              <div className="flex flex-col items-center gap-2 text-center">
+            {/* Compact on purpose: six fields on sign-up have to fit a phone
+                screen without the form becoming a scroll. Spacing is what was
+                cut; the type is unchanged. */}
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4 overflow-y-auto px-8 pt-8 pb-6">
+              <div className="flex flex-col items-center gap-1.5 text-center">
                 <h2 className="text-2xl font-black uppercase tracking-tighter">
                   {mode === 'signup' ? 'Create free account' : mode === 'forgot' ? 'Reset Password' : 'Sign In'}
                 </h2>
-                <p className="text-[11px] font-bold uppercase tracking-widest">
-                  {message ?? (mode === 'signup'
-                    ? 'Free, and it takes a minute'
-                    : mode === 'forgot'
-                    ? "Enter your email and we'll send you a reset link."
-                    : 'Sign in with your email and password')}
-                </p>
+                {/* No line under the heading on sign-up: the heading says it. */}
+                {(message || mode !== 'signup') && (
+                  <p className="text-[11px] font-bold uppercase tracking-widest">
+                    {message ?? (mode === 'forgot'
+                      ? "Enter your email and we'll send you a reset link."
+                      : 'Sign in with your email and password')}
+                  </p>
+                )}
               </div>
 
               {mode !== 'forgot' && !signInOnly && (
@@ -182,7 +193,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess, signI
                   <button
                     type="button"
                     onClick={() => switchMode('signup')}
-                    className={`px-2 py-3 text-[11px] font-black uppercase tracking-wider leading-tight transition-colors ${
+                    className={`px-2 py-2.5 text-[11px] font-black uppercase tracking-wider leading-tight transition-colors ${
                       mode === 'signup' ? 'bg-black text-white' : 'bg-white text-black hover:bg-black/5'
                     }`}
                   >
@@ -191,7 +202,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess, signI
                   <button
                     type="button"
                     onClick={() => switchMode('signin')}
-                    className={`px-2 py-3 text-[11px] font-black uppercase tracking-wider leading-tight transition-colors ${
+                    className={`px-2 py-2.5 text-[11px] font-black uppercase tracking-wider leading-tight transition-colors ${
                       mode === 'signin' ? 'bg-black text-white' : 'bg-white text-black hover:bg-black/5'
                     }`}
                   >
@@ -200,7 +211,43 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess, signI
                 </div>
               )}
 
-              <div className="flex flex-col gap-3">
+              {mode === 'signup' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <label htmlFor="signup-first" className="text-[11px] font-black uppercase tracking-widest">First name</label>
+                    <div className="flex items-center border-b border-black/10 focus-within:border-black transition-colors">
+                      <input
+                        id="signup-first"
+                        autoFocus
+                        required
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        placeholder="Aanya"
+                        autoComplete="given-name"
+                        autoCapitalize="words"
+                        className="min-w-0 flex-1 py-2.5 text-sm font-bold focus:outline-none placeholder:font-normal placeholder:text-black/40"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <label htmlFor="signup-last" className="text-[11px] font-black uppercase tracking-widest">Surname</label>
+                    <div className="flex items-center border-b border-black/10 focus-within:border-black transition-colors">
+                      <input
+                        id="signup-last"
+                        required
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        placeholder="Sharma"
+                        autoComplete="family-name"
+                        autoCapitalize="words"
+                        className="min-w-0 flex-1 py-2.5 text-sm font-bold focus:outline-none placeholder:font-normal placeholder:text-black/40"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-col gap-1">
                 <label className="text-[11px] font-black uppercase tracking-widest">
                   {mode === 'signin' ? 'Email or phone' : 'Email'}
                 </label>
@@ -208,13 +255,13 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess, signI
                   <Mail className="h-4 w-4 text-black mr-3" />
                   <input
                     type={mode === 'signin' ? 'text' : 'email'}
-                    autoFocus
+                    autoFocus={mode !== 'signup'}
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder={mode === 'signin' ? 'you@example.com or 98765 43210' : 'you@example.com'}
                     autoComplete={mode === 'signin' ? 'username' : 'email'}
-                    className="flex-1 py-4 text-sm font-bold focus:outline-none placeholder:font-normal placeholder:text-black/40"
+                    className="flex-1 py-2.5 text-sm font-bold focus:outline-none placeholder:font-normal placeholder:text-black/40"
                   />
                 </div>
                 {email && !emailValid && (
@@ -227,7 +274,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess, signI
               </div>
 
               {mode === 'signup' && (
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1">
                   <label className="text-[11px] font-black uppercase tracking-widest">Phone</label>
                   <div className="flex items-center border-b border-black/10 focus-within:border-black transition-colors">
                     <Phone className="h-4 w-4 text-black mr-3" />
@@ -243,7 +290,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess, signI
                         setDialCode(v.startsWith('+') ? v.slice(0, 4) : `+${v}`.slice(0, 4));
                       }}
                       aria-label="Country code"
-                      className="w-14 py-4 text-sm font-bold focus:outline-none tracking-wider"
+                      className="w-14 py-2.5 text-sm font-bold focus:outline-none tracking-wider"
                     />
                     <input
                       type="tel"
@@ -253,7 +300,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess, signI
                       onChange={(e) => setPhoneDigits(e.target.value.replace(/\D/g, '').slice(0, 14))}
                       placeholder="98765 43210"
                       autoComplete="tel-national"
-                      className="flex-1 py-4 text-sm font-bold focus:outline-none tracking-wider placeholder:font-normal placeholder:text-black/40"
+                      className="flex-1 py-2.5 text-sm font-bold focus:outline-none tracking-wider placeholder:font-normal placeholder:text-black/40"
                     />
                   </div>
                   {phoneDigits && !phoneValid && (
@@ -263,7 +310,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess, signI
               )}
 
               {mode !== 'forgot' && (
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1">
                   <div className="flex items-center justify-between">
                     <label className="text-[11px] font-black uppercase tracking-widest">Password</label>
                     {mode === 'signin' && (
@@ -285,7 +332,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess, signI
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder={mode === 'signup' ? 'At least 10 characters, a letter and a digit' : '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022'}
                       autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-                      className="flex-1 py-4 text-sm font-bold focus:outline-none placeholder:font-normal placeholder:text-black/40"
+                      className="flex-1 py-2.5 text-sm font-bold focus:outline-none placeholder:font-normal placeholder:text-black/40"
                     />
                   </div>
                   {mode === 'signup' && password && !passwordValid && (
@@ -297,7 +344,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess, signI
               )}
 
               {mode === 'signup' && (
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-1">
                   <label className="text-[11px] font-black uppercase tracking-widest">Confirm Password</label>
                   <div className="flex items-center border-b border-black/10 focus-within:border-black transition-colors">
                     <Lock className="h-4 w-4 text-black mr-3" />
@@ -308,7 +355,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess, signI
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Retype password"
                       autoComplete="new-password"
-                      className="flex-1 py-4 text-sm font-bold focus:outline-none placeholder:font-normal placeholder:text-black/40"
+                      className="flex-1 py-2.5 text-sm font-bold focus:outline-none placeholder:font-normal placeholder:text-black/40"
                     />
                   </div>
                   {confirmPassword && !confirmValid && (
@@ -329,7 +376,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess, signI
               <button
                 type="submit"
                 disabled={loading || !canSubmit}
-                className="w-full bg-black py-4 text-xs font-black uppercase tracking-[0.4em] text-white hover:bg-zinc-800 disabled:opacity-50 flex items-center justify-center gap-3"
+                className="mt-1 w-full bg-black py-3.5 text-xs font-black uppercase tracking-[0.4em] text-white hover:bg-zinc-800 disabled:opacity-50 flex items-center justify-center gap-3"
               >
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : mode === 'signup' ? 'Create free account' : mode === 'forgot' ? 'Send Reset Link' : 'Sign In'}
               </button>
@@ -343,7 +390,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess, signI
                   Back to Sign In
                 </button>
               ) : (
-                <p className="text-center text-[11px] font-normal leading-relaxed text-black">
+                <p className="text-center text-[11px] font-normal leading-snug text-black">
                   By continuing you agree to the{' '}
                   <Link to="/terms" className="underline underline-offset-4 text-black">zarketplace terms</Link>.
                 </p>

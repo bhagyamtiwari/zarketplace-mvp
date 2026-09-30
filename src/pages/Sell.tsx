@@ -779,6 +779,12 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
             <p className="body-longform measure">
               Add your item. We'll make you an offer.
             </p>
+            {/* A new tab: this form keeps nothing if you leave it, and a
+                vendor who has started adding photos should not lose them to
+                a question. */}
+            <Link to="/how-it-works" target="_blank" rel="noopener" className={cn(ui.link, 'self-start text-sm font-bold')}>
+              Click here to learn about how selling works
+            </Link>
           </div>
         )}
 
@@ -1549,7 +1555,10 @@ function LastStep({
  */
 function SellIntro({ onStart }: { onStart: () => void }) {
   return (
-    <div className="shell-form pt-24 sm:pt-32 pb-24 flex flex-col gap-10">
+    <div className="shell-form pt-24 sm:pt-32 pb-24 flex flex-col gap-8">
+      {/* The heading, one line, then the steps. The steps already say it is
+          free (the label is prepaid) and what the payout is, so a second
+          paragraph up here only repeated them. */}
       <div className="flex flex-col gap-4">
         <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase leading-[0.95]">
           How it works
@@ -1557,15 +1566,9 @@ function SellIntro({ onStart }: { onStart: () => void }) {
         <p className="body-longform measure">
           Add your item. We'll make you an offer within 24 hours.
         </p>
-        {/* The three things a first-time vendor is actually wondering, so they
-            sit under the question in full ink rather than grey under the
-            button, where they were read last if at all. */}
-        <p className="body-longform measure font-bold">
-          It takes a minute. You pay nothing to sell to us, and we cover shipping.
-        </p>
       </div>
 
-      <ol className="flex flex-col gap-5 border-y border-black/10 py-8">
+      <ol className="flex flex-col gap-5 border-b border-black/10 pb-8">
         {WHAT_HAPPENS_NEXT.map((step, i) => (
           <li key={step.title} className="flex gap-4">
             <span
@@ -1591,7 +1594,7 @@ function SellIntro({ onStart }: { onStart: () => void }) {
           Start selling
         </button>
         <p className="text-sm leading-relaxed text-center">
-          Want the detail first? Read{' '}
+          Confused? Read{' '}
           <Link to="/how-it-works" className={cn(ui.link, 'font-bold')}>How selling works</Link>.
         </p>
       </div>

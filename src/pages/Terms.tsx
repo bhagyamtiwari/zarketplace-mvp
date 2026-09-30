@@ -74,6 +74,22 @@ export function Terms() {
             <p>All payments are processed securely through Razorpay. Shipping, vendor, and refund terms are governed by our <Link to="/shipping-policy" className="font-bold text-black underline">Shipping Policy</Link>, <Link to="/how-it-works" className="font-bold text-black underline">Vendor Policy</Link>, and <Link to="/refund-policy" className="font-bold text-black underline">Refund Policy</Link>.</p>
           </section>
 
+          {/* Kept in step with the server: one code per order, a fixed rupee
+              amount, released if the order is cancelled or refunded, and a
+              refund is of what was actually paid (razorpay-refund refunds
+              total_amount, which is after the code). */}
+          <section id="promo-codes" className="flex flex-col gap-4 scroll-mt-28">
+            <h2 className="text-xl font-black uppercase tracking-tight text-black">Promo Codes</h2>
+            <p>From time to time we give out promo codes: to make up for something that went wrong with an order, to thank or reward a customer, or as a special offer. We decide when to issue a code and who receives one.</p>
+            <ul className="list-disc pl-6 flex flex-col gap-2">
+              <li>A promo code takes a fixed rupee amount off an order. One code can be used per order.</li>
+              <li>A code may be limited to one person's account, a minimum order, a number of uses or an end date. Checkout tells you if a code cannot be used.</li>
+              <li>Codes have no cash value and cannot be exchanged for cash, credit or another code.</li>
+              <li>If an order that used a code is cancelled or refunded, we refund the amount you actually paid, and the code can be used again until it expires.</li>
+              <li>We may withdraw a code that was issued by mistake, obtained through fraud, or shared beyond the person it was meant for.</li>
+            </ul>
+          </section>
+
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Disputes</h2>
             <p>If something goes wrong with an order, contact us first at <a href="mailto:contact@zarketplace.com" className="font-bold text-black underline">contact@zarketplace.com</a> so our support team can review it before any other action is taken.</p>

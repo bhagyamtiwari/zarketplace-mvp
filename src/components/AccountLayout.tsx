@@ -4,7 +4,7 @@
 // tabs are the only navigation between them.
 import * as React from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../lib/auth';
+import { useAuth, useFirstName } from '../lib/auth';
 import { useOpenOfferCount } from '../lib/openOffers';
 import { ui } from '../lib/ui';
 import { cn } from '../lib/utils';
@@ -19,16 +19,16 @@ const TABS: Array<{ key: AccountTab; to: string; label: string }> = [
 
 export function AccountLayout({ tab, children }: { tab: AccountTab; children: React.ReactNode }) {
   const { user, emailVerified, resendVerification } = useAuth();
+  const firstName = useFirstName();
   const offers = useOpenOfferCount();
   const [notice, setNotice] = React.useState<string | null>(null);
 
   return (
     <div className="shell-wide pt-24 sm:pt-32 pb-16 sm:pb-20 flex flex-col gap-10">
       <div className="flex flex-col gap-6">
-        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
-          <h1 className={ui.pageTitle}>Your account</h1>
-          {user?.email && <span className="text-sm">{user.email}</span>}
-        </div>
+        {/* Their name says whose account this is. An account made before
+            sign-up asked for a name falls back to the plain heading. */}
+        <h1 className={ui.pageTitle}>{firstName ? `Hi ${firstName}` : 'Your account'}</h1>
         {user && !emailVerified && (
           <p className="text-sm">
             Your email is not verified yet.{' '}
