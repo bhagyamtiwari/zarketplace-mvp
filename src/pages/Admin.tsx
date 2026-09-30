@@ -19,7 +19,7 @@ import { formatCurrency, cn } from '../lib/utils';
 import { variantUrl } from '../lib/images';
 import {
   Loader2, Search, ChevronRight, X, ExternalLink, ArrowLeft, CheckCircle2, XCircle, Clock, AlertCircle, Archive, Zap, Package, CreditCard,
-  Truck, Wallet, Users as UsersIcon, LifeBuoy, Terminal, LayoutGrid, Boxes, ShieldCheck, ListOrdered,
+  Truck, Wallet, Users as UsersIcon, LifeBuoy, Terminal, LayoutGrid, Boxes, ShieldCheck, ListOrdered, Ticket,
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
@@ -30,6 +30,7 @@ import { log } from '../lib/log';
 import { sendEmail } from '../lib/email';
 import { writeAudit, AuditEntry } from '../lib/adminAudit';
 import { ListingEditor } from '../components/admin/ListingEditor';
+import { DiscountCodes } from '../components/admin/DiscountCodes';
 
 const adlog = log('admin');
 
@@ -59,7 +60,7 @@ interface EmailLogRow {
   created_at: string;
 }
 
-type LeafKind = 'overview' | 'orders' | 'listings' | 'payouts' | 'users' | 'emails' | 'audit' | 'settings';
+type LeafKind = 'overview' | 'orders' | 'listings' | 'payouts' | 'users' | 'emails' | 'audit' | 'settings' | 'discounts';
 
 interface Leaf {
   key: string;
@@ -195,6 +196,10 @@ const NAV: Section[] = [
     { key: 'p_failed', slug: 'payouts-failed', label: 'Failed', kind: 'payouts', hint: 'Payments to vendors that did not go through. Check the UPI ID and retry.',
       payout: (p) => p.status === 'failed' },
     { key: 'p_paid', slug: 'payouts-sent', label: 'Sent', kind: 'payouts', hint: 'Paid.', payout: (p) => p.status === 'sent' },
+  ] },
+  { key: 'discounts', label: 'Promo codes', icon: Ticket, leaves: [
+    { key: 'd_codes', slug: 'promo-codes', label: 'Codes', kind: 'discounts',
+      hint: 'Codes that take a rupee amount off an order. Make one for a special customer or to make up for something, share it, and see who has used it.' },
   ] },
   { key: 'users', label: 'People', icon: UsersIcon, leaves: [
     { key: 'u_sellers', slug: 'vendors', label: 'Vendors', kind: 'users', hint: 'Everyone who has sent us an item.',
@@ -534,6 +539,7 @@ function LeafView({ leaf, orders, listings, acqByListing, payouts, users, vendor
   if (leaf.kind === 'emails') return <EmailsView rows={emails} />;
   if (leaf.kind === 'audit') return <AuditView rows={audit} />;
   if (leaf.kind === 'settings') return <SettingsView />;
+  if (leaf.kind === 'discounts') return <DiscountCodes />;
   return null;
 }
 
@@ -1207,6 +1213,9 @@ function OrderDrawer({ order, payouts, emails, audit, backLabel, onClose, onDone
         <Row k="Item" v={formatCurrency(Number(order.amount))} />
         <Row k="Shipping (buyer paid)" v={order.free_shipping ? 'Free (seller-funded)' : formatCurrency(Number(order.shipping_cost))} />
         <Row k="Protection fee" v={formatCurrency(Number(order.buyer_protection_fee))} />
+        {Number(order.discount_amount ?? 0) > 0 && (
+          <Row k={`Promo code (${order.discount_code ?? 'code'})`} v={`-${formatCurrency(Number(order.discount_amount))}`} />
+        )}
         <Row k="Total" v={<strong>{formatCurrency(Number(order.total_amount))}</strong>} />
         <Row k="Razorpay order" v={order.razorpay_order_id} />
         <Row k="Razorpay payment" v={order.razorpay_payment_id} />

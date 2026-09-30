@@ -31,6 +31,7 @@ import { log } from '../lib/log';
 import { getPricingConfig, buyerProtectionFee, type PricingConfig, getShippingCategories, shippingRateFor, type ShippingCategory } from '../lib/pricing';
 import { trackEvent } from '../lib/analytics';
 import { itemPath } from '../lib/pageMeta';
+import { checkDiscountCode, applyDiscountCode, removeDiscountCode } from '../lib/discounts';
 
 const clog = log('checkout');
 const RESUME_KEY = 'zk_checkout_v3';
@@ -148,11 +149,17 @@ function CheckoutInner() {
   // summary shows these rather than recomputing, so it and the Razorpay
   // charge are the same numbers by construction.
   const [serverTotals, setServerTotals] = React.useState<{ subtotal: number; shipping: number; fee: number; total: number } | null>(null);
+  // The code the buyer entered, as check_discount_code priced it. It goes on
+  // the held orders, on the server, only when the buyer pays
+  // (apply_discount_code), and discountOnOrders says whether it is there now.
+  const [discount, setDiscount] = React.useState<{ code: string; amountOff: number } | null>(null);
+  const [discountOnOrders, setDiscountOnOrders] = React.useState(false);
   // Full order rows once payment is confirmed, so the success screen can show
   // exactly what was bought and for how much - not just an order number.
   const [confirmedOrders, setConfirmedOrders] = React.useState<Array<{
     order_number: string; listing_title: string | null; listing_image_url: string | null;
     amount: number; shipping_cost: number; buyer_protection_fee: number; total_amount: number;
+    discount_code: string | null; discount_amount: number;
     free_shipping: boolean; shipping_address: Record<string, string> | null;
   }>>([]);
   const [submitting, setSubmitting] = React.useState(false);
@@ -229,11 +236,16 @@ function CheckoutInner() {
   const anySelfShip = items.some((i) => i.shipping_mode === 'self_ship');
   const buyerProtection = items.reduce((s, i) => s + buyerProtectionFee(i.sale_price ?? i.price ?? 0, pricing), 0);
   const total = subtotal + shipping + buyerProtection;
+  // Before any code: the server's figures once the orders exist. A code takes
+  // off no more than the order less a rupee, the same rule as the server.
+  const preDiscountTotal = serverTotals?.total ?? total;
+  const discountAmount = discount ? Math.max(0, Math.min(discount.amountOff, preDiscountTotal - 1)) : 0;
+  const payable = preDiscountTotal - discountAmount;
 
   const persistResume = (state: Partial<ResumeState>) => {
     try {
       const merged: ResumeState = {
-        step, order_numbers: orderNumbers, amount: total,
+        step, order_numbers: orderNumbers, amount: payable,
         reservation_expires_at: reservationExpiresAt, ...state,
       };
       localStorage.setItem(RESUME_KEY, JSON.stringify(merged));
@@ -339,6 +351,8 @@ function CheckoutInner() {
 
     setOrderNumbers(nums);
     setReservationExpiresAt(expiresAt);
+    // New order rows never carry a code (the database clears one on insert).
+    setDiscountOnOrders(false);
     ordersKey.current = key;
     persistResume({ step: 'checkout', order_numbers: nums, reservation_expires_at: expiresAt });
     return nums;
@@ -351,7 +365,37 @@ function CheckoutInner() {
     setOrderNumbers([]);
     setReservationExpiresAt(null);
     setServerTotals(null);
+    setDiscountOnOrders(false);
     ordersKey.current = null;
+  };
+
+  // The code in the summary, checked but not yet applied: the summary shows
+  // what it takes off, and the buyer's total with it.
+  const applyCode = async (code: string): Promise<string | null> => {
+    const res = await checkDiscountCode(code, preDiscountTotal, orderNumbers);
+    if (res.ok === false) return res.message;
+    setDiscount({ code: res.code, amountOff: res.amountOff });
+    trackEvent('discount_code_entered', { code: res.code });
+    return null;
+  };
+
+  // Just before payment: put the chosen code on the held orders, or take off
+  // one that was put on earlier, so the charge is exactly what the summary
+  // shows. A code that stopped working in the meantime (used up, expired)
+  // stops the payment with the reason, and the next press pays without it.
+  const syncDiscount = async (nums: string[]) => {
+    if (discount) {
+      try {
+        await applyDiscountCode(discount.code, nums);
+        setDiscountOnOrders(true);
+      } catch (err: any) {
+        setDiscount(null);
+        throw new Error(`${err?.message || 'That code could not be used.'} Your total is now shown without it: press Complete purchase to pay.`);
+      }
+    } else if (discountOnOrders) {
+      await removeDiscountCode(nums);
+      setDiscountOnOrders(false);
+    }
   };
 
   // Polls the order rows until razorpay-webhook has flipped their status.
@@ -365,7 +409,7 @@ function CheckoutInner() {
     let rows: typeof confirmedOrders = [];
     for (let attempt = 0; attempt < POLL_MAX_ATTEMPTS; attempt++) {
       const { data } = await supabase.from('orders')
-        .select('order_number, status, listing_title, listing_image_url, amount, shipping_cost, buyer_protection_fee, total_amount, free_shipping, shipping_address')
+        .select('order_number, status, listing_title, listing_image_url, amount, shipping_cost, buyer_protection_fee, total_amount, discount_code, discount_amount, free_shipping, shipping_address')
         .in('order_number', orderNumbers);
       const statuses = (data ?? []).map((r: { status: string }) => r.status);
       if (statuses.length > 0 && statuses.every((s) => s === 'paid')) {
@@ -480,9 +524,10 @@ function CheckoutInner() {
     const reuse = orderNumbers.length > 0 && ordersKey.current === key && holdLeft > 15_000;
     try {
       let nums = reuse ? orderNumbers : await createOrders(key);
+      await syncDiscount(nums);
       // Buyer pressed pay. The gap between this and order_completed is the
       // payment-abandonment rate.
-      trackEvent('payment_started', { order_count: nums.length, total });
+      trackEvent('payment_started', { order_count: nums.length, total: payable, discount: discount?.code ?? null });
       try {
         await openPayment(nums);
       } catch (err: any) {
@@ -491,6 +536,7 @@ function CheckoutInner() {
         // closed somewhere else). Hold the items again and carry on, once.
         if (reuse && (status === 403 || status === 404 || status === 409)) {
           nums = await createOrders(key);
+          await syncDiscount(nums);
           await openPayment(nums);
         } else {
           throw err;
@@ -585,7 +631,7 @@ function CheckoutInner() {
             blockedNote={null}
           />
           <PlaceOrder
-            amount={serverTotals?.total ?? total}
+            amount={payable}
             itemCount={items.length}
             reservationExpiresAt={reservationExpiresAt}
             onExpire={() => {
@@ -605,7 +651,12 @@ function CheckoutInner() {
             shipping={serverTotals?.shipping ?? shipping}
             shippingLoading={!serverTotals && shippingCategories.length === 0}
             buyerProtection={serverTotals?.fee ?? buyerProtection}
-            total={serverTotals?.total ?? total}
+            discountCode={discount?.code ?? null}
+            discountAmount={discountAmount}
+            onApplyCode={applyCode}
+            onRemoveCode={() => setDiscount(null)}
+            codeLocked={submitting}
+            total={payable}
             selfShip={anySelfShip}
           />
           <Assurances />
@@ -618,6 +669,7 @@ function CheckoutInner() {
 type ConfirmedOrder = {
   order_number: string; listing_title: string | null; listing_image_url: string | null;
   amount: number; shipping_cost: number; buyer_protection_fee: number; total_amount: number;
+  discount_code?: string | null; discount_amount?: number;
   free_shipping: boolean; shipping_address: Record<string, string> | null;
 };
 
@@ -657,6 +709,9 @@ export function CheckoutSuccess({ orders, email }: { orders: ConfirmedOrder[]; e
                 <dt>Shipping</dt><dd className="text-right tabular-nums">{o.free_shipping ? 'Free' : formatCurrency(Number(o.shipping_cost))}</dd>
                 {Number(o.buyer_protection_fee) > 0 && (
                   <><dt>Buyer Protection</dt><dd className="text-right tabular-nums">{formatCurrency(Number(o.buyer_protection_fee))}</dd></>
+                )}
+                {Number(o.discount_amount ?? 0) > 0 && (
+                  <><dt>Promo code{o.discount_code ? ` (${o.discount_code})` : ''}</dt><dd className="text-right tabular-nums">&minus;{formatCurrency(Number(o.discount_amount))}</dd></>
                 )}
                 <dt className="font-bold">Total paid</dt><dd className="text-right font-bold tabular-nums">{formatCurrency(Number(o.total_amount))}</dd>
               </dl>
@@ -898,8 +953,9 @@ export function PlaceOrder({
 }
 
 // The prices, and the total that is charged.
-function Totals({ subtotal, shipping, shippingLoading, buyerProtection, total, selfShip }: {
-  subtotal: number; shipping: number; shippingLoading: boolean; buyerProtection: number; total: number; selfShip: boolean;
+function Totals({ subtotal, shipping, shippingLoading, buyerProtection, discountAmount, total, selfShip }: {
+  subtotal: number; shipping: number; shippingLoading: boolean; buyerProtection: number;
+  discountAmount: number; total: number; selfShip: boolean;
 }) {
   return (
     <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2 text-sm">
@@ -925,6 +981,13 @@ function Totals({ subtotal, shipping, shippingLoading, buyerProtection, total, s
           <dd className="text-right tabular-nums">{formatCurrency(buyerProtection)}</dd>
         </>
       )}
+      {discountAmount > 0 && (
+        <>
+          {/* The code itself is on the line above, where it can be removed. */}
+          <dt>Promo code</dt>
+          <dd className="text-right tabular-nums">&minus;{formatCurrency(discountAmount)}</dd>
+        </>
+      )}
       <div className="col-span-2 mt-3 flex items-baseline justify-between border-t border-black/10 pt-4">
         <dt className="font-bold">Total</dt>
         <dd className="text-xl font-black tabular-nums">{formatCurrency(total)}</dd>
@@ -933,9 +996,15 @@ function Totals({ subtotal, shipping, shippingLoading, buyerProtection, total, s
   );
 }
 
-export function Summary({ items, subtotal, shipping, shippingLoading, buyerProtection, total, selfShip }: {
-  items: CartItem[]; subtotal: number; shipping: number; shippingLoading: boolean; buyerProtection: number; total: number;
-  selfShip: boolean;
+export function Summary({
+  items, subtotal, shipping, shippingLoading, buyerProtection,
+  discountCode = null, discountAmount = 0, onApplyCode, onRemoveCode, codeLocked = false,
+  total, selfShip,
+}: {
+  items: CartItem[]; subtotal: number; shipping: number; shippingLoading: boolean; buyerProtection: number;
+  discountCode?: string | null; discountAmount?: number;
+  onApplyCode?: (code: string) => Promise<string | null>; onRemoveCode?: () => void; codeLocked?: boolean;
+  total: number; selfShip: boolean;
 }) {
   return (
     <div className="flex flex-col gap-6 border border-black/15 p-6 sm:p-8">
@@ -943,9 +1012,74 @@ export function Summary({ items, subtotal, shipping, shippingLoading, buyerProte
       <ul className="flex max-h-72 flex-col overflow-y-auto">
         {items.map((i) => <li key={i.listing_id} className="border-t border-black/10 py-4 first:border-t-0 first:pt-0"><SummaryItem item={i} /></li>)}
       </ul>
-      <Totals subtotal={subtotal} shipping={shipping} shippingLoading={shippingLoading} buyerProtection={buyerProtection} total={total} selfShip={selfShip} />
+      {onApplyCode && onRemoveCode && (
+        <DiscountCodeField applied={discountCode} onApply={onApplyCode} onRemove={onRemoveCode} locked={codeLocked} />
+      )}
+      <Totals
+        subtotal={subtotal} shipping={shipping} shippingLoading={shippingLoading} buyerProtection={buyerProtection}
+        discountAmount={discountAmount} total={total} selfShip={selfShip}
+      />
       <p className="text-sm">Your order is covered by <Link to="/buyer-protection" className={cn(ui.link, 'font-bold')}>Buyer Protection</Link>.</p>
     </div>
+  );
+}
+
+/**
+ * The promo code box, above the totals it changes. Always open: a code is
+ * something we hand to a particular person, and they should not have to hunt
+ * for where it goes.
+ */
+function DiscountCodeField({ applied, onApply, onRemove, locked }: {
+  applied: string | null;
+  onApply: (code: string) => Promise<string | null>;
+  onRemove: () => void;
+  locked: boolean;
+}) {
+  const [value, setValue] = React.useState('');
+  const [busy, setBusy] = React.useState(false);
+  const [message, setMessage] = React.useState<string | null>(null);
+  const id = React.useId();
+
+  if (applied) {
+    return (
+      <div className="flex items-center justify-between gap-4 border-t border-black/10 pt-5 text-sm">
+        <span>Promo code <span className="font-bold">{applied}</span> applied</span>
+        <button type="button" onClick={onRemove} disabled={locked} className={cn(ui.link, 'disabled:opacity-40')}>Remove</button>
+      </div>
+    );
+  }
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!value.trim() || busy) return;
+    setBusy(true);
+    setMessage(null);
+    const problem = await onApply(value);
+    setBusy(false);
+    if (problem) setMessage(problem);
+    else setValue('');
+  };
+
+  return (
+    <form onSubmit={submit} className="flex flex-col gap-2 border-t border-black/10 pt-5">
+      <label htmlFor={id} className={ui.label}>Promo code</label>
+      <div className="flex items-end gap-3">
+        <input
+          id={id} value={value}
+          onChange={(e) => { setValue(e.target.value.toUpperCase().replace(/\s+/g, '')); setMessage(null); }}
+          autoComplete="off" autoCapitalize="characters" spellCheck={false} maxLength={32}
+          className={cn(ui.input, 'min-w-0 flex-1 uppercase tracking-wider')}
+        />
+        <button
+          type="submit" disabled={busy || !value.trim() || locked}
+          className="inline-flex shrink-0 items-center gap-2 border border-black px-5 py-3 text-[11px] font-black uppercase tracking-[0.2em] transition-colors hover:bg-black hover:text-white disabled:opacity-40"
+        >
+          {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+          Apply
+        </button>
+      </div>
+      {message && <p role="alert" className={ui.error}>{message}</p>}
+    </form>
   );
 }
 

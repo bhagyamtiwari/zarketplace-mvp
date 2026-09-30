@@ -127,6 +127,9 @@ export interface Order {
   // to total_amount, and is instead deducted from the seller's payout.
   free_shipping: boolean;
   buyer_protection_fee: number;
+  /** The code on this order, if any, and how much of it this row carries. total_amount is net of it. */
+  discount_code?: string | null;
+  discount_amount?: number;
   total_amount: number;
   payment_utr: string | null;
   payment_receipt_url: string | null;

@@ -4,10 +4,13 @@
 // say which is which: My Orders is what you bought from us, Your Items is
 // what you have asked us to buy from you. This page is only the second.
 //
-// One column, the site's reading width, three tabs:
-//   Items    what needs you, what is in your home, what is moving, what sold
-//   Payouts  what we have agreed to pay you, and what we have paid
+// One column, the site's reading width, two tabs:
+//   Items    your payouts at the top, then what needs you, what is in your
+//            home, what is moving, what sold
 //   Share    a branded Instagram image of anything live, if you want one
+//
+// Payouts used to be a tab of their own. They are the number a vendor came
+// here for, so they now head the items they belong to, at display size.
 //
 // It used to be a sidebar (your email, counts, a nav in tracked caps, an
 // "Other" group holding one link) beside uppercase tables. The sidebar said
@@ -35,7 +38,7 @@ import { getVendorOffers, vendorStatus, withdrawItem, canWithdraw, canDelete, ty
 
 const splog = log('seller');
 
-export type PortalTab = 'listings' | 'payouts' | 'tools';
+export type PortalTab = 'listings' | 'tools';
 
 export function SellerPortal() {
   usePageMeta(META.vendorPortal);
@@ -49,11 +52,10 @@ export function SellerPortal() {
 
 function SellerInner() {
   const { user } = useAuth();
-  // Deep-linkable: /vendor-portal?tab=tools lands straight on Share.
+  // Deep-linkable: /vendor-portal?tab=tools lands straight on Share. The old
+  // ?tab=payouts lands on Items, which is where payouts are now.
   const [searchParams, setSearchParams] = useSearchParams();
-  const tabParam = searchParams.get('tab');
-  const initialTab: PortalTab = (['listings', 'tools', 'payouts'] as const)
-    .includes(tabParam as PortalTab) ? (tabParam as PortalTab) : 'listings';
+  const initialTab: PortalTab = searchParams.get('tab') === 'tools' ? 'tools' : 'listings';
   const [tab, setTabState] = React.useState<PortalTab>(initialTab);
   const setTab = React.useCallback((next: PortalTab) => {
     setTabState(next);
@@ -164,7 +166,6 @@ export function VendorPortalView({ tab, onTab, listings, offers, loading, error,
           <TabButton active={tab === 'listings'} onClick={() => onTab('listings')}>
             Items{listings.length > 0 ? ` (${listings.length})` : ''}
           </TabButton>
-          <TabButton active={tab === 'payouts'} onClick={() => onTab('payouts')}>Payouts</TabButton>
           <TabButton active={tab === 'tools'} onClick={() => onTab('tools')}>Share</TabButton>
         </nav>
           <Link to="/sell" className={cn(ui.btnPrimary, 'shrink-0')}>Sell another item</Link>
@@ -182,6 +183,7 @@ export function VendorPortalView({ tab, onTab, listings, offers, loading, error,
             </div>
           ) : (
             <div className="flex flex-col gap-14">
+              <PayoutSummary listings={listings} offers={offers} statusOf={statusOf} />
               {needsYou.length > 0 && <NeedsYou rows={needsYou} offers={offers} statusOf={statusOf} onDelete={onDelete} deletingId={deletingId} />}
               {withYou.length > 0 && <WithYou rows={withYou} offers={offers} statusOf={statusOf} onChanged={onChanged} />}
               {inProgress.length > 0 && (
@@ -215,8 +217,6 @@ export function VendorPortalView({ tab, onTab, listings, offers, loading, error,
               )}
             </div>
           )
-        ) : tab === 'payouts' ? (
-          <Payouts listings={listings} offers={offers} statusOf={statusOf} />
         ) : (
           <ShareTab listings={listings.filter((l) => withYou.includes(l))} />
         )}
@@ -266,7 +266,7 @@ function formatDate(iso: string): string {
 
 // One item, one row: the photo, what it is, where it stands in a sentence,
 // and the one number that is the vendor's (their payout) on the right.
-function ItemRow({ listing, offer, status, aside, children, captioned = true, showStatus = true }: {
+function ItemRow({ listing, offer, status, aside, children, showStatus = true }: {
   listing: Listing;
   offer: VendorOffer | undefined;
   status: VendorStatusView;
@@ -274,9 +274,6 @@ function ItemRow({ listing, offer, status, aside, children, captioned = true, sh
   children?: React.ReactNode;
   /** Off where the section heading already says it ("With you now"). */
   showStatus?: boolean;
-  /** "Your payout" under the amount, so it is never read as a sale price.
-      Off on the Payouts tab, where every number on the page is one. */
-  captioned?: boolean;
 }) {
   const payout = payoutLabel(offer);
   return (
@@ -299,8 +296,11 @@ function ItemRow({ listing, offer, status, aside, children, captioned = true, sh
         {children && <div className="mt-1 flex flex-wrap gap-x-5 gap-y-1">{children}</div>}
       </div>
       <div className="flex shrink-0 flex-col items-end gap-1 text-right">
-        {payout && <span className="text-base font-black tabular-nums">{payout}</span>}
-        {captioned && payout && offer?.offer_amount != null && <span className="text-sm">Your payout</span>}
+        {payout && <span className="text-xl sm:text-2xl font-black tracking-tight tabular-nums">{payout}</span>}
+        {/* Always captioned, so the number is never read as a sale price. */}
+        {payout && offer?.offer_amount != null && (
+          <span className="text-sm">{status.key === 'paid' ? 'Paid to you' : 'Your payout'}</span>
+        )}
         {aside}
       </div>
     </li>
@@ -469,58 +469,53 @@ function WithYou({ rows, offers, statusOf, onChanged }: {
   );
 }
 
+// Where each accepted item's payout stands. Held apart because they are not
+// the same promise: an item on sale pays only if it sells within 30 days, a
+// sold one pays once it reaches us and passes our check, a paid one is done.
+const ON_SALE = new Set(['live', 'live_check_due']);
+const ON_ITS_WAY = new Set(['sold', 'awaiting_pickup', 'in_transit', 'received']);
+
 /**
- * Payouts, built entirely from the vendor's own offers. Nothing here reads an
- * order: their payout follows us accepting the item, nothing else.
+ * The vendor's payouts, at the top of their items and at display size: the
+ * money is what they came to this page for. Built entirely from their own
+ * offers. Nothing here reads an order: a payout follows us accepting the
+ * item at our hub, nothing else. Only amounts that exist are shown, so a
+ * first-time vendor is not greeted by a row of zeroes.
  */
-function Payouts({ listings, offers, statusOf }: {
+function PayoutSummary({ listings, offers, statusOf }: {
   listings: Listing[];
   offers: Map<string, VendorOffer>;
   statusOf: (l: Listing) => VendorStatusView;
 }) {
-  const rows = listings.filter((l) => offers.get(l.id)?.offer_status === 'accepted');
+  const sum = (keys: Set<string>) => listings.reduce((total, l) => {
+    const amount = offers.get(l.id)?.offer_amount;
+    return amount != null && keys.has(statusOf(l).key) ? total + Number(amount) : total;
+  }, 0);
 
-  if (rows.length === 0) {
-    return <p className={ui.help}>Nothing yet. A payout is agreed the moment you accept an offer.</p>;
-  }
+  const stats = [
+    { label: 'Paid to you', amount: sum(new Set(['paid'])), note: 'Sent to your UPI ID.' },
+    { label: 'On its way to you', amount: sum(ON_ITS_WAY), note: 'Sold. Paid once it reaches us and passes our check.' },
+    { label: 'On sale now', amount: sum(ON_SALE), note: 'Yours if it sells within 30 days.' },
+  ].filter((x) => x.amount > 0);
 
-  const paid = rows.filter((l) => offers.get(l.id)?.intake_status === 'paid');
-  const agreed = rows.filter((l) => offers.get(l.id)?.intake_status !== 'paid');
-  const total = (list: Listing[]) => list.reduce((sum, l) => sum + Number(offers.get(l.id)?.offer_amount ?? 0), 0);
+  if (stats.length === 0) return null;
 
   return (
-    <div className="flex flex-col gap-14">
-      <div className="flex flex-col gap-6">
-        <p className={ui.help}>
-          Each amount was fixed when you accepted our offer and does not change. It is paid once your item
-          reaches our hub and we have checked it.
-        </p>
-        <dl className="grid grid-cols-2 gap-6">
-          <div className="flex flex-col gap-1">
-            <dt className="text-sm">Agreed, not yet paid</dt>
-            <dd className="text-3xl sm:text-4xl font-black tracking-tighter tabular-nums">{formatCurrency(total(agreed))}</dd>
-          </div>
-          <div className="flex flex-col gap-1">
-            <dt className="text-sm">Paid to you</dt>
-            <dd className="text-3xl sm:text-4xl font-black tracking-tighter tabular-nums">{formatCurrency(total(paid))}</dd>
-          </div>
-        </dl>
+    <section aria-labelledby="payouts-heading" className="flex flex-col gap-6 border-2 border-black p-6 sm:p-8">
+      <div className="flex flex-col gap-1">
+        <h2 id="payouts-heading" className={ui.sectionTitle}>Your payouts</h2>
+        <p className={ui.help}>Each amount was fixed when you accepted our offer and does not change.</p>
       </div>
-      {agreed.length > 0 && (
-        <ItemSection title="Agreed">
-          {agreed.map((l) => (
-            <React.Fragment key={l.id}><ItemRow listing={l} offer={offers.get(l.id)} status={statusOf(l)} captioned={false} /></React.Fragment>
-          ))}
-        </ItemSection>
-      )}
-      {paid.length > 0 && (
-        <ItemSection title="Paid">
-          {paid.map((l) => (
-            <React.Fragment key={l.id}><ItemRow listing={l} offer={offers.get(l.id)} status={statusOf(l)} captioned={false} /></React.Fragment>
-          ))}
-        </ItemSection>
-      )}
-    </div>
+      <dl className={cn('grid grid-cols-1 gap-6', stats.length > 1 && 'sm:grid-cols-2', stats.length > 2 && 'md:grid-cols-3')}>
+        {stats.map((x) => (
+          <div key={x.label} className="flex flex-col gap-1">
+            <dt className="text-sm font-bold">{x.label}</dt>
+            <dd className="text-4xl sm:text-5xl font-black tracking-tighter leading-none tabular-nums">{formatCurrency(x.amount)}</dd>
+            <dd className="text-sm">{x.note}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   );
 }
 

@@ -33,6 +33,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeadersFor } from "../_shared/cors.ts";
 import { buildEmail } from "./templates/index.ts";
 import { htmlToText } from "../_shared/plainText.ts";
+import { REPLY_TO } from "../_shared/email.ts";
 
 interface SendEmailRequest {
   template: string;
@@ -157,6 +158,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         from: EMAIL_FROM,
+        reply_to: REPLY_TO,
         to: recipient,
         subject: built.subject,
         html: built.html,

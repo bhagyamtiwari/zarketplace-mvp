@@ -35,6 +35,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { htmlToText } from "../_shared/plainText.ts";
+import { REPLY_TO } from "../_shared/email.ts";
 import { buildEmail } from "../send-email/templates/index.ts";
 
 // Shiprocket's status strings vary by event type; matching by substring
@@ -187,6 +188,6 @@ async function sendDeliveredEmail(order: Record<string, unknown>) {
   await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${RESEND_API_KEY}` },
-    body: JSON.stringify({ from: EMAIL_FROM, to: built.to, subject: built.subject, html: built.html, text: htmlToText(built.html) }),
+    body: JSON.stringify({ from: EMAIL_FROM, reply_to: REPLY_TO, to: built.to, subject: built.subject, html: built.html, text: htmlToText(built.html) }),
   });
 }

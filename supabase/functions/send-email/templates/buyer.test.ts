@@ -94,3 +94,26 @@ Deno.test("no buyer email leaks a vendor", () => {
     }
   }
 });
+
+// A promo code comes off the total on the server, so the lines above the
+// total have to show it too, or they no longer add up to what was paid.
+Deno.test("payment confirmation shows a promo code and the total actually paid", () => {
+  const order = { ...POISONED_ORDER, amount: 5400, total_amount: 5200, discount_code: "THANKS-7KQ2", discount_amount: 200 };
+  const html = buildEmail("payment_confirmed_buyer", { order, siteUrl: "https://www.zarketplace.com" }).html;
+  assert(html.includes("Promo code (THANKS-7KQ2)"), "promo code line missing");
+  assert(html.includes("-Rs. 200"), "discount amount missing");
+  assert(html.includes("Rs. 5200"), "total paid missing");
+});
+
+Deno.test("payment confirmation has no promo code line without a code", () => {
+  const html = buildEmail("payment_confirmed_buyer", { order: POISONED_ORDER, siteUrl: "https://www.zarketplace.com" }).html;
+  assert(!html.includes("Promo code"), "unexpected promo code line");
+});
+
+// The price is the price: protection is inside it, so a zero line would only
+// read as a charge that was waived.
+Deno.test("payment confirmation has no buyer protection line when it is zero", () => {
+  const order = { ...POISONED_ORDER, buyer_protection_fee: 0 };
+  const html = buildEmail("payment_confirmed_buyer", { order, siteUrl: "https://www.zarketplace.com" }).html;
+  assert(!html.includes("Buyer protection"), "unexpected buyer protection line");
+});

@@ -44,6 +44,10 @@ const OBJECTS = [
   "vendor_reliability",
   // A buyer's own hearted items: owner-only, like cart_items.
   "favorites",
+  // Discount codes are secret until handed out, and who used one is buyer
+  // data: operator-only. Buyers reach them through check_discount_code and
+  // apply_discount_code, never the tables.
+  "discount_codes", "discount_redemptions",
 ];
 
 /**
