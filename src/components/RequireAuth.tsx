@@ -67,7 +67,7 @@ export function RequireAuth({ children, requireAdmin = false, message, signedOut
             Sign in
           </button>
         </div>
-        <AuthModal open={modalOpen} onClose={() => setModalOpen(false)} redirectTo={redirect} />
+        <AuthModal open={modalOpen} onClose={() => setModalOpen(false)} redirectTo={redirect} signInOnly={requireAdmin} />
       </>
     );
   }

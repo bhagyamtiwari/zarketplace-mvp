@@ -181,7 +181,7 @@ function VendorOfferInner() {
     setSubmitting(true);
     try {
       await rejectOffer(listingId);
-      navigate('/vendor-portal');
+      navigate('/account/items');
     } catch (err: any) {
       setError(err?.message ?? 'Could not record that. Try again.');
       setSubmitting(false);
@@ -194,7 +194,7 @@ function VendorOfferInner() {
     try {
       await resubmitListing(listingId);
       trackEvent('acquisition_resubmitted', { listing_id: listingId });
-      navigate('/vendor-portal');
+      navigate('/account/items');
     } catch (err: any) {
       setError(err?.message ?? 'Could not send it back. Try again.');
       setSubmitting(false);
@@ -290,7 +290,7 @@ function VendorOfferInner() {
 export function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="shell-form pt-24 sm:pt-32 pb-16 sm:pb-20">
-      <Link to="/vendor-portal" className="inline-flex items-center gap-2 text-sm font-medium text-black hover:underline underline-offset-4 mb-10">
+      <Link to="/account/items" className="inline-flex items-center gap-2 text-sm font-medium text-black hover:underline underline-offset-4 mb-10">
         <ArrowLeft className="h-4 w-4" /> Your items
       </Link>
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
@@ -426,13 +426,16 @@ export function OfferScreen({
         )}
       </div>
 
+      {/* The one condition, said first and on its own: the number above is
+          paid if the item sells within 30 days. The rest is two lines, and the
+          full terms wait on the accept screen, where they are agreed to. */}
+      <p className="border-l-4 border-black pl-4 text-[15px] font-bold leading-snug">
+        We pay you this if your item sells within 30 days.
+      </p>
+
       <Bullets items={[
-        <><strong>This is your payout.</strong> It is fixed and does not change.</>,
-        'The item stays with you until someone buys it.',
-        'Then we email you a free prepaid label, and a courier collects it from your door.',
-        'We pay you by UPI once it reaches our hub and matches your photos.',
-        'Once you accept, it goes on sale at a price we set. We may reduce that price to sell it, and what we pay you stays the same.',
-        'If we have not sold it within 30 days, the offer ends and nothing is owed either way.',
+        'It stays with you until someone buys it. Then we send a free prepaid label and collect it from your door.',
+        'We set the sale price and may lower it. Your payout stays the same.',
       ]} />
 
       <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
@@ -443,6 +446,10 @@ export function OfferScreen({
           No thanks
         </button>
       </div>
+
+      <p className="text-center text-sm">
+        <span className="font-bold">Coming soon:</span> an instant lane for sellers with a track record. Send the item to us and get paid faster.
+      </p>
 
       <Questions code={item?.sku} className="text-center" />
     </div>
@@ -658,8 +665,15 @@ export function AgreementScreen({
             );
           })}
         </ul>
-        <div className="flex flex-col gap-3">
-          <span className={ui.label}>Also part of this agreement</span>
+        {/* Folded, not removed: every term is one tap away and is what is
+            agreed to, but the page leads with the three ticks, which are the
+            record. */}
+        <details className="group flex flex-col gap-3 border border-black/15 px-4 py-3">
+          <summary className="cursor-pointer list-none text-sm font-bold [&::-webkit-details-marker]:hidden">
+            <span className="group-open:hidden">All the terms</span>
+            <span className="hidden group-open:inline">Hide the terms</span>
+          </summary>
+          <div className="flex flex-col gap-3 pt-3">
           <Bullets items={[
             <>We pay you <strong>{formatCurrency(amount)}</strong> by UPI once it reaches our hub and matches your photos. The amount does not change.</>,
             'We set the price we sell it at, and we may reduce it. What we pay you stays the same.',
@@ -673,7 +687,8 @@ export function AgreementScreen({
           <p className="text-sm">
             The full terms are on <Link to="/how-it-works" className={cn(ui.link, 'font-bold')}>How selling works</Link>.
           </p>
-        </div>
+          </div>
+        </details>
       </Step>
 
       <div className="flex flex-col items-center gap-4">
@@ -762,7 +777,7 @@ export function Accepted({ item, amount, paidTo, justNow }: {
       <div className="flex flex-col items-center gap-6 text-center">
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
           <Link to="/sell" className={ui.btnPrimary}>Sell another item</Link>
-          <Link to="/vendor-portal" className={ui.btnSecondary}>Your items</Link>
+          <Link to="/account/items" className={ui.btnSecondary}>Your items</Link>
         </div>
         <Questions code={item?.sku} />
       </div>

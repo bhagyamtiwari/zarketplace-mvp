@@ -469,6 +469,7 @@ function CheckoutInner() {
   const completePurchase = async () => {
     setErrorMsg(null);
     if (!user) return;
+    if (profile?.is_admin) { setErrorMsg('Admin accounts cannot place orders. Use a customer account to test buying.'); return; }
     if (items.length === 0) { setErrorMsg('Your cart is empty.'); return; }
     const missing = missingFields();
     if (missing) { setErrorMsg(missing); return; }
@@ -559,7 +560,7 @@ function CheckoutInner() {
           >
             Try again
           </button>
-          <Link to="/track-order" className={ui.btnSecondary}>My orders</Link>
+          <Link to="/account/orders" className={ui.btnSecondary}>My orders</Link>
         </div>
       </div>
     );
@@ -675,7 +676,7 @@ export function CheckoutSuccess({ orders, email }: { orders: ConfirmedOrder[]; e
         WhatsApp from <a href="https://wa.me/918505927538" target="_blank" rel="noreferrer" className={cn(ui.link, 'font-bold')}>8505-ZARKET</a>.
       </p>
       <div className="flex flex-wrap gap-3">
-        <Link to="/track-order" className={ui.btnPrimary}>My orders</Link>
+        <Link to="/account/orders" className={ui.btnPrimary}>My orders</Link>
         <Link to="/browse" className={ui.btnSecondary}>Keep shopping</Link>
       </div>
     </div>

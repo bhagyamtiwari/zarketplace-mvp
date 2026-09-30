@@ -13,11 +13,13 @@
 // first submission. A buyer who has never sold to us never sees the field.
 
 import * as React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
+import { AccountLayout } from '../components/AccountLayout';
+import { adminHref } from '../lib/adminHost';
 import { VPA_REGEX } from '../components/UpiVpaInput';
 import { log } from '../lib/log';
 import { usePageMeta, META } from '../lib/pageMeta';
@@ -139,9 +141,8 @@ export function AccountForm({
   saving: boolean; saved: boolean; errorMsg: string | null; onSave: () => void;
 }) {
   return (
-    <div className="shell-wide pt-24 sm:pt-32 pb-16 sm:pb-20 [&>*]:max-w-xl">
-      <div className="flex flex-col gap-12">
-        <h1 className={ui.pageTitle}>My Profile</h1>
+    <AccountLayout tab="profile">
+      <div className="flex max-w-xl flex-col gap-12">
 
         <section className="flex flex-col gap-6">
           <h2 className={ui.sectionTitle}>Your details</h2>
@@ -215,7 +216,27 @@ export function AccountForm({
           </button>
           {saved && <p role="status" className="text-sm font-bold">Saved.</p>}
         </div>
+
+        <AccountFooter />
       </div>
+    </AccountLayout>
+  );
+}
+
+/** Sign out, and the way to the admin portal for an operator. */
+function AccountFooter() {
+  const { profile, signOut } = useAuth();
+  const navigate = useNavigate();
+  return (
+    <div className="flex flex-wrap items-center gap-x-8 gap-y-3 border-t border-black/10 pt-8 text-sm">
+      <button
+        type="button"
+        onClick={async () => { await signOut(); navigate('/'); }}
+        className={cn(ui.link, 'font-bold')}
+      >
+        Sign out
+      </button>
+      {profile?.is_admin && <a href={adminHref('/admin/today')} className={cn(ui.link, 'font-bold')}>Admin portal</a>}
     </div>
   );
 }

@@ -24,6 +24,7 @@ import { variantUrl } from '../lib/images';
 import { Loader2, Check } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
+import { AccountLayout } from '../components/AccountLayout';
 import { log } from '../lib/log';
 import { shipmentStatusLabel } from '../lib/orderStatus';
 import { usePageMeta, META, itemPath } from '../lib/pageMeta';
@@ -69,12 +70,8 @@ function TrackInner() {
 /** The page itself, from data. Separate from the fetch so it can be looked at. */
 export function OrdersView({ orders, loading, error }: { orders: Order[]; loading: boolean; error: string | null }) {
   return (
-    <div className="shell-wide pt-24 sm:pt-32 pb-16 sm:pb-20 [&>*]:max-w-2xl">
-      <div className="flex flex-col gap-8">
-        <div className="flex flex-col gap-4">
-          <h1 className={ui.pageTitle}>My Orders</h1>
-          <p className={ui.help}>Everything you have bought from us.</p>
-        </div>
+    <AccountLayout tab="orders">
+      <div className="flex max-w-2xl flex-col gap-8">
 
         {loading ? (
           <div className="flex h-64 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div>
@@ -95,7 +92,7 @@ export function OrdersView({ orders, loading, error }: { orders: Order[]; loadin
           </ul>
         )}
       </div>
-    </div>
+    </AccountLayout>
   );
 }
 

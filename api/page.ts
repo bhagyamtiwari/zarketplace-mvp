@@ -63,11 +63,11 @@ const ROUTES: Record<string, RouteMeta> = {
   },
   '/shipping-policy': {
     title: 'Shipping',
-    description: 'Every zarketplace order ships from our own hub, checked and repacked, and tracked to your door. Instant Ship items are dispatched within 48 hours.',
+    description: 'Every zarketplace order ships from our own hub, checked and repacked, and tracked to your door. Instant Ship items are dispatched within 24 hours.',
     heading: 'Shipping',
     summary: [
       'Every order ships from our hub, in our packaging, under our name, and every order is tracked. When you buy, we bring the item in to our hub, check it against its listing and photos, and repack it. Once it passes the check it is dispatched that day, and you get the courier and tracking link by email.',
-      'Instant Ship items are already at our hub and are dispatched within 48 hours. If a parcel is delayed, damaged or lost on the way, we deal with the courier.',
+      'Instant Ship items are already at our hub and are dispatched within 24 hours. If a parcel is delayed, damaged or lost on the way, we deal with the courier.',
     ],
   },
   '/how-it-works': {

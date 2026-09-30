@@ -19,8 +19,9 @@ import { formatCurrency, cn } from '../lib/utils';
 import { variantUrl } from '../lib/images';
 import {
   Loader2, Search, ChevronRight, X, ExternalLink, ArrowLeft, CheckCircle2, XCircle, Clock, AlertCircle, Archive, Zap, Package, CreditCard,
-  Truck, Wallet, Users as UsersIcon, LifeBuoy, Terminal, LayoutGrid, Boxes, ShieldCheck,
+  Truck, Wallet, Users as UsersIcon, LifeBuoy, Terminal, LayoutGrid, Boxes, ShieldCheck, ListOrdered,
 } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { RequireAuth } from '../components/RequireAuth';
 import { StatusBadge } from '../components/StatusBadge';
@@ -62,6 +63,10 @@ type LeafKind = 'overview' | 'orders' | 'listings' | 'payouts' | 'users' | 'emai
 
 interface Leaf {
   key: string;
+  /** Its address, /admin/<slug>, so a reload stays on it. */
+  slug: string;
+  /** Where it falls in the four steps every item goes through, if it does. */
+  step?: 1 | 2 | 3 | 4;
   label: string;
   kind: LeafKind;
   /** One sentence: what is in this queue and what to do with it. */
@@ -114,94 +119,102 @@ const CLOSED_OFFER = new Set(['declined', 'expired', 'offer_rejected']);
 
 const NAV: Section[] = [
   { key: 'overview', label: 'Today', icon: LayoutGrid, leaves: [
-    { key: 'overview', label: 'To do', kind: 'overview',
+    { key: 'overview', slug: 'today', label: 'To do', kind: 'overview',
       hint: 'Everything that needs someone today. Click a number to open that queue.' },
+  ] },
+  // The four steps every item goes through, in the order it goes through
+  // them, so the work reads as one line: approve and price it, the vendor
+  // accepts, it is on sale, it sells and we ship it.
+  { key: 'workflow', label: 'Workflow', icon: ListOrdered, leaves: [
+    { key: 'l_triage', slug: 'needs-approval', step: 1, label: 'Needs approval', kind: 'listings',
+      hint: 'Step 1. New items from vendors, waiting on us. Open one, check it, set the listed price and our offer, then send it, or reject it. We promise an answer within 24 hours.',
+      listing: needsApproval },
+    { key: 'l_with_vendor', slug: 'offer-sent', step: 2, label: 'Offer sent', kind: 'listings',
+      hint: 'Step 2. We have sent an offer and are waiting on the vendor. Offers close by themselves after 7 days. Nothing to do.',
+      listing: (l, a) => l.status === 'pending' && a?.offer_status === 'offered' },
+    { key: 'l_live', slug: 'live', step: 3, label: 'Live', kind: 'listings',
+      hint: 'Step 3. Accepted and on the site for sale, with the vendor until someone buys it.',
+      listing: (l) => l.status === 'approved' && !l.is_sold },
+    { key: 'o_paid', slug: 'to-ship', step: 4, label: 'Sold, to ship', kind: 'orders',
+      hint: 'Step 4. Paid and waiting for a pickup to be booked. Open one and book it.',
+      order: (o) => o.status === 'paid' },
   ] },
   { key: 'listings', label: 'Listings', icon: Boxes, leaves: [
     // Split deliberately. These were one queue, and merging them is what let
     // an item waiting on a vendor look like work an operator could do.
-    { key: 'l_triage', label: 'Needs approval', kind: 'listings',
-      hint: 'New items from vendors, waiting on us. Open one, set the listed price and our offer, then send it, or reject it. We promise an answer within 24 hours.',
-      listing: needsApproval },
-    { key: 'l_with_vendor', label: 'Offer sent', kind: 'listings',
-      hint: 'We have sent an offer, or asked for a fix, and are waiting on the vendor. Offers close by themselves after 7 days. Nothing to do.',
-      listing: (l, a) => l.status === 'pending' && a?.offer_status === 'offered' },
-    { key: 'l_accepted', label: 'Accepted, not live', kind: 'listings',
+    { key: 'l_accepted', slug: 'accepted', label: 'Accepted, not live', kind: 'listings',
       hint: 'The vendor accepted but the item did not go live. Open it and approve it.',
       listing: (l, a) => l.status === 'pending' && a?.offer_status === 'accepted' },
-    { key: 'l_live', label: 'Live', kind: 'listings', hint: 'On the site and for sale.',
-      listing: (l) => l.status === 'approved' && !l.is_sold },
-    { key: 'l_sold', label: 'Sold', kind: 'listings', hint: 'Bought by a customer. The order has the shipping.',
+    { key: 'l_sold', slug: 'sold', label: 'Sold', kind: 'listings', hint: 'Bought by a customer. The order has the shipping.',
       listing: (l) => l.status === 'approved' && l.is_sold },
     // reject_listing writes acquisitions.offer_status, never listings.status,
     // so keying this on the listing left it permanently empty while every
     // declined item hid in the approval queue.
-    { key: 'l_rejected', label: 'Closed', kind: 'listings',
+    { key: 'l_rejected', slug: 'closed', label: 'Closed', kind: 'listings',
       hint: 'Items we rejected, offers that ran out after 7 days, and offers the vendor turned down. Rejected and expired items can be reopened from the item.',
       listing: (l, a) => l.status !== 'approved' && (CLOSED_OFFER.has(a?.offer_status ?? '') || l.status === 'rejected') },
-    { key: 'l_archived', label: 'Archived', kind: 'listings', hint: 'Taken down. Kept for the record.',
+    { key: 'l_archived', slug: 'archived', label: 'Archived', kind: 'listings', hint: 'Taken down. Kept for the record.',
       listing: (l) => l.status === 'archived' || l.status === 'suspended' },
   ] },
   { key: 'orders', label: 'Orders', icon: Package, leaves: [
-    { key: 'o_paid', label: 'To ship', kind: 'orders',
-      hint: 'Paid and waiting for a pickup to be booked. Open one and book it.',
-      order: (o) => o.status === 'paid' },
-    { key: 'o_awaiting_verification', label: 'To verify', kind: 'orders',
+    { key: 'o_awaiting_verification', slug: 'to-verify', label: 'To verify', kind: 'orders',
       hint: 'Payment received but not yet confirmed. Check it against Razorpay.',
       order: (o) => o.status === 'awaiting_verification' },
-    { key: 'o_in_transit', label: 'On the way', kind: 'orders',
+    { key: 'o_in_transit', slug: 'on-the-way', label: 'On the way', kind: 'orders',
       hint: 'Booked with the courier, picked up or in transit. Nothing to do unless it stalls.',
       order: (o) => o.status === 'shipped' },
-    { key: 'o_delivered', label: 'Delivered', kind: 'orders', hint: 'Arrived with the buyer.',
+    { key: 'o_delivered', slug: 'delivered', label: 'Delivered', kind: 'orders', hint: 'Arrived with the buyer.',
       order: (o) => o.status === 'delivered' },
-    { key: 'o_awaiting_payment', label: 'Awaiting payment', kind: 'orders',
+    { key: 'o_awaiting_payment', slug: 'awaiting-payment', label: 'Awaiting payment', kind: 'orders',
       hint: 'Checkout started but not paid. These clear themselves after 5 minutes.',
       order: (o) => o.status === 'awaiting_payment' },
-    { key: 'o_cancelled', label: 'Cancelled & refunded', kind: 'orders', hint: 'Closed orders, for the record.',
+    { key: 'o_cancelled', slug: 'cancelled', label: 'Cancelled & refunded', kind: 'orders', hint: 'Closed orders, for the record.',
       order: (o) => o.status === 'cancelled' || o.status === 'refunded' },
   ] },
   { key: 'issues', label: 'Issues', icon: LifeBuoy, leaves: [
-    { key: 'o_claims', label: 'Buyer claims', kind: 'orders',
+    { key: 'o_claims', slug: 'claims', label: 'Buyer claims', kind: 'orders',
       hint: 'A buyer says the item is wrong or not as described. Open the order and resolve it.',
       order: (o) => o.claim_open },
-    { key: 's_payment', label: 'Payment problems', kind: 'orders',
+    { key: 's_payment', slug: 'payment-problems', label: 'Payment problems', kind: 'orders',
       hint: 'Payments that failed or do not match Razorpay. Check each one there.',
       order: (o) => o.status === 'payment_failed' || o.status === 'payment_conflict' },
-    { key: 'sr_failed', label: 'Shipping problems', kind: 'orders',
+    { key: 'sr_failed', slug: 'shipping-problems', label: 'Shipping problems', kind: 'orders',
       hint: 'Booked with no tracking number, returned to origin, or not delivered. Check each one in Shiprocket.',
       order: (o) => (!!o.shiprocket_order_id && !o.tracking_number && o.status !== 'delivered') || o.shipment_status === 'rto' || o.shipment_status === 'ndr' },
     // Live listings that could never be picked up: no usable pickup address.
     // New/edited listings are blocked at approval by the DB trigger, so this
     // only ever holds legacy rows - but it must be visible, because such a
     // listing fails Shiprocket booking *after* the buyer has already paid.
-    { key: 'l_no_pickup', label: 'No pickup address', kind: 'listings',
+    { key: 'l_no_pickup', slug: 'no-pickup-address', label: 'No pickup address', kind: 'listings',
       hint: 'Live items a courier could not collect. Get an address from the vendor, or take the item down.',
       listing: (l) => l.status === 'approved' && !l.is_sold && !l.pickup_address?.pincode },
   ] },
   { key: 'payouts', label: 'Payouts', icon: Wallet, leaves: [
-    { key: 'p_due', label: 'Due', kind: 'payouts', hint: 'Vendors we owe money to. Pay them and mark each one sent.',
+    { key: 'p_due', slug: 'payouts-due', label: 'Due', kind: 'payouts', hint: 'Vendors we owe money to. Pay them and mark each one sent.',
       payout: (p) => p.status === 'due' },
-    { key: 'p_failed', label: 'Failed', kind: 'payouts', hint: 'Payments to vendors that did not go through. Check the UPI ID and retry.',
+    { key: 'p_failed', slug: 'payouts-failed', label: 'Failed', kind: 'payouts', hint: 'Payments to vendors that did not go through. Check the UPI ID and retry.',
       payout: (p) => p.status === 'failed' },
-    { key: 'p_paid', label: 'Sent', kind: 'payouts', hint: 'Paid.', payout: (p) => p.status === 'sent' },
+    { key: 'p_paid', slug: 'payouts-sent', label: 'Sent', kind: 'payouts', hint: 'Paid.', payout: (p) => p.status === 'sent' },
   ] },
   { key: 'users', label: 'People', icon: UsersIcon, leaves: [
-    { key: 'u_sellers', label: 'Vendors', kind: 'users', hint: 'Everyone who has sent us an item.',
+    { key: 'u_sellers', slug: 'vendors', label: 'Vendors', kind: 'users', hint: 'Everyone who has sent us an item.',
       user: (u, c) => c.sellerIds.has(u.id) },
-    { key: 'u_buyers', label: 'Buyers', kind: 'users', hint: 'Everyone who has placed an order.',
+    { key: 'u_buyers', slug: 'buyers', label: 'Buyers', kind: 'users', hint: 'Everyone who has placed an order.',
       user: (u, c) => c.buyerIds.has(u.id) },
-    { key: 'u_flagged', label: 'Flagged', kind: 'users', hint: 'Accounts to keep an eye on.', user: (u) => u.is_flagged },
-    { key: 'u_banned', label: 'Banned', kind: 'users', hint: 'Accounts that cannot buy or sell.', user: (u) => u.is_banned },
+    { key: 'u_flagged', slug: 'flagged', label: 'Flagged', kind: 'users', hint: 'Accounts to keep an eye on.', user: (u) => u.is_flagged },
+    { key: 'u_banned', slug: 'banned', label: 'Banned', kind: 'users', hint: 'Accounts that cannot buy or sell.', user: (u) => u.is_banned },
   ] },
   { key: 'system', label: 'System', icon: Terminal, leaves: [
-    { key: 'sys_emails', label: 'Emails sent', kind: 'emails', hint: 'Every email the site has sent, newest first.' },
-    { key: 'sys_audit', label: 'Change log', kind: 'audit', hint: 'Every change an admin has made, and who made it.' },
-    { key: 'sys_settings', label: 'Settings', kind: 'settings', hint: 'Numbers the site runs on.' },
+    { key: 'sys_emails', slug: 'emails', label: 'Emails sent', kind: 'emails', hint: 'Every email the site has sent, newest first.' },
+    { key: 'sys_audit', slug: 'change-log', label: 'Change log', kind: 'audit', hint: 'Every change an admin has made, and who made it.' },
+    { key: 'sys_settings', slug: 'settings', label: 'Settings', kind: 'settings', hint: 'Numbers the site runs on.' },
   ] },
 ];
 
 const LEAF_BY_KEY = new Map<string, Leaf>();
-for (const s of NAV) for (const l of s.leaves) LEAF_BY_KEY.set(l.key, l);
+const LEAF_BY_SLUG = new Map<string, Leaf>();
+for (const s of NAV) for (const l of s.leaves) { LEAF_BY_KEY.set(l.key, l); LEAF_BY_SLUG.set(l.slug, l); }
+const WORKFLOW = NAV.find((s) => s.key === 'workflow')!.leaves;
 
 // ---------------------------------------------------------------------------
 // Root
@@ -217,7 +230,8 @@ export function Admin() {
 
 function Console() {
   const { user } = useAuth();
-  const [activeKey, setActiveKey] = React.useState('overview');
+  const location = useLocation();
+  const navigate = useNavigate();
   const [orders, setOrders] = React.useState<Order[]>([]);
   const [listings, setListings] = React.useState<Listing[]>([]);
   const [payouts, setPayouts] = React.useState<VendorPayout[]>([]);
@@ -228,12 +242,24 @@ function Console() {
   const [emails, setEmails] = React.useState<EmailLogRow[]>([]);
   const [audit, setAudit] = React.useState<AuditEntry[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [drawer, setDrawer] = React.useState<{ type: 'order' | 'listing'; id: string } | null>(null);
+  // The address is the state: /admin/<queue> for a queue, /admin/listing/<id>
+  // and /admin/order/<id> for one record. It used to live in memory, so a
+  // reload always dropped an operator back on To do.
+  const parts = location.pathname.replace(/^\/admin\/?/, '').split('/').filter(Boolean);
+  const recordType = parts[0] === 'listing' || parts[0] === 'order' ? parts[0] : null;
+  const drawer = recordType && parts[1] ? { type: recordType as 'order' | 'listing', id: parts[1] } : null;
+  const fromSlug = (location.state as { from?: string } | null)?.from;
+  const leaf = (!recordType ? LEAF_BY_SLUG.get(parts[0] ?? '') : LEAF_BY_SLUG.get(fromSlug ?? '')) ?? NAV[0].leaves[0];
+  const activeKey = leaf.key;
+  const knownPath = recordType ? !!parts[1] : LEAF_BY_SLUG.has(parts[0] ?? '');
+  React.useEffect(() => {
+    if (!knownPath) navigate('/admin/today', { replace: true });
+  }, [knownPath, navigate]);
 
-  const leaf = LEAF_BY_KEY.get(activeKey) ?? NAV[0].leaves[0];
-
-  const loadAll = React.useCallback(async () => {
-    setLoading(true);
+  // quiet: a background refresh, which updates the numbers without the
+  // spinner replacing the page under someone's cursor.
+  const loadAll = React.useCallback(async (quiet?: unknown) => {
+    if (quiet !== true) setLoading(true);
     try {
       const [o, l, p, u, e, a] = await Promise.all([
         supabase.from('orders').select('*').order('created_at', { ascending: false }),
@@ -273,6 +299,14 @@ function Console() {
   }, []);
 
   React.useEffect(() => { void loadAll(); }, [loadAll]);
+  // Counts stay current without a reload: every minute, and on coming back to
+  // the tab.
+  React.useEffect(() => {
+    const refresh = () => { if (document.visibilityState === 'visible') void loadAll(true); };
+    const t = setInterval(refresh, 60_000);
+    document.addEventListener('visibilitychange', refresh);
+    return () => { clearInterval(t); document.removeEventListener('visibilitychange', refresh); };
+  }, [loadAll]);
 
   const userCtx: UserCtx = React.useMemo(() => ({
     buyerIds: new Set(orders.map((o) => o.buyer_id).filter(Boolean) as string[]),
@@ -282,7 +316,11 @@ function Console() {
   // counts for the sidebar badges (only the actionable ones are surfaced)
   const countFor = (l: Leaf): number => {
     if (l.order) return orders.filter(l.order).length;
-    if (l.listing) return listings.filter(l.listing).length;
+    // With the item's acquisition, as every queue filter expects. Passed to
+    // filter() bare, the second argument was the row's index, so an item's
+    // acquisition was never seen: the Needs approval badge counted only the
+    // first item in the list and could never show more than 1.
+    if (l.listing) return listings.filter((x) => l.listing!(x, acqByListing.get(x.id))).length;
     if (l.payout) return payouts.filter(l.payout).length;
     if (l.user) return users.filter((u) => l.user!(u, userCtx)).length;
     return 0;
@@ -291,10 +329,26 @@ function Console() {
   const drawerOrder = drawer?.type === 'order' ? orders.find((o) => o.id === drawer.id) ?? null : null;
   const drawerListing = drawer?.type === 'listing' ? listings.find((l) => l.id === drawer.id) ?? null : null;
 
-  const openLeaf = (key: string) => { setDrawer(null); setActiveKey(key); };
+  const openLeaf = (key: string) => navigate(`/admin/${LEAF_BY_KEY.get(key)?.slug ?? 'today'}`);
+  const setDrawer = (d: { type: 'order' | 'listing'; id: string } | null) => {
+    if (d) navigate(`/admin/${d.type}/${d.id}`, { state: { from: leaf.slug } });
+    else navigate(`/admin/${leaf.slug}`);
+  };
+
+  // The approval count, in the tab title as well, so it is readable from any
+  // other tab: "(3) Admin".
+  const approvalCount = listings.filter((l) => needsApproval(l, acqByListing.get(l.id))).length;
+  React.useEffect(() => {
+    const prev = document.title;
+    document.title = `${approvalCount > 0 ? `(${approvalCount}) ` : ''}Admin | zarketplace`;
+    return () => { document.title = prev; };
+  }, [approvalCount]);
 
   return (
-    <div className="min-h-screen pt-16 flex">
+    // Dark by default, so a glance at the tab says "admin". Done as one
+    // inversion of the whole console rather than a second set of colours on
+    // every element; photos are inverted back so they show as they are.
+    <div className="admin-dark min-h-screen pt-16 flex bg-white">
       {/* Sidebar */}
       <aside className="w-64 shrink-0 border-r border-black/10 h-[calc(100vh-4rem)] sticky top-16 overflow-y-auto py-6 px-3 hidden md:block">
         <div className="px-3 pb-4 mb-4 border-b border-black/10">
@@ -314,16 +368,25 @@ function Console() {
                   const active = activeKey === l.key && !drawer;
                   return (
                     <button key={l.key} onClick={() => openLeaf(l.key)}
-                      className={cn('flex items-center justify-between pl-8 pr-3 py-2 text-left text-[13px] font-semibold rounded transition-colors',
+                      className={cn('flex items-center justify-between gap-2 pr-3 py-2 text-left text-[13px] font-semibold rounded transition-colors',
+                        l.step ? 'pl-3' : 'pl-8',
                         active ? 'bg-black text-white' : 'text-black hover:bg-black/[0.05]')}>
-                      <span>{l.label}</span>
-                      {count > 0 && (l.key === 'l_triage' ? (
+                      <span className="flex items-center gap-2.5">
+                        {l.step && (
+                          <span className={cn('inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-black',
+                            active ? 'bg-white text-black' : 'bg-black text-white')}>{l.step}</span>
+                        )}
+                        {l.label}
+                      </span>
+                      {l.key === 'l_triage' ? (
                         // The one queue that is always ours to clear, so the
-                        // one count that stands out.
-                        <span className="min-w-6 rounded-full bg-amber-400 px-1.5 py-0.5 text-center text-[11px] font-black tabular-nums text-black">{count}</span>
-                      ) : (
+                        // one count that stands out, and shown at zero too:
+                        // it is a count, not an alert.
+                        <span className={cn('min-w-6 rounded-full px-1.5 py-0.5 text-center text-[11px] font-black tabular-nums',
+                          count > 0 ? 'bg-amber-400 text-black' : active ? 'text-white' : 'ink-mid')}>{count}</span>
+                      ) : count > 0 && (
                         <span className={cn('text-[11px] font-black tabular-nums', active ? '' : 'ink-mid')}>{count}</span>
-                      ))}
+                      )}
                     </button>
                   );
                 })}
@@ -508,9 +571,33 @@ function OverviewView({ orders, listings, acqByListing, payouts, refundsOverdue,
     { key: 'l_no_pickup', count: listings.filter((l) => l.status === 'approved' && !l.is_sold && !l.pickup_address?.pincode).length, label: 'live items with no pickup address' },
   ];
   const open = todo.filter((t) => t.count > 0);
+  const stepCount = (l: Leaf) => l.listing
+    ? listings.filter((x) => l.listing!(x, acqByListing.get(x.id))).length
+    : l.order ? orders.filter(l.order).length : 0;
 
   return (
     <div className="flex flex-col gap-6 max-w-3xl">
+      {/* The whole job in four numbers, left to right: what is waiting on us
+          to approve, on the vendor to accept, on sale, and sold and waiting
+          to ship. */}
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        {WORKFLOW.map((l) => {
+          const n = stepCount(l);
+          return (
+            <button key={l.key} type="button" onClick={() => onOpenLeaf(l.key)}
+              className={cn('flex flex-col gap-2 border p-4 text-left transition-colors',
+                l.step === 1 && n > 0 ? 'border-amber-400 bg-amber-50 hover:bg-amber-100' : 'border-black/15 hover:border-black')}>
+              <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest">
+                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-black text-white">{l.step}</span>
+                Step {l.step}
+              </span>
+              <span className="text-3xl font-black tabular-nums leading-none">{n}</span>
+              <span className="text-sm font-semibold">{l.label}</span>
+            </button>
+          );
+        })}
+      </div>
+
       {/* A standing alert, not a colour on a number. Both of these are
           promises to somebody: 24 hours to answer a vendor, and a buyer who
           has paid for an item that is not coming. */}
@@ -652,6 +739,20 @@ function StatePill({ listing, acq, large }: { listing: Listing; acq?: AcqRow; la
   );
 }
 
+/** What a buyer pays now: the sale price when there is one. */
+function listedPrice(l: Listing): number {
+  return Number(l.sale_price ?? l.price ?? 0);
+}
+function offerOf(a?: AcqRow): number {
+  return Number(a?.offer_amount ?? 0);
+}
+/** Listed price less our offer to the vendor, before costs. Operator-only. */
+function marginText(l: Listing, a?: AcqRow): string {
+  const price = listedPrice(l);
+  const offer = offerOf(a);
+  return price > 0 && offer > 0 ? formatCurrency(price - offer) : '-';
+}
+
 function ListingsView({ rows, acqByListing, orders, onOpen }: { rows: Listing[]; acqByListing: Map<string, AcqRow>; orders: Order[]; onOpen: (id: string) => void }) {
   if (rows.length === 0) return <Empty label="No listings." />;
   const orderByListing = new Map<string, Order>();
@@ -660,7 +761,7 @@ function ListingsView({ rows, acqByListing, orders, onOpen }: { rows: Listing[];
     <div className="overflow-x-auto border border-black/10">
       <table className="w-full text-left">
         <thead><tr className="border-b border-black/10 bg-black/[0.02]">
-          <Th>Item</Th><Th>Status</Th><Th right>Price</Th><Th>Vendor</Th><Th>Order</Th><Th right>Open</Th>
+          <Th>Item</Th><Th>Status</Th><Th right>Listed price</Th><Th right>Our offer</Th><Th right>Margin</Th><Th>Vendor</Th><Th>Order</Th><Th right>Open</Th>
         </tr></thead>
         <tbody>
           {rows.map((l) => {
@@ -677,7 +778,12 @@ function ListingsView({ rows, acqByListing, orders, onOpen }: { rows: Listing[];
                   </div>
                 </td>
                 <td className="py-3 px-3"><StatePill listing={l} acq={acqByListing.get(l.id)} /></td>
-                <td className="py-3 px-3 text-xs font-black text-right tabular-nums">{l.price > 0 ? formatCurrency(l.price) : '-'}</td>
+                <td className="py-3 px-3 text-xs font-black text-right tabular-nums whitespace-nowrap">
+                  {listedPrice(l) > 0 ? formatCurrency(listedPrice(l)) : '-'}
+                  {l.sale_price && l.price > 0 && <span className="block text-[11px] font-normal ink-mid line-through">{formatCurrency(l.price)}</span>}
+                </td>
+                <td className="py-3 px-3 text-xs font-black text-right tabular-nums whitespace-nowrap">{offerOf(acqByListing.get(l.id)) > 0 ? formatCurrency(offerOf(acqByListing.get(l.id))) : '-'}</td>
+                <td className="py-3 px-3 text-xs text-right tabular-nums whitespace-nowrap">{marginText(l, acqByListing.get(l.id))}</td>
                 <td className="py-3 px-3 text-xs">{l.seller_email}</td>
                 <td className="py-3 px-3 text-[11px] font-bold uppercase tracking-widest ink-mid">{ord ? ord.order_number : '-'}</td>
                 <td className="py-3 px-3 text-right"><ChevronRight className="h-4 w-4 ink-mid inline" /></td>
@@ -890,6 +996,51 @@ function SettingsView() {
 // ---------------------------------------------------------------------------
 // Drawer scaffolding
 // ---------------------------------------------------------------------------
+
+/** A switch that says what it is: green and to the right when on. */
+function Switch({ on, onToggle, label }: { on: boolean; onToggle: () => void; label: string }) {
+  return (
+    <button type="button" role="switch" aria-checked={on} aria-label={label} onClick={onToggle}
+      className={cn('relative inline-flex h-7 w-12 shrink-0 rounded-full border transition-colors',
+        on ? 'border-emerald-600 bg-emerald-600' : 'border-black/25 bg-zinc-200')}>
+      <span className={cn('absolute top-0.5 h-[22px] w-[22px] rounded-full bg-white shadow transition-transform',
+        on ? 'translate-x-[22px]' : 'translate-x-0.5')} />
+    </button>
+  );
+}
+
+/** Which of the four steps an item is on, and the one thing to do there. */
+function itemStep(listing: Listing, acq?: AcqRow): { step: 1 | 2 | 3 | 4; next: string } {
+  if (listing.is_sold) return { step: 4, next: 'Sold. Open the order below and book the pickup.' };
+  if (listing.status === 'approved') return { step: 3, next: 'Live and for sale. Nothing to do until it sells.' };
+  if (acq?.offer_status === 'accepted') return { step: 3, next: 'Accepted but not live. Approve it under Admin actions.' };
+  if (acq?.offer_status === 'offered') return { step: 2, next: 'Offer sent. Waiting on the vendor to accept.' };
+  if (acq && CLOSED_OFFER.has(acq.offer_status)) return { step: 1, next: 'Closed. Reopen it below for a fresh offer, if it is worth one.' };
+  return { step: 1, next: 'Check the photos and details, set the listed price and our offer, then send it.' };
+}
+
+const STEP_NAMES = ['Approve and price', 'Vendor accepts', 'Live', 'Sold and shipped'] as const;
+
+function ItemSteps({ listing, acq }: { listing: Listing; acq?: AcqRow }) {
+  const { step, next } = itemStep(listing, acq);
+  return (
+    <div className="flex flex-col gap-3">
+      <ol className="grid grid-cols-4 gap-1.5">
+        {STEP_NAMES.map((name, i) => {
+          const n = i + 1;
+          return (
+            <li key={name} className={cn('flex flex-col gap-1 border-t-4 pt-2',
+              n < step ? 'border-black' : n === step ? 'border-amber-400' : 'border-black/10')}>
+              <span className={cn('text-[11px] font-black uppercase tracking-widest', n === step ? '' : 'ink-mid')}>Step {n}</span>
+              <span className={cn('text-xs leading-snug', n === step ? 'font-bold' : 'ink-mid')}>{name}</span>
+            </li>
+          );
+        })}
+      </ol>
+      <p className="text-sm font-bold">{next}</p>
+    </div>
+  );
+}
 
 function DrawerShell({ title, subtitle, backLabel, onClose, children }: { title: string; subtitle?: string; backLabel: string; onClose: () => void; children: React.ReactNode }) {
   React.useEffect(() => { document.querySelector('main')?.scrollTo(0, 0); }, [title]);
@@ -1168,29 +1319,35 @@ function ListingDrawer({ listing, acq, orders, payouts, audit, backLabel, onClos
     } catch (err: any) { alert(err?.message ?? 'Failed.'); } finally { setBusy(false); }
   };
 
+  // Both switches flip on the tap and save behind it: no confirm box, and
+  // the switch goes back with a message only if the save fails.
+  const [instant, setInstant] = React.useState(!!listing.is_verified);
+  const [authentic, setAuthentic] = React.useState(!!listing.authenticity_confirmed);
+  React.useEffect(() => { setInstant(!!listing.is_verified); }, [listing.is_verified]);
+  React.useEffect(() => { setAuthentic(!!listing.authenticity_confirmed); }, [listing.authenticity_confirmed]);
+
   const toggleInstant = async () => {
-    const next = !listing.is_verified;
-    if (next && !confirm('Turn on Instant ship? Only for items already in our hub: buyers are promised dispatch within 48 hours.')) return;
-    setBusy(true);
+    const next = !instant;
+    setInstant(next);
     try {
-      const { error } = await supabase.from('listings').update({ is_verified: next }).eq('id', listing.id);
+      const { data, error } = await supabase.from('listings').update({ is_verified: next }).eq('id', listing.id).select('is_verified');
       if (error) throw error;
+      if (data?.[0]?.is_verified !== next) throw new Error('Not saved. Check you are signed in as an admin.');
       await writeAudit({
         entity: 'listing', entity_id: listing.id,
         action: next ? 'listing.instant_ship.on' : 'listing.instant_ship.off',
-        old_state: { is_verified: !!listing.is_verified }, new_state: { is_verified: next }, reason: listing.title,
+        old_state: { is_verified: !next }, new_state: { is_verified: next }, reason: listing.title,
       });
-      await onDone();
-    } catch (err: any) { alert(err?.message ?? 'Failed.'); } finally { setBusy(false); }
+      void onDone();
+    } catch (err: any) { setInstant(!next); alert(err?.message ?? 'Failed.'); }
   };
 
   // "Authenticity: Confirmed" on the listing page is a claim we make in our
   // own name, so it is only ever switched on here. The vendor's own answer
   // from the sell form is shown beside it; it never sets this by itself.
   const toggleAuthentic = async () => {
-    const next = !listing.authenticity_confirmed;
-    if (next && !confirm('Mark this item confirmed authentic? The listing page will say "Authenticity: Confirmed".')) return;
-    setBusy(true);
+    const next = !authentic;
+    setAuthentic(next);
     try {
       const { data, error } = await supabase.from('listings').update({ authenticity_confirmed: next }).eq('id', listing.id).select('authenticity_confirmed');
       if (error) throw error;
@@ -1198,10 +1355,10 @@ function ListingDrawer({ listing, acq, orders, payouts, audit, backLabel, onClos
       await writeAudit({
         entity: 'listing', entity_id: listing.id,
         action: next ? 'listing.authenticity.confirmed' : 'listing.authenticity.unconfirmed',
-        old_state: { authenticity_confirmed: !!listing.authenticity_confirmed }, new_state: { authenticity_confirmed: next }, reason: listing.title,
+        old_state: { authenticity_confirmed: !next }, new_state: { authenticity_confirmed: next }, reason: listing.title,
       });
-      await onDone();
-    } catch (err: any) { alert(err?.message ?? 'Failed.'); } finally { setBusy(false); }
+      void onDone();
+    } catch (err: any) { setAuthentic(!next); alert(err?.message ?? 'Failed.'); }
   };
   const vendorSaysAuthentic = listing.vendor_confirms_authentic == null ? 'Not asked' : listing.vendor_confirms_authentic ? 'Yes' : 'No';
 
@@ -1234,57 +1391,60 @@ function ListingDrawer({ listing, acq, orders, payouts, audit, backLabel, onClos
         </>
       )}
 
-      <div className="flex items-center gap-2">
-        <span className={cn('text-[11px] font-black uppercase tracking-widest', listing.is_sold ? 'text-red-600' : listing.status === 'approved' ? 'text-emerald-700' : 'ink-mid')}>
-          {listing.is_sold ? 'Sold' : listing.status === 'approved' ? 'Live' : listing.status}
-        </span>
+      {/* Where this item is in the four steps, and what to do about it. */}
+      <ItemSteps listing={listing} acq={acq} />
+
+      {/* The numbers, together, every time the item is open. */}
+      <div className="grid grid-cols-2 gap-px border border-black/15 bg-black/15 sm:grid-cols-4">
+        {[
+          { k: 'Listed price', v: listedPrice(listing) > 0 ? formatCurrency(listedPrice(listing)) : 'Not set yet',
+            sub: listing.sale_price && listing.price > 0 ? `was ${formatCurrency(listing.price)}` : null },
+          { k: 'Our offer', v: offerOf(acq) > 0 ? formatCurrency(offerOf(acq)) : 'Not sent yet', sub: offerOf(acq) > 0 ? 'the vendor\'s payout' : null },
+          { k: 'Margin', v: marginText(listing, acq), sub: 'before costs' },
+          { k: 'Status', v: <StatePill listing={listing} acq={acq} />, sub: null },
+        ].map((c) => (
+          <div key={c.k} className="flex flex-col gap-1 bg-white p-3.5">
+            <span className="text-[11px] font-black uppercase tracking-widest ink-mid">{c.k}</span>
+            <span className="text-lg font-black tabular-nums leading-tight">{c.v}</span>
+            {c.sub && <span className="text-xs ink-mid">{c.sub}</span>}
+          </div>
+        ))}
       </div>
 
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <StatePill listing={listing} acq={acq} large />
-        {/* Instant ship: the item is already in our hub, so it can leave
-            within 48 hours of an order. Only ever set here, by an operator:
-            it is a claim about where the item physically is. */}
-        <button
-          type="button"
-          disabled={busy}
-          onClick={toggleInstant}
-          aria-pressed={!!listing.is_verified}
-          className={cn('inline-flex items-center gap-2 border px-3.5 py-2 text-xs font-black uppercase tracking-wider transition-colors disabled:opacity-50',
-            listing.is_verified ? 'border-black bg-black text-white' : 'border-black/20 hover:border-black')}
-        >
-          <Zap className="h-4 w-4" />
-          {listing.is_verified ? 'Instant ship: on' : 'Instant ship: off'}
-        </button>
-      </div>
-      <p className="-mt-4 text-xs ink-mid">
-        Turn on Instant ship only for items already in our hub. Buyers can filter for them, and they are promised dispatch within 48 hours.
-      </p>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        {/* Instant Ship: the item is already in our hub, so it leaves within
+            24 hours of an order. Only ever set here, by an operator: it is a
+            claim about where the item physically is. */}
+        <div className="flex items-start justify-between gap-4 border border-black/15 p-4">
+          <div className="flex flex-col gap-1">
+            <span className="inline-flex items-center gap-1.5 text-sm font-black"><Zap className="h-4 w-4" /> Instant Ship</span>
+            <span className="text-xs ink-mid">Only for items already in our hub. Buyers are promised dispatch within 24 hours.</span>
+          </div>
+          <Switch on={instant} onToggle={toggleInstant} label="Instant Ship" />
+        </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <p className="text-sm">Vendor says authentic: <span className="font-bold">{vendorSaysAuthentic}</span></p>
-        <button
-          type="button"
-          disabled={busy}
-          onClick={toggleAuthentic}
-          aria-pressed={!!listing.authenticity_confirmed}
-          className={cn('inline-flex items-center gap-2 border px-3.5 py-2 text-xs font-black uppercase tracking-wider transition-colors disabled:opacity-50',
-            listing.authenticity_confirmed ? 'border-black bg-black text-white' : 'border-black/20 hover:border-black')}
-        >
-          <ShieldCheck className="h-4 w-4" />
-          {listing.authenticity_confirmed ? 'Authentic: confirmed' : 'Authentic: not confirmed'}
-        </button>
+        {/* The seller's word and ours, side by side, in the one green box on
+            the page: "Authenticity: Confirmed" on the listing is our claim,
+            made in our own name, never theirs. */}
+        <div className="flex flex-col gap-3 border-2 border-emerald-500 bg-emerald-50 p-4">
+          <div className="flex items-start justify-between gap-4">
+            <span className="inline-flex items-center gap-1.5 text-sm font-black text-emerald-900"><ShieldCheck className="h-4 w-4" /> Authenticity</span>
+            <Switch on={authentic} onToggle={toggleAuthentic} label="Authenticity confirmed" />
+          </div>
+          <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm text-emerald-950">
+            <dt>Seller says</dt>
+            <dd className="font-bold">{vendorSaysAuthentic === 'Yes' ? 'Authentic' : vendorSaysAuthentic === 'No' ? 'Not confirmed by them' : 'Not asked'}</dd>
+            <dt>Our decision</dt>
+            <dd className="font-bold">{authentic ? 'Confirmed authentic' : 'Not confirmed yet'}</dd>
+          </dl>
+          <span className="text-xs text-emerald-900">On shows "Authenticity: Confirmed" on the listing page. Leave it off unless we have checked.</span>
+        </div>
       </div>
-      <p className="-mt-4 text-xs ink-mid">
-        When confirmed, the listing page shows "Authenticity: Confirmed". Leave it off unless we have checked.
-      </p>
 
       {/* The decision first: it is why anyone opens a pending item. */}
       <AcquisitionPanel listingId={listing.id} listingTitle={listing.title} vendorEmail={listing.seller_email ?? null} askingPriceFallback={listing.sale_price ?? listing.price} onDone={onDone} />
 
       <Sec title="Item">
-        <Row k="Price" v={formatCurrency(listing.price)} />
-        {listing.sale_price && <Row k="Sale price" v={formatCurrency(listing.sale_price)} />}
         <Row k="Category" v={listing.category} /><Row k="Size" v={`${listing.size ?? ''} (${listing.size_type ?? ''})`} />
         <Row k="Condition" v={listing.condition} /><Row k="Shipping cat" v={listing.shipping_category} />
         <Row k="Delivery" v={listing.free_shipping ? 'Free to the buyer (we pay)' : 'Buyer pays'} />

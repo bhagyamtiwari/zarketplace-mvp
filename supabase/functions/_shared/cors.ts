@@ -15,6 +15,9 @@ export const corsHeaders = {
 const ALLOWED_ORIGINS = new Set([
   "https://zarketplace.com",
   "https://www.zarketplace.com",
+  // The admin portal, on its own host: refunds and pickup bookings are
+  // called from there.
+  "https://admin.zarketplace.com",
   "http://localhost:3000",
   "http://127.0.0.1:3000",
   "http://localhost:5199",

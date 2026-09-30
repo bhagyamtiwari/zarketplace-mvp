@@ -20,7 +20,7 @@
 //     notice, since that's the highest-priority rule for a P2P marketplace.
 
 import React from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'motion/react';
 import { Loader2, Check, X, Plus, ChevronLeft, ChevronRight, ChevronDown, AlertTriangle, ShieldCheck } from 'lucide-react';
@@ -289,12 +289,24 @@ const noDeclarations = (): Declarations =>
 
 export function Sell() {
   usePageMeta(META.sell);
+  // A fresh form on every visit, keyed by the visit: "Get an offer" pressed
+  // straight after sending an item used to land back on the "sent" screen,
+  // because it was the same page and the form never reset.
+  const location = useLocation();
 
   return (
     <RequireAuth message="Sign in to get an offer." signedOut={(openSignIn) => <SellIntro onStart={openSignIn} />}>
-      <SellInner />
+      <React.Fragment key={location.key}><SellInner /></React.Fragment>
     </RequireAuth>
   );
+}
+
+// Background removal is a nicety, and a photo waits for it before it uploads,
+// so a slow answer is cut off rather than allowed to hold the photo back: the
+// vendor's own photo is kept and uploads straight away.
+const CLEAN_TIMEOUT_MS = 20_000;
+function atMost<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([promise, new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))]);
 }
 
 export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
@@ -331,6 +343,8 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
   // version (or back) uploads again and nothing else does. A failed upload
   // drops out of the cache and is retried at Submit.
   const uploadsRef = React.useRef(new Map<File, Promise<string>>());
+  // Photos whose upload has finished, so each one can show it is ready.
+  const [uploaded, setUploaded] = React.useState<Set<File>>(() => new Set());
   const uploadPhoto = React.useCallback((file: File): Promise<string> => {
     const existing = uploadsRef.current.get(file);
     if (existing) return existing;
@@ -339,6 +353,7 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
       return uploadListingPhoto(file, user.id);
     })();
     uploadsRef.current.set(file, job);
+    job.then(() => setUploaded((prev) => new Set(prev).add(file)), () => {});
     job.catch((err) => {
       uploadsRef.current.delete(file);
       slog.warn('background upload failed, will retry at submit', err);
@@ -497,7 +512,7 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
     accepted.forEach((file, offset) => {
       const index = startIndex + offset;
       setCleaning((prev) => ({ ...prev, [index]: true }));
-      void removeBackground(file).then(({ processed }) => {
+      void atMost(removeBackground(file), CLEAN_TIMEOUT_MS, { processed: null }).then(({ processed }) => {
         if (processed) {
           setOriginals((prev) => ({ ...prev, [index]: { file, preview: urls[offset] } }));
           const preview = URL.createObjectURL(processed);
@@ -602,6 +617,7 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
   const handlePublish = async () => {
     setStepError(null);
     if (!user) { setStepError('Sign in first.'); return; }
+    if (profile?.is_admin) { setStepError('Admin accounts cannot send items. Use a vendor account to test selling.'); return; }
 
     for (let s = 0; s <= 2; s++) {
       const err = validateStep(s);
@@ -737,21 +753,9 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
     }
   };
 
-  const resetForm = () => {
-    setSubmitted(false);
-    setStep(0);
-    scrollToTop();
-    setImageFiles([]); setImagePreviews([]);
-    setTitle(''); setBrand(''); setDescription('');
-    setSelectedCategory(''); setSizeType(''); setSizeDetail(''); setMeasurements({}); setUnit('cm');
-    setCondition(''); setHasFlaws(null); setConfirmsAuthentic(null); setFlawsDescription('');
-    setDeclarations(noDeclarations());
-    setShowRequired(false);
-    setPhotoNote(null);
-  };
 
   if (submitted) {
-    return <SellSubmitted onItems={() => navigate('/vendor-portal')} onAnother={resetForm} />;
+    return <SellSubmitted onItems={() => navigate('/account/items')} onAnother={() => navigate('/sell')} />;
   }
 
   // One centred column, the same as the intro before it: three steps, one at
@@ -836,6 +840,7 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
                 imagePreviews={imagePreviews}
                 onAdd={handleImageChange}
                 onDropFiles={(files) => { void addPhotos(files); }}
+                ready={imageFiles.map((f) => uploaded.has(f))}
                 onRemove={(i) => { setPhotoNote(null); removeImage(i); }}
                 adding={adding}
                 note={photoNote}
@@ -938,56 +943,20 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
 // item the day the offer is accepted.
 export function SellSubmitted({ onItems, onAnother }: { onItems: () => void; onAnother: () => void }) {
   return (
-    <div className="shell-form pt-24 sm:pt-32 pb-16 sm:pb-20 flex flex-col gap-12">
-      {/* Where things stand, in one line. The steps below say the rest, so
-          this does not repeat them: it used to add a second line about the
-          label that the list restates two sections down. */}
-      <div className="flex flex-col gap-6">
-        <h1 className={ui.pageTitle}>Back in 24 hours.</h1>
-        <p className="text-[15px] leading-relaxed">
-          We will email you an offer, or what to fix. Check your spam folder too.
+    <div className="shell-form pt-24 sm:pt-32 pb-16 sm:pb-20 flex flex-col gap-10">
+      {/* Two sentences, because that is all there is to know now: an offer is
+          coming, and saying yes to it puts the item on sale. Everything else
+          is said on the offer itself, when it matters. */}
+      <div className="flex flex-col items-center gap-5 text-center">
+        <div className="flex h-14 w-14 items-center justify-center bg-black text-white">
+          <Check className="h-7 w-7" strokeWidth={3} />
+        </div>
+        <h1 className={ui.pageTitle}>Item sent</h1>
+        <p className="max-w-md text-[15px] leading-relaxed">
+          You will get an offer from us within 24 hours. If you accept it, your item goes on sale.
         </p>
+        <p className="text-sm">It comes by email, so check your spam folder too.</p>
       </div>
-
-      <section className="flex flex-col gap-6" aria-labelledby="next-heading">
-        <h2 id="next-heading" className={ui.sectionTitle}>What happens next</h2>
-        <ol className="flex flex-col gap-6">
-          {WHAT_HAPPENS_NEXT.map((step, i) => (
-            <li key={step.title} className="flex gap-4">
-              <span
-                aria-hidden
-                className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-black text-xs font-black leading-none text-white"
-              >
-                {i + 1}
-              </span>
-              <div className="flex min-w-0 flex-col gap-2">
-                <h3 className="text-[15px] font-bold leading-snug">{step.title}</h3>
-                {/* One line reads as a sentence; several read as a list, one
-                    sentence per bullet, so a step with three instructions
-                    does not look like a paragraph. */}
-                <ul className="flex flex-col gap-1.5">
-                  {step.points.map((point) => (
-                    <li key={point} className="flex gap-3 text-sm leading-relaxed">
-                      {step.points.length > 1 && (
-                        <span aria-hidden className="mt-[0.6em] h-1 w-1 shrink-0 bg-black" />
-                      )}
-                      <span>{point}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </li>
-          ))}
-        </ol>
-        <dl className="flex flex-col gap-4 border-t border-black/10 pt-6">
-          {WHAT_HAPPENS_NOTES.map((note) => (
-            <div key={note.title} className="flex flex-col gap-1 text-sm">
-              <dt className="font-bold">{note.title}</dt>
-              <dd className="leading-relaxed">{note.body}</dd>
-            </div>
-          ))}
-        </dl>
-      </section>
 
       <div className="flex flex-col items-center gap-6 text-center">
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
@@ -1074,8 +1043,10 @@ function TrustNote({ children, full }: { children: React.ReactNode; full?: boole
   );
 }
 
-function PhotosStep({ imagePreviews, onAdd, onDropFiles, onRemove, originals, cleaning, onUseOriginal, adding, note }: {
+function PhotosStep({ imagePreviews, onAdd, onDropFiles, onRemove, originals, cleaning, onUseOriginal, adding, note, ready }: {
   imagePreviews: string[];
+  /** Per photo: already uploaded, so Submit will not wait on it. */
+  ready: boolean[];
   onAdd: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onDropFiles: (files: File[]) => void;
   onRemove: (i: number) => void;
@@ -1136,6 +1107,13 @@ function PhotosStep({ imagePreviews, onAdd, onDropFiles, onRemove, originals, cl
               {cleaning[i] && (
                 <span className="absolute bottom-2 left-2 bg-black px-2 py-1 text-xs font-bold text-white">
                   Tidying…
+                </span>
+              )}
+              {/* Uploaded while the rest of the form is filled in, so the
+                  last step has nothing left to wait for. */}
+              {ready[i] && !cleaning[i] && (
+                <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 bg-white px-2 py-1 text-xs font-bold text-black">
+                  <Check className="h-3 w-3" strokeWidth={3} /> Ready
                 </span>
               )}
               {originals[i] && (
