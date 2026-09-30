@@ -47,7 +47,7 @@ const ROUTES: Record<string, RouteMeta> = {
     heading: 'Sell your clothes to zarketplace',
     summary: [
       'Add photos of your item, its size and an honest condition. Within 24 hours we make you an offer: a fixed amount in rupees that we will pay you. It does not change once you accept.',
-      'Selling to us is free and we pay for shipping. The item stays with you until someone buys it. Then we email you a prepaid label, a courier collects it from your door, and we pay you once it reaches our hub and has been checked.',
+      'Selling to us is free and we pay for shipping. The item stays with you until someone buys it. Then we send you a prepaid label by email or WhatsApp, a courier collects it from your door, and we pay you once it reaches our hub and has been checked.',
       'You have 7 days to accept an offer. Once you accept, the item is on sale for up to 30 days, and you can withdraw it any time before it is bought. You do not need a GSTIN.',
     ],
   },
@@ -75,7 +75,7 @@ const ROUTES: Record<string, RouteMeta> = {
     description: 'How to sell clothes to zarketplace: a fixed offer in 24 hours, the item stays with you until it sells, free courier pickup, and payment once it reaches our hub.',
     heading: 'How selling works',
     summary: [
-      '1. Add your item: photos, size and an honest condition. 2. Accept our offer: a fixed amount in rupees, locked once you accept. 3. We collect it: when someone buys it, we email a prepaid label and a courier collects it from your door, usually within 48 hours. It must be handed over within 5 days. 4. Get paid: once we have checked it at our hub, the amount you accepted, in full.',
+      '1. Add your item: photos, size and an honest condition. 2. Accept our offer: a fixed amount in rupees, locked once you accept. 3. We collect it: when someone buys it, we send a prepaid label by email or WhatsApp and a courier collects it from your door, usually within 48 hours. It must be handed over within 5 days. 4. Get paid: once we have checked it at our hub, the amount you accepted, in full.',
       'zarketplace buys your item and resells it. We cover shipping both ways, payment processing and handling, and we carry the risk if it does not sell. If it has not sold within 30 days of accepting, the offer ends and nothing is owed either way.',
       'We only buy authentic items. Counterfeits and replicas are refused at our hub and are not paid for.',
     ],
@@ -113,7 +113,7 @@ const ROUTES: Record<string, RouteMeta> = {
       { q: 'What if an item is not as described?', a: 'Contact us within 7 days of delivery at contact@zarketplace.com. We sold you the item, so you are dealing with us directly, and a wrong or misrepresented item is refunded in full.' },
       { q: 'Does zarketplace check items?', a: 'Every listing is reviewed before it is published, and every item comes in to our hub, where we check it against its listing and photos before we repack it and ship it out. Anything that does not match does not ship.' },
       { q: 'How do I sell an item?', a: 'Tap Get an offer, upload photos, and fill in the category, size and condition. Within 24 hours we come back with an offer: a fixed amount we will pay you. If you accept, that number is locked and the item goes on sale at our price.' },
-      { q: 'Do I send the item as soon as I accept?', a: 'No. The item stays with you until someone buys it. Then we email a prepaid label and a courier collects it from your door. It must be handed over within 5 days.' },
+      { q: 'Do I send the item as soon as I accept?', a: 'No. The item stays with you until someone buys it. Then we send a prepaid label by email or WhatsApp and a courier collects it from your door. It must be handed over within 5 days.' },
       { q: 'When do I get paid?', a: 'Once your item reaches our hub and we accept it, we pay you the amount you agreed to when you accepted our offer.' },
       { q: 'How long is my offer open, and how long is my item on the site?', a: 'You have 7 days to accept an offer. Once you accept, your item is on the site for 30 days. If we have not sold it by then, or you withdraw it, your offer ends and nothing is owed either way.' },
     ],

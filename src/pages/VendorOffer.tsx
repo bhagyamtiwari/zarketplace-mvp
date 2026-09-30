@@ -678,7 +678,7 @@ export function AgreementScreen({
             <>We pay you <strong>{formatCurrency(amount)}</strong> by UPI once it reaches our hub and matches your photos. The amount does not change.</>,
             'We set the price we sell it at, and we may reduce it. What we pay you stays the same.',
             'Until someone buys it, keep it packed and unworn, and do not sell it anywhere else.',
-            'When it is bought, we email you a free prepaid label, and a courier collects it from your door, usually within 48 hours.',
+            'When it is bought, we send you a free prepaid label by email or WhatsApp, and a courier collects it from your door, usually within 48 hours.',
             <>Hand it over within <strong>5 days</strong> of the sale.</>,
             'Counterfeits and replicas are refused and not paid for.',
             'If we have not sold it within 30 days, the offer ends and nothing is owed either way.',
@@ -757,7 +757,7 @@ export function Accepted({ item, amount, paidTo, justNow }: {
         <ol className="flex flex-col gap-5">
           {[
             'Keep it packed and unworn, and do not sell it anywhere else.',
-            'When someone buys it, we email you a free prepaid label, and a courier collects it from your door.',
+            'When someone buys it, we send you a free prepaid label by email or WhatsApp, and a courier collects it from your door.',
             'Hand it over within 5 days of the sale.',
             `We pay you ${payout} by UPI once it reaches our hub and matches your photos.`,
           ].map((line, i) => (

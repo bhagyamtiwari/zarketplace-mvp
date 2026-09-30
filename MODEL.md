@@ -186,8 +186,10 @@ There are **two separate clocks**. Do not conflate them.
 - **Handover: 5 days** from purchase (`fulfillment_config.ship_by_days`). Tell
   sellers the courier usually collects **within 48 hours**; the 5 days is the
   deadline, not the promise.
-- **Label by email.** We may also WhatsApp a seller we cannot reach, but copy
-  never promises WhatsApp delivery until WhatsApp sending is built.
+- **Label by email or WhatsApp.** Decided 2026-09-30: seller copy says the
+  prepaid label comes "by email or WhatsApp". Until WhatsApp sending is
+  automated, an operator sends the label on WhatsApp by hand, so every label
+  issued has to go out on both.
 
 ### Withdrawal — until someone buys it
 

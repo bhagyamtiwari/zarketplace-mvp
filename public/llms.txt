@@ -22,7 +22,7 @@ zarketplace is a trading name of ADNIZ Private Limited (CIN U47711DL2023PTC41810
 - Within 24 hours zarketplace makes an offer: a fixed amount in rupees that it will pay. The offer is open for 7 days, and once accepted it does not change.
 - Selling is free and zarketplace pays for shipping. No GSTIN is needed.
 - The item stays with its owner until someone buys it. Once accepted, it is on sale for up to 30 days and can be withdrawn at no cost until it is bought.
-- When it is bought, zarketplace emails a prepaid label and a courier collects it from the door. It must be handed over within 5 days.
+- When it is bought, zarketplace sends a prepaid label by email or WhatsApp and a courier collects it from the door. It must be handed over within 5 days.
 - zarketplace pays the agreed amount once the item reaches its hub and has been checked.
 - zarketplace only buys authentic items. Counterfeits are refused and not paid for.
 

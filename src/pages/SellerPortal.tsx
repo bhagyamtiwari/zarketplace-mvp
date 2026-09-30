@@ -429,7 +429,7 @@ export function ShipNowCard({ listing, offer, shipment, onChanged }: {
               )}
             </span>
           ) : (
-            <>Look out for your prepaid label in your email. We may also send it on WhatsApp.</>
+            <>Look out for your prepaid label by email or WhatsApp.</>
           )}
         </Step>
         <Step n={3}>A courier collects it from your door, usually within 48 hours.</Step>
@@ -635,7 +635,7 @@ function WithYou({ rows, offers, statusOf, onChanged }: {
       intro={
         <>
           On sale now. Keep {one ? 'it' : 'them'} unworn and do not sell {one ? 'it' : 'them'} anywhere else.
-          When {one ? 'it is' : 'one is'} bought, we email you a prepaid label.
+          When {one ? 'it is' : 'one is'} bought, we send you a prepaid label by email or WhatsApp.
         </>
       }
     >
