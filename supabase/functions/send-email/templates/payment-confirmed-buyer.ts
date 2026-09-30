@@ -20,7 +20,8 @@ export function paymentConfirmedBuyer(ctx: EmailContext): EmailContent {
       <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%; font-size:13px; margin:12px 0; border-top:1px solid #eee; padding-top:12px;">
         <tr><td style="color:#5a5a5a; padding:2px 0;">Item</td><td style="text-align:right; padding:2px 0;">Rs. ${o.amount}</td></tr>
         <tr><td style="color:#5a5a5a; padding:2px 0;">Shipping</td><td style="text-align:right; padding:2px 0;">${o.free_shipping ? "Free" : `Rs. ${o.shipping_cost}`}</td></tr>
-        <tr><td style="color:#5a5a5a; padding:2px 0;">Buyer protection</td><td style="text-align:right; padding:2px 0;">Rs. ${o.buyer_protection_fee}</td></tr>
+        ${Number(o.buyer_protection_fee ?? 0) > 0 ? `<tr><td style="color:#5a5a5a; padding:2px 0;">Buyer protection</td><td style="text-align:right; padding:2px 0;">Rs. ${o.buyer_protection_fee}</td></tr>` : ""}
+        ${Number(o.discount_amount ?? 0) > 0 ? `<tr><td style="color:#5a5a5a; padding:2px 0;">Promo code${o.discount_code ? ` (${esc(o.discount_code)})` : ""}</td><td style="text-align:right; padding:2px 0;">-Rs. ${o.discount_amount}</td></tr>` : ""}
         <tr><td style="font-weight:900; padding:6px 0 2px; border-top:1px solid #eee;">Total paid</td><td style="text-align:right; font-weight:900; padding:6px 0 2px; border-top:1px solid #eee;">Rs. ${o.total_amount}</td></tr>
       </table>
       ${o.shipping_address ? `<p style="color:#5a5a5a; font-size:13px;">Shipping to: ${esc([o.shipping_address.address, o.shipping_address.city, o.shipping_address.state, o.shipping_address.pincode].filter(Boolean).join(", "))}</p>` : ""}

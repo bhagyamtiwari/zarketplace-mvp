@@ -20,7 +20,7 @@ export interface AuditEntry {
 }
 
 interface WriteAuditArgs {
-  entity: 'order' | 'listing' | 'payout' | 'user' | 'settings';
+  entity: 'order' | 'listing' | 'payout' | 'user' | 'settings' | 'discount';
   entity_id?: string | null;
   action: string;
   old_state?: Record<string, unknown> | null;
