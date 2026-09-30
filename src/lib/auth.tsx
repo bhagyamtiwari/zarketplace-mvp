@@ -55,6 +55,8 @@ interface AuthContextValue {
     email: string,
     password: string,
     phone: string,
+    firstName: string,
+    lastName: string,
   ) => Promise<{ error: string | null; needsConfirmation: boolean }>;
   resendVerification: () => Promise<{ error: string | null }>;
   sendPasswordReset: (email: string) => Promise<{ error: string | null }>;
@@ -162,8 +164,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: error?.message ?? null };
   }, []);
 
-  const signUpWithPassword = React.useCallback(async (email: string, password: string, phone: string) => {
+  const signUpWithPassword = React.useCallback(async (email: string, password: string, phone: string, firstName: string, lastName: string) => {
     const trimmed = email.trim().toLowerCase();
+    const first = firstName.trim().replace(/\s+/g, ' ');
+    const last = lastName.trim().replace(/\s+/g, ' ');
+    if (!first || !last) return { error: 'Please enter your first name and surname.', needsConfirmation: false };
     if (!trimmed) return { error: 'Please enter your email.', needsConfirmation: false };
     if (!password || password.length < 10)
       return { error: 'Password must be at least 10 characters.', needsConfirmation: false };
@@ -175,13 +180,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // SMS, which we cannot do until DLT clears. The handle_new_user trigger
     // copies it onto the profile. Deliberately not a second auth factor yet -
     // this is data capture so a later updateUser({ phone }) linking step has
-    // something to link.
+    // something to link. full_name is copied onto the profile the same way;
+    // first_name stays in the metadata so a greeting never has to guess where
+    // a first name ends.
     const { data, error } = await supabase.auth.signUp({
       email: trimmed,
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/auth/callback`,
-        data: { phone },
+        data: { phone, first_name: first, last_name: last, full_name: `${first} ${last}` },
       },
     });
     if (error) {
@@ -266,4 +273,17 @@ export function useAuth(): AuthContextValue {
   const ctx = React.useContext(AuthContext);
   if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>');
   return ctx;
+}
+
+/**
+ * The name to greet someone by: the first name they gave at sign-up, or the
+ * first word of the name on their profile. Null when we have neither, and
+ * the caller falls back to something that does not need a name.
+ */
+export function useFirstName(): string | null {
+  const { user, profile } = useAuth();
+  const meta = (user?.user_metadata?.first_name as string | undefined)?.trim();
+  if (meta) return meta;
+  const full = profile?.full_name?.trim();
+  return full ? full.split(/\s+/)[0] : null;
 }

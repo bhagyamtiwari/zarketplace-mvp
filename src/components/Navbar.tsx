@@ -4,7 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { cn } from '../lib/utils';
-import { useAuth } from '../lib/auth';
+import { useAuth, useFirstName } from '../lib/auth';
 import { useCart } from '../lib/cart';
 import { AuthModal } from './AuthModal';
 import { Wordmark } from './Wordmark';
@@ -31,6 +31,7 @@ export function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const firstName = useFirstName();
   const offers = useOpenOfferCount();
   const { count: cartCount } = useCart();
 
@@ -91,7 +92,7 @@ export function Navbar() {
                   aria-label={offers > 0 ? `Account, ${offers} ${offers === 1 ? 'offer' : 'offers'} waiting` : undefined}
                   className={cn(NAV, 'relative py-7 hover:underline underline-offset-[6px] decoration-2')}
                 >
-                  Account
+                  <span className="block max-w-[12rem] truncate">{firstName ? `Hi ${firstName}` : 'Account'}</span>
                   {offers > 0 && <span aria-hidden className="absolute -right-3 top-[1.6rem] h-2 w-2 rounded-full bg-amber-400" />}
                 </Link>
               ) : (

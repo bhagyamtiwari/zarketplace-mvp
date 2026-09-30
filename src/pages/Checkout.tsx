@@ -757,7 +757,10 @@ export function AddressFields({
   return (
     <section className="flex flex-col gap-12">
       <div className="flex flex-col gap-6">
-        <h2 className={ui.sectionTitle}>Shipping address</h2>
+        <div className="flex flex-col gap-2">
+          <h2 className={ui.sectionTitle}>Shipping address</h2>
+          <p className="text-sm">We ship within India only.</p>
+        </div>
 
         {/* Shown the moment the state is chosen, not held back until the
             button. Finding out at payment that the order was never possible
@@ -781,6 +784,12 @@ export function AddressFields({
               expected to notice - Gurgaon is Haryana, and one metro is three
               states to GST. Removing the question removes the contradiction. */}
           <StateFromPincode pincode={addr.pincode} />
+          {/* Not a choice. The pincode is Indian, the state comes from it, and
+              every courier we book is domestic. */}
+          <div className="flex flex-col gap-2">
+            <span className={ui.label}>Country</span>
+            <span className="border-b border-black/10 py-3 text-base md:text-sm">India</span>
+          </div>
         </div>
       </div>
 
@@ -1060,19 +1069,19 @@ function DiscountCodeField({ applied, onApply, onRemove, locked }: {
     else setValue('');
   };
 
+  // One line: the box says what it is for, so it needs no label above it.
   return (
     <form onSubmit={submit} className="flex flex-col gap-2 border-t border-black/10 pt-5">
-      <label htmlFor={id} className={ui.label}>Promo code</label>
-      <div className="flex items-end gap-3">
+      <div className="flex items-stretch gap-3">
         <input
-          id={id} value={value}
+          id={id} value={value} aria-label="Promo code" placeholder="Promo code"
           onChange={(e) => { setValue(e.target.value.toUpperCase().replace(/\s+/g, '')); setMessage(null); }}
           autoComplete="off" autoCapitalize="characters" spellCheck={false} maxLength={32}
-          className={cn(ui.input, 'min-w-0 flex-1 uppercase tracking-wider')}
+          className="min-w-0 flex-1 border border-black/20 px-3 py-2.5 text-sm uppercase tracking-wider placeholder:normal-case placeholder:tracking-normal placeholder:text-black/40 focus:border-black focus:outline-none"
         />
         <button
           type="submit" disabled={busy || !value.trim() || locked}
-          className="inline-flex shrink-0 items-center gap-2 border border-black px-5 py-3 text-[11px] font-black uppercase tracking-[0.2em] transition-colors hover:bg-black hover:text-white disabled:opacity-40"
+          className="inline-flex shrink-0 items-center gap-2 border border-black px-5 text-[11px] font-black uppercase tracking-[0.2em] transition-colors hover:bg-black hover:text-white disabled:opacity-40"
         >
           {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
           Apply

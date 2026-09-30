@@ -43,6 +43,7 @@ export function RefundPolicy() {
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">How You're Refunded</h2>
             <p>Refunds are issued to the original payment method used at checkout via Razorpay. We cannot issue refunds to a different card, account, or UPI ID than the one used to pay.</p>
+            <p>If you used a <Link to="/terms#promo-codes" className="font-bold text-black underline">promo code</Link>, we refund the amount you actually paid.</p>
           </section>
 
           <section className="flex flex-col gap-4">
