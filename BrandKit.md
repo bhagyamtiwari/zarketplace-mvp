@@ -83,7 +83,7 @@ zarketplace has no gray swatches — grays are **opacities of black or white**, 
 | Color | Value | Only used for |
 |---|---|---|
 | Offer yellow | yellow-50 `#FEFCE8` + solid black border | Launch offers / promotions callout cards & badges. |
-| Alert red | red-600 `#DC2626` | Destructive actions (sign out), "On Sale" flag on Instagram share cards. |
+| Alert red | red-600 `#DC2626` | Destructive actions (sign out). Never on share images. |
 | Verified green | emerald-50 bg / emerald-700 text / emerald-200 border | "Email Verified" style confirmation chips only. |
 | Warning amber | amber-50 bg / amber-700 text / amber-200 border | "Unverified"/pending chips only. |
 
@@ -266,10 +266,10 @@ Two registers, deliberately split — knowing which one you're in is 90% of writ
 - The headline/serif pairing is the brand's rhetorical signature: **shout the principle in caps, whisper the humanity in italic lowercase.**
 
 ## Calls to action
-- Imperative verbs, 1–3 words, uppercase: BROWSE · GET AN OFFER · BUY IT NOW · SCAN TO SHOP · VIEW ALL.
+- Imperative verbs, 1–3 words, uppercase: BROWSE · GET AN OFFER · BUY IT NOW · VIEW ALL. (Share images are the exception: lowercase, "shop this piece →".)
 - One primary CTA per section. Ever.
 - CTAs state the action, not the aspiration — "START SELLING," never "BEGIN YOUR JOURNEY."
-- Social CTAs may be a sentence in system voice: "Just listed on @zarketplace — link in bio. Scan the QR to shop direct."
+- Social CTAs may be a sentence in system voice: "Just listed on @zarketplace. Link in bio."
 
 ## Things to avoid
 - Uppercase "Zarketplace" or "ZARKETPLACE" in running text (the wordmark asset renders the name; text always lowercase).
@@ -317,7 +317,7 @@ Lucide stroke icons only, monochrome, drawn at the same visual weight as on-site
 ## Image usage
 - Product photos: full-bleed or in the 3:4 portrait well on zinc-50, exactly like a ListingCard. Keep true color.
 - Mood photos: always under a dark scrim (30–40% image opacity or black gradient overlay) with type on top — identical treatment to the site's photo sections.
-- The built-in share card is the canonical product-post format: full-bleed photo, bottom `rgba(0,0,0,0.7)` info panel, 900-weight uppercase title, price in display type, bordered chips for size/condition, white QR block + "SCAN TO SHOP," centered wordmark above a `white/18` hairline. Red `#DC2626` "ON SALE" flag top-left when discounted. Don't redesign this per post — consistency is the point.
+- The built-in share image is the canonical product-post format, specified in `docs/SHARE_IMAGE_SYSTEM.md` (rebuilt 2026-10-01; the old dark-panel, QR and chip card is retired). Product > fashion > information > branding: the garment is never covered by type; brand in small tracked capitals, name in sentence case at regular weight, price as `₹1,490` (share images use the rupee sign; the site's running text keeps `Rs.`), one quiet details line, and `zarketplace` once, lowercase. No QR by default, no pills, boxes, dividers, sale flags or struck prices. The layout follows the photo (float on its own backdrop, plate with a type band, or full bleed), 1080 × 1080 and a native 1080 × 1920 story with Instagram's UI zones kept clear. Don't hand-design product posts; generate them.
 - Never: filters that tint product colors, borders/frames around the whole slide, collage chaos, watermarks other than the wordmark/handle.
 
 ## CTA slide (last slide)
@@ -428,7 +428,7 @@ The non-negotiables, condensed for anyone producing anything:
 2. **Grid discipline:** the Instagram grid should read as alternating black and white tiles with occasional full-photo tiles — plan covers so no two adjacent posts share a background.
 3. **Formats:** carousels for education/story (5–8 slides), single share-card posts for listings, stories for drops/offers (9:16 share-card format), reels thumbnails follow cover-slide rules.
 4. **Captions:** first line does the work (it's the preview) — campaign voice, lowercase-friendly, ≤2 emoji max, then line-broken detail in system voice, then CTA ("link in bio"), then 3–6 hashtags max (#thriftindia #resale #preloved #zarketplace territory — no hashtag walls).
-5. **Product posts:** always generated from real listings via the share-card system (photo + price + QR + wordmark). Never mock up fake listings.
+5. **Product posts:** always generated from real listings via the share-image system (`docs/SHARE_IMAGE_SYSTEM.md`): the photo first, then name, price, details and a lowercase signature. Never mock up fake listings.
 6. **Offers:** offer content states a rupee amount and may use the caution-stripe device. Never a percentage, and never a claim the product cannot keep.
 7. **Engagement voice:** replies and DMs use system voice with campaign warmth — helpful, exact, quick, no corporate templates ("Hi! Every listing is reviewed before it goes live — you're safe here.").
 8. **Never post:** other platforms' watermarks, unlicensed memes with source branding, user photos without permission, colored template graphics, or anything that jokes about an active order/dispute.
