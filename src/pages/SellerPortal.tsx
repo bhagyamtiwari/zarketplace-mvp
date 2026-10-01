@@ -699,9 +699,9 @@ function PayoutSummary({ listings, offers, statusOf }: {
   }, 0);
 
   const stats = [
+    { label: 'Your estimated payout', amount: sum(ON_SALE), note: onSale === 1 ? 'If it sells within 30 days.' : 'If each item sells within 30 days.' },
     { label: 'Paid to you', amount: sum(new Set(['paid'])), note: 'Sent to your UPI ID.' },
     { label: 'On its way to you', amount: sum(ON_ITS_WAY), note: 'Sold. Paid once it reaches us and passes our check.' },
-    { label: 'Your estimated payout', amount: sum(ON_SALE), note: onSale === 1 ? 'If it sells within 30 days.' : 'If each item sells within 30 days.' },
   ].filter((x) => x.amount > 0);
 
   if (stats.length === 0) return null;

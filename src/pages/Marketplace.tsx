@@ -12,6 +12,7 @@ import { ListingCard } from '../components/ListingCard';
 import { EmptyState } from '../components/EmptyState';
 import { CampaignBand } from '../components/CampaignBand';
 import { cn } from '../lib/utils';
+import { isAdminHost } from '../lib/adminHost';
 import { log } from '../lib/log';
 import { usePageMeta, META } from '../lib/pageMeta';
 import { useFavorites, useFavoritesSyncTick, favoriteSnapshots, refreshSnapshots, removeFavorite, type FavoriteSnapshot } from '../lib/favorites';
@@ -323,7 +324,7 @@ export function Marketplace() {
     <div className="flex flex-col pt-20">
       {/* The pitch, above the controls, so a newcomer reads what zarketplace is
           before reaching the grid. */}
-      <HeroBanner />
+      {!isAdminHost && <HeroBanner />}
 
       {/* No promise ticker between the hero and the shop. The hero already
           says sold and shipped by us, prices upfront, checked; the striped

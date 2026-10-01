@@ -25,7 +25,7 @@ function itemName(title: string | null, brand: string | null): string {
   return b && !t.toLowerCase().includes(b.toLowerCase()) ? `${b} ${t}` : t;
 }
 
-// Item addresses: /item/zv-83374-levis-501-jeans. The same functions as
+// Item addresses: /item/zkt-83374-levis-501-jeans. The same functions as
 // itemSlug and itemPath in src/lib/pageMeta.ts and api/item.ts, duplicated
 // because this file is bundled by Vercel, not by Vite. Change all three
 // together.

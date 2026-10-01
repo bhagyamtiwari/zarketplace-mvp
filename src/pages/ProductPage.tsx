@@ -59,6 +59,9 @@ function fitsLikeFor(listing: Listing): string | null {
 }
 
 // UUIDv4-ish detector. We accept either /product/:id (UUID) or /item/:sku.
+/** A code as stored now (ZKT-) and as it was (ZV-), so links work either side of the rename. */
+const skuForms = (code: string) => { const c = code.toUpperCase(); return [...new Set([c, c.replace(/^ZKT-/, 'ZV-')])]; };
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Buyer-safe columns for the owner/admin fallback read on the base `listings`
@@ -73,7 +76,7 @@ const SAFE_LISTING_COLUMNS =
 
 export function ProductPage() {
   const params = useParams();
-  // /item/zv-83374-levis-501-jeans: only the code finds the item, so a link
+  // /item/zkt-83374-levis-501-jeans: only the code finds the item, so a link
   // made before a title change still lands.
   const slug = params.sku ? skuFromItemParam(params.sku) : (params.id || '').trim();
   const navigate = useNavigate();
@@ -153,10 +156,16 @@ export function ProductPage() {
         const pub = supabase.from('public_listings').select('*');
         const { data: pubData, error: pubError } = isUuid
           ? await pub.eq('id', slug).maybeSingle()
-          : await pub.ilike('sku', slug).maybeSingle();
+          : await pub.in('sku', skuForms(slug)).maybeSingle();
         if (pubError) throw pubError;
 
         let data = pubData as Listing | null;
+        // Sold pieces stay viewable: greyed, tagged and not for sale.
+        if (!data) {
+          const sold = supabase.from('public_sold_listings').select('*');
+          const { data: soldData } = isUuid ? await sold.eq('id', slug).maybeSingle() : await sold.in('sku', skuForms(slug)).maybeSingle();
+          data = (soldData as Listing | null) ?? null;
+        }
         // The view only exposes approved+unsold rows. Owner/admin arriving from
         // The vendor portal or Admin may be viewing their own pending/sold listing;
         // fall back to the base table (RLS lets owner/admin read it) with safe
@@ -165,7 +174,7 @@ export function ProductPage() {
           const base = supabase.from('listings').select(SAFE_LISTING_COLUMNS);
           const { data: baseData, error: baseError } = isUuid
             ? await base.eq('id', slug).maybeSingle()
-            : await base.ilike('sku', slug).maybeSingle();
+            : await base.in('sku', skuForms(slug)).maybeSingle();
           if (baseError) throw baseError;
           data = baseData as Listing | null;
         }
@@ -358,7 +367,14 @@ export function ProductPage() {
           worse than they are. */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
         <div className="lg:col-span-5">
-          <ProductGallery images={images} alt={listing.title} />
+          {listing.is_sold ? (
+            <div className="relative [&_img]:grayscale [&_img]:opacity-60">
+              <ProductGallery images={images} alt={listing.title} />
+              <span className="pointer-events-none absolute left-3 top-3 z-10 bg-black px-3 py-1.5 text-xs font-black uppercase tracking-widest text-white">Sold</span>
+            </div>
+          ) : (
+            <ProductGallery images={images} alt={listing.title} />
+          )}
         </div>
 
         {/* One column, one rhythm. The brand, the name and the price; then the
@@ -476,7 +492,7 @@ export function ProductPage() {
               </>
             )}
             <dt>Item</dt>
-            <dd className="font-bold">{listing.sku || `ZV-${listing.id.slice(0, 8).toUpperCase()}`}</dd>
+            <dd className="font-bold">{listing.sku || `ZKT-${listing.id.slice(0, 8).toUpperCase()}`}</dd>
           </dl>
 
           <div className="mt-8 flex flex-col gap-3">

@@ -363,7 +363,18 @@ export function loadPhoto(url: string): Promise<LoadedPhoto> {
 }
 
 /** Inter in the three weights the system uses, before anything is measured. */
+let wordmark: HTMLImageElement | null = null;
+
+/** Inter in the weights the system uses, and the white wordmark, before anything is measured. */
 export async function ensureFonts(): Promise<void> {
+  if (!wordmark) {
+    await new Promise<void>((resolve) => {
+      const img = new Image();
+      img.onload = () => { wordmark = img; resolve(); };
+      img.onerror = () => resolve();
+      img.src = '/images/wordmark-tight-white.png';
+    });
+  }
   try {
     await Promise.all([400, 500, 600].map((w) => document.fonts.load(`${w} 40px Inter`, '₹ Aa')));
     await document.fonts.ready;
@@ -384,8 +395,24 @@ export interface RenderInput {
   qr?: boolean;
 }
 
-export function renderShare({ format, layout, data, photo, qr = false }: RenderInput): HTMLCanvasElement {
+// The type sits on a solid black band under the photo: white type, the
+// name in one line of weight (brand first, no eyebrow), the price, the
+// details, the zarketplace wordmark at a size that reads, and the QR.
+const BAND_SPEC: Record<ShareFormat, {
+  margin: number; name: number; price: number; details: number; logoH: number;
+  gapNamePrice: number; gapPriceDetails: number; gapDetailsLogo: number;
+  padTop: number; padBottom: number; qr: number; contentBottom: number; minPhoto: number;
+}> = {
+  square: { margin: 64, name: 50, price: 46, details: 26, logoH: 46, gapNamePrice: 18, gapPriceDetails: 12, gapDetailsLogo: 34, padTop: 54, padBottom: 56, qr: 168, contentBottom: 1080 - 56, minPhoto: 600 },
+  story: { margin: 80, name: 66, price: 60, details: 33, logoH: 62, gapNamePrice: 24, gapPriceDetails: 16, gapDetailsLogo: 46, padTop: 76, padBottom: 300, qr: 220, contentBottom: 1920 - 300, minPhoto: 1100 },
+};
+
+const BAND: RGB = [10, 10, 10];
+const WHITE: RGB = [255, 255, 255];
+
+export function renderShare({ format, layout, data, photo, qr = true }: RenderInput): HTMLCanvasElement {
   const s = SPECS[format];
+  const b = BAND_SPEC[format];
   const canvas = document.createElement('canvas');
   canvas.width = s.W; canvas.height = s.H;
   const ctx = canvas.getContext('2d')!;
@@ -393,66 +420,78 @@ export function renderShare({ format, layout, data, photo, qr = false }: RenderI
   const { img, analysis } = photo;
   const mode = resolveLayout(layout, analysis);
 
-  const qrW = qr ? s.qr + 36 : 0;
-  const width = s.W - 2 * s.margin - qrW;
-  // A wide garment (a tee laid flat, a pair of shoes side by side) gets a
-  // centred stack under it; a narrow one (jeans, a standing shoe) leaves room
-  // either side and gets asymmetric type instead, so the photo, not a
-  // template, sets the composition.
-  const narrow = !!analysis && (analysis.box.w * analysis.width) / (analysis.box.h * analysis.height) < 0.7;
-  const arrangement: Arrangement =
-    mode === 'float' && !qr ? (narrow ? (format === 'square' ? 'split' : 'left') : 'center')
-    : mode === 'plate' && format === 'square' && !qr ? 'split'
-    : 'left';
-  const block = buildBlock(ctx, s, format, data, arrangement, width);
-  const blockH = Math.max(block.height, qr ? s.qr : 0);
+  const qrW = qr ? b.qr + 40 : 0;
+  const textW = s.W - 2 * b.margin - qrW;
+  const title = data.brand && !data.name.toLowerCase().includes(data.brand.toLowerCase().replace(/\s*\(.*\)$/, ''))
+    ? `${data.brand} ${data.name}` : data.name;
+  const name = wrapName(ctx, title, textW, b.name);
+  const details = data.details.join('  ·  ');
+  const logoW = wordmark ? (wordmark.naturalWidth / wordmark.naturalHeight) * b.logoH : 0;
 
-  let paper: RGB;
-  let ink: RGB;
-  let blockTop: number;
+  // Height of the type, top to bottom.
+  let h = name.size * ASC + (name.lines.length - 1) * name.size * NAME_LEADING + name.size * DESC;
+  h += b.gapNamePrice + b.price * ASC + b.price * DESC;
+  if (details) h += b.gapPriceDetails + b.details * ASC + b.details * DESC;
+  h += b.gapDetailsLogo + (wordmark ? b.logoH : b.details);
+  h = Math.max(h, qr ? b.qr : 0);
 
-  if (mode === 'float' && analysis) {
-    paper = analysis.backdrop;
-    ink = luminance(paper) > 0.55 ? DARK_INK : LIGHT_INK;
-    blockTop = s.textBottom - blockH;
-    ctx.fillStyle = css(paper);
-    ctx.fillRect(0, 0, s.W, s.H);
-    const gap = format === 'story' ? 72 : 44;
-    drawFloat(ctx, img, analysis, {
-      x: s.margin, y: s.floatTop, w: s.W - 2 * s.margin, h: blockTop - gap - s.floatTop,
-    });
-  } else if (mode === 'plate') {
-    paper = platePaper(analysis);
-    ink = luminance(paper) > 0.55 ? DARK_INK : LIGHT_INK;
-    // The square's band hugs the type; the story's type sits above the reply bar.
-    const padTop = format === 'square' ? 44 : 64;
-    blockTop = format === 'square' ? s.H - 56 - blockH : s.textBottom - blockH;
-    const photoBottom = Math.max(blockTop - padTop, Math.round(s.H * 0.6));
-    blockTop = Math.max(blockTop, photoBottom + padTop);
-    ctx.fillStyle = css(paper);
-    ctx.fillRect(0, 0, s.W, s.H);
-    drawCover(ctx, img, { x: 0, y: 0, w: s.W, h: photoBottom }, analysis);
-  } else {
-    // Full bleed: the photo is the whole canvas; a gradient over only the
-    // lowest part of it carries white type.
-    paper = [12, 12, 12];
-    ink = [255, 255, 255];
-    blockTop = s.textBottom - blockH;
-    const from = blockTop - (format === 'story' ? 260 : 200);
-    drawCover(ctx, img, { x: 0, y: 0, w: s.W, h: s.H }, analysis, from);
-    const g = ctx.createLinearGradient(0, from, 0, s.H);
-    g.addColorStop(0, 'rgba(0,0,0,0)');
-    g.addColorStop(0.55, 'rgba(0,0,0,0.42)');
-    g.addColorStop(1, 'rgba(0,0,0,0.62)');
+  const contentTop = b.contentBottom - h;
+  const bandTop = Math.max(b.minPhoto, contentTop - b.padTop);
+  const top = bandTop + b.padTop;
+
+  // The photo.
+  if (mode === 'full') {
+    drawCover(ctx, img, { x: 0, y: 0, w: s.W, h: s.H }, analysis, bandTop);
+    const g = ctx.createLinearGradient(0, bandTop - 220, 0, bandTop + 40);
+    g.addColorStop(0, 'rgba(10,10,10,0)');
+    g.addColorStop(1, 'rgba(10,10,10,0.92)');
     ctx.fillStyle = g;
-    ctx.fillRect(0, from, s.W, s.H - from);
+    ctx.fillRect(0, bandTop - 220, s.W, 260);
+    ctx.fillStyle = css(BAND, 0.92);
+    ctx.fillRect(0, bandTop + 40, s.W, s.H - bandTop - 40);
+  } else {
+    if (mode === 'float' && analysis) {
+      ctx.fillStyle = css(analysis.backdrop);
+      ctx.fillRect(0, 0, s.W, bandTop);
+      const pad = format === 'story' ? 150 : 56;
+      drawFloat(ctx, img, analysis, { x: b.margin, y: pad, w: s.W - 2 * b.margin, h: bandTop - pad - (format === 'story' ? 56 : 40) });
+    } else {
+      drawCover(ctx, img, { x: 0, y: 0, w: s.W, h: bandTop }, analysis);
+    }
+    ctx.fillStyle = css(BAND);
+    ctx.fillRect(0, bandTop, s.W, s.H - bandTop);
   }
 
-  const secondaryAlpha = mode === 'full' ? 0.78 : 0.6;
-  paintBlock(ctx, block, s.margin, blockTop + (blockH - block.height), ink, secondaryAlpha);
+  // The type.
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'left';
+  ctx.fillStyle = css(WHITE);
+  let y = top + name.size * ASC;
+  setFont(ctx, 500, name.size);
+  name.lines.forEach((line, i) => { if (i > 0) y += name.size * NAME_LEADING; ctx.fillText(line, b.margin, y); });
+  y += name.size * DESC + b.gapNamePrice + b.price * ASC;
+  setFont(ctx, 600, b.price);
+  ctx.fillText(data.price, b.margin, y);
+  y += b.price * DESC;
+  if (details) {
+    y += b.gapPriceDetails + b.details * ASC;
+    setFont(ctx, 400, b.details);
+    ctx.fillStyle = css(WHITE, 0.72);
+    ctx.fillText(details, b.margin, y);
+    y += b.details * DESC;
+  }
+  y += b.gapDetailsLogo;
+  if (wordmark) {
+    ctx.drawImage(wordmark, b.margin, y, logoW, b.logoH);
+  } else {
+    setFont(ctx, 700, b.details);
+    ctx.fillStyle = css(WHITE);
+    ctx.fillText('zarketplace', b.margin, y + b.details * ASC);
+  }
+
   if (qr) {
-    drawQr(ctx, data.url, s.W - s.margin - s.qr, blockTop + blockH - s.qr, s.qr,
-      mode === 'full' ? DARK_INK : ink, mode === 'full' ? LIGHT_PAPER : paper);
+    // White tile, black modules: what every phone camera reads first time.
+    drawQr(ctx, data.url, s.W - b.margin - b.qr, top, b.qr, DARK_INK, WHITE);
   }
   return canvas;
 }
