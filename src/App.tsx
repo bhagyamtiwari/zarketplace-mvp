@@ -24,6 +24,7 @@ import { ADMIN_ORIGIN, isAdminHost } from './lib/adminHost';
 // listing form before the feed could paint. Only the marketplace - which is
 // "/" - is eager; everything else arrives when its route does.
 const ProductPage = lazy(() => import('./pages/ProductPage').then((m) => ({ default: m.ProductPage })));
+const NotFound = lazy(() => import('./pages/NotFound').then((m) => ({ default: m.NotFound })));
 const Sell = lazy(() => import('./pages/Sell').then((m) => ({ default: m.Sell })));
 const Admin = lazy(() => import('./pages/Admin').then((m) => ({ default: m.Admin })));
 const Returns = lazy(() => import('./pages/Returns').then((m) => ({ default: m.Returns })));
@@ -184,6 +185,7 @@ function AdminHostApp() {
             <Route path="/" element={<Navigate to="/admin/today" replace />} />
             <Route path="/admin/*" element={<Admin />} />
             {shopRoutes}
+            <Route path="*" element={<NotFound />} />
           </Routes>
           </Suspense>
           </RoutedErrorBoundary>
@@ -220,6 +222,7 @@ export default function App() {
           <Routes>
             {shopRoutes}
             <Route path="/admin/*" element={<AdminRoute />} />
+            <Route path="*" element={<NotFound />} />
           </Routes>
           </Suspense>
           </RoutedErrorBoundary>

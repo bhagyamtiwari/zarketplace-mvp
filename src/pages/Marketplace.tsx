@@ -431,6 +431,10 @@ export function Marketplace() {
         </span>
       </label>
 
+      <PanelSection title="Price" count={minPrice !== null || maxPrice !== null ? 1 : 0} defaultOpen>
+        <PriceFilter min={minPrice} max={maxPrice} onApply={setPrice} />
+      </PanelSection>
+
       <PanelSection title="Condition" count={conditions.length} fixed>
         {CONDITIONS.map((c) => (
           <CheckRow key={c.name} label={c.name} count={conditionCounts.get(c.name) ?? 0}
@@ -438,8 +442,11 @@ export function Marketplace() {
         ))}
       </PanelSection>
 
-      <PanelSection title="Brand" count={brands.length}>
-        <BrandFilter counts={brandCounts} selected={brands} onToggle={(b) => toggleInList('brand', brands, b)} />
+      <PanelSection title="Category" count={category ? 1 : 0} defaultOpen>
+        {PRODUCT_TYPES.map((c) => (
+          <CheckRow key={c} label={c} count={categoryCounts.get(c) ?? 0} radio
+            checked={category === c} onChange={() => selectCategory(category === c ? null : c)} />
+        ))}
       </PanelSection>
 
       <PanelSection title="Size" count={sizes.length}>
@@ -460,15 +467,8 @@ export function Marketplace() {
         {sizeOptions.every((z) => !sizeCounts.get(z)) && !sizes.length && <p className="text-xs ink-mid">No sizes in this selection.</p>}
       </PanelSection>
 
-      <PanelSection title="Price" count={minPrice !== null || maxPrice !== null ? 1 : 0} defaultOpen>
-        <PriceFilter min={minPrice} max={maxPrice} onApply={setPrice} />
-      </PanelSection>
-
-      <PanelSection title="Category" count={category ? 1 : 0}>
-        {PRODUCT_TYPES.map((c) => (
-          <CheckRow key={c} label={c} count={categoryCounts.get(c) ?? 0} radio
-            checked={category === c} onChange={() => selectCategory(category === c ? null : c)} />
-        ))}
+      <PanelSection title="Brand" count={brands.length}>
+        <BrandFilter counts={brandCounts} selected={brands} onToggle={(b) => toggleInList('brand', brands, b)} />
       </PanelSection>
 
       <PanelSection title="Gender" count={gender ? 1 : 0}>
@@ -529,14 +529,6 @@ export function Marketplace() {
             <span className="hidden sm:flex">
               <SortChip value={sortBy} onChange={(v) => setParam('sort', v === 'relevance' ? null : v)} />
             </span>
-            <button
-              type="button"
-              onClick={() => setShowFilters(true)}
-              className="lg:hidden shrink-0 flex min-h-[44px] items-center gap-2 text-sm font-bold hover:underline underline-offset-4"
-            >
-              <SlidersHorizontal className="h-4 w-4" />
-              Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
-            </button>
           </div>
         </div>
       </div>
