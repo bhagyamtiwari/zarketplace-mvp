@@ -222,7 +222,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess, signI
                         required
                         value={firstName}
                         onChange={(e) => setFirstName(e.target.value)}
-                        placeholder="Aanya"
+                        placeholder="Aditya"
                         autoComplete="given-name"
                         autoCapitalize="words"
                         className="min-w-0 flex-1 py-2.5 text-sm font-bold focus:outline-none placeholder:font-normal placeholder:text-black/40"
@@ -237,7 +237,7 @@ export function AuthModal({ open, onClose, message, redirectTo, onSuccess, signI
                         required
                         value={lastName}
                         onChange={(e) => setLastName(e.target.value)}
-                        placeholder="Sharma"
+                        placeholder="Kumar"
                         autoComplete="family-name"
                         autoCapitalize="words"
                         className="min-w-0 flex-1 py-2.5 text-sm font-bold focus:outline-none placeholder:font-normal placeholder:text-black/40"
