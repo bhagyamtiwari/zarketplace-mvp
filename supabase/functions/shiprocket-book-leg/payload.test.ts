@@ -59,7 +59,7 @@ Deno.test("the outbound payload cannot carry a vendor address", () => {
     buyerPhone: "9876500000",
     reference: "ZK-0001",
     itemTitle: "Black wool coat",
-    sku: "ZV-123",
+    sku: "ZKT-123",
     shippingCategory: "outerwear",
     saleValue: 5400,
   });
@@ -77,7 +77,7 @@ Deno.test("the outbound consignor is the hub, never a per-order location", () =>
   const payload = buildOutboundOrderPayload({
     hub: HUB, buyerDelivery: BUYER, buyerName: "B", buyerEmail: "b@e.com",
     buyerPhone: "9876500000", reference: "ZK-0001", itemTitle: "Coat",
-    sku: "ZV-123", shippingCategory: "outerwear", saleValue: 5400,
+    sku: "ZKT-123", shippingCategory: "outerwear", saleValue: 5400,
   });
   // The old code used `zk-<order id>` as the pickup nickname, registered to the
   // vendor's own address. Anything order-scoped here is that bug returning.
@@ -89,7 +89,7 @@ Deno.test("the outbound delivery address is the buyer's", () => {
   const payload = buildOutboundOrderPayload({
     hub: HUB, buyerDelivery: BUYER, buyerName: "B", buyerEmail: "b@e.com",
     buyerPhone: "9876500000", reference: "ZK-0001", itemTitle: "Coat",
-    sku: "ZV-123", shippingCategory: "outerwear", saleValue: 5400,
+    sku: "ZKT-123", shippingCategory: "outerwear", saleValue: 5400,
   });
   assertEquals(payload.billing_pincode, BUYER.pincode);
   assertEquals(payload.billing_city, BUYER.city);
@@ -98,7 +98,7 @@ Deno.test("the outbound delivery address is the buyer's", () => {
 Deno.test("the inbound consignee is the hub, not the buyer", () => {
   const payload = buildInboundOrderPayload({
     hub: HUB, vendorPickup: VENDOR, reference: "ZK-0001",
-    itemTitle: "Coat", sku: "ZV-123", shippingCategory: "outerwear",
+    itemTitle: "Coat", sku: "ZKT-123", shippingCategory: "outerwear",
     declaredValue: 3200,
   }, "zk-vendor-abc");
 

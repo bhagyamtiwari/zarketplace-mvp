@@ -177,7 +177,8 @@
       // so it runs in the same parse - there is no flash to remove.
       (function () {
         var p = location.pathname;
-        if (p !== '/' && p !== '/browse') {
+        // The admin host never shows the shop's hero.
+        if ((p !== '/' && p !== '/browse') || /^admin\./.test(location.hostname)) {
           var el = document.getElementById('static-hero');
           if (el) el.remove();
         }

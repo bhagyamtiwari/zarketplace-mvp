@@ -48,7 +48,7 @@ function download(canvas: HTMLCanvasElement, name: string): Promise<void> {
 export function ShareInstagramModal({ open, onClose, listing }: Props) {
   const [format, setFormat] = React.useState<ShareFormat>('square');
   const [layout, setLayout] = React.useState<ShareLayout>('auto');
-  const [qr, setQr] = React.useState(false);
+  const [qr, setQr] = React.useState(true);
   const [imageIdx, setImageIdx] = React.useState(0);
   const [preview, setPreview] = React.useState<string | null>(null);
   const [resolved, setResolved] = React.useState<Exclude<ShareLayout, 'auto'> | null>(null);
@@ -188,7 +188,7 @@ export function ShareInstagramModal({ open, onClose, listing }: Props) {
 
               <label className="flex cursor-pointer items-center gap-2 text-sm">
                 <input type="checkbox" checked={qr} onChange={(e) => setQr(e.target.checked)} className="h-4 w-4 accent-black" />
-                Add a QR code (for print)
+                QR code
               </label>
 
               {error && <p role="alert" className="text-sm font-bold text-red-700">{error}</p>}

@@ -71,7 +71,7 @@ function itemName(title: string | null, brand: string | null): string {
   return b && !t.toLowerCase().includes(b.toLowerCase()) ? `${b} ${t}` : t;
 }
 
-// Item addresses: /item/zv-83374-levis-501-jeans. The same functions as
+// Item addresses: /item/zkt-83374-levis-501-jeans. The same functions as
 // itemSlug, itemPath and skuFromItemParam in src/lib/pageMeta.ts, duplicated
 // for the same reason as socialCardUrl. Change all three copies together.
 function itemSlug(title: string | null | undefined, brand: string | null | undefined): string {
@@ -95,8 +95,10 @@ function itemPath(l: { sku?: string | null; id?: string | null; title?: string |
 
 function skuFromItemParam(param: string | null | undefined): string {
   const p = (param ?? '').trim();
-  const m = /^zv-[0-9a-f]+(?=-|$)/i.exec(p);
-  return m ? m[0] : p;
+  // Item codes were ZV- until 2026-10-02 and are ZKT- now; an old link's code
+  // is read as the new one, so every address ever shared still lands.
+  const m = /^(?:zkt|zv)-([0-9a-f]+)(?=-|$)/i.exec(p);
+  return m ? `zkt-${m[1]}` : p;
 }
 
 function itemMetaTitle(name: string, size: string | null | undefined): string {
@@ -318,7 +320,7 @@ export default async function handler(req: any, res: any) {
 
   let listing: PublicListing | undefined;
   if (sku) {
-    // SKUs are stored uppercase (ZV-12345) but every link the app builds is
+    // SKUs are stored uppercase (ZKT-12345) but every link the app builds is
     // lowercased - ListingCard writes /item/${sku.toLowerCase()}. A
     // case-sensitive eq therefore matched nothing for any link the site
     // generated itself, so every shared item previewed as the sitewide
@@ -327,7 +329,7 @@ export default async function handler(req: any, res: any) {
     // treat % and _ in a crafted URL as wildcards and could return an
     // unrelated listing.
     const rows = await pg<PublicListing>(
-      `public_listings?sku=eq.${encodeURIComponent(sku.toUpperCase())}&select=id,sku,title,brand,size_type,size,condition,price,sale_price,image_url,shipping_category,free_shipping,description,has_flaws,flaws_description&limit=1`,
+      `public_listings?sku=in.(${[...new Set([sku.toUpperCase(), sku.toUpperCase().replace(/^ZKT-/, 'ZV-')])].map(encodeURIComponent).join(',')})&select=id,sku,title,brand,size_type,size,condition,price,sale_price,image_url,shipping_category,free_shipping,description,has_flaws,flaws_description&limit=1`,
     );
     listing = rows[0];
   }

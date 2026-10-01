@@ -156,7 +156,7 @@ export function itemName(title: string | null | undefined, brand: string | null 
   return b && !t.toLowerCase().includes(b.toLowerCase()) ? `${b} ${t}` : t;
 }
 
-// An item's address carries its name after its code, /item/zv-83374-levis-
+// An item's address carries its name after its code, /item/zkt-83374-levis-
 // 501-jeans, because a search engine reads the words in a link as well as on
 // the page. Only the code finds the item: the words after it can change with
 // the title and old links still land. Kept in step with api/item.ts and
@@ -181,11 +181,13 @@ export function itemPath(l: { sku?: string | null; id?: string | null; title?: s
   return `/item/${slug ? `${code}-${slug}` : code}`;
 }
 
-/** The item code at the front of an /item/ address: zv-83374 from zv-83374-levis-501-jeans. */
+/** The item code at the front of an /item/ address: zkt-83374 from zkt-83374-levis-501-jeans. */
 export function skuFromItemParam(param: string | null | undefined): string {
   const p = (param ?? '').trim();
-  const m = /^zv-[0-9a-f]+(?=-|$)/i.exec(p);
-  return m ? m[0] : p;
+  // Item codes were ZV- until 2026-10-02 and are ZKT- now; an old link's code
+  // is read as the new one, so every address ever shared still lands.
+  const m = /^(?:zkt|zv)-([0-9a-f]+)(?=-|$)/i.exec(p);
+  return m ? `zkt-${m[1]}` : p;
 }
 
 export function itemMetaTitle(name: string, size: string | null | undefined): string {

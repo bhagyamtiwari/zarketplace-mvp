@@ -3,7 +3,7 @@
 // /account/profile), so a reload or a link lands on the right one, and the
 // tabs are the only navigation between them.
 import * as React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth, useFirstName } from '../lib/auth';
 import { useOpenOfferCount } from '../lib/openOffers';
 import { ui } from '../lib/ui';
@@ -18,7 +18,8 @@ const TABS: Array<{ key: AccountTab; to: string; label: string }> = [
 ];
 
 export function AccountLayout({ tab, children }: { tab: AccountTab; children: React.ReactNode }) {
-  const { user, emailVerified, resendVerification } = useAuth();
+  const { user, emailVerified, resendVerification, signOut } = useAuth();
+  const navigate = useNavigate();
   const firstName = useFirstName();
   const offers = useOpenOfferCount();
   const [notice, setNotice] = React.useState<string | null>(null);
@@ -28,7 +29,14 @@ export function AccountLayout({ tab, children }: { tab: AccountTab; children: Re
       <div className="flex flex-col gap-6">
         {/* Their name says whose account this is. An account made before
             sign-up asked for a name falls back to the plain heading. */}
-        <h1 className={ui.pageTitle}>{firstName ? `Hi ${firstName}` : 'Your account'}</h1>
+        <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+          <h1 className={ui.pageTitle}>{firstName ? `Hi ${firstName}` : 'Your account'}</h1>
+          {user && (
+            <button type="button" onClick={async () => { await signOut(); navigate('/'); }} className={cn(ui.link, 'text-sm font-bold')}>
+              Sign out
+            </button>
+          )}
+        </div>
         {user && !emailVerified && (
           <p className="text-sm">
             Your email is not verified yet.{' '}
