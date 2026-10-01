@@ -48,6 +48,9 @@ const OBJECTS = [
   // data: operator-only. Buyers reach them through check_discount_code and
   // apply_discount_code, never the tables.
   "discount_codes", "discount_redemptions",
+  // Browser errors carry page paths, user agents and sometimes a user id:
+  // operator-only. The browser writes through log_client_error, never the table.
+  "client_errors",
 ];
 
 /**
