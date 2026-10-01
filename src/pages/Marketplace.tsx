@@ -50,17 +50,6 @@ const PRODUCT_TYPES = ['Tops', 'Bottoms', 'Outerwear', 'Accessories', 'Shoes'];
 
 
 
-// Discovery chips. These are shortcuts into the same filter surface, not
-// marketing sections - each one is a query anyone could have built by hand.
-
-const QUICK_CHIPS: Array<{ value: string; label: string; tag?: string }> = [
-  // MODEL.md §3. Stock we own and photographed ourselves, on our shelf, so it
-  // goes out the day it is bought rather than waiting on anyone.
-  { value: 'verified', label: 'Instant Ship' },
-  { value: 'under_999', label: 'Under ₹999' },
-  { value: 'sale', label: 'On Sale' },
-];
-
 const SORT_OPTIONS: Array<{ value: string; label: string }> = [
   { value: 'relevance', label: 'Relevance' },
   { value: 'newest', label: 'Newest' },
@@ -73,16 +62,12 @@ const SORT_OPTIONS: Array<{ value: string; label: string }> = [
 function applyDevFilters(
   rows: Listing[],
   f: {
-    category: string | null; gender: string | null; sizeType: string | null;
-    condition: string | null; quick: string | null; sortBy: string;
+    category: string | null; gender: string | null; quick: string | null; sortBy: string;
+    brands: string[]; sizes: string[]; conditions: string[]; min: number | null; max: number | null;
   },
 ): Listing[] {
   let out = rows.filter((l) => {
-    if (f.category && l.category !== f.category) return false;
-    if (f.gender && l.gender !== f.gender && !(f.gender !== 'Unisex' && l.gender === 'Unisex')) return false;
-    if (f.sizeType && l.size_type !== f.sizeType) return false;
-    if (f.condition && l.condition !== f.condition) return false;
-    if (f.quick === 'verified') return !!l.is_verified;
+    if (!matchesFacets(l as FacetRow, f)) return false;
     if (f.quick === 'under_999') return l.price <= 999;
     if (f.quick === 'sale') return l.sale_price !== null;
     return true;
@@ -92,6 +77,40 @@ function applyDevFilters(
   return out;
 }
 
+// The fields the filter column counts over. The whole shelf is a few hundred
+// rows, so they are fetched once and counted in the browser: each option shows
+// how many items it would leave, given every other filter already chosen.
+interface FacetRow {
+  brand: string | null; size_type: string | null; condition: string | null;
+  category: string | null; gender: string | null; price: number; is_verified: boolean | null;
+}
+interface Facets {
+  category: string | null; gender: string | null; quick: string | null;
+  brands: string[]; sizes: string[]; conditions: string[]; min: number | null; max: number | null;
+}
+type FacetKey = 'brand' | 'size' | 'condition' | 'category' | 'gender' | 'price' | 'instant';
+
+function matchesFacets(r: FacetRow, f: Facets, skip?: FacetKey): boolean {
+  if (skip !== 'category' && f.category && r.category !== f.category) return false;
+  if (skip !== 'gender' && f.gender && r.gender !== f.gender && !(f.gender !== 'Unisex' && r.gender === 'Unisex')) return false;
+  if (skip !== 'brand' && f.brands.length && !f.brands.includes((r.brand ?? '').trim())) return false;
+  if (skip !== 'size' && f.sizes.length && !f.sizes.includes(r.size_type ?? '')) return false;
+  if (skip !== 'condition' && f.conditions.length && !f.conditions.includes(r.condition ?? '')) return false;
+  if (skip !== 'price' && f.min !== null && r.price < f.min) return false;
+  if (skip !== 'price' && f.max !== null && r.price > f.max) return false;
+  if (skip !== 'instant' && f.quick === 'verified' && !r.is_verified) return false;
+  return true;
+}
+
+const PRICE_RANGES: Array<{ label: string; min: number | null; max: number | null }> = [
+  { label: 'Under ₹1,500', min: null, max: 1499 },
+  { label: '₹1,500 to ₹3,000', min: 1500, max: 3000 },
+  { label: '₹3,000 to ₹5,000', min: 3001, max: 5000 },
+  { label: '₹5,000 to ₹10,000', min: 5001, max: 10000 },
+  { label: '₹10,000 to ₹15,000', min: 10001, max: 15000 },
+  { label: '₹15,000 and up', min: 15001, max: null },
+];
+
 export function Marketplace() {
   usePageMeta(META.home);
 
@@ -100,8 +119,21 @@ export function Marketplace() {
 
   const category = searchParams.get('category');
   const gender = searchParams.get('gender');
-  const sizeType = searchParams.get('size_type');
-  const condition = searchParams.get('condition');
+  // Brand, size and condition take several values at once, comma separated
+  // in the address (?brand=Nike,Carhartt), so a filtered view can be shared.
+  const listParam = (k: string) => (searchParams.get(k) ?? '').split(',').map((v) => v.trim()).filter(Boolean);
+  const brandsKey = searchParams.get('brand') ?? '';
+  const sizesKey = searchParams.get('size_type') ?? '';
+  const conditionsKey = searchParams.get('condition') ?? '';
+  const brands = React.useMemo(() => listParam('brand'), [brandsKey]);
+  const sizes = React.useMemo(() => listParam('size_type'), [sizesKey]);
+  const conditions = React.useMemo(() => listParam('condition'), [conditionsKey]);
+  const numParam = (k: string) => {
+    const n = Number(searchParams.get(k));
+    return searchParams.get(k) && Number.isFinite(n) && n >= 0 ? n : null;
+  };
+  const minPrice = numParam('min');
+  const maxPrice = numParam('max');
   const quick = searchParams.get('q');
   const searchQuery = searchParams.get('search') ?? '';
   // Relevance, not recency. Newest-first made the homepage a function of
@@ -138,7 +170,7 @@ export function Marketplace() {
   // read (after signing in, or on returning to the tab), so a heart added on
   // another device shows up without a refresh.
   const syncTick = useFavoritesSyncTick();
-  const filterKey = [category, gender, sizeType, condition, quick, searchQuery, sortBy, quick === 'saved' ? syncTick : 0].join('|');
+  const filterKey = [category, gender, brandsKey, sizesKey, conditionsKey, minPrice, maxPrice, quick, searchQuery, sortBy, quick === 'saved' ? syncTick : 0].join('|');
 
   // Any filter change starts a fresh feed rather than appending to the old one.
   React.useEffect(() => { setPage(0); }, [filterKey]);
@@ -174,8 +206,11 @@ export function Marketplace() {
         // Unisex pieces are for everyone, so they appear under Men and under
         // Women as well as under Unisex itself.
         if (gender) query = gender === 'Unisex' ? query.eq('gender', 'Unisex') : query.in('gender', [gender, 'Unisex']);
-        if (sizeType) query = query.eq('size_type', sizeType);
-        if (condition) query = query.eq('condition', condition);
+        if (brands.length) query = query.in('brand', brands);
+        if (sizes.length) query = query.in('size_type', sizes);
+        if (conditions.length) query = query.in('condition', conditions);
+        if (minPrice !== null) query = query.gte('price', minPrice);
+        if (maxPrice !== null) query = query.lte('price', maxPrice);
 
         if (quick === 'verified') {
           query = query.eq('is_verified', true);
@@ -249,7 +284,7 @@ export function Marketplace() {
         // production bundle at all.
         if (import.meta.env.DEV && page === 0 && rows.length === 0 && !searchQuery) {
           const { devListings } = await import('../lib/devListings');
-          rows = applyDevFilters(devListings, { category, gender, sizeType, condition, quick, sortBy });
+          rows = applyDevFilters(devListings, { category, gender, quick, sortBy, brands, sizes, conditions, min: minPrice, max: maxPrice });
           totalCount = rows.length;
         }
 
@@ -289,6 +324,20 @@ export function Marketplace() {
     return () => io.disconnect();
   }, [hasMore, state]);
 
+  // The shelf's facet fields, for the counts beside each filter option.
+  const [facetRows, setFacetRows] = React.useState<FacetRow[]>([]);
+  React.useEffect(() => {
+    let live = true;
+    supabasePublic
+      .from('public_listings')
+      .select('brand,size_type,condition,category,gender,price,is_verified')
+      .eq('status', 'approved')
+      .or('is_sold.is.null,is_sold.eq.false')
+      .limit(2000)
+      .then(({ data }) => { if (live && data) setFacetRows(data as FacetRow[]); });
+    return () => { live = false; };
+  }, []);
+
   // Applies every change in one pass. Two separate setParam calls inside one
   // handler would both build from the same render's searchParams, so the second
   // silently discarded the first - which is how picking a category used to do
@@ -308,6 +357,24 @@ export function Marketplace() {
   // Shoes to Tops.
   const selectCategory = (value: string | null) => setParams([['category', value], ['size_type', null]]);
 
+  const toggleInList = (key: string, current: string[], value: string) => {
+    const next = current.includes(value) ? current.filter((v) => v !== value) : [...current, value];
+    setParam(key, next.length ? next.join(',') : null);
+  };
+  const setPrice = (min: number | null, max: number | null) =>
+    setParams([['min', min === null ? null : String(min)], ['max', max === null ? null : String(max)]]);
+
+  const facets: Facets = { category, gender, quick, brands, sizes, conditions, min: minPrice, max: maxPrice };
+  const countBy = (skip: FacetKey, pick: (r: FacetRow) => string | null) => {
+    const m = new Map<string, number>();
+    for (const r of facetRows) {
+      if (!matchesFacets(r, facets, skip)) continue;
+      const k = (pick(r) ?? '').trim();
+      if (k) m.set(k, (m.get(k) ?? 0) + 1);
+    }
+    return m;
+  };
+
   const toggleParam = (key: string, value: string) => {
     setParam(key, searchParams.get(key) === value ? null : value);
   };
@@ -317,8 +384,101 @@ export function Marketplace() {
     setParam('search', searchInput.trim() || null);
   };
 
-  const activeFilterCount = [category, gender, sizeType, condition, quick].filter(Boolean).length;
+  const activeFilterCount = [category, gender, quick].filter(Boolean).length
+    + brands.length + sizes.length + conditions.length + (minPrice !== null || maxPrice !== null ? 1 : 0);
   const clearAll = () => setSearchParams({}, { replace: true });
+
+  // Everything chosen, as removable chips above the grid.
+  const chips: Array<{ label: string; remove: () => void }> = [
+    ...(quick === 'verified' ? [{ label: 'Instant Ship', remove: () => setParam('q', null) }] : []),
+    ...(quick === 'under_999' ? [{ label: 'Under ₹999', remove: () => setParam('q', null) }] : []),
+    ...(quick === 'sale' ? [{ label: 'On Sale', remove: () => setParam('q', null) }] : []),
+    ...(gender ? [{ label: gender, remove: () => setParam('gender', null) }] : []),
+    ...(category ? [{ label: category, remove: () => selectCategory(null) }] : []),
+    ...brands.map((b) => ({ label: b, remove: () => toggleInList('brand', brands, b) })),
+    ...sizes.map((z) => ({ label: `Size ${z}`, remove: () => toggleInList('size_type', sizes, z) })),
+    ...conditions.map((c) => ({ label: c, remove: () => toggleInList('condition', conditions, c) })),
+    ...(minPrice !== null || maxPrice !== null ? [{
+      label: minPrice !== null && maxPrice !== null ? `₹${minPrice.toLocaleString('en-IN')} to ₹${maxPrice.toLocaleString('en-IN')}`
+        : minPrice !== null ? `From ₹${minPrice.toLocaleString('en-IN')}` : `Up to ₹${maxPrice!.toLocaleString('en-IN')}`,
+      remove: () => setPrice(null, null),
+    }] : []),
+  ];
+
+  const sizeOptions = category ? CATEGORY_SIZES[category] ?? ALL_SIZES : ALL_SIZES;
+  const sizeCounts = countBy('size', (r) => r.size_type);
+  const brandCounts = countBy('brand', (r) => r.brand);
+  const conditionCounts = countBy('condition', (r) => r.condition);
+  const categoryCounts = countBy('category', (r) => r.category);
+  const genderCounts = countBy('gender', (r) => r.gender);
+  const instantCount = facetRows.filter((r) => r.is_verified && matchesFacets(r, facets, 'instant')).length;
+  const genderCount = (g: string) => g === 'Unisex'
+    ? genderCounts.get('Unisex') ?? 0
+    : (genderCounts.get(g) ?? 0) + (genderCounts.get('Unisex') ?? 0);
+
+  // The filter column. The same panel is the desktop sidebar and the body of
+  // the phone's sheet, so the two can never offer different filters.
+  const filterPanel = (
+    <div className="flex flex-col">
+      <label className="flex min-h-[44px] cursor-pointer items-center justify-between gap-3 border-b border-black/10 py-3">
+        <span className="flex flex-col">
+          <span className="text-sm font-bold">Instant Ship</span>
+          <span className="text-xs ink-mid">At our hub, dispatched next day</span>
+        </span>
+        <span className="flex items-center gap-2">
+          <span className="text-xs ink-mid">{instantCount}</span>
+          <input type="checkbox" checked={quick === 'verified'} onChange={() => toggleParam('q', 'verified')} className="h-4 w-4 accent-black" />
+        </span>
+      </label>
+
+      <PanelSection title="Condition" count={conditions.length} fixed>
+        {CONDITIONS.map((c) => (
+          <CheckRow key={c.name} label={c.name} count={conditionCounts.get(c.name) ?? 0}
+            checked={conditions.includes(c.name)} onChange={() => toggleInList('condition', conditions, c.name)} />
+        ))}
+      </PanelSection>
+
+      <PanelSection title="Brand" count={brands.length}>
+        <BrandFilter counts={brandCounts} selected={brands} onToggle={(b) => toggleInList('brand', brands, b)} />
+      </PanelSection>
+
+      <PanelSection title="Size" count={sizes.length}>
+        <div className="grid grid-cols-4 gap-1.5">
+          {sizeOptions.map((z) => {
+            const n = sizeCounts.get(z) ?? 0;
+            const on = sizes.includes(z);
+            if (!n && !on) return null;
+            return (
+              <button key={z} type="button" aria-pressed={on} onClick={() => toggleInList('size_type', sizes, z)}
+                className={cn('min-h-[40px] border px-1 text-xs transition-colors',
+                  on ? 'border-black bg-black font-bold text-white' : 'border-black/15 hover:border-black')}>
+                {z}
+              </button>
+            );
+          })}
+        </div>
+        {sizeOptions.every((z) => !sizeCounts.get(z)) && !sizes.length && <p className="text-xs ink-mid">No sizes in this selection.</p>}
+      </PanelSection>
+
+      <PanelSection title="Price" count={minPrice !== null || maxPrice !== null ? 1 : 0} defaultOpen>
+        <PriceFilter min={minPrice} max={maxPrice} onApply={setPrice} />
+      </PanelSection>
+
+      <PanelSection title="Category" count={category ? 1 : 0}>
+        {PRODUCT_TYPES.map((c) => (
+          <CheckRow key={c} label={c} count={categoryCounts.get(c) ?? 0} radio
+            checked={category === c} onChange={() => selectCategory(category === c ? null : c)} />
+        ))}
+      </PanelSection>
+
+      <PanelSection title="Gender" count={gender ? 1 : 0}>
+        {GENDERS.map((g) => (
+          <CheckRow key={g} label={g} count={genderCount(g)} radio
+            checked={gender === g} onChange={() => toggleParam('gender', g)} />
+        ))}
+      </PanelSection>
+    </div>
+  );
 
   return (
     <div className="flex flex-col pt-20">
@@ -372,7 +532,7 @@ export function Marketplace() {
             <button
               type="button"
               onClick={() => setShowFilters(true)}
-              className="shrink-0 flex min-h-[44px] items-center gap-2 text-sm font-bold hover:underline underline-offset-4"
+              className="lg:hidden shrink-0 flex min-h-[44px] items-center gap-2 text-sm font-bold hover:underline underline-offset-4"
             >
               <SlidersHorizontal className="h-4 w-4" />
               Filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
@@ -383,7 +543,35 @@ export function Marketplace() {
 
       <div className="mx-auto max-w-[1600px] w-full px-4 sm:px-6 lg:px-8 pb-16 pt-6 sm:pt-8 flex gap-10">
 
+        <aside aria-label="Filters" className="hidden lg:block w-60 shrink-0">
+          <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto pr-2 scrollbar-hide">
+            <div className="flex items-baseline justify-between pb-2">
+              <h2 className="text-sm font-black uppercase tracking-[0.2em]">Filter</h2>
+              {activeFilterCount > 0 && (
+                <button type="button" onClick={clearAll} className="text-xs font-bold underline underline-offset-4">Clear all</button>
+              )}
+            </div>
+            {filterPanel}
+          </div>
+        </aside>
+
         <div className="min-w-0 flex-1 flex flex-col gap-4">
+          {(chips.length > 0 || total !== null) && (
+            <div className="flex flex-wrap items-center gap-2">
+              {total !== null && state !== 'loading' && (
+                <span className="mr-2 text-sm font-bold">{total} {total === 1 ? 'item' : 'items'}</span>
+              )}
+              {chips.map((c) => (
+                <button key={c.label} type="button" onClick={c.remove} aria-label={`Remove ${c.label}`}
+                  className="flex min-h-[36px] items-center gap-1.5 border border-black/15 px-3 text-xs hover:border-black">
+                  {c.label}<X className="h-3.5 w-3.5" />
+                </button>
+              ))}
+              {chips.length > 1 && (
+                <button type="button" onClick={clearAll} className="min-h-[36px] px-1 text-xs font-bold underline underline-offset-4">Clear all</button>
+              )}
+            </div>
+          )}
           {state === 'error' && listings.length === 0 ? (
             /* A failed fetch must never look like an empty catalogue. */
             <div className="border border-black/10 p-8 flex flex-col items-start gap-4">
@@ -483,11 +671,25 @@ export function Marketplace() {
         </div>
       </div>
 
+      {/* On a phone the filters live in a sheet, reached from a pill that
+          follows the scroll, the way most shopping apps do it. */}
+      {!showFilters && (
+        <button
+          type="button"
+          onClick={() => setShowFilters(true)}
+          className="lg:hidden fixed bottom-5 left-1/2 z-40 -translate-x-1/2 flex min-h-[48px] items-center gap-2 whitespace-nowrap bg-black px-6 text-[11px] font-black uppercase tracking-[0.2em] text-white shadow-lg"
+          style={{ marginBottom: 'env(safe-area-inset-bottom)' }}
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          Filter · Sort{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+        </button>
+      )}
+
       {/* Mobile filter sheet */}
       {showFilters && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end sm:items-center sm:justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowFilters(false)} />
-          <div className="relative max-h-[80vh] w-full sm:max-w-lg overflow-y-auto bg-white border-t sm:border border-black/10 p-6 sm:p-8 flex flex-col gap-10">
+          <div className="relative h-[92dvh] sm:h-auto sm:max-h-[85vh] w-full sm:max-w-lg overflow-y-auto overscroll-contain bg-white border-t sm:border border-black/10 px-5 pt-4 sm:p-8 flex flex-col gap-6">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-black uppercase tracking-[0.2em]">Filters</h2>
               <button onClick={() => setShowFilters(false)} aria-label="Close filters" className="p-2">
@@ -496,7 +698,7 @@ export function Marketplace() {
             </div>
 
 
-            <SheetGroup title="Sort by" className="sm:hidden">
+            <SheetGroup title="Sort by">
               {SORT_OPTIONS.map((o) => (
                 <SheetChip key={o.value} active={sortBy === o.value}
                   onClick={() => setParam('sort', o.value === 'relevance' ? null : o.value)}>
@@ -505,39 +707,9 @@ export function Marketplace() {
               ))}
             </SheetGroup>
 
-            <SheetGroup title="Show me">
-              <SheetChip active={!quick} onClick={() => setParam('q', null)}>Everything</SheetChip>
-              {QUICK_CHIPS.map((c) => (
-                <SheetChip key={c.value} active={quick === c.value} onClick={() => setParam('q', c.value)}>
-                  {c.label}
-                </SheetChip>
-              ))}
-            </SheetGroup>
+            {filterPanel}
 
-            <SheetGroup title="Category">
-              <SheetChip active={!category} onClick={() => selectCategory(null)}>All</SheetChip>
-              {PRODUCT_TYPES.map((c) => (
-                <SheetChip key={c} active={category === c} onClick={() => selectCategory(c)}>{c}</SheetChip>
-              ))}
-            </SheetGroup>
-
-            <SheetGroup title="Condition">
-              <SheetChip active={!condition} onClick={() => setParam('condition', null)}>Any</SheetChip>
-              {CONDITIONS.map((c) => (
-                <SheetChip key={c.name} active={condition === c.name} onClick={() => setParam('condition', c.name)}>{c.name}</SheetChip>
-              ))}
-            </SheetGroup>
-
-            {/* Folded by default: the size list is long, and on a phone it
-                pushes everything else off the sheet. */}
-            <SheetGroup title="Size" collapsible defaultOpen={!!sizeType} summary={sizeType ?? 'Any'}>
-              <SheetChip active={!sizeType} onClick={() => setParam('size_type', null)}>Any</SheetChip>
-              {(category ? CATEGORY_SIZES[category] ?? ALL_SIZES : ALL_SIZES).map((s) => (
-                <SheetChip key={s} active={sizeType === s} onClick={() => setParam('size_type', s)}>{s}</SheetChip>
-              ))}
-            </SheetGroup>
-
-            <div className="flex gap-3 sticky bottom-0 bg-white pt-2">
+            <div className="mt-auto flex gap-3 sticky bottom-0 bg-white py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
               <button
                 onClick={clearAll}
                 className="flex-1 border border-black py-4 text-[11px] font-black uppercase tracking-widest"
@@ -548,7 +720,7 @@ export function Marketplace() {
                 onClick={() => setShowFilters(false)}
                 className="flex-1 bg-black py-4 text-[11px] font-black uppercase tracking-widest text-white"
               >
-                Show {total ?? listings.length} items
+                {state === 'loading' ? 'Show items' : `Show ${total ?? listings.length} ${(total ?? listings.length) === 1 ? 'item' : 'items'}`}
               </button>
             </div>
           </div>
@@ -717,51 +889,109 @@ function Tab({ active, onClick, children }: { active: boolean; onClick: () => vo
   );
 }
 
-// Collapsible rail section. Shows the current selection in the header so a
-// folded group still tells you what it is filtering by.
-function FilterGroup({ title, summary, defaultOpen = false, children }: {
-  title: string;
-  summary?: string;
-  defaultOpen?: boolean;
-  children: React.ReactNode;
+// One folding section of the filter column. A count of what is chosen in it
+// shows beside the title, so a folded section still says it is filtering.
+function PanelSection({ title, count, defaultOpen = false, fixed = false, children }: {
+  title: string; count: number; defaultOpen?: boolean; fixed?: boolean; children: React.ReactNode;
 }) {
-  const [open, setOpen] = React.useState(defaultOpen);
+  const [open, setOpen] = React.useState(defaultOpen || count > 0);
+  if (fixed) return (
+    <div className="border-b border-black/10 py-3">
+      <h3 className="flex min-h-[36px] items-center text-sm font-bold">{title}{count > 0 ? ` (${count})` : ''}</h3>
+      <div className="flex flex-col gap-1 pt-1">{children}</div>
+    </div>
+  );
   return (
-    <div className="flex flex-col border-b border-black/5 py-3">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className="flex items-center justify-between gap-2 text-left"
-      >
-        <span className="text-sm font-bold">{title}</span>
-        <span className="flex items-center gap-2">
-          {!open && summary && (
-            <span className="text-[10px] font-black uppercase tracking-widest text-black truncate max-w-[6rem]">{summary}</span>
-          )}
-          <ChevronDown className={cn('h-3.5 w-3.5 ink-low transition-transform', open && 'rotate-180')} />
-        </span>
+    <div className="border-b border-black/10 py-3">
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open}
+        className="flex min-h-[36px] w-full items-center justify-between gap-2 text-left">
+        <span className="text-sm font-bold">{title}{count > 0 ? ` (${count})` : ''}</span>
+        <ChevronDown className={cn('h-4 w-4 transition-transform', open && 'rotate-180')} />
       </button>
-      {open && <div className="flex flex-col gap-1.5 pt-3 max-h-72 overflow-y-auto">{children}</div>}
+      {open && <div className="flex flex-col gap-1 pt-2">{children}</div>}
     </div>
   );
 }
 
-const FilterOption: React.FC<ToggleProps> = ({ active, onClick, children }) => {
+const CheckRow: React.FC<{
+  label: string; count?: number; checked: boolean; onChange: () => void; radio?: boolean;
+}> = ({ label, count, checked, onChange, radio = false }) => {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        'text-left text-xs font-bold uppercase tracking-widest transition-colors',
-        active ? 'text-black underline underline-offset-4' : 'ink-mid hover:text-black',
-      )}
-    >
-      {children}
-    </button>
+    <label className={cn('flex min-h-[36px] cursor-pointer items-center gap-2.5 text-sm', count === 0 && !checked && 'opacity-40')}>
+      <input type="checkbox" checked={checked} onChange={onChange}
+        className={cn('h-4 w-4 shrink-0 accent-black', radio && 'rounded-full')} />
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      {count !== undefined && <span className="text-xs ink-mid">{count}</span>}
+    </label>
   );
 };
+
+// Brands with a search box over them: the shelf carries dozens, so the list
+// shows the biggest few and the search finds the rest.
+function BrandFilter({ counts, selected, onToggle }: {
+  counts: Map<string, number>; selected: string[]; onToggle: (b: string) => void;
+}) {
+  const [q, setQ] = React.useState('');
+  const [all, setAll] = React.useState(false);
+  const names = [...new Set([...counts.keys(), ...selected])]
+    .sort((a, b) => (counts.get(b) ?? 0) - (counts.get(a) ?? 0) || a.localeCompare(b));
+  const needle = q.trim().toLowerCase();
+  const matched = needle ? names.filter((n) => n.toLowerCase().includes(needle)) : names;
+  // Chosen brands always stay in view, at the top.
+  const ordered = [...matched.filter((n) => selected.includes(n)), ...matched.filter((n) => !selected.includes(n))];
+  const shown = all || needle ? ordered : ordered.slice(0, Math.max(8, selected.length));
+  return (
+    <>
+      <div className="relative mb-1">
+        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2" />
+        <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search brands" aria-label="Search brands"
+          className="w-full min-h-[40px] border border-black/15 bg-white pl-8 pr-2 text-sm placeholder:text-black/40 focus:border-black focus:outline-none" />
+      </div>
+      <div className={cn('flex flex-col gap-1', (all || needle) && 'max-h-72 overflow-y-auto')}>
+        {shown.map((b) => (
+          <CheckRow key={b} label={b} count={counts.get(b) ?? 0} checked={selected.includes(b)} onChange={() => onToggle(b)} />
+        ))}
+        {needle && shown.length === 0 && <p className="py-2 text-xs ink-mid">No brand called that here.</p>}
+      </div>
+      {!needle && ordered.length > shown.length && (
+        <button type="button" onClick={() => setAll(true)} className="self-start py-1 text-xs font-bold underline underline-offset-4">
+          See all {ordered.length}
+        </button>
+      )}
+    </>
+  );
+}
+
+// Typed bounds or a quick range. Typed values apply on Go or Enter, not per
+// keystroke, so the grid does not reload on every digit.
+function PriceFilter({ min, max, onApply }: {
+  min: number | null; max: number | null; onApply: (min: number | null, max: number | null) => void;
+}) {
+  const [lo, setLo] = React.useState(min?.toString() ?? '');
+  const [hi, setHi] = React.useState(max?.toString() ?? '');
+  React.useEffect(() => { setLo(min?.toString() ?? ''); setHi(max?.toString() ?? ''); }, [min, max]);
+  const parse = (v: string) => (v.trim() && Number.isFinite(Number(v)) ? Math.max(0, Math.round(Number(v))) : null);
+  const apply = (e?: React.FormEvent) => { e?.preventDefault(); onApply(parse(lo), parse(hi)); };
+  return (
+    <>
+      <form onSubmit={apply} className="flex items-center gap-2">
+        <input inputMode="numeric" value={lo} onChange={(e) => setLo(e.target.value.replace(/[^0-9]/g, ''))} placeholder="₹ Min" aria-label="Minimum price"
+          className="min-h-[40px] w-full min-w-0 border border-black/15 px-2 text-sm focus:border-black focus:outline-none" />
+        <span className="text-xs">to</span>
+        <input inputMode="numeric" value={hi} onChange={(e) => setHi(e.target.value.replace(/[^0-9]/g, ''))} placeholder="₹ Max" aria-label="Maximum price"
+          className="min-h-[40px] w-full min-w-0 border border-black/15 px-2 text-sm focus:border-black focus:outline-none" />
+        <button type="submit" className="min-h-[40px] shrink-0 bg-black px-3 text-xs font-bold text-white">Go</button>
+      </form>
+      <div className="flex flex-col gap-1 pt-1">
+        {PRICE_RANGES.map((r) => (
+          <CheckRow key={r.label} label={r.label} radio
+            checked={min === r.min && max === r.max}
+            onChange={() => (min === r.min && max === r.max ? onApply(null, null) : onApply(r.min, r.max))} />
+        ))}
+      </div>
+    </>
+  );
+}
 
 function SheetGroup({ title, summary, collapsible = false, defaultOpen = true, className, children }: {
   title: string;
