@@ -13,7 +13,7 @@ export function GoneFavorites({ items }: { items: FavoriteSnapshot[] }) {
     <section className="mt-12 flex flex-col gap-6 border-t border-black/10 pt-8" aria-labelledby="gone-heading">
       <div className="flex flex-col gap-1">
         <h2 id="gone-heading" className="text-[15px] font-bold">No longer available</h2>
-        <p className="text-sm">These have sold or come off the site.</p>
+        <p className="text-sm">These have sold or come off the site. <a href="/sold" className="underline underline-offset-4">See everything sold</a>.</p>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-x-4 gap-y-10">
         {items.map((f) => (
@@ -27,9 +27,10 @@ export function GoneFavorites({ items }: { items: FavoriteSnapshot[] }) {
                   alt=""
                   loading="lazy"
                   decoding="async"
-                  className="h-full w-full object-cover grayscale opacity-40"
+                  className="h-full w-full object-cover opacity-80"
                 />
               )}
+              <span className="absolute left-2 top-2 bg-black px-2 py-1 text-[11px] font-black uppercase tracking-widest text-white">Sold</span>
             </div>
             <div className="flex items-start gap-2">
               <div className="flex min-w-0 flex-1 flex-col gap-0.5 opacity-60">

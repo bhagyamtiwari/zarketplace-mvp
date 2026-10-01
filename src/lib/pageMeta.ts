@@ -135,6 +135,7 @@ export const META = {
   },
   trademark: { title: 'Trademark & brand notice', description: 'zarketplace resells pre-owned clothing bought from individuals. How we use brand names, and how rights holders can reach us.', path: '/trademark-notice' },
   // Signed-in and operator surfaces: never indexed.
+  sold: { title: 'Sold', description: 'Pre-owned pieces that have sold on zarketplace. Every item is one of a kind.', path: '/sold' },
   cart: { title: 'Your cart', description: 'Your cart.', path: '/cart', noIndex: true },
   checkout: { title: 'Checkout', description: 'Checkout.', noIndex: true },
   orders: { title: 'Your orders', description: 'Track your orders.', noIndex: true },

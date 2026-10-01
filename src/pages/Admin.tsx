@@ -1081,6 +1081,41 @@ function Row({ k, v }: { k: string; v: React.ReactNode }) {
   return <p className="flex justify-between gap-4"><span className="ink-mid">{k}</span><span className="text-right font-medium">{v || '-'}</span></p>;
 }
 
+/** A phone number as couriers' forms want it: ten digits, no +91 or leading 0. */
+function localPhone(phone: string | null | undefined): string {
+  let d = (phone ?? '').replace(/\D/g, '');
+  if (d.length === 12 && d.startsWith('91')) d = d.slice(2);
+  if (d.length === 11 && d.startsWith('0')) d = d.slice(1);
+  return d;
+}
+
+function CopyButton({ text, label = 'Copy' }: { text: string; label?: string }) {
+  const [done, setDone] = React.useState(false);
+  if (!text) return null;
+  return (
+    <button type="button"
+      onClick={async () => {
+        try { await navigator.clipboard.writeText(text); } catch {
+          const t = document.createElement('textarea'); t.value = text; document.body.appendChild(t); t.select(); document.execCommand('copy'); t.remove();
+        }
+        setDone(true); setTimeout(() => setDone(false), 1200);
+      }}
+      className="shrink-0 border border-black/20 px-2 py-0.5 text-[10px] font-black uppercase tracking-widest hover:border-black">
+      {done ? 'Copied' : label}
+    </button>
+  );
+}
+
+/** A value with a copy button: shipping by hand means retyping nothing. */
+function CopyRow({ k, v }: { k: string; v: string | null | undefined }) {
+  return (
+    <p className="flex items-center justify-between gap-3">
+      <span className="ink-mid">{k}</span>
+      <span className="flex min-w-0 items-center gap-2 text-right font-medium"><span className="break-words">{v || '-'}</span>{v && <CopyButton text={v} />}</span>
+    </p>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Order drawer
 // ---------------------------------------------------------------------------
@@ -1204,8 +1239,18 @@ function OrderDrawer({ order, payouts, emails, audit, backLabel, onClose, onDone
       </Sec>
 
       <Sec title="Buyer">
-        <Row k="Name" v={order.buyer_name} /><Row k="Email" v={order.buyer_email} /><Row k="Phone" v={order.buyer_phone} />
-        <Row k="Ship to" v={[addr.address, addr.city, addr.state, addr.pincode].filter(Boolean).join(', ')} />
+        <CopyRow k="Name" v={order.buyer_name} />
+        <CopyRow k="Phone" v={localPhone(order.buyer_phone)} />
+        <CopyRow k="Email" v={order.buyer_email} />
+        <CopyRow k="Address" v={addr.address} />
+        {addr.landmark && <CopyRow k="Landmark" v={addr.landmark} />}
+        <CopyRow k="City" v={addr.city} />
+        <CopyRow k="State" v={addr.state} />
+        <CopyRow k="Pincode" v={addr.pincode} />
+        <div className="mt-2 flex flex-wrap gap-2">
+          <CopyButton label="Copy all for the label" text={[order.buyer_name, localPhone(order.buyer_phone), addr.address, addr.landmark, [addr.city, addr.state, addr.pincode].filter(Boolean).join(', ')].filter(Boolean).join('\n')} />
+          <CopyButton label="Copy order no." text={order.order_number ?? ''} />
+        </div>
         {order.buyer_note && <p className="mt-1 border-l-2 border-black/20 pl-2">{order.buyer_note}</p>}
       </Sec>
 
@@ -1469,8 +1514,8 @@ function ListingDrawer({ listing, acq, orders, payouts, audit, backLabel, onClos
       {/* Everything a purchase invoice needs, as the vendor gave it when
           they accepted: name, mobile, UPI ID and the collection address. */}
       <Sec title="Vendor">
-        <Row k="Name" v={listing.seller_display_name ?? listing.pickup_address?.fullName ?? null} />
-        <Row k="Mobile" v={listing.pickup_address?.phone || null} />
+        <CopyRow k="Name" v={listing.pickup_address?.fullName ?? listing.seller_display_name ?? null} />
+        <CopyRow k="Mobile" v={localPhone(listing.pickup_address?.phone) || null} />
         <Row k="Email" v={listing.seller_email} /><Row k="UPI" v={listing.seller_upi_vpa} />
         <Row k="Collect from" v={listing.pickup_address?.address
           ? [listing.pickup_address.address, listing.pickup_address.landmark, listing.pickup_address.city, listing.pickup_address.state, listing.pickup_address.pincode].filter(Boolean).join(', ')
