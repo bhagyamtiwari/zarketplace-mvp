@@ -31,6 +31,7 @@ import { sendEmail } from '../lib/email';
 import { writeAudit, AuditEntry } from '../lib/adminAudit';
 import { ListingEditor } from '../components/admin/ListingEditor';
 import { DiscountCodes } from '../components/admin/DiscountCodes';
+import { SiteErrors } from '../components/admin/SiteErrors';
 import { Loading } from '../components/Loading';
 
 const adlog = log('admin');
@@ -61,7 +62,7 @@ interface EmailLogRow {
   created_at: string;
 }
 
-type LeafKind = 'overview' | 'orders' | 'listings' | 'payouts' | 'users' | 'emails' | 'audit' | 'settings' | 'discounts';
+type LeafKind = 'overview' | 'orders' | 'listings' | 'payouts' | 'users' | 'emails' | 'audit' | 'settings' | 'discounts' | 'errors';
 
 interface Leaf {
   key: string;
@@ -211,6 +212,7 @@ const NAV: Section[] = [
     { key: 'u_banned', slug: 'banned', label: 'Banned', kind: 'users', hint: 'Accounts that cannot buy or sell.', user: (u) => u.is_banned },
   ] },
   { key: 'system', label: 'System', icon: Terminal, leaves: [
+    { key: 'sys_errors', slug: 'site-errors', label: 'Site errors', kind: 'errors', hint: 'Errors visitors hit in their browser: crashes, pages that would not load, slow loads. Open one for the details.' },
     { key: 'sys_emails', slug: 'emails', label: 'Emails sent', kind: 'emails', hint: 'Every email the site has sent, newest first.' },
     { key: 'sys_audit', slug: 'change-log', label: 'Change log', kind: 'audit', hint: 'Every change an admin has made, and who made it.' },
     { key: 'sys_settings', slug: 'settings', label: 'Settings', kind: 'settings', hint: 'Numbers the site runs on.' },
@@ -541,6 +543,7 @@ function LeafView({ leaf, orders, listings, acqByListing, payouts, users, vendor
   if (leaf.kind === 'audit') return <AuditView rows={audit} />;
   if (leaf.kind === 'settings') return <SettingsView />;
   if (leaf.kind === 'discounts') return <DiscountCodes />;
+  if (leaf.kind === 'errors') return <SiteErrors />;
   return null;
 }
 

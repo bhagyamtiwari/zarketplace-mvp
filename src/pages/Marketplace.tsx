@@ -18,6 +18,7 @@ import { useFavorites, useFavoritesSyncTick, favoriteSnapshots, refreshSnapshots
 import { GoneFavorites } from '../components/GoneFavorites';
 import { CONDITIONS } from '../lib/condition';
 import { CATEGORY_SIZES, ALL_SIZES } from '../lib/sizes';
+import { reportError } from '../lib/errorReport';
 
 const mlog = log('marketplace');
 
@@ -261,6 +262,7 @@ export function Marketplace() {
       } catch (err) {
         if (cancelled) return;
         mlog.warn('fetchPage failed', err);
+        reportError('load', err, 'Shop feed');
         setState('error');
       }
     }
