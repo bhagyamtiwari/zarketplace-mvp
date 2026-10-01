@@ -8,6 +8,7 @@ import * as React from 'react';
 import { Loader2 } from 'lucide-react';
 import { ui } from '../lib/ui';
 import { cn } from '../lib/utils';
+import { reportError } from '../lib/errorReport';
 
 /** How long before a wait counts as stuck. */
 const SLOW_MS = 10_000;
@@ -30,7 +31,10 @@ export function Loading({ className, iconClassName = 'h-6 w-6', delayMs = 0 }: {
   const [slow, setSlow] = React.useState(false);
   React.useEffect(() => {
     const show = delayMs > 0 ? setTimeout(() => setVisible(true), delayMs) : undefined;
-    const stuck = setTimeout(() => setSlow(true), SLOW_MS);
+    const stuck = setTimeout(() => {
+      setSlow(true);
+      reportError('slow', 'Still loading after 10 seconds');
+    }, SLOW_MS);
     return () => { if (show) clearTimeout(show); clearTimeout(stuck); };
   }, [delayMs]);
 
@@ -54,6 +58,7 @@ export function Loading({ className, iconClassName = 'h-6 w-6', delayMs = 0 }: {
 
 /** A request failed: say so plainly, never as an empty page or "not found". */
 export function LoadError({ message = 'We could not load this page.', className }: { message?: string; className?: string }) {
+  React.useEffect(() => { reportError('load', message); }, [message]);
   return (
     <div role="alert" className={cn('flex flex-col items-center justify-center gap-5 px-4 text-center', className)}>
       <p className="text-sm font-bold">{message} Please reload.</p>

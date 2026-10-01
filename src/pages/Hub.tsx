@@ -10,7 +10,7 @@
 
 import * as React from 'react';
 import { Link } from 'react-router-dom';
-import { Loader2, PackageCheck, PackageX, Truck, IndianRupee, AlertTriangle } from 'lucide-react';
+import { Loader2, PackageCheck, PackageX, Truck, IndianRupee, AlertTriangle, MessageCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { RequireAuth } from '../components/RequireAuth';
 import { useAuth } from '../lib/auth';
@@ -37,6 +37,9 @@ interface HubRow {
   awb: string | null; courier: string | null;
   inbound_status: string | null; picked_up_at: string | null;
   payout_id: string | null; payout_status: string | null; payout_amount: number | null;
+  label_url: string | null; vendor_phone: string | null; vendor_name: string | null;
+  /** Instant Ship: already on our shelf, so it never has an inbound leg. */
+  is_verified: boolean;
 }
 
 interface RefundRow {
@@ -216,9 +219,15 @@ function ItemCard({ row, onDone }: { key?: string; row: HubRow; onDone: () => vo
             <p className="text-[11px] ink-mid leading-relaxed">Hub note: {row.hub_notes}</p>
           )}
 
+          {row.is_verified && TAB_STATES.inbound.includes(s) && (
+            <p className="text-[11px] font-bold uppercase tracking-widest leading-relaxed">
+              Instant Ship: already with us. Nothing to book, mark it received.
+            </p>
+          )}
+
           {/* Actions, gated by where the item actually is. */}
           <div className="flex flex-wrap gap-2 pt-2">
-            {TAB_STATES.inbound.includes(s) && !row.awb && (
+            {TAB_STATES.inbound.includes(s) && !row.awb && !row.is_verified && (
               <Action icon={Truck} label="Book inbound leg" busy={busy}
                 onClick={() => run(
                   () => supabase.functions.invoke('shiprocket-book-leg',
@@ -233,6 +242,17 @@ function ItemCard({ row, onDone }: { key?: string; row: HubRow; onDone: () => vo
                     { body: { listing_id: row.listing_id, leg: 'OUTBOUND' } }) as any,
                   'Book the label from our hub to the buyer?',
                 )} />
+            )}
+            {/* Seller copy promises the label by email or WhatsApp; until
+                WhatsApp sending is automated, this is how it goes. */}
+            {TAB_STATES.inbound.includes(s) && !row.is_verified && row.vendor_phone && (
+              <a
+                href={whatsAppLink(row)} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-2 border border-black px-4 py-2.5 text-[10px] font-black uppercase tracking-widest transition-colors hover:bg-black hover:text-white"
+              >
+                <MessageCircle className="h-3.5 w-3.5" />
+                {row.label_url ? 'Send label on WhatsApp' : 'WhatsApp vendor'}
+              </a>
             )}
             {TAB_STATES.inbound.includes(s) && (
               <Action icon={PackageCheck} label="Received" busy={busy}
@@ -492,6 +512,27 @@ function HoldingQueue({ rows, onDone }: { rows: AbandonedRow[]; onDone: () => vo
       ))}
     </div>
   );
+}
+
+/**
+ * wa.me with the message written: the label link and the hand-over date when
+ * there is a label, a plain hello when there is not. The operator reads it in
+ * WhatsApp before sending.
+ */
+function whatsAppLink(row: HubRow): string {
+  let digits = (row.vendor_phone ?? '').replace(/\D/g, '');
+  if (digits.length === 11 && digits.startsWith('0')) digits = digits.slice(1);
+  if (digits.length === 10) digits = `91${digits}`;
+  const first = (row.vendor_name ?? '').trim().split(/\s+/)[0];
+  const hello = first ? `Hi ${first}` : 'Hi';
+  const item = row.sku ? `${row.title} (${row.sku})` : row.title;
+  const by = row.ship_by_deadline
+    ? new Date(row.ship_by_deadline).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })
+    : null;
+  const text = row.label_url
+    ? `${hello}, your ${item} has sold on zarketplace. Here is your prepaid label: ${row.label_url}\n\nPrint it, stick it on the parcel${by ? ` and hand it over by ${by}` : ''}. A courier will collect it from your door.`
+    : `${hello}, this is zarketplace about your ${item}.`;
+  return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
 }
 
 function Action({ icon: Icon, label, onClick, busy, danger }: {

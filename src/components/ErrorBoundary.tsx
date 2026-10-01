@@ -1,5 +1,6 @@
 import React from 'react';
 import { log } from '../lib/log';
+import { reportError } from '../lib/errorReport';
 
 const elog = log('error-boundary');
 
@@ -58,6 +59,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     if (reloadForNewVersion(error)) return;
     elog.error('render crash caught', error, info.componentStack);
+    reportError('react', error, info.componentStack);
   }
 
   render() {
