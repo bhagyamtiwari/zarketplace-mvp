@@ -54,6 +54,7 @@ const SHOP: FooterColumn = {
   title: 'Shop',
   links: [
     { label: 'Available Now', to: '/browse' },
+    { label: 'Sold', to: '/sold' },
     { label: 'Buyer Protection', to: '/buyer-protection' },
     { label: 'Returns and Refunds', to: '/returns' },
   ],

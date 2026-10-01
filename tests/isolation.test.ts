@@ -51,6 +51,8 @@ const OBJECTS = [
   // Browser errors carry page paths, user agents and sometimes a user id:
   // operator-only. The browser writes through log_client_error, never the table.
   "client_errors",
+  // Sold items for /sold: grid columns only, no vendor key.
+  "public_sold_listings",
 ];
 
 /**

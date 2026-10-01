@@ -50,6 +50,7 @@ const GrievanceOfficer = lazy(() => import('./pages/GrievanceOfficer').then((m) 
 const AuthCallback = lazy(() => import('./pages/AuthCallback').then((m) => ({ default: m.AuthCallback })));
 const ResetPassword = lazy(() => import('./pages/ResetPassword').then((m) => ({ default: m.ResetPassword })));
 const Cart = lazy(() => import('./pages/Cart').then((m) => ({ default: m.Cart })));
+const Sold = lazy(() => import('./pages/Sold').then((m) => ({ default: m.Sold })));
 const AccountHome = lazy(() => import('./pages/AccountHome').then((m) => ({ default: m.AccountHome })));
 
 // An old address, sent on to its new one with its query intact: links in
@@ -118,6 +119,7 @@ const shopRoutes = (
     <Route path="/condition" element={<Navigate to="/conditions-guide" replace />} />
     <Route path="/grievance-officer" element={<GrievanceOfficer />} />
     <Route path="/cart" element={<Cart />} />
+    <Route path="/sold" element={<Sold />} />
     <Route path="/checkout" element={<Checkout />} />
     <Route path="/checkout/:id" element={<Checkout />} />
     <Route path="/about" element={<About />} />
