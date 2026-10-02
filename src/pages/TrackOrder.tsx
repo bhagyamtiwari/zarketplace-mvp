@@ -209,6 +209,7 @@ function OrderSteps({ order, at }: { order: Order; at: number }) {
             <span>Tracking number <span className="whitespace-nowrap tabular-nums">{order.tracking_number}</span></span>
           )}
           <Tracking order={order} />
+          {!order.tracking_url && !order.tracking_number && <span>You will be able to track it here soon.</span>}
         </span>
       ),
     },
