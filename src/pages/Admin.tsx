@@ -163,8 +163,11 @@ const NAV: Section[] = [
     { key: 'o_awaiting_verification', slug: 'to-verify', label: 'To verify', kind: 'orders',
       hint: 'Payment received but not yet confirmed. Check it against Razorpay.',
       order: (o) => o.status === 'awaiting_verification' },
-    { key: 'o_in_transit', slug: 'on-the-way', label: 'On the way', kind: 'orders',
-      hint: 'Booked with the courier, picked up or in transit. Nothing to do unless it stalls.',
+    { key: 'o_to_ship', slug: 'to-ship', label: 'To ship', kind: 'orders',
+      hint: 'Paid and waiting to go out. Hand it to the courier, then open the order, type the AWB and notify the buyer.',
+      order: (o) => o.status === 'paid' },
+    { key: 'o_in_transit', slug: 'on-the-way', label: 'Shipped', kind: 'orders',
+      hint: 'Picked up by the courier or in transit. Nothing to do unless it stalls.',
       order: (o) => o.status === 'shipped' },
     { key: 'o_delivered', slug: 'delivered', label: 'Delivered', kind: 'orders', hint: 'Arrived with the buyer.',
       order: (o) => o.status === 'delivered' },
@@ -1142,6 +1145,14 @@ function ShipForm({ order, onDone }: { order: Order; onDone: () => Promise<void>
   const [urlTouched, setUrlTouched] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
+  // Instant Ship stock is already on our shelf, so its order has one leg
+  // only: hub to buyer. Anything else comes to the hub from the vendor first.
+  const [instant, setInstant] = React.useState<boolean | null>(null);
+  React.useEffect(() => {
+    if (!order.listing_id) return;
+    supabase.from('listings').select('is_verified').eq('id', order.listing_id).maybeSingle()
+      .then(({ data }) => setInstant(!!data?.is_verified));
+  }, [order.listing_id]);
 
   const courierName = courier === 'Other' ? other.trim() : courier;
   const cleanAwb = awb.trim().replace(/\s+/g, '');
@@ -1157,7 +1168,7 @@ function ShipForm({ order, onDone }: { order: Order; onDone: () => Promise<void>
     if (!courierName) { setErr('Enter the courier.'); return; }
     if (!cleanAwb) { setErr('Enter the AWB or tracking number.'); return; }
     if (url && !/^https?:\/\//i.test(url.trim())) { setErr('The tracking link must start with https://'); return; }
-    if (!confirm(`Mark ${order.order_number} shipped with ${courierName}, AWB ${cleanAwb}, and email the buyer?`)) return;
+    if (!confirm(`Email the buyer that ${order.order_number} has been picked up by ${courierName}, AWB ${cleanAwb}? The order moves to Shipped.`)) return;
     setBusy(true);
     try {
       const shipped = { status: 'shipped', shipped_at: new Date().toISOString(), courier: courierName, tracking_number: cleanAwb, tracking_url: url.trim() || null };
@@ -1169,12 +1180,22 @@ function ShipForm({ order, onDone }: { order: Order; onDone: () => Promise<void>
     } catch (e: any) { setErr(e?.message ?? 'Could not mark it shipped.'); } finally { setBusy(false); }
   };
 
-  if (!open) return <ActBtn label="Mark shipped (add AWB)" onClick={() => setOpen(true)} busy={false} />;
+  const legNote = instant === null ? null : instant
+    ? 'Instant Ship item. One leg only: from our hub to the buyer.'
+    : 'Not Instant Ship: this item comes from the vendor to our hub first. Only ship it once it has been accepted at the hub.';
+
+  if (!open) return (
+    <div className="flex flex-col gap-1.5">
+      {legNote && <p className={cn('text-xs font-bold', !instant && 'text-amber-800')}>{legNote}</p>}
+      <ActBtn label="Ship it: add AWB" onClick={() => setOpen(true)} busy={false} />
+    </div>
+  );
 
   const field = 'w-full border border-black/15 px-2 py-2 text-sm focus:outline-none focus:border-black';
   return (
     <form onSubmit={submit} className="flex flex-col gap-2 border border-black p-3">
-      <p className="text-[11px] font-black uppercase tracking-widest">Mark shipped</p>
+      <p className="text-[11px] font-black uppercase tracking-widest">Ship to buyer</p>
+      {legNote && <p className={cn('text-xs font-bold', !instant && 'text-amber-800')}>{legNote}</p>}
       <label className="flex flex-col gap-1 text-xs">Courier
         <select value={courier} onChange={(e) => setCourier(e.target.value)} className={field}>
           {COURIERS.map((c) => <option key={c.name}>{c.name}</option>)}
@@ -1191,7 +1212,7 @@ function ShipForm({ order, onDone }: { order: Order; onDone: () => Promise<void>
       {err && <p className="text-xs font-bold text-red-700">{err}</p>}
       <div className="flex gap-2">
         <button type="submit" disabled={busy} className="flex-1 bg-black py-2 text-[11px] font-black uppercase tracking-widest text-white disabled:opacity-50">
-          {busy ? 'Saving…' : 'Mark shipped and email buyer'}
+          {busy ? 'Sending…' : 'Notify buyer'}
         </button>
         <button type="button" onClick={() => setOpen(false)} className="border border-black/20 px-3 text-[11px] font-black uppercase">Cancel</button>
       </div>
