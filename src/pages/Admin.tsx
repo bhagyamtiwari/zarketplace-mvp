@@ -163,8 +163,11 @@ const NAV: Section[] = [
     { key: 'o_awaiting_verification', slug: 'to-verify', label: 'To verify', kind: 'orders',
       hint: 'Payment received but not yet confirmed. Check it against Razorpay.',
       order: (o) => o.status === 'awaiting_verification' },
-    { key: 'o_in_transit', slug: 'on-the-way', label: 'On the way', kind: 'orders',
-      hint: 'Booked with the courier, picked up or in transit. Nothing to do unless it stalls.',
+    { key: 'o_to_ship', slug: 'to-ship', label: 'To ship', kind: 'orders',
+      hint: 'Paid and waiting to go out. Hand it to the courier, then open the order, type the AWB and notify the buyer.',
+      order: (o) => o.status === 'paid' },
+    { key: 'o_in_transit', slug: 'on-the-way', label: 'Shipped', kind: 'orders',
+      hint: 'Picked up by the courier or in transit. Nothing to do unless it stalls.',
       order: (o) => o.status === 'shipped' },
     { key: 'o_delivered', slug: 'delivered', label: 'Delivered', kind: 'orders', hint: 'Arrived with the buyer.',
       order: (o) => o.status === 'delivered' },
@@ -1117,6 +1120,107 @@ function CopyRow({ k, v }: { k: string; v: string | null | undefined }) {
 }
 
 // ---------------------------------------------------------------------------
+// Mark shipped, by hand
+// ---------------------------------------------------------------------------
+
+// Until Shiprocket books outbound parcels, a parcel is handed to a courier by
+// hand. This records the courier and AWB, marks the order shipped and emails
+// the buyer that it has been picked up, with a link to follow it.
+const COURIERS: Array<{ name: string; url?: (awb: string) => string }> = [
+  { name: 'Delhivery', url: (a) => `https://www.delhivery.com/track-v2/package/${a}` },
+  { name: 'Blue Dart', url: (a) => `https://www.bluedart.com/web/guest/trackdartresultthirdparty?trackFor=0&trackNo=${a}` },
+  { name: 'Xpressbees', url: (a) => `https://www.xpressbees.com/shipment/tracking?awbNo=${a}` },
+  { name: 'DTDC' },
+  { name: 'Ekart' },
+  { name: 'Shadowfax' },
+  { name: 'India Post' },
+];
+
+function ShipForm({ order, onDone }: { order: Order; onDone: () => Promise<void> }) {
+  const [open, setOpen] = React.useState(false);
+  const [courier, setCourier] = React.useState('Delhivery');
+  const [other, setOther] = React.useState('');
+  const [awb, setAwb] = React.useState('');
+  const [url, setUrl] = React.useState('');
+  const [urlTouched, setUrlTouched] = React.useState(false);
+  const [busy, setBusy] = React.useState(false);
+  const [err, setErr] = React.useState<string | null>(null);
+  // Instant Ship stock is already on our shelf, so its order has one leg
+  // only: hub to buyer. Anything else comes to the hub from the vendor first.
+  const [instant, setInstant] = React.useState<boolean | null>(null);
+  React.useEffect(() => {
+    if (!order.listing_id) return;
+    supabase.from('listings').select('is_verified').eq('id', order.listing_id).maybeSingle()
+      .then(({ data }) => setInstant(!!data?.is_verified));
+  }, [order.listing_id]);
+
+  const courierName = courier === 'Other' ? other.trim() : courier;
+  const cleanAwb = awb.trim().replace(/\s+/g, '');
+  React.useEffect(() => {
+    if (urlTouched) return;
+    const c = COURIERS.find((x) => x.name === courier);
+    setUrl(c?.url && cleanAwb ? c.url(encodeURIComponent(cleanAwb)) : '');
+  }, [courier, cleanAwb, urlTouched]);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErr(null);
+    if (!courierName) { setErr('Enter the courier.'); return; }
+    if (!cleanAwb) { setErr('Enter the AWB or tracking number.'); return; }
+    if (url && !/^https?:\/\//i.test(url.trim())) { setErr('The tracking link must start with https://'); return; }
+    if (!confirm(`Email the buyer that ${order.order_number} has been picked up by ${courierName}, AWB ${cleanAwb}? The order moves to Shipped.`)) return;
+    setBusy(true);
+    try {
+      const shipped = { status: 'shipped', shipped_at: new Date().toISOString(), courier: courierName, tracking_number: cleanAwb, tracking_url: url.trim() || null };
+      const { error } = await supabase.from('orders').update(shipped).eq('id', order.id);
+      if (error) throw error;
+      await writeAudit({ entity: 'order', entity_id: order.id, action: 'order.status.shipped', old_state: { status: order.status }, new_state: shipped });
+      void sendEmail({ template: 'tracking_update_buyer', order_id: order.id });
+      await onDone();
+    } catch (e: any) { setErr(e?.message ?? 'Could not mark it shipped.'); } finally { setBusy(false); }
+  };
+
+  const legNote = instant === null ? null : instant
+    ? 'Instant Ship item. One leg only: from our hub to the buyer.'
+    : 'Not Instant Ship: this item comes from the vendor to our hub first. Only ship it once it has been accepted at the hub.';
+
+  if (!open) return (
+    <div className="flex flex-col gap-1.5">
+      {legNote && <p className={cn('text-xs font-bold', !instant && 'text-amber-800')}>{legNote}</p>}
+      <ActBtn label="Ship it: add AWB" onClick={() => setOpen(true)} busy={false} />
+    </div>
+  );
+
+  const field = 'w-full border border-black/15 px-2 py-2 text-sm focus:outline-none focus:border-black';
+  return (
+    <form onSubmit={submit} className="flex flex-col gap-2 border border-black p-3">
+      <p className="text-[11px] font-black uppercase tracking-widest">Ship to buyer</p>
+      {legNote && <p className={cn('text-xs font-bold', !instant && 'text-amber-800')}>{legNote}</p>}
+      <label className="flex flex-col gap-1 text-xs">Courier
+        <select value={courier} onChange={(e) => setCourier(e.target.value)} className={field}>
+          {COURIERS.map((c) => <option key={c.name}>{c.name}</option>)}
+          <option>Other</option>
+        </select>
+      </label>
+      {courier === 'Other' && <input value={other} onChange={(e) => setOther(e.target.value)} placeholder="Courier name" className={field} />}
+      <label className="flex flex-col gap-1 text-xs">AWB / tracking number
+        <input value={awb} onChange={(e) => setAwb(e.target.value)} autoFocus className={field} />
+      </label>
+      <label className="flex flex-col gap-1 text-xs">Tracking link (optional, filled in for Delhivery, Blue Dart, Xpressbees)
+        <input value={url} onChange={(e) => { setUrl(e.target.value); setUrlTouched(true); }} placeholder="https://" className={field} />
+      </label>
+      {err && <p className="text-xs font-bold text-red-700">{err}</p>}
+      <div className="flex gap-2">
+        <button type="submit" disabled={busy} className="flex-1 bg-black py-2 text-[11px] font-black uppercase tracking-widest text-white disabled:opacity-50">
+          {busy ? 'Sending…' : 'Notify buyer'}
+        </button>
+        <button type="button" onClick={() => setOpen(false)} className="border border-black/20 px-3 text-[11px] font-black uppercase">Cancel</button>
+      </div>
+    </form>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Order drawer
 // ---------------------------------------------------------------------------
 
@@ -1298,7 +1402,7 @@ function OrderDrawer({ order, payouts, emails, audit, backLabel, onClose, onDone
         <div className="flex flex-col gap-2 pt-1">
           {order.status === 'awaiting_verification' && <ActBtn label="Mark Paid" onClick={() => setStatus('paid')} busy={busy} />}
           {order.status === 'paid' && <ActBtn label="Book inbound leg (vendor to hub)" onClick={bookInbound} busy={busy} />}
-          {order.status === 'paid' && <ActBtn label="Mark Shipped" onClick={() => setStatus('shipped')} busy={busy} />}
+          {order.status === 'paid' && <ShipForm order={order} onDone={async () => { await onDone(); onClose(); }} />}
           {order.status === 'shipped' && <ActBtn label="Mark Delivered" onClick={() => setStatus('delivered')} busy={busy} />}
           <ActBtn label={order.claim_open ? 'Close Claim' : 'Open Claim'} onClick={toggleClaim} busy={busy} />
           {/* Captured payment -> refund it via Razorpay (automated). */}
