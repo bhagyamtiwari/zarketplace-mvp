@@ -211,10 +211,9 @@ export function Marketplace() {
       try {
         let query = supabasePublic
           .from('public_listings')
-          // Counted on the server only for a search. Every other total comes
-          // from the facet rows below, which saves the request a round trip
-          // (a count header makes the browser send a preflight first).
-          .select('*', page === 0 && searchQuery ? { count: 'exact' } : {})
+          // Not counted: no total is shown, and a count header makes the
+          // browser send a preflight first, a second round trip.
+          .select('*')
           .eq('status', 'approved')
           // Sold stock never reaches the buyer. Scrolling past things you cannot
           // buy is the single most irritating thing a resale feed can do, so the
@@ -403,14 +402,6 @@ export function Marketplace() {
     setParams([['min', min === null ? null : String(min)], ['max', max === null ? null : String(max)]]);
 
   const facets: Facets = { category, gender, quick, brands, sizes, conditions, min: minPrice, max: maxPrice };
-  // How many items match, counted from the facet rows (the whole shelf), so
-  // the number is there before the feed has paged to its end. A search is
-  // the one view counted by the server.
-  const shownTotal = searchQuery || facetRows.length === 0 ? total : facetRows.filter((r) =>
-    matchesFacets(r, facets)
-    && (quick !== 'under_999' || r.price <= 999)
-    && (quick !== 'sale' || r.sale_price != null)
-    && (quick !== 'saved' || favorites.has(r.id))).length;
   const countBy = (skip: FacetKey, pick: (r: FacetRow) => string | null) => {
     const m = new Map<string, number>();
     for (const r of facetRows) {
@@ -462,7 +453,6 @@ export function Marketplace() {
     return m;
   }, [facetRows]);
   const genderCounts = countBy('gender', (r) => r.gender);
-  const instantCount = facetRows.filter((r) => r.is_verified && matchesFacets(r, facets, 'instant')).length;
   const genderCount = (g: string) => g === 'Unisex'
     ? genderCounts.get('Unisex') ?? 0
     : (genderCounts.get(g) ?? 0) + (genderCounts.get('Unisex') ?? 0);
@@ -477,7 +467,6 @@ export function Marketplace() {
           <span className="text-xs ink-mid">At our hub, dispatched next day</span>
         </span>
         <span className="flex items-center gap-2">
-          <span className="text-xs ink-mid">{instantCount}</span>
           <input type="checkbox" checked={quick === 'verified'} onChange={() => toggleParam('q', 'verified')} className="h-4 w-4 accent-black" />
         </span>
       </label>
@@ -595,11 +584,8 @@ export function Marketplace() {
         </aside>
 
         <div className="min-w-0 flex-1 flex flex-col gap-4">
-          {(chips.length > 0 || shownTotal !== null) && (
+          {chips.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
-              {shownTotal !== null && state !== 'loading' && (
-                <span className="mr-2 text-sm font-bold">{shownTotal} {shownTotal === 1 ? 'item' : 'items'}</span>
-              )}
               {chips.map((c) => (
                 <button key={c.label} type="button" onClick={c.remove} aria-label={`Remove ${c.label}`}
                   className="flex min-h-[36px] items-center gap-1.5 border border-black/15 px-3 text-xs hover:border-black">
@@ -759,7 +745,7 @@ export function Marketplace() {
                 onClick={() => setShowFilters(false)}
                 className="flex-1 bg-black py-4 text-[11px] font-black uppercase tracking-widest text-white"
               >
-                {state === 'loading' ? 'Show items' : `Show ${shownTotal ?? listings.length} ${(shownTotal ?? listings.length) === 1 ? 'item' : 'items'}`}
+                Show results
               </button>
             </div>
           </div>

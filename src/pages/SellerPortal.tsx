@@ -72,10 +72,13 @@ function SellerInner({ view }: { view: PortalView }) {
     setSearchParams(p, { replace: true });
   }, [searchParams, setSearchParams]);
 
-  const [loading, setLoading] = React.useState(false);
-  const [listings, setListings] = React.useState<Listing[]>([]);
-  const [offers, setOffers] = React.useState<Map<string, VendorOffer>>(new Map());
-  const [shipments, setShipments] = React.useState<Map<string, InboundShipment>>(new Map());
+  // Drawn from the last load this visit (Your items and Your payouts share
+  // it, so moving between them is instant), then refreshed behind it.
+  const cached = user ? portalCache.get(user.id) : undefined;
+  const [loading, setLoading] = React.useState(!cached);
+  const [listings, setListings] = React.useState<Listing[]>(() => cached?.listings ?? []);
+  const [offers, setOffers] = React.useState<Map<string, VendorOffer>>(() => cached?.offers ?? new Map());
+  const [shipments, setShipments] = React.useState<Map<string, InboundShipment>>(() => cached?.shipments ?? new Map());
   const [error, setError] = React.useState<string | null>(null);
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
 
@@ -90,6 +93,8 @@ function SellerInner({ view }: { view: PortalView }) {
       const { error: delErr } = await supabase.from('listings').delete().eq('id', l.id);
       if (delErr) throw delErr;
       setListings((prev) => prev.filter((x) => x.id !== l.id));
+      const c = user ? portalCache.get(user.id) : undefined;
+      if (c && user) portalCache.set(user.id, { ...c, listings: c.listings.filter((x) => x.id !== l.id) });
     } catch (err: any) {
       splog.error('deleteListing', err);
       setError(err?.message ?? 'Failed to delete this item');
@@ -100,7 +105,8 @@ function SellerInner({ view }: { view: PortalView }) {
 
   const fetchAll = React.useCallback(async () => {
     if (!user) return;
-    setLoading(true); setError(null);
+    if (!portalCache.has(user.id)) setLoading(true);
+    setError(null);
     try {
       // The vendor's items and their own offers. Orders are deliberately not
       // fetched: this page has no buyer-side data to show, so it asks for none.
@@ -112,13 +118,17 @@ function SellerInner({ view }: { view: PortalView }) {
       // Demo items (titles ending in "(Demo)") were never real submissions:
       // they are left out so Your Items shows only what was actually sent.
       const mine = ((l as Listing[]) ?? []).filter((x) => !isDemoTitle(x.title));
+      const offerMap = new Map(offerRows.map((o) => [o.listing_id, o]));
       setListings(mine);
-      setOffers(new Map(offerRows.map((o) => [o.listing_id, o])));
+      setOffers(offerMap);
+      portalCache.set(user.id, { listings: mine, offers: offerMap, shipments: portalCache.get(user.id)?.shipments ?? new Map() });
       // The courier leg for anything sold: its label, and whether it has been
       // collected. Missing it only costs the label link, so it never fails the page.
       try {
         const legs = await getInboundShipments(mine.filter((x) => x.is_sold).map((x) => x.id));
-        setShipments(new Map(legs.map((sh) => [sh.listing_id, sh])));
+        const shipMap = new Map(legs.map((sh) => [sh.listing_id, sh]));
+        setShipments(shipMap);
+        portalCache.set(user.id, { listings: mine, offers: offerMap, shipments: shipMap });
       } catch (shipErr) {
         splog.warn('shipments', shipErr);
       }
@@ -148,6 +158,8 @@ function SellerInner({ view }: { view: PortalView }) {
 }
 
 const NO_SHIPMENTS = new Map<string, InboundShipment>();
+
+const portalCache = new Map<string, { listings: Listing[]; offers: Map<string, VendorOffer>; shipments: Map<string, InboundShipment> }>();
 
 /**
  * What a sold item's row says, from what we know after the sale: the offer's
