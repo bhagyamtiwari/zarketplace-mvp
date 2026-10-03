@@ -16,16 +16,17 @@ export async function uploadListingPhoto(file: File, userId: string): Promise<st
   };
   // Three sizes per photo; the stored URL is the 1600px one and variantUrl()
   // derives the other two from its name.
-  const variants = await encodeVariants(file);
-  let fullUrl = '';
-  for (const variant of ['thumb', 'grid', 'full'] as const) {
-    const { blob, width, ext } = variants[variant];
-    const path = `${base}-${width}.${ext}`;
-    await put(path, blob);
-    if (variant === 'full') fullUrl = supabase.storage.from('listing-images').getPublicUrl(path).data.publicUrl;
-  }
-  // The link-preview card, made for every photo because any of them can end
-  // up as the cover. socialCardUrl() finds it by name.
-  await put(`${base}${SOCIAL_CARD_SUFFIX}`, await encodeSocialCard(file));
+  // The four files go up side by side rather than one after another.
+  const [variants, card] = await Promise.all([encodeVariants(file), encodeSocialCard(file)]);
+  const paths = (['thumb', 'grid', 'full'] as const).map((v) => {
+    const { blob, width, ext } = variants[v];
+    return { v, blob, path: `${base}-${width}.${ext}` };
+  });
+  await Promise.all([
+    ...paths.map(({ path, blob }) => put(path, blob)),
+    put(`${base}${SOCIAL_CARD_SUFFIX}`, card),
+  ]);
+  const fullPath = paths.find((p) => p.v === 'full')!.path;
+  const fullUrl = supabase.storage.from('listing-images').getPublicUrl(fullPath).data.publicUrl;
   return fullUrl;
 }

@@ -14,7 +14,9 @@ export function trackingUpdateBuyer(ctx: EmailContext): EmailContent {
       ${listingImage(o)}
       <p style="color:#111111; margin:0 0 14px;"><strong>Courier:</strong> ${esc(o.courier ?? "")}<br/>
          <strong>Tracking #:</strong> ${esc(o.tracking_number ?? "")}</p>
-      ${button(trackUrl(o, ctx.siteUrl), "Track order")}
+      ${o.tracking_url ? button(esc(o.tracking_url), `Track with ${esc(o.courier || "the courier")}`) : ""}
+      <p style="color:#111111; margin:0 0 14px;">Your order page has the same details, any time:</p>
+      ${button(trackUrl(o, ctx.siteUrl), "View your order")}
     </div>`),
   };
 }
