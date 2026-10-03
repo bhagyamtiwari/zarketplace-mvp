@@ -4,10 +4,16 @@
 import type { Listing } from '../types';
 
 const byKey = new Map<string, Listing>();
+/** Ids held only as a grid card's columns, not the whole item. */
+const partialIds = new Set<string>();
 
-export function rememberListings(rows: Listing[]): void {
+/** `partial`: the grid's trimmed columns. Never overwrites a full copy. */
+export function rememberListings(rows: Listing[], opts: { partial?: boolean } = {}): void {
   for (const l of rows) {
-    if (l.id) byKey.set(l.id, l);
+    if (!l.id) continue;
+    if (opts.partial && byKey.has(l.id) && !partialIds.has(l.id)) continue;
+    if (opts.partial) partialIds.add(l.id); else partialIds.delete(l.id);
+    byKey.set(l.id, l);
     if (l.sku) byKey.set(l.sku.toUpperCase(), l);
   }
 }

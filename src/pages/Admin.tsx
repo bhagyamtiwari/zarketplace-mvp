@@ -164,7 +164,7 @@ const NAV: Section[] = [
       hint: 'Payment received but not yet confirmed. Check it against Razorpay.',
       order: (o) => o.status === 'awaiting_verification' },
     { key: 'o_to_ship', slug: 'to-ship', label: 'To ship', kind: 'orders',
-      hint: 'Paid and waiting to go out. Hand it to the courier, then open the order, type the AWB and notify the buyer.',
+      hint: 'Paid and waiting to go out. Once it is packed, open the order and press Packed: notify buyer. Add the AWB if you have it.',
       order: (o) => o.status === 'paid' },
     { key: 'o_in_transit', slug: 'on-the-way', label: 'Shipped', kind: 'orders',
       hint: 'Picked up by the courier or in transit. Nothing to do unless it stalls.',
@@ -1125,7 +1125,8 @@ function CopyRow({ k, v }: { k: string; v: string | null | undefined }) {
 
 // Until Shiprocket books outbound parcels, a parcel is handed to a courier by
 // hand. This records the courier and AWB, marks the order shipped and emails
-// the buyer that it has been picked up, with a link to follow it.
+// the buyer that it is packed and ready for dispatch. The AWB is optional:
+// the courier sends its own tracking updates.
 const COURIERS: Array<{ name: string; url?: (awb: string) => string }> = [
   { name: 'Delhivery', url: (a) => `https://www.delhivery.com/track-v2/package/${a}` },
   { name: 'Blue Dart', url: (a) => `https://www.bluedart.com/web/guest/trackdartresultthirdparty?trackFor=0&trackNo=${a}` },
@@ -1165,13 +1166,13 @@ function ShipForm({ order, onDone }: { order: Order; onDone: () => Promise<void>
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr(null);
-    if (!courierName) { setErr('Enter the courier.'); return; }
-    if (!cleanAwb) { setErr('Enter the AWB or tracking number.'); return; }
+    if (cleanAwb && !courierName) { setErr('Enter the courier.'); return; }
+
     if (url && !/^https?:\/\//i.test(url.trim())) { setErr('The tracking link must start with https://'); return; }
-    if (!confirm(`Email the buyer that ${order.order_number} has been picked up by ${courierName}, AWB ${cleanAwb}? The order moves to Shipped.`)) return;
+    if (!confirm(`Email the buyer that ${order.order_number} is packed and ready for dispatch${cleanAwb ? ` (${courierName}, AWB ${cleanAwb})` : ''}? The order moves to Shipped.`)) return;
     setBusy(true);
     try {
-      const shipped = { status: 'shipped', shipped_at: new Date().toISOString(), courier: courierName, tracking_number: cleanAwb, tracking_url: url.trim() || null };
+      const shipped = { status: 'shipped', shipped_at: new Date().toISOString(), courier: cleanAwb ? courierName : (order.courier ?? null), tracking_number: cleanAwb || (order.tracking_number ?? null), tracking_url: url.trim() || (order.tracking_url ?? null) };
       const { error } = await supabase.from('orders').update(shipped).eq('id', order.id);
       if (error) throw error;
       await writeAudit({ entity: 'order', entity_id: order.id, action: 'order.status.shipped', old_state: { status: order.status }, new_state: shipped });
@@ -1187,7 +1188,7 @@ function ShipForm({ order, onDone }: { order: Order; onDone: () => Promise<void>
   if (!open) return (
     <div className="flex flex-col gap-1.5">
       {legNote && <p className={cn('text-xs font-bold', !instant && 'text-amber-800')}>{legNote}</p>}
-      <ActBtn label="Ship it: add AWB" onClick={() => setOpen(true)} busy={false} />
+      <ActBtn label="Packed: notify buyer" onClick={() => setOpen(true)} busy={false} />
     </div>
   );
 
@@ -1195,6 +1196,7 @@ function ShipForm({ order, onDone }: { order: Order; onDone: () => Promise<void>
   return (
     <form onSubmit={submit} className="flex flex-col gap-2 border border-black p-3">
       <p className="text-[11px] font-black uppercase tracking-widest">Ship to buyer</p>
+      <p className="text-xs">Emails the buyer that it is packed and ready for dispatch, and that the courier will send tracking updates. The AWB is optional: add it if you have it.</p>
       {legNote && <p className={cn('text-xs font-bold', !instant && 'text-amber-800')}>{legNote}</p>}
       <label className="flex flex-col gap-1 text-xs">Courier
         <select value={courier} onChange={(e) => setCourier(e.target.value)} className={field}>
@@ -1203,7 +1205,7 @@ function ShipForm({ order, onDone }: { order: Order; onDone: () => Promise<void>
         </select>
       </label>
       {courier === 'Other' && <input value={other} onChange={(e) => setOther(e.target.value)} placeholder="Courier name" className={field} />}
-      <label className="flex flex-col gap-1 text-xs">AWB / tracking number
+      <label className="flex flex-col gap-1 text-xs">AWB / tracking number (optional)
         <input value={awb} onChange={(e) => setAwb(e.target.value)} autoFocus className={field} />
       </label>
       <label className="flex flex-col gap-1 text-xs">Tracking link (optional, filled in for Delhivery, Blue Dart, Xpressbees)
