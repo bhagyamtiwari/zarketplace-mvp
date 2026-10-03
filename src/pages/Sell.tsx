@@ -360,13 +360,15 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
     return job;
   }, [user]);
 
-  // Start each photo once it has settled: a photo still having its
-  // background removed is about to be replaced, so it waits for that.
+  // Every photo starts uploading the moment it is added, without waiting for
+  // its background removal: if a cleaned version arrives it uploads too, and
+  // if the vendor submits first, the original (already up) is what is used.
+  // That keeps Get my offer close to instant instead of waiting on the
+  // slowest background removal.
+  const submittingRef = React.useRef(false);
   React.useEffect(() => {
-    imageFiles.forEach((file, i) => {
-      if (!cleaning[i]) void uploadPhoto(file).catch(() => {});
-    });
-  }, [imageFiles, cleaning, uploadPhoto]);
+    imageFiles.forEach((file) => { void uploadPhoto(file).catch(() => {}); });
+  }, [imageFiles, uploadPhoto]);
 
   const [title, setTitle] = React.useState('');
   const [brand, setBrand] = React.useState('');
@@ -512,7 +514,9 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
       const index = startIndex + offset;
       setCleaning((prev) => ({ ...prev, [index]: true }));
       void atMost(removeBackground(file), CLEAN_TIMEOUT_MS, { processed: null }).then(({ processed }) => {
-        if (processed) {
+        // Once Get my offer is pressed the photos are fixed: a late cleaned
+        // version is dropped rather than swapped in under the submit.
+        if (processed && !submittingRef.current) {
           setOriginals((prev) => ({ ...prev, [index]: { file, preview: urls[offset] } }));
           const preview = URL.createObjectURL(processed);
           setImageFiles((prev) => prev.map((f, i) => (i === index ? processed : f)));
@@ -629,11 +633,15 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
     try {
       // Already resized and uploading since each photo was added (see
       // uploadPhoto); this only waits for anything still in flight.
-      const uploadedUrls: string[] = [];
-      for (let i = 0; i < imageFiles.length; i++) {
-        setUploadProgress({ done: i, total: imageFiles.length });
-        uploadedUrls.push(await uploadPhoto(imageFiles[i]));
-      }
+      submittingRef.current = true;
+      const total = imageFiles.length;
+      let done = imageFiles.filter((f) => uploaded.has(f)).length;
+      if (done < total) setUploadProgress({ done, total });
+      const uploadedUrls = await Promise.all(imageFiles.map((f) => {
+        const job = uploadPhoto(f);
+        if (!uploaded.has(f)) void job.then(() => { done += 1; setUploadProgress({ done: Math.min(done, total - 1), total }); }, () => {});
+        return job;
+      }));
       setUploadProgress(null);
 
       // Zero, and deliberately so. A vendor no longer names a number at all:
@@ -746,6 +754,7 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
       slog.error('handlePublish THREW', err);
       tFull.end({ outcome: 'error' });
       setStepError(err?.message || 'Failed to submit listing');
+      submittingRef.current = false;
     } finally {
       setLoading(false);
       setUploadProgress(null);
