@@ -569,11 +569,26 @@ export function ProductPage() {
             Your order is protected by{' '}
             <Link to="/buyer-protection" className="font-bold underline underline-offset-4 decoration-black/30 hover:decoration-black">Buyer Protection</Link>.
           </p>
+          {/* Instant Ship stock is on our shelf, so we can answer anything
+              about it today: a quiet way to ask, with the code filled in. */}
+          {listing.is_verified && !listing.is_sold && listing.sku && (
+            <p className="mt-2 text-sm leading-relaxed">
+              Questions about this piece?{' '}
+              <a
+                href={`https://wa.me/918505927538?text=${encodeURIComponent(`Hi, I have a question about ${listing.sku}`)}`}
+                target="_blank" rel="noopener noreferrer"
+                className="font-bold underline underline-offset-4 decoration-black/30 hover:decoration-black"
+              >
+                WhatsApp us
+              </a>{' '}
+              or email <a href={`mailto:contact@zarketplace.com?subject=${encodeURIComponent(`Question about ${listing.sku}`)}`} className="underline underline-offset-4 decoration-black/30 hover:decoration-black">contact@zarketplace.com</a>, quoting <span className="font-bold whitespace-nowrap">{listing.sku}</span>.
+            </p>
+          )}
 
           {/* MODEL.md §8: "it did not fit" is the biggest single reason used
               clothing comes back. Inches first; stored in centimetres. */}
           {measurements.length > 0 && (
-            <section className="mt-12 flex flex-col gap-4" aria-labelledby="measurements-heading">
+            <section className="mt-10 flex flex-col gap-3" aria-labelledby="measurements-heading">
               <div className="flex items-baseline justify-between gap-4">
                 <div className="flex flex-wrap items-baseline gap-x-2">
                   <h2 id="measurements-heading" className="text-[15px] font-bold">Measurements</h2>
@@ -645,13 +660,15 @@ export function ProductPage() {
                   />
                 </picture>
               )}
-              <dl className="grid grid-cols-3 gap-x-4 gap-y-5">
+              {/* One compact row, label then number, wrapping as needed. A
+                  three-column grid left wide gaps when an item has only two
+                  measurements. */}
+              <dl className="flex flex-wrap gap-x-7 gap-y-2 text-sm">
                 {measurements.map(([label, cm]) => (
-                  <div key={label} className="flex flex-col gap-1">
-                    <dt className="text-sm">{label}</dt>
-                    <dd className="text-lg font-bold tracking-tight tabular-nums">
-                      {formatLength(cm, unit)}
-                      <span className="ml-1 text-sm font-normal tracking-normal">{unit}</span>
+                  <div key={label} className="flex items-baseline gap-2">
+                    <dt>{label}</dt>
+                    <dd className="font-bold tabular-nums">
+                      {formatLength(cm, unit)}<span className="ml-0.5 font-normal">{unit}</span>
                     </dd>
                   </div>
                 ))}
@@ -660,7 +677,7 @@ export function ProductPage() {
           )}
 
           {(listing.description || listing.has_flaws) && (
-            <section id="flaws" className="mt-12 flex scroll-mt-32 flex-col gap-3">
+            <section id="flaws" className="mt-10 flex scroll-mt-32 flex-col gap-3">
               <h2 className="text-[15px] font-bold">Description</h2>
               {listing.description && (
                 <p className="text-sm leading-relaxed whitespace-pre-line">{listing.description}</p>
