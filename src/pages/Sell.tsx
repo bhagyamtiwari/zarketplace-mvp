@@ -973,7 +973,8 @@ export function SellSubmitted({ onItems, onAnother }: { onItems: () => void; onA
         </div>
         <h1 className={ui.pageTitle}>Item sent</h1>
         <p className="max-w-md text-[15px] leading-relaxed">
-          You will get an offer from us within 24 hours. If you accept it, your item goes on sale.
+          You will get an offer from us within 24 hours.<br />
+          If you accept it, your item goes on sale.
         </p>
         <p className="text-sm">It comes by email, so check your spam folder too.</p>
       </div>
