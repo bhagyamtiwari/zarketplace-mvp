@@ -10,6 +10,10 @@
       "destination": "/api/sitemap-items"
     },
     {
+      "source": "/merchant-feed.xml",
+      "destination": "/api/merchant-feed"
+    },
+    {
       "source": "/sell",
       "destination": "/api/page?path=/sell"
     },

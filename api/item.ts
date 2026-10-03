@@ -201,6 +201,16 @@ function productJsonLd(
           shippingDestination: { '@type': 'DefinedRegion', addressCountry: 'IN' },
         },
       } : {}),
+      // What Google shows as the returns line. Stated as it is: change of
+      // mind and fit are not returnable (one-of-one used pieces); an item
+      // that is wrong or not as described is refunded under Buyer Protection
+      // within 7 days of delivery, which is a claim, not a return window.
+      hasMerchantReturnPolicy: {
+        '@type': 'MerchantReturnPolicy',
+        applicableCountry: 'IN',
+        returnPolicyCategory: 'https://schema.org/MerchantReturnNotPermitted',
+        url: 'https://www.zarketplace.com/returns',
+      },
       seller: {
         '@type': 'Organization',
         '@id': 'https://www.zarketplace.com/#organisation',
