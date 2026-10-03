@@ -258,11 +258,15 @@ function ZoomView({ images, alt, index, onIndex, onClose }: {
 }) {
   const [scale, setScale] = React.useState(1);
   const [pan, setPan] = React.useState({ x: 0, y: 0 });
+  // At normal size a sideways swipe moves between photos, and the photo
+  // follows the finger while it does.
+  const [swipeX, setSwipeX] = React.useState(0);
+  const go = (delta: number) => { onIndex((index + delta + images.length) % images.length); reset(); };
   const drag = React.useRef<{ x: number; y: number; panX: number; panY: number; moved: boolean } | null>(null);
   const pinch = React.useRef<{ dist: number; scale: number } | null>(null);
 
   const MIN = 1, MAX = 4;
-  const reset = () => { setScale(1); setPan({ x: 0, y: 0 }); };
+  const reset = () => { setScale(1); setPan({ x: 0, y: 0 }); setSwipeX(0); };
 
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -283,22 +287,33 @@ function ZoomView({ images, alt, index, onIndex, onClose }: {
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
-    (e.target as Element).setPointerCapture?.(e.pointerId);
+    try { (e.target as Element).setPointerCapture?.(e.pointerId); } catch { /* not an active pointer */ }
     drag.current = { x: e.clientX, y: e.clientY, panX: pan.x, panY: pan.y, moved: false };
   };
   const onPointerMove = (e: React.PointerEvent) => {
-    if (!drag.current || scale === 1) return;
+    if (!drag.current) return;
     const dx = e.clientX - drag.current.x;
     const dy = e.clientY - drag.current.y;
     if (Math.abs(dx) > 4 || Math.abs(dy) > 4) drag.current.moved = true;
+    if (scale === 1) {
+      if (images.length > 1 && !pinch.current) setSwipeX(dx);
+      return;
+    }
     setPan({ x: drag.current.panX + dx, y: drag.current.panY + dy });
   };
-  const onPointerUp = () => {
-    const moved = drag.current?.moved;
+  const onPointerUp = (e: React.PointerEvent) => {
+    const d = drag.current;
     drag.current = null;
+    if (!d) return;
+    const dx = e.clientX - d.x;
+    if (scale === 1 && d.moved) {
+      setSwipeX(0);
+      if (images.length > 1 && !pinch.current && Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(e.clientY - d.y)) go(dx < 0 ? 1 : -1);
+      return;
+    }
     // A clean tap toggles magnification rather than closing, which is what
     // people reach for when a photo is already open.
-    if (!moved) setZoom(scale > 1 ? 1 : 2.5);
+    if (!d.moved) setZoom(scale > 1 ? 1 : 2.5);
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
@@ -334,6 +349,18 @@ function ZoomView({ images, alt, index, onIndex, onClose }: {
         className="relative flex-1 overflow-hidden"
         onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
       >
+        {images.length > 1 && (
+          <>
+            <button type="button" aria-label="Previous image" onClick={() => go(-1)}
+              className="absolute left-3 top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 items-center justify-center bg-white/15 text-white hover:bg-white/30 sm:flex">
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <button type="button" aria-label="Next image" onClick={() => go(1)}
+              className="absolute right-3 top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 items-center justify-center bg-white/15 text-white hover:bg-white/30 sm:flex">
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </>
+        )}
         <img
           src={variantUrl(images[index], 'full')}
           alt={alt}
@@ -342,13 +369,15 @@ function ZoomView({ images, alt, index, onIndex, onClose }: {
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
+          onPointerCancel={() => { drag.current = null; setSwipeX(0); }}
           onTouchMove={onTouchMove}
           onTouchEnd={() => { pinch.current = null; }}
           className={cn('absolute inset-0 m-auto max-h-full max-w-full object-contain',
             scale > 1 ? 'cursor-grab active:cursor-grabbing' : 'cursor-zoom-in')}
           style={{
             ...PROTECT,
-            transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${scale})`,
+            transform: `translate3d(${pan.x + swipeX}px, ${pan.y}px, 0) scale(${scale})`,
+            touchAction: 'none',
             transition: drag.current ? 'none' : 'transform 200ms ease-out',
           }}
         />
