@@ -109,6 +109,13 @@ const feedCache = new Map<string, FeedEntry>();
 const FEED_FRESH_MS = 3 * 60 * 1000;
 let facetCache: FacetRow[] | null = null;
 
+/** How many of PRICE_RANGES show before "More prices". */
+const PRICE_SHOWN = 4;
+
+// What a card needs, and nothing more: the feed no longer downloads every
+// item's description and measurements. An item page opened from the grid
+// draws from these at once and fetches the rest behind them.
+const GRID_COLUMNS = 'id,sku,title,brand,price,sale_price,size,size_type,image_url,image_urls,is_sold,is_verified,category,gender,condition,status,created_at';
 const PRICE_RANGES: Array<{ label: string; min: number | null; max: number | null }> = [
   { label: 'Under ₹1,500', min: null, max: 1499 },
   { label: '₹1,500 to ₹3,000', min: 1500, max: 3000 },
@@ -213,7 +220,7 @@ export function Marketplace() {
           .from('public_listings')
           // Not counted: no total is shown, and a count header makes the
           // browser send a preflight first, a second round trip.
-          .select('*')
+          .select(GRID_COLUMNS)
           .eq('status', 'approved')
           // Sold stock never reaches the buyer. Scrolling past things you cannot
           // buy is the single most irritating thing a resale feed can do, so the
@@ -302,7 +309,7 @@ export function Marketplace() {
         t.end({ count: data?.length, error });
         if (error) throw error;
 
-        let rows = data ?? [];
+        let rows = ((data ?? []) as unknown) as Listing[];
         let totalCount: number | null = count ?? null;
 
         // Local development with an empty catalogue: fall back to sample rows so
@@ -319,7 +326,7 @@ export function Marketplace() {
 
         // Keeps each favorite's snapshot current while it is still on sale.
         refreshSnapshots(rows as Listing[]);
-        rememberListings(rows as Listing[]);
+        rememberListings(rows as Listing[], { partial: true });
         fetchedAt.current = Date.now();
         setListings((prev) => (page === 0 ? rows : [...prev, ...rows]));
         if (page === 0) setTotal(totalCount);
@@ -471,15 +478,15 @@ export function Marketplace() {
         </span>
       </label>
 
-      <PanelSection title="Price" count={minPrice !== null || maxPrice !== null ? 1 : 0} defaultOpen>
-        <PriceFilter min={minPrice} max={maxPrice} onApply={setPrice} />
+      <PanelSection title="Gender" count={gender ? 1 : 0} fixed>
+        {GENDERS.map((g) => (
+          <CheckRow key={g} label={g} count={genderCount(g)} radio
+            checked={gender === g} onChange={() => toggleParam('gender', g)} />
+        ))}
       </PanelSection>
 
-      <PanelSection title="Condition" count={conditions.length} fixed>
-        {CONDITIONS.map((c) => (
-          <CheckRow key={c.name} label={c.name} count={conditionCounts.get(c.name) ?? 0}
-            checked={conditions.includes(c.name)} onChange={() => toggleInList('condition', conditions, c.name)} />
-        ))}
+      <PanelSection title="Price" count={minPrice !== null || maxPrice !== null ? 1 : 0} defaultOpen>
+        <PriceFilter min={minPrice} max={maxPrice} onApply={setPrice} />
       </PanelSection>
 
       <PanelSection title="Size" count={sizes.length}>
@@ -504,10 +511,10 @@ export function Marketplace() {
         <BrandFilter counts={brandCounts} selected={brands} onToggle={(b) => toggleInList('brand', brands, b)} />
       </PanelSection>
 
-      <PanelSection title="Gender" count={gender ? 1 : 0}>
-        {GENDERS.map((g) => (
-          <CheckRow key={g} label={g} count={genderCount(g)} radio
-            checked={gender === g} onChange={() => toggleParam('gender', g)} />
+      <PanelSection title="Condition" count={conditions.length} fixed>
+        {CONDITIONS.map((c) => (
+          <CheckRow key={c.name} label={c.name} count={conditionCounts.get(c.name) ?? 0}
+            checked={conditions.includes(c.name)} onChange={() => toggleInList('condition', conditions, c.name)} />
         ))}
       </PanelSection>
     </div>
@@ -574,7 +581,7 @@ export function Marketplace() {
         <aside aria-label="Filters" className="hidden lg:block w-60 shrink-0">
           <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto pr-2 scrollbar-hide">
             <div className="flex items-baseline justify-between pb-2">
-              <h2 className="text-sm font-black uppercase tracking-[0.2em]">Filter</h2>
+              <h2 className="text-sm font-black uppercase tracking-[0.2em]">Filters</h2>
               {activeFilterCount > 0 && (
                 <button type="button" onClick={clearAll} className="text-xs font-bold underline underline-offset-4">Clear all</button>
               )}
@@ -995,6 +1002,11 @@ function PriceFilter({ min, max, onApply }: {
   const [lo, setLo] = React.useState(min?.toString() ?? '');
   const [hi, setHi] = React.useState(max?.toString() ?? '');
   React.useEffect(() => { setLo(min?.toString() ?? ''); setHi(max?.toString() ?? ''); }, [min, max]);
+  // The ranges most of the shelf falls in show first; the rest are a tap
+  // away, and stay shown when one of them is the one chosen.
+  const hiddenChosen = PRICE_RANGES.slice(PRICE_SHOWN).some((r) => min === r.min && max === r.max);
+  const [more, setMore] = React.useState(hiddenChosen);
+  const showAll = more || hiddenChosen;
   const parse = (v: string) => (v.trim() && Number.isFinite(Number(v)) ? Math.max(0, Math.round(Number(v))) : null);
   const apply = (e?: React.FormEvent) => { e?.preventDefault(); onApply(parse(lo), parse(hi)); };
   return (
@@ -1008,11 +1020,18 @@ function PriceFilter({ min, max, onApply }: {
         <button type="submit" className="min-h-[40px] shrink-0 bg-black px-3 text-xs font-bold text-white">Go</button>
       </form>
       <div className="flex flex-col gap-1 pt-1">
-        {PRICE_RANGES.map((r) => (
+        {PRICE_RANGES.slice(0, showAll ? PRICE_RANGES.length : PRICE_SHOWN).map((r) => (
           <CheckRow key={r.label} label={r.label} radio
             checked={min === r.min && max === r.max}
             onChange={() => (min === r.min && max === r.max ? onApply(null, null) : onApply(r.min, r.max))} />
         ))}
+        {!hiddenChosen && (
+          <button type="button" onClick={() => setMore((m) => !m)} aria-expanded={showAll}
+            className="flex min-h-[36px] items-center gap-1.5 self-start text-xs font-bold underline underline-offset-4">
+            {showAll ? 'Fewer prices' : 'More prices'}
+            <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', showAll && 'rotate-180')} />
+          </button>
+        )}
       </div>
     </>
   );
