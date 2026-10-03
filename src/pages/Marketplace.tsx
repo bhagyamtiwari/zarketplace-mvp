@@ -7,6 +7,7 @@ import React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Search, SlidersHorizontal, X, Loader2, ChevronDown } from 'lucide-react';
 import { supabasePublic } from '../lib/supabase';
+import { rememberListings } from '../lib/listingCache';
 import { Listing } from '../types';
 import { ListingCard } from '../components/ListingCard';
 import { EmptyState } from '../components/EmptyState';
@@ -81,6 +82,7 @@ function applyDevFilters(
 // rows, so they are fetched once and counted in the browser: each option shows
 // how many items it would leave, given every other filter already chosen.
 interface FacetRow {
+  id: string; sale_price: number | null;
   brand: string | null; size_type: string | null; condition: string | null;
   category: string | null; gender: string | null; price: number; is_verified: boolean | null;
 }
@@ -101,6 +103,11 @@ function matchesFacets(r: FacetRow, f: Facets, skip?: FacetKey): boolean {
   if (skip !== 'instant' && f.quick === 'verified' && !r.is_verified) return false;
   return true;
 }
+
+interface FeedEntry { listings: Listing[]; total: number | null; page: number; at: number }
+const feedCache = new Map<string, FeedEntry>();
+const FEED_FRESH_MS = 3 * 60 * 1000;
+let facetCache: FacetRow[] | null = null;
 
 const PRICE_RANGES: Array<{ label: string; min: number | null; max: number | null }> = [
   { label: 'Under ₹1,500', min: null, max: 1499 },
@@ -145,10 +152,25 @@ export function Marketplace() {
   // cannot distinguish "nothing near you" from "nothing here".
 
 
-  const [listings, setListings] = React.useState<Listing[]>([]);
-  const [total, setTotal] = React.useState<number | null>(null);
-  const [page, setPage] = React.useState(0);
-  const [state, setState] = React.useState<'loading' | 'paging' | 'ready' | 'error'>('loading');
+  // The favorites view also reloads when the account's list has just been
+  // read (after signing in, or on returning to the tab), so a heart added on
+  // another device shows up without a refresh.
+  const syncTick = useFavoritesSyncTick();
+  const filterKey = [category, gender, brandsKey, sizesKey, conditionsKey, minPrice, maxPrice, quick, searchQuery, sortBy, quick === 'saved' ? syncTick : 0].join('|');
+
+  // Coming back to the shop (from an item, or the back button) draws the feed
+  // that was there, every page of it, instead of a skeleton and a refetch.
+  const [restored] = React.useState(() => {
+    const c = feedCache.get(filterKey);
+    return c && Date.now() - c.at < FEED_FRESH_MS ? c : null;
+  });
+  const skipFirstFetch = React.useRef(!!restored);
+  const fetchedAt = React.useRef(restored?.at ?? 0);
+  const [listings, setListings] = React.useState<Listing[]>(() => restored?.listings ?? []);
+  // Set once the end of the feed is reached: how many there are in all.
+  const [total, setTotal] = React.useState<number | null>(() => restored?.total ?? null);
+  const [page, setPage] = React.useState(() => restored?.page ?? 0);
+  const [state, setState] = React.useState<'loading' | 'paging' | 'ready' | 'error'>(() => (restored ? 'ready' : 'loading'));
   const [showFilters, setShowFilters] = React.useState(false);
   const [reloadKey, setReloadKey] = React.useState(0);
   // Favorites that have left the shop (sold, or taken off it), shown under
@@ -166,25 +188,33 @@ export function Marketplace() {
   const favoritesRef = React.useRef(favorites);
   favoritesRef.current = favorites;
 
-  // The favorites view also reloads when the account's list has just been
-  // read (after signing in, or on returning to the tab), so a heart added on
-  // another device shows up without a refresh.
-  const syncTick = useFavoritesSyncTick();
-  const filterKey = [category, gender, brandsKey, sizesKey, conditionsKey, minPrice, maxPrice, quick, searchQuery, sortBy, quick === 'saved' ? syncTick : 0].join('|');
-
-  // Any filter change starts a fresh feed rather than appending to the old one.
-  React.useEffect(() => { setPage(0); }, [filterKey]);
+  // Any filter change starts a fresh feed rather than appending to the old
+  // one. Not on first mount: a feed restored from the cache keeps its pages.
+  const lastFilterKey = React.useRef(filterKey);
+  React.useEffect(() => {
+    if (lastFilterKey.current === filterKey) return;
+    lastFilterKey.current = filterKey;
+    setPage(0);
+  }, [filterKey]);
 
   React.useEffect(() => {
+    if (skipFirstFetch.current) { skipFirstFetch.current = false; return; }
     let cancelled = false;
     const t = mlog.time('fetchPage');
-    setState(page === 0 ? 'loading' : 'paging');
+    // A filter already looked at this visit shows its last result at once,
+    // and the fresh one replaces it when it lands.
+    const cached = page === 0 ? feedCache.get(filterKey) : undefined;
+    if (cached) { setListings(cached.listings.slice(0, PAGE_SIZE)); setTotal(cached.total); setState('ready'); }
+    else setState(page === 0 ? 'loading' : 'paging');
 
     async function fetchPage() {
       try {
         let query = supabasePublic
           .from('public_listings')
-          .select('*', page === 0 ? { count: 'exact' } : {})
+          // Counted on the server only for a search. Every other total comes
+          // from the facet rows below, which saves the request a round trip
+          // (a count header makes the browser send a preflight first).
+          .select('*', page === 0 && searchQuery ? { count: 'exact' } : {})
           .eq('status', 'approved')
           // Sold stock never reaches the buyer. Scrolling past things you cannot
           // buy is the single most irritating thing a resale feed can do, so the
@@ -274,7 +304,7 @@ export function Marketplace() {
         if (error) throw error;
 
         let rows = data ?? [];
-        let totalCount = count ?? rows.length;
+        let totalCount: number | null = count ?? null;
 
         // Local development with an empty catalogue: fall back to sample rows so
         // the feed can actually be looked at. Never runs in a production build,
@@ -290,6 +320,8 @@ export function Marketplace() {
 
         // Keeps each favorite's snapshot current while it is still on sale.
         refreshSnapshots(rows as Listing[]);
+        rememberListings(rows as Listing[]);
+        fetchedAt.current = Date.now();
         setListings((prev) => (page === 0 ? rows : [...prev, ...rows]));
         if (page === 0) setTotal(totalCount);
         // A short page means we've reached the end; remember it via total.
@@ -307,7 +339,13 @@ export function Marketplace() {
     return () => { cancelled = true; };
   }, [filterKey, page, reloadKey]);
 
-  const hasMore = total !== null && listings.length < total;
+  const hasMore = total === null ? listings.length > 0 && listings.length % PAGE_SIZE === 0 : listings.length < total;
+
+  // Remember this feed for coming back to it.
+  React.useEffect(() => {
+    if (state !== 'ready' || fetchedAt.current === 0) return;
+    feedCache.set(filterKey, { listings, total, page, at: fetchedAt.current });
+  }, [state, listings, total, page, filterKey]);
   // Un-hearting one of these takes it off the list straight away.
   const goneShown = gone.filter((g) => favorites.has(g.id));
 
@@ -325,16 +363,16 @@ export function Marketplace() {
   }, [hasMore, state]);
 
   // The shelf's facet fields, for the counts beside each filter option.
-  const [facetRows, setFacetRows] = React.useState<FacetRow[]>([]);
+  const [facetRows, setFacetRows] = React.useState<FacetRow[]>(() => facetCache ?? []);
   React.useEffect(() => {
     let live = true;
     supabasePublic
       .from('public_listings')
-      .select('brand,size_type,condition,category,gender,price,is_verified')
+      .select('id,brand,size_type,condition,category,gender,price,sale_price,is_verified')
       .eq('status', 'approved')
       .or('is_sold.is.null,is_sold.eq.false')
       .limit(2000)
-      .then(({ data }) => { if (live && data) setFacetRows(data as FacetRow[]); });
+      .then(({ data }) => { if (data) facetCache = data as FacetRow[]; if (live && data) setFacetRows(data as FacetRow[]); });
     return () => { live = false; };
   }, []);
 
@@ -365,6 +403,14 @@ export function Marketplace() {
     setParams([['min', min === null ? null : String(min)], ['max', max === null ? null : String(max)]]);
 
   const facets: Facets = { category, gender, quick, brands, sizes, conditions, min: minPrice, max: maxPrice };
+  // How many items match, counted from the facet rows (the whole shelf), so
+  // the number is there before the feed has paged to its end. A search is
+  // the one view counted by the server.
+  const shownTotal = searchQuery || facetRows.length === 0 ? total : facetRows.filter((r) =>
+    matchesFacets(r, facets)
+    && (quick !== 'under_999' || r.price <= 999)
+    && (quick !== 'sale' || r.sale_price != null)
+    && (quick !== 'saved' || favorites.has(r.id))).length;
   const countBy = (skip: FacetKey, pick: (r: FacetRow) => string | null) => {
     const m = new Map<string, number>();
     for (const r of facetRows) {
@@ -549,10 +595,10 @@ export function Marketplace() {
         </aside>
 
         <div className="min-w-0 flex-1 flex flex-col gap-4">
-          {(chips.length > 0 || total !== null) && (
+          {(chips.length > 0 || shownTotal !== null) && (
             <div className="flex flex-wrap items-center gap-2">
-              {total !== null && state !== 'loading' && (
-                <span className="mr-2 text-sm font-bold">{total} {total === 1 ? 'item' : 'items'}</span>
+              {shownTotal !== null && state !== 'loading' && (
+                <span className="mr-2 text-sm font-bold">{shownTotal} {shownTotal === 1 ? 'item' : 'items'}</span>
               )}
               {chips.map((c) => (
                 <button key={c.label} type="button" onClick={c.remove} aria-label={`Remove ${c.label}`}
@@ -713,7 +759,7 @@ export function Marketplace() {
                 onClick={() => setShowFilters(false)}
                 className="flex-1 bg-black py-4 text-[11px] font-black uppercase tracking-widest text-white"
               >
-                {state === 'loading' ? 'Show items' : `Show ${total ?? listings.length} ${(total ?? listings.length) === 1 ? 'item' : 'items'}`}
+                {state === 'loading' ? 'Show items' : `Show ${shownTotal ?? listings.length} ${(shownTotal ?? listings.length) === 1 ? 'item' : 'items'}`}
               </button>
             </div>
           </div>

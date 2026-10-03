@@ -197,6 +197,34 @@ function AdminHostApp() {
   );
 }
 
+// The pages people go to next, fetched once the first page has settled, so
+// opening an item, the cart or the account draws at once instead of first
+// downloading its code. Skipped when the browser asks to save data.
+function prefetchRoutes() {
+  const conn = (navigator as any).connection;
+  if (conn?.saveData || /(^|-)2g$/.test(conn?.effectiveType ?? '')) return;
+  const idle = (window as any).requestIdleCallback ?? ((cb: () => void) => setTimeout(cb, 1500));
+  idle(() => {
+    void import('./pages/ProductPage');
+    void import('./pages/Cart');
+    void import('./pages/Sell');
+    void import('./pages/AccountHome');
+    void import('./pages/SellerPortal');
+    void import('./pages/TrackOrder');
+    void import('./pages/Checkout');
+  });
+}
+
+function RoutePrefetch() {
+  useEffect(() => {
+    const start = () => setTimeout(prefetchRoutes, 1200);
+    if (document.readyState === 'complete') { const t = start(); return () => clearTimeout(t); }
+    window.addEventListener('load', start, { once: true });
+    return () => window.removeEventListener('load', start);
+  }, []);
+  return null;
+}
+
 export default function App() {
   if (isAdminHost) return <AdminHostApp />;
   return (
@@ -205,6 +233,7 @@ export default function App() {
       <CartProvider>
       <FavoritesSync />
       <ScrollToTop />
+      <RoutePrefetch />
       {/* A column that is at least a screen tall, with the page taking the
           spare height, so a short page (an empty cart, a sign-in gate) keeps
           its footer at the bottom of the screen instead of halfway up it. */}

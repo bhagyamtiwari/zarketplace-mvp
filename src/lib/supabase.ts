@@ -56,7 +56,33 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 // read or refresh, so this client sends the anon key immediately. Safe because
 // public_listings is a definer view carrying only buyer-safe columns: a user
 // token would grant it nothing extra.
+//
+// Its reads are also sent as "simple" requests. supabase-js puts the key in
+// apikey and Authorization headers (plus x-client-info and Accept-Profile),
+// and any custom header makes the browser send a CORS preflight first: two
+// round trips for every catalogue read, and the preflight is cached per URL,
+// so every new filter paid it again. A GET with the anon key in the query
+// string and no custom headers goes in one trip. Only for anon GETs without a
+// Prefer header; anything else is sent unchanged.
+const DEFAULT_PROFILE = 'public';
+async function simpleFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const method = (init?.method ?? 'GET').toUpperCase();
+  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+  const headers = new Headers(init?.headers);
+  const anonAuth = !headers.get('authorization') || headers.get('authorization') === `Bearer ${supabaseAnonKey}`;
+  const profile = headers.get('accept-profile');
+  if ((method !== 'GET' && method !== 'HEAD') || !url.includes('/rest/v1/') || !anonAuth
+      || headers.has('prefer') || (profile && profile !== DEFAULT_PROFILE)) {
+    return fetch(input, init);
+  }
+  const u = new URL(url);
+  u.searchParams.set('apikey', supabaseAnonKey);
+  const accept = headers.get('accept');
+  return fetch(u.toString(), { method, signal: init?.signal, headers: accept ? { Accept: accept } : undefined });
+}
+
 export const supabasePublic = createClient(supabaseUrl, supabaseAnonKey, {
+  global: { fetch: simpleFetch },
   auth: {
     lock: async (_name, _acquireTimeout, fn) => fn(),
     persistSession: false,

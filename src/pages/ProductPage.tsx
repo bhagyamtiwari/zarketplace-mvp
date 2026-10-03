@@ -1,6 +1,7 @@
 import React from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { supabase, supabasePublic } from '../lib/supabase';
+import { cachedListing, rememberListings } from '../lib/listingCache';
 import { Listing } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { variantUrl } from '../lib/images';
@@ -83,10 +84,11 @@ export function ProductPage() {
   const { add, has } = useCart();
   const { user, profile } = useAuth();
   const [authModal, setAuthModal] = React.useState<null | { redirectTo: string; onSuccess?: () => void; message?: string }>(null);
-  const [listing, setListing] = React.useState<Listing | null>(null);
+  // Drawn at once from the shop's copy when there is one; refreshed below.
+  const [listing, setListing] = React.useState<Listing | null>(() => cachedListing(slug));
   const [shippingCategories, setShippingCategories] = React.useState<ShippingCategory[]>([]);
   React.useEffect(() => { getShippingCategories().then(setShippingCategories); }, []);
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(() => !cachedListing(slug));
   // A failed read is not a missing item: it says so and asks for a reload,
   // instead of "Listing not found".
   const [loadFailed, setLoadFailed] = React.useState(false);
@@ -147,13 +149,16 @@ export function ProductPage() {
     async function fetchListing() {
       if (!slug) return;
       const t = plog.time(`fetch ${slug}`);
-      setLoading(true);
+      const cached = cachedListing(slug);
+      if (cached) setListing(cached);
+      setLoading(!cached);
       setLoadFailed(false);
       try {
         // SKU lookup is case-insensitive; UUID lookup uses .eq on id.
         const isUuid = UUID_RE.test(slug);
         // Public catalogue read from the safe view first.
-        const pub = supabase.from('public_listings').select('*');
+        // The anon client: a public read never waits on the session.
+        const pub = supabasePublic.from('public_listings').select('*');
         const { data: pubData, error: pubError } = isUuid
           ? await pub.eq('id', slug).maybeSingle()
           : await pub.in('sku', skuForms(slug)).maybeSingle();
@@ -162,7 +167,7 @@ export function ProductPage() {
         let data = pubData as Listing | null;
         // Sold pieces stay viewable: greyed, tagged and not for sale.
         if (!data) {
-          const sold = supabase.from('public_sold_listings').select('*');
+          const sold = supabasePublic.from('public_sold_listings').select('*');
           const { data: soldData } = isUuid ? await sold.eq('id', slug).maybeSingle() : await sold.in('sku', skuForms(slug)).maybeSingle();
           data = (soldData as Listing | null) ?? null;
         }
@@ -179,10 +184,13 @@ export function ProductPage() {
           data = baseData as Listing | null;
         }
         t.end({ found: !!data });
-        setListing(data);
+        // A cached copy is not replaced by "not found" for an owner whose
+        // fallback read needs the session that has not arrived yet.
+        if (data || !cached) setListing(data);
+        if (data) rememberListings([data]);
       } catch (err) {
         plog.error('fetch THREW', err);
-        setLoadFailed(true);
+        if (!cached) setLoadFailed(true);
       } finally {
         setLoading(false);
       }
@@ -209,7 +217,7 @@ export function ProductPage() {
     if (!listing) return;
     let cancelled = false;
     (async () => {
-      const { data: sameCategory } = await supabase
+      const { data: sameCategory } = await supabasePublic
         .from('public_listings')
         .select('*')
         .eq('category', listing.category ?? '')
@@ -218,9 +226,10 @@ export function ProductPage() {
         .limit(8);
       if (cancelled) return;
       const picks = (sameCategory as Listing[] | null) ?? [];
+      rememberListings(picks);
       if (picks.length >= 4) { setYouMayLike(picks.slice(0, 4)); return; }
 
-      const { data: fallback } = await supabase
+      const { data: fallback } = await supabasePublic
         .from('public_listings')
         .select('*')
         .neq('id', listing.id)
@@ -229,10 +238,12 @@ export function ProductPage() {
       if (cancelled) return;
       const seen = new Set(picks.map((l) => l.id));
       const merged = [...picks, ...((fallback as Listing[] | null) ?? []).filter((l) => !seen.has(l.id))];
+      rememberListings(merged);
       setYouMayLike(merged.slice(0, 4));
     })();
     return () => { cancelled = true; };
-  }, [listing]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [listing?.id, listing?.category]);
 
   // The tab title, description and canonical for this item, the same ones
   // api/item.ts writes into the first response, so a visit that arrives by
