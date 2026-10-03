@@ -5,15 +5,16 @@
 import * as React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth, useFirstName } from '../lib/auth';
-import { useOpenOfferCount } from '../lib/openOffers';
+import { useOpenOffers } from '../lib/openOffers';
 import { ui } from '../lib/ui';
 import { cn } from '../lib/utils';
 
-export type AccountTab = 'orders' | 'items' | 'profile';
+export type AccountTab = 'orders' | 'items' | 'payouts' | 'profile';
 
 const TABS: Array<{ key: AccountTab; to: string; label: string }> = [
   { key: 'orders', to: '/account/orders', label: 'Your orders' },
   { key: 'items', to: '/account/items', label: 'Your items' },
+  { key: 'payouts', to: '/account/payouts', label: 'Your payouts' },
   { key: 'profile', to: '/account/profile', label: 'Profile' },
 ];
 
@@ -21,7 +22,8 @@ export function AccountLayout({ tab, children }: { tab: AccountTab; children: Re
   const { user, emailVerified, resendVerification, signOut } = useAuth();
   const navigate = useNavigate();
   const firstName = useFirstName();
-  const offers = useOpenOfferCount();
+  const offerIds = useOpenOffers();
+  const offers = offerIds.length;
   const [notice, setNotice] = React.useState<string | null>(null);
 
   return (
@@ -49,6 +51,22 @@ export function AccountLayout({ tab, children }: { tab: AccountTab; children: Re
             </button>
             {notice && <span className="ml-2">{notice}</span>}
           </p>
+        )}
+        {/* A new offer is said in words on every part of the account, not
+            only as a number on a tab: an offer runs out, so it should be
+            seen the moment someone opens their account. */}
+        {offers > 0 && (
+          <Link to={offers === 1 ? `/offer/${offerIds[0]}` : '/account/items'}
+            className="group flex items-center justify-between gap-4 border-2 border-black bg-amber-100 px-4 py-3 sm:px-5 hover:bg-amber-200 transition-colors">
+            <span className="flex items-center gap-3">
+              <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full bg-amber-400 ring-4 ring-amber-400/30" />
+              <span className="text-sm font-bold">
+                {offers === 1 ? 'You have a new offer.' : `You have ${offers} new offers.`}{' '}
+                <span className="font-normal">Review {offers === 1 ? 'it' : 'them'} before {offers === 1 ? 'it runs' : 'they run'} out.</span>
+              </span>
+            </span>
+            <span className="shrink-0 text-[11px] font-black uppercase tracking-[0.2em] group-hover:underline underline-offset-4">Review</span>
+          </Link>
         )}
         <nav className="-mb-px flex gap-7 overflow-x-auto border-b border-black/10" aria-label="Your account">
           {TABS.map((t) => (

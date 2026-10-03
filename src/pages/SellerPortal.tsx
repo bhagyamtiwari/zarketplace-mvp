@@ -9,8 +9,9 @@
 //            home, what is moving, what sold
 //   Share    a branded Instagram image of anything live, if you want one
 //
-// Payouts used to be a tab of their own. They are the number a vendor came
-// here for, so they now head the items they belong to, at display size.
+// Payouts have their own tab again (/account/payouts): the estimate counted
+// up, a bar of how much is secured, and every item with its own number and
+// time left. Your items keeps a one-line summary that links there.
 //
 // It used to be a sidebar (your email, counts, a nav in tracked caps, an
 // "Other" group holding one link) beside uppercase tables. The sidebar said
@@ -43,17 +44,19 @@ const splog = log('seller');
 
 export type PortalTab = 'listings' | 'tools';
 
-export function SellerPortal() {
-  usePageMeta(META.vendorPortal);
+export type PortalView = 'items' | 'payouts';
+
+export function SellerPortal({ view = 'items' }: { view?: PortalView }) {
+  usePageMeta(view === 'payouts' ? META.vendorPayouts : META.vendorPortal);
 
   return (
-    <RequireAuth message="Sign in to see your items.">
-      <SellerInner />
+    <RequireAuth message={view === 'payouts' ? 'Sign in to see your payouts.' : 'Sign in to see your items.'}>
+      <SellerInner view={view} />
     </RequireAuth>
   );
 }
 
-function SellerInner() {
+function SellerInner({ view }: { view: PortalView }) {
   const { user } = useAuth();
   // Deep-linkable: /vendor-portal?tab=tools lands straight on Share. The old
   // ?tab=payouts lands on Items, which is where payouts are now.
@@ -129,6 +132,7 @@ function SellerInner() {
 
   return (
     <VendorPortalView
+      view={view}
       tab={tab}
       onTab={setTab}
       listings={listings}
@@ -170,7 +174,8 @@ function afterSale(l: Listing, offer: VendorOffer | undefined, ship: InboundShip
 }
 
 /** The page, from data. Kept apart from the fetching so it can be looked at. */
-export function VendorPortalView({ tab, onTab, listings, offers, shipments = NO_SHIPMENTS, loading, error, onDelete, deletingId, onChanged }: {
+export function VendorPortalView({ view = 'items', tab, onTab, listings, offers, shipments = NO_SHIPMENTS, loading, error, onDelete, deletingId, onChanged }: {
+  view?: PortalView;
   tab: PortalTab;
   onTab: (t: PortalTab) => void;
   listings: Listing[];
@@ -203,6 +208,15 @@ export function VendorPortalView({ tab, onTab, listings, offers, shipments = NO_
   const sold = listings.filter((l) => l.is_sold && !needsYou.includes(l) && !shipNow.includes(l));
   const inProgress = listings.filter((l) => !l.is_sold && !withYou.includes(l) && !needsYou.includes(l) && !shipNow.includes(l));
 
+  if (view === 'payouts') {
+    return (
+      <AccountLayout tab="payouts">
+        {error && <p className={ui.error}>{error}</p>}
+        {loading ? <Loading className="h-64" /> : <PayoutsView listings={listings} offers={offers} statusOf={statusOf} />}
+      </AccountLayout>
+    );
+  }
+
   return (
     <AccountLayout tab="items">
       <div className="flex flex-col gap-8">
@@ -230,7 +244,7 @@ export function VendorPortalView({ tab, onTab, listings, offers, shipments = NO_
             </div>
           ) : (
             <div className="flex flex-col gap-14">
-              <PayoutSummary listings={listings} offers={offers} statusOf={statusOf} />
+              <PayoutStrip listings={listings} offers={offers} statusOf={statusOf} />
               {shipNow.length > 0 && <ShipNow rows={shipNow} offers={offers} shipments={shipments} onChanged={onChanged} />}
               {needsYou.length > 0 && <NeedsYou rows={needsYou} offers={offers} statusOf={statusOf} onDelete={onDelete} deletingId={deletingId} />}
               {withYou.length > 0 && <WithYou rows={withYou} offers={offers} statusOf={statusOf} onChanged={onChanged} />}
@@ -528,9 +542,9 @@ function NeedsYou({ rows, offers, statusOf, onDelete, deletingId }: {
   const others = rows.filter((l) => statusOf(l).key !== 'offer_ready');
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-4">
       {withOffer.map((l) => (
-        <OfferReadyCard key={l.id} listing={l} amount={offers.get(l.id)?.offer_amount ?? null} />
+        <OfferReadyCard key={l.id} listing={l} amount={offers.get(l.id)?.offer_amount ?? null} expiresAt={offers.get(l.id)?.offer_expires_at ?? null} />
       ))}
 
       {others.length > 0 && (
@@ -559,37 +573,48 @@ function NeedsYou({ rows, offers, statusOf, onDelete, deletingId }: {
 }
 
 /**
- * The open offer, as its own black-bordered card: the photo they sent, the
- * number, and what accepting does. The photo is here because an offer lands
- * days after the item was sent, and the number means nothing until the vendor
- * has recognised which item it is for.
+ * An open offer: the photo they sent (an offer lands days later, and the
+ * number means nothing until the item is recognised), the number, how long
+ * it stands, and the way in. One compact row, not a poster: it should be
+ * the first thing seen, not the only thing on the screen.
  */
-export function OfferReadyCard({ listing, amount }: { key?: string; listing: Listing; amount: number | null }) {
+export function OfferReadyCard({ listing, amount, expiresAt }: { key?: string; listing: Listing; amount: number | null; expiresAt?: string | null }) {
+  const left = daysUntil(expiresAt);
   return (
-    <div className="flex flex-col gap-6 border-2 border-black p-6 sm:p-10">
-      <div className="flex items-start gap-5">
-        <div className="h-24 w-[72px] shrink-0 overflow-hidden bg-zinc-100 sm:h-28 sm:w-[84px]">
-          <img src={variantUrl(listing.image_url, 'thumb')} alt="" className="h-full w-full object-cover" />
-        </div>
-        <div className="flex flex-col gap-2">
-          <h2 className="text-2xl sm:text-3xl font-black uppercase tracking-tighter leading-none">Your offer is ready</h2>
-          <p className={ui.help}>
-            For <span className="font-bold">{listing.title}</span>.
-          </p>
-        </div>
+    <Link to={`/offer/${listing.id}`}
+      className="group flex items-center gap-4 border-2 border-black bg-white p-3 sm:gap-5 sm:p-4 hover:bg-amber-50 transition-colors">
+      <div className="relative h-20 w-[60px] shrink-0 overflow-hidden bg-zinc-100">
+        <img src={variantUrl(listing.image_url, 'thumb')} alt="" className="h-full w-full object-cover" />
       </div>
-      {amount != null && (
-        <div className="flex flex-col gap-2">
-          <span className="text-sm font-bold">Your payout</span>
-          <p className="text-4xl sm:text-5xl font-black tracking-tighter leading-none tabular-nums">
-            {formatCurrency(Number(amount))}
-          </p>
-        </div>
-      )}
-      <p className="text-[15px] font-bold">We pay you this if your item sells within 30 days.</p>
-      <Link to={`/offer/${listing.id}`} className={cn(ui.btnPrimary, 'self-start')}>Review and accept</Link>
-    </div>
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className="inline-flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em]">
+          <span aria-hidden className="h-2 w-2 rounded-full bg-amber-400 ring-4 ring-amber-400/30" />
+          Offer ready
+        </span>
+        <span className="truncate text-[15px] font-bold leading-snug">{listing.title}</span>
+        {expiresAt && (
+          <span className={cn('text-xs', left != null && left <= 2 && 'font-bold text-red-700')}>
+            {left === 0 ? 'Last day to accept' : `Accept by ${formatDay(expiresAt)}${left != null ? `, ${left} day${left === 1 ? '' : 's'} left` : ''}`}
+          </span>
+        )}
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-2">
+        {amount != null && (
+          <span className="text-2xl sm:text-3xl font-black tracking-tighter leading-none tabular-nums">{formatCurrency(Number(amount))}</span>
+        )}
+        <span className="bg-black px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-white group-hover:bg-zinc-800">Review</span>
+      </div>
+    </Link>
   );
+}
+
+function daysUntil(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  return Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000));
+}
+
+function formatDay(iso: string): string {
+  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 }
 
 // The items physically in the vendor's home. Days left rather than a date:
@@ -674,54 +699,307 @@ function WithYou({ rows, offers, statusOf, onChanged }: {
   );
 }
 
-// Where each accepted item's payout stands. Held apart because they are not
-// the same promise: an item on sale pays only if it sells within 30 days, a
-// sold one pays once it reaches us and passes our check, a paid one is done.
+// Where each item's payout stands. Held apart because they are not the same
+// promise: an item on sale pays only if it sells within 30 days, a sold one
+// pays once it reaches us and passes our check, a paid one is done.
 const ON_SALE = new Set(['live', 'live_check_due']);
 const ON_ITS_WAY = new Set(['sold', 'awaiting_pickup', 'in_transit', 'received']);
+const WAITING_OFFER = new Set(['offer_ready']);
+const ENDED = new Set(['declined', 'offer_rejected', 'offer_expired', 'not_accepted', 'expired', 'delisted', 'withdrawn']);
 
-/**
- * The vendor's payouts, at the top of their items and at display size: the
- * money is what they came to this page for. Built entirely from their own
- * offers. Nothing here reads an order: a payout follows us accepting the
- * item at our hub, nothing else. Only amounts that exist are shown, so a
- * first-time vendor is not greeted by a row of zeroes.
- */
-function PayoutSummary({ listings, offers, statusOf }: {
+type PayoutGroup = 'offers' | 'on_sale' | 'on_its_way' | 'paid' | 'reviewing' | 'ended';
+
+function groupOf(key: string): PayoutGroup {
+  if (WAITING_OFFER.has(key)) return 'offers';
+  if (ON_SALE.has(key)) return 'on_sale';
+  if (ON_ITS_WAY.has(key)) return 'on_its_way';
+  if (key === 'paid') return 'paid';
+  if (ENDED.has(key)) return 'ended';
+  return 'reviewing';
+}
+
+interface PayoutTotals { onSale: number; onItsWay: number; paid: number; offers: number; onSaleCount: number; offerCount: number }
+
+function totalsOf(listings: Listing[], offers: Map<string, VendorOffer>, statusOf: (l: Listing) => VendorStatusView): PayoutTotals {
+  const t: PayoutTotals = { onSale: 0, onItsWay: 0, paid: 0, offers: 0, onSaleCount: 0, offerCount: 0 };
+  for (const l of listings) {
+    const amount = Number(offers.get(l.id)?.offer_amount ?? 0);
+    const g = groupOf(statusOf(l).key);
+    if (g === 'on_sale') { t.onSale += amount; t.onSaleCount += 1; }
+    else if (g === 'on_its_way') t.onItsWay += amount;
+    else if (g === 'paid') t.paid += amount;
+    else if (g === 'offers') { t.offers += amount; t.offerCount += 1; }
+  }
+  return t;
+}
+
+/** The payouts in one line at the top of Your items, with the way to the full picture. */
+function PayoutStrip({ listings, offers, statusOf }: {
   listings: Listing[];
   offers: Map<string, VendorOffer>;
   statusOf: (l: Listing) => VendorStatusView;
 }) {
-  const onSale = listings.filter((l) => ON_SALE.has(statusOf(l).key)).length;
-  const sum = (keys: Set<string>) => listings.reduce((total, l) => {
-    const amount = offers.get(l.id)?.offer_amount;
-    return amount != null && keys.has(statusOf(l).key) ? total + Number(amount) : total;
-  }, 0);
+  const t = totalsOf(listings, offers, statusOf);
+  const estimate = t.onSale + t.onItsWay;
+  if (estimate + t.paid === 0) return null;
+  return (
+    <Link to="/account/payouts" className="group flex flex-wrap items-center justify-between gap-x-8 gap-y-3 bg-black px-5 py-4 text-white sm:px-6">
+      <span className="flex flex-wrap items-baseline gap-x-8 gap-y-2">
+        <span className="flex flex-col">
+          <span className="text-xs font-bold text-white/70">Your estimated payout</span>
+          <span className="text-2xl sm:text-3xl font-black tracking-tighter tabular-nums">{formatCurrency(estimate)}</span>
+        </span>
+        {t.onItsWay > 0 && (
+          <span className="flex flex-col">
+            <span className="text-xs font-bold text-white/70">On its way to you</span>
+            <span className="text-lg font-black tracking-tight tabular-nums">{formatCurrency(t.onItsWay)}</span>
+          </span>
+        )}
+        {t.paid > 0 && (
+          <span className="flex flex-col">
+            <span className="text-xs font-bold text-white/70">Paid to you</span>
+            <span className="text-lg font-black tracking-tight tabular-nums">{formatCurrency(t.paid)}</span>
+          </span>
+        )}
+      </span>
+      <span className="text-[11px] font-black uppercase tracking-[0.2em] group-hover:underline underline-offset-4">See your payouts</span>
+    </Link>
+  );
+}
 
-  const stats = [
-    { label: 'Your estimated payout', amount: sum(ON_SALE), note: onSale === 1 ? 'If it sells within 30 days.' : 'If each item sells within 30 days.' },
-    { label: 'Paid to you', amount: sum(new Set(['paid'])), note: 'Sent to your UPI ID.' },
-    { label: 'On its way to you', amount: sum(ON_ITS_WAY), note: 'Sold. Paid once it reaches us and passes our check.' },
-  ].filter((x) => x.amount > 0);
+/** Counts up to a number once, so a payout lands rather than sits there. */
+function useCountUp(target: number, ms = 900): number {
+  const [value, setValue] = React.useState(target);
+  const from = React.useRef(0);
+  React.useEffect(() => {
+    if (typeof window === 'undefined' || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) { setValue(target); return; }
+    const start = performance.now();
+    const begin = from.current;
+    let raf = 0;
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - start) / ms);
+      const eased = 1 - Math.pow(1 - p, 3);
+      setValue(Math.round(begin + (target - begin) * eased));
+      if (p < 1) raf = requestAnimationFrame(tick);
+      else from.current = target;
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, ms]);
+  return value;
+}
 
-  if (stats.length === 0) return null;
+const FILTERS: Array<{ key: 'all' | PayoutGroup; label: string }> = [
+  { key: 'all', label: 'All' },
+  { key: 'offers', label: 'Offers' },
+  { key: 'on_sale', label: 'On sale' },
+  { key: 'on_its_way', label: 'Sold' },
+  { key: 'paid', label: 'Paid' },
+  { key: 'reviewing', label: 'With us' },
+  { key: 'ended', label: 'Ended' },
+];
+
+const GROUP_ORDER: PayoutGroup[] = ['offers', 'on_its_way', 'on_sale', 'paid', 'reviewing', 'ended'];
+
+/**
+ * Your payouts: everything we are paying you, and where each item stands.
+ * The headline is the money in play (on sale plus sold), counted up, with a
+ * bar of how much of it is already secured. Then every item, filterable,
+ * with its own number and how long it has left. Built only from the vendor's
+ * own offers: a payout follows us accepting the item at our hub, never a
+ * buyer's payment, and no resale price is read or shown.
+ */
+function PayoutsView({ listings, offers, statusOf }: {
+  listings: Listing[];
+  offers: Map<string, VendorOffer>;
+  statusOf: (l: Listing) => VendorStatusView;
+}) {
+  const t = totalsOf(listings, offers, statusOf);
+  const estimate = t.onSale + t.onItsWay;
+  const shown = useCountUp(estimate);
+  const [filter, setFilter] = React.useState<'all' | PayoutGroup>('all');
+
+  if (listings.length === 0) {
+    return (
+      <div className="flex flex-col items-start gap-6">
+        <p className={ui.help}>No payouts yet. Tell us about something you want to sell and we will make you an offer, usually within 24 hours.</p>
+        <Link to="/sell" className={ui.btnPrimary}>Get an offer</Link>
+      </div>
+    );
+  }
+
+  const rows = listings
+    .map((l) => ({ l, status: statusOf(l), offer: offers.get(l.id) }))
+    .map((r) => ({ ...r, group: groupOf(r.status.key) }));
+  const counts = rows.reduce<Record<string, number>>((acc, r) => { acc[r.group] = (acc[r.group] ?? 0) + 1; return acc; }, {});
+  const sortKey = (r: typeof rows[number]) => {
+    const g = GROUP_ORDER.indexOf(r.group) * 1e13;
+    const o = r.offer;
+    if (r.group === 'offers') return g + new Date(o?.offer_expires_at ?? 0).getTime() / 1e3;
+    if (r.group === 'on_sale') return g + new Date(o?.listing_expires_at ?? 0).getTime() / 1e3;
+    if (r.group === 'paid') return g - new Date(o?.paid_at ?? 0).getTime() / 1e3;
+    return g;
+  };
+  const visible = rows.filter((r) => filter === 'all' || r.group === filter).sort((a, b) => sortKey(a) - sortKey(b));
+
+  const barTotal = t.paid + t.onItsWay + t.onSale + t.offers;
+  const pct = (n: number) => `${barTotal > 0 ? (n / barTotal) * 100 : 0}%`;
+  const soonest = rows
+    .filter((r) => r.group === 'on_sale' && r.offer?.listing_expires_at)
+    .map((r) => daysUntil(r.offer!.listing_expires_at))
+    .reduce<number | null>((m, d) => (d == null ? m : m == null ? d : Math.min(m, d)), null);
 
   return (
-    <section aria-labelledby="payouts-heading" className="flex flex-col gap-6 border-2 border-black p-6 sm:p-8">
-      <div className="flex flex-col gap-1">
-        <h2 id="payouts-heading" className={ui.sectionTitle}>Your payouts</h2>
-        <p className={ui.help}>Each amount was fixed when you accepted our offer and does not change.</p>
-      </div>
-      <dl className={cn('grid grid-cols-1 gap-6', stats.length > 1 && 'sm:grid-cols-2', stats.length > 2 && 'md:grid-cols-3')}>
-        {stats.map((x) => (
-          <div key={x.label} className="flex flex-col gap-1">
-            <dt className="text-sm font-bold">{x.label}</dt>
-            <dd className="text-4xl sm:text-5xl font-black tracking-tighter leading-none tabular-nums">{formatCurrency(x.amount)}</dd>
-            <dd className="text-sm">{x.note}</dd>
+    <div className="flex flex-col gap-10">
+      <section aria-labelledby="estimate-heading" className="relative overflow-hidden bg-black text-white">
+        <div aria-hidden className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-amber-400/20 blur-3xl" />
+        <div className="relative flex flex-col gap-6 p-6 sm:p-10">
+          <div className="flex flex-col gap-2">
+            <h2 id="estimate-heading" className="text-sm font-bold text-white/80">Your estimated payout</h2>
+            <p className="text-5xl sm:text-7xl font-black tracking-tighter leading-none tabular-nums" aria-label={formatCurrency(estimate)}>
+              {formatCurrency(shown)}
+            </p>
+            <p className="max-w-xl text-sm text-white/80">
+              {estimate === 0
+                ? 'Accept an offer and your items start counting here.'
+                : <>Across {t.onSaleCount + rows.filter((r) => r.group === 'on_its_way').length} items.{' '}
+                  {t.onItsWay > 0 && <><span className="font-bold text-white">{formatCurrency(t.onItsWay)}</span> is sold and on its way to you. </>}
+                  {t.onSale > 0 && <><span className="font-bold text-white">{formatCurrency(t.onSale)}</span> more if {t.onSaleCount === 1 ? 'your item sells' : 'each item sells'} within 30 days.</>}</>}
+            </p>
           </div>
-        ))}
+
+          {barTotal > 0 && (
+            <div className="flex flex-col gap-3">
+              <div className="flex h-3 w-full overflow-hidden bg-white/10" role="img"
+                aria-label={`Paid ${formatCurrency(t.paid)}, on its way ${formatCurrency(t.onItsWay)}, on sale ${formatCurrency(t.onSale)}, offers waiting ${formatCurrency(t.offers)}`}>
+                <span className="h-full bg-emerald-400 transition-[width] duration-700" style={{ width: pct(t.paid) }} />
+                <span className="h-full bg-white transition-[width] duration-700" style={{ width: pct(t.onItsWay) }} />
+                <span className="h-full bg-white/45 transition-[width] duration-700" style={{ width: pct(t.onSale) }} />
+                <span className="h-full bg-[repeating-linear-gradient(45deg,#fbbf24_0_6px,#f59e0b_6px_12px)] transition-[width] duration-700" style={{ width: pct(t.offers) }} />
+              </div>
+              <ul className="flex flex-wrap gap-x-6 gap-y-1.5 text-xs">
+                {t.paid > 0 && <Legend swatch="bg-emerald-400" label="Paid" amount={t.paid} />}
+                {t.onItsWay > 0 && <Legend swatch="bg-white" label="On its way" amount={t.onItsWay} />}
+                {t.onSale > 0 && <Legend swatch="bg-white/45" label="On sale" amount={t.onSale} />}
+                {t.offers > 0 && <Legend swatch="bg-amber-400" label="Offers waiting" amount={t.offers} />}
+              </ul>
+            </div>
+          )}
+
+          {t.offerCount > 0 && (
+            <button type="button" onClick={() => setFilter('offers')}
+              className="self-start bg-amber-400 px-4 py-2.5 text-sm font-bold text-black hover:bg-amber-300 transition-colors">
+              +{formatCurrency(t.offers)} if you accept {t.offerCount === 1 ? 'your waiting offer' : `your ${t.offerCount} waiting offers`}
+            </button>
+          )}
+        </div>
+      </section>
+
+      <dl className="grid grid-cols-1 gap-px border border-black/10 bg-black/10 sm:grid-cols-3">
+        <Stat label="On its way to you" amount={t.onItsWay} note="Sold. Paid once it reaches us and passes our check." />
+        <Stat label="Paid to you" amount={t.paid} note="Sent to your UPI ID." />
+        <Stat label="On sale now" amount={t.onSale}
+          note={t.onSaleCount === 0 ? 'Nothing on sale right now.' : `${t.onSaleCount} ${t.onSaleCount === 1 ? 'item' : 'items'}${soonest != null ? `, the next one has ${soonest} day${soonest === 1 ? '' : 's'} left` : ''}.`} />
       </dl>
-    </section>
+
+      <section className="flex flex-col gap-4" aria-labelledby="breakdown-heading">
+        <div className="flex flex-col gap-1">
+          <h2 id="breakdown-heading" className={ui.sectionTitle}>Every item</h2>
+          <p className={ui.help}>Each amount was fixed when you accepted our offer and does not change.</p>
+        </div>
+        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 scrollbar-hide sm:mx-0 sm:flex-wrap sm:px-0">
+          {FILTERS.filter((f) => f.key === 'all' || counts[f.key]).map((f) => (
+            <button key={f.key} type="button" onClick={() => setFilter(f.key)} aria-pressed={filter === f.key}
+              className={cn('shrink-0 min-h-[40px] border px-4 text-sm transition-colors',
+                filter === f.key ? 'border-black bg-black font-bold text-white' : 'border-black/15 hover:border-black')}>
+              {f.label} <span className={cn('tabular-nums', filter === f.key ? 'text-white/70' : 'text-black/50')}>{f.key === 'all' ? rows.length : counts[f.key]}</span>
+            </button>
+          ))}
+        </div>
+        <ul className="flex flex-col border-b border-black/10">
+          {visible.map(({ l, status, offer, group }) => (
+            <React.Fragment key={l.id}>
+              <PayoutRow listing={l} status={status} offer={offer} group={group} />
+            </React.Fragment>
+          ))}
+        </ul>
+      </section>
+    </div>
+  );
+}
+
+function Legend({ swatch, label, amount }: { swatch: string; label: string; amount: number }) {
+  return (
+    <li className="flex items-center gap-2">
+      <span aria-hidden className={cn('h-2.5 w-2.5', swatch)} />
+      <span className="text-white/80">{label}</span>
+      <span className="font-bold tabular-nums">{formatCurrency(amount)}</span>
+    </li>
+  );
+}
+
+function Stat({ label, amount, note }: { label: string; amount: number; note: string }) {
+  return (
+    <div className="grid grid-cols-[1fr_auto] items-baseline gap-x-4 gap-y-1 bg-white px-4 py-4 sm:flex sm:flex-col sm:gap-1 sm:p-5">
+      <dt className="text-sm font-bold">{label}</dt>
+      <dd className="row-span-2 text-2xl sm:text-3xl font-black tracking-tighter leading-none tabular-nums">{formatCurrency(amount)}</dd>
+      <dd className="text-xs leading-relaxed">{note}</dd>
+    </div>
+  );
+}
+
+const GROUP_TAG: Record<PayoutGroup, { label: string; className: string }> = {
+  offers: { label: 'Offer ready', className: 'bg-amber-400 text-black' },
+  on_sale: { label: 'On sale', className: 'bg-black text-white' },
+  on_its_way: { label: 'Sold', className: 'border border-black text-black' },
+  paid: { label: 'Paid', className: 'bg-emerald-600 text-white' },
+  reviewing: { label: 'With us', className: 'bg-zinc-200 text-black' },
+  ended: { label: 'Ended', className: 'bg-zinc-100 text-black/60' },
+};
+
+function PayoutRow({ listing, status, offer, group }: { listing: Listing; status: VendorStatusView; offer: VendorOffer | undefined; group: PayoutGroup }) {
+  const amount = offer?.offer_amount != null ? Number(offer.offer_amount) : null;
+  const tag = GROUP_TAG[group];
+  let when: string | null = null;
+  if (group === 'offers' && offer?.offer_expires_at) {
+    const d = daysUntil(offer.offer_expires_at);
+    when = d === 0 ? 'Last day to accept' : `Accept by ${formatDay(offer.offer_expires_at)}, ${d} day${d === 1 ? '' : 's'} left`;
+  } else if (group === 'on_sale' && offer?.listing_expires_at) {
+    const d = daysUntil(offer.listing_expires_at);
+    when = d === 0 ? 'Last day on sale' : `${d} day${d === 1 ? '' : 's'} left on sale`;
+  } else if (group === 'paid' && offer?.paid_at) {
+    when = `Paid on ${formatDate(offer.paid_at)}`;
+  } else {
+    when = status.label;
+  }
+  const href = group === 'offers' ? `/offer/${listing.id}` : `/product/${listing.id}`;
+  const urgent = group === 'offers' && daysUntil(offer?.offer_expires_at) != null && daysUntil(offer?.offer_expires_at)! <= 2;
+
+  return (
+    <li className="border-t border-black/10">
+      <Link to={href} className={cn('flex items-center gap-4 py-4 hover:bg-zinc-50', group === 'ended' && 'opacity-60')}>
+        <span className="h-16 w-12 shrink-0 overflow-hidden bg-zinc-100">
+          <img src={variantUrl(listing.image_url, 'thumb')} alt="" className={cn('h-full w-full object-cover', group === 'ended' && 'grayscale')} />
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col gap-1">
+          <span className="truncate text-sm font-bold">{listing.title}</span>
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+            <span className={cn('px-1.5 py-0.5 text-[10px] font-black uppercase tracking-widest', tag.className)}>{tag.label}</span>
+            <span className={cn(urgent && 'font-bold text-red-700')}>{when}</span>
+            {listing.sku && <span className="hidden sm:inline text-black/50">{listing.sku}</span>}
+          </span>
+        </span>
+        <span className="flex shrink-0 flex-col items-end">
+          {amount != null ? (
+            <span className={cn('text-lg sm:text-xl font-black tracking-tight tabular-nums', group === 'ended' && 'line-through decoration-2')}>
+              {formatCurrency(amount)}
+            </span>
+          ) : (
+            <span className="text-sm">{group === 'reviewing' ? 'Offer coming' : '-'}</span>
+          )}
+        </span>
+      </Link>
+    </li>
   );
 }
 
