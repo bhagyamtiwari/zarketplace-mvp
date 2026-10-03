@@ -5,7 +5,7 @@
 // it the page is search, filters and real inventory, and nothing else.
 import React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, SlidersHorizontal, X, Loader2, ChevronDown } from 'lucide-react';
+import { Search, SlidersHorizontal, X, Loader2, ChevronDown, PanelLeftClose } from 'lucide-react';
 import { supabasePublic } from '../lib/supabase';
 import { rememberListings } from '../lib/listingCache';
 import { Listing } from '../types';
@@ -108,6 +108,42 @@ interface FeedEntry { listings: Listing[]; total: number | null; page: number; a
 const feedCache = new Map<string, FeedEntry>();
 const FEED_FRESH_MS = 3 * 60 * 1000;
 let facetCache: FacetRow[] | null = null;
+
+const RAIL_MIN = 180;
+const RAIL_MAX = 380;
+const RAIL_DEFAULT = 232;
+
+/** The desktop filter column: shown or hidden, and its width, kept per device. */
+function useFilterRail() {
+  const read = <T,>(key: string, fallback: T): T => {
+    try { const v = localStorage.getItem(key); return v == null ? fallback : (JSON.parse(v) as T); } catch { return fallback; }
+  };
+  const write = (key: string, v: unknown) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
+  const [open, setOpenState] = React.useState<boolean>(() => read('zk_filters_open', true));
+  const [width, setWidthState] = React.useState<number>(() => read('zk_filters_width', RAIL_DEFAULT));
+  const clampW = (w: number) => Math.round(Math.min(RAIL_MAX, Math.max(RAIL_MIN, w)));
+  const setOpen = (v: boolean) => { setOpenState(v); write('zk_filters_open', v); };
+  const setWidth = (w: number) => { const c = clampW(w); setWidthState(c); write('zk_filters_width', c); };
+  const startDrag = (e: React.PointerEvent) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = width;
+    let last = startW;
+    const move = (ev: PointerEvent) => { last = clampW(startW + ev.clientX - startX); setWidthState(last); };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      write('zk_filters_width', last);
+    };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+  return { open, setOpen, width, setWidth, startDrag };
+}
 
 /** How many of PRICE_RANGES show before "More prices". */
 const PRICE_SHOWN = 4;
@@ -428,6 +464,7 @@ export function Marketplace() {
     setParam('search', searchInput.trim() || null);
   };
 
+  const rail = useFilterRail();
   const activeFilterCount = [category, gender, quick].filter(Boolean).length
     + brands.length + sizes.length + conditions.length + (minPrice !== null || maxPrice !== null ? 1 : 0);
   const clearAll = () => setSearchParams({}, { replace: true });
@@ -572,23 +609,55 @@ export function Marketplace() {
             <span className="hidden sm:flex">
               <SortChip value={sortBy} onChange={(v) => setParam('sort', v === 'relevance' ? null : v)} />
             </span>
+            {/* Desktop only: brings back the filter column once it is hidden. */}
+            {!rail.open && (
+              <button type="button" onClick={() => rail.setOpen(true)}
+                className="hidden lg:flex shrink-0 min-h-[44px] items-center gap-2 text-sm font-bold hover:underline underline-offset-4">
+                <SlidersHorizontal className="h-4 w-4" />
+                Show filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+              </button>
+            )}
           </div>
         </div>
       </div>
 
       <div className="mx-auto max-w-[1600px] w-full px-4 sm:px-6 lg:px-8 pb-16 pt-6 sm:pt-8 flex gap-10">
 
-        <aside aria-label="Filters" className="hidden lg:block w-60 shrink-0">
-          <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto pr-2 scrollbar-hide">
-            <div className="flex items-baseline justify-between pb-2">
-              <h2 className="text-sm font-black uppercase tracking-[0.2em]">Filters</h2>
-              {activeFilterCount > 0 && (
-                <button type="button" onClick={clearAll} className="text-xs font-bold underline underline-offset-4">Clear all</button>
-              )}
+        {/* The filter column can be hidden, and dragged narrower or wider by
+            its right edge. Both are remembered on this device. */}
+        {rail.open && (
+          <aside aria-label="Filters" className="relative hidden lg:block shrink-0" style={{ width: rail.width }}>
+            <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto pr-3 scrollbar-hide">
+              <div className="flex items-center justify-between gap-2 pb-2">
+                <h2 className="text-sm font-black uppercase tracking-[0.2em]">Filters</h2>
+                <span className="flex items-center gap-3">
+                  {activeFilterCount > 0 && (
+                    <button type="button" onClick={clearAll} className="text-xs font-bold underline underline-offset-4">Clear all</button>
+                  )}
+                  <button type="button" onClick={() => rail.setOpen(false)} aria-label="Hide filters" title="Hide filters"
+                    className="flex h-8 w-8 items-center justify-center hover:bg-zinc-100">
+                    <PanelLeftClose className="h-4 w-4" />
+                  </button>
+                </span>
+              </div>
+              {filterPanel}
             </div>
-            {filterPanel}
-          </div>
-        </aside>
+            <div
+              role="separator" aria-orientation="vertical" aria-label="Resize filters"
+              aria-valuemin={RAIL_MIN} aria-valuemax={RAIL_MAX} aria-valuenow={rail.width} tabIndex={0}
+              onPointerDown={rail.startDrag}
+              onDoubleClick={() => rail.setWidth(RAIL_DEFAULT)}
+              onKeyDown={(e) => {
+                if (e.key === 'ArrowLeft') rail.setWidth(rail.width - 16);
+                if (e.key === 'ArrowRight') rail.setWidth(rail.width + 16);
+              }}
+              title="Drag to resize. Double-click to reset."
+              className="group absolute -right-5 top-0 bottom-0 flex w-3 cursor-col-resize justify-center focus:outline-none"
+            >
+              <span className="h-full w-px bg-black/10 transition-colors group-hover:w-0.5 group-hover:bg-black group-focus-visible:bg-black" />
+            </div>
+          </aside>
+        )}
 
         <div className="min-w-0 flex-1 flex flex-col gap-4">
           {chips.length > 0 && (
