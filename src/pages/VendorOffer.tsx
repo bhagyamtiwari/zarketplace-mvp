@@ -67,7 +67,7 @@ const ITEM_COLUMNS = 'title, brand, sku, image_urls, image_url, size_type, size,
 type Phase = 'offer' | 'agreement' | 'done';
 
 const EMPTY_DETAILS: AcceptanceDetails = {
-  fullName: '', phone: '', upiVpa: '', address: '', landmark: '', city: '', pincode: '',
+  fullName: '', phone: '', upiVpa: '', address: '', street: '', landmark: '', city: '', pincode: '',
 };
 
 /** A mobile number as ten digits, whether typed plain, with +91 or with a leading 0. */
@@ -88,11 +88,12 @@ function whatIsMissing(
     if (!VPA_REGEX.test(d.upiVpa.trim())) return 'Add your UPI ID, like name@okaxis.';
     if (d.upiVpa.trim().toLowerCase() !== upiConfirm.trim().toLowerCase()) return 'Type your UPI ID a second time. The two do not match yet.';
   }
-  if (d.address.trim().length < 5) return 'Add your pickup address.';
+  if (d.address.trim().length < 1) return 'Add your flat or house number.';
+  if ((d.street ?? '').trim().length < 3) return 'Add your street and area.';
   if (!/^[1-9]\d{5}$/.test(d.pincode.trim())) return 'Add your 6-digit pincode.';
   if (!resolvePincode(d.pincode).stateName) return 'We do not recognise that pincode. Check it.';
   if (d.city.trim().length < 2) return 'Add your city.';
-  if (!AGREEMENT_CLAUSES.every((c) => checked[c.key])) return 'Tick all three terms.';
+  if (!AGREEMENT_CLAUSES.every((c) => checked[c.key])) return 'Read the terms and tick each one to confirm.';
   return null;
 }
 
@@ -141,7 +142,10 @@ function VendorOfferInner() {
       fullName: profile.full_name ?? '',
       phone: tenDigits(profile.phone ?? ''),
       upiVpa: profile.payout_locked_at ? '' : (profile.default_upi_vpa ?? ''),
-      address: a.address ?? '',
+      // Saved as one line; split back at the first comma into the two
+      // fields it was typed in, so a returning vendor sees their own entry.
+      address: (a.address ?? '').split(',')[0].trim(),
+      street: (a.address ?? '').split(',').slice(1).join(',').trim(),
       landmark: a.landmark ?? '',
       city: a.city ?? '',
       pincode: a.pincode ?? '',
@@ -418,10 +422,10 @@ export function OfferScreen({
         </div>
         {expiresAt && (
           <p className={ui.help}>
-            Yours to accept until{' '}
+            This offer is valid until{' '}
             <span className="font-bold">
               {new Date(expiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long' })}
-            </span>.
+            </span>. You have until then to accept it.
           </p>
         )}
       </div>
@@ -447,9 +451,7 @@ export function OfferScreen({
         </button>
       </div>
 
-      <p className="text-center text-sm">
-        <span className="font-bold">Coming soon:</span> an instant lane for sellers with a track record. Send the item to us and get paid faster.
-      </p>
+      <InstantLaneSoon />
 
       <Questions code={item?.sku} className="text-center" />
     </div>
@@ -610,13 +612,19 @@ export function AgreementScreen({
       </Step>
 
       <Step n={3} title="Your pickup address" note="Where the courier collects from, only once someone buys it.">
-        <Field label="Flat, house number and street">
+        <Field label="Flat or house number, building">
           <input
-            value={details.address} onChange={set('address')} autoComplete="street-address"
-            placeholder="Flat 4B, 12 Linking Road" className={ui.inputBox}
+            value={details.address} onChange={set('address')} autoComplete="address-line1"
+            placeholder="Flat 4B, Sea View Apartments" className={ui.inputBox}
           />
         </Field>
-        <Field label="Area or landmark" optional>
+        <Field label="Street and area">
+          <input
+            value={details.street ?? ''} onChange={set('street')} autoComplete="address-line2"
+            placeholder="12 Linking Road, Bandra West" className={ui.inputBox}
+          />
+        </Field>
+        <Field label="Landmark" optional>
           <input value={details.landmark} onChange={set('landmark')} placeholder="Near the post office" className={ui.inputBox} />
         </Field>
         <div className="grid grid-cols-2 gap-4">
@@ -626,10 +634,8 @@ export function AgreementScreen({
               onChange={(e) => { const v = e.target.value.replace(/\D/g, '').slice(0, 6); setDetails((d) => ({ ...d, pincode: v })); }}
               placeholder="400050" className={ui.inputBox}
             />
-            {place && (
-              <span className={cn('text-sm', !place.stateName && 'font-bold text-red-600')}>
-                {place.stateName ?? 'We do not recognise this pincode.'}
-              </span>
+            {place && !place.stateName && (
+              <span className="text-sm font-bold text-red-600">We do not recognise this pincode.</span>
             )}
           </Field>
           <Field label="City">
@@ -639,9 +645,33 @@ export function AgreementScreen({
             />
           </Field>
         </div>
+        <Field label="State" hint="Filled in from your pincode.">
+          <input value={place?.stateName ?? ''} readOnly tabIndex={-1} placeholder="From your pincode"
+            className={cn(ui.inputBox, 'cursor-default bg-zinc-100')} />
+        </Field>
       </Step>
 
-      <Step n={4} title="The terms" note="Tick each one. We keep a copy of what you agreed to.">
+      <Step n={4} title="Read and confirm the terms" note="Read what you are agreeing to, then tick each line to confirm it. We keep a copy.">
+        {/* The terms first, in full, then the three lines that are the
+            record of agreeing to them. They used to sit folded under "All
+            the terms" after the ticks, which read as an afterthought. */}
+        <div className="flex flex-col gap-3 border border-black/15 bg-zinc-50 px-4 py-4 sm:px-5">
+          <p className="text-sm font-bold">What you are agreeing to</p>
+          <Bullets items={[
+            <>We pay you <strong>{formatCurrency(amount)}</strong> by UPI once it reaches our hub and matches your photos. The amount does not change.</>,
+            'We set the price we sell it at, and we may reduce it. What we pay you stays the same.',
+            'Until someone buys it, keep it packed and unworn, and do not sell it anywhere else.',
+            'When it is bought, we send you a free prepaid label by email or WhatsApp, and a courier collects it from your door, usually within 48 hours.',
+            <>Hand it over within <strong>5 days</strong> of the sale.</>,
+            'Counterfeits and replicas are refused and not paid for.',
+            'If we have not sold it within 30 days, the offer ends and nothing is owed either way.',
+            'You can withdraw it from Your items any time before someone buys it.',
+          ]} />
+          <p className="text-sm">
+            The full terms are on <Link to="/how-it-works" className={cn(ui.link, 'font-bold')}>How selling works</Link>.
+          </p>
+        </div>
+        <p className="text-sm font-bold">Tick each line to confirm.</p>
         <ul className="flex flex-col border-t border-black/10">
           {AGREEMENT_CLAUSES.map((clause) => {
             const on = !!checked[clause.key];
@@ -665,30 +695,6 @@ export function AgreementScreen({
             );
           })}
         </ul>
-        {/* Folded, not removed: every term is one tap away and is what is
-            agreed to, but the page leads with the three ticks, which are the
-            record. */}
-        <details className="group flex flex-col gap-3 border border-black/15 px-4 py-3">
-          <summary className="cursor-pointer list-none text-sm font-bold [&::-webkit-details-marker]:hidden">
-            <span className="group-open:hidden">All the terms</span>
-            <span className="hidden group-open:inline">Hide the terms</span>
-          </summary>
-          <div className="flex flex-col gap-3 pt-3">
-          <Bullets items={[
-            <>We pay you <strong>{formatCurrency(amount)}</strong> by UPI once it reaches our hub and matches your photos. The amount does not change.</>,
-            'We set the price we sell it at, and we may reduce it. What we pay you stays the same.',
-            'Until someone buys it, keep it packed and unworn, and do not sell it anywhere else.',
-            'When it is bought, we send you a free prepaid label by email or WhatsApp, and a courier collects it from your door, usually within 48 hours.',
-            <>Hand it over within <strong>5 days</strong> of the sale.</>,
-            'Counterfeits and replicas are refused and not paid for.',
-            'If we have not sold it within 30 days, the offer ends and nothing is owed either way.',
-            'You can withdraw it from Your items any time before someone buys it.',
-          ]} />
-          <p className="text-sm">
-            The full terms are on <Link to="/how-it-works" className={cn(ui.link, 'font-bold')}>How selling works</Link>.
-          </p>
-          </div>
-        </details>
       </Step>
 
       <div className="flex flex-col items-center gap-4">
@@ -1000,6 +1006,36 @@ function ImprovePanel({ listingId, submitting, onResubmit }: {
           Cancel
         </button>
       </div>
+    </div>
+  );
+}
+
+// The instant lane is not built (MODEL.md section 3). This only says it is
+// coming: one line, and what it is on hover, focus or tap.
+function InstantLaneSoon() {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <div className="flex justify-center">
+      <span className="relative inline-flex">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}
+          onFocus={() => setOpen(true)} onBlur={() => setOpen(false)}
+          aria-expanded={open} aria-describedby="instant-lane-tip"
+          className="inline-flex items-center gap-2 border border-black/15 px-3 py-1.5 text-sm hover:border-black"
+        >
+          <span className="font-bold">Instant lane</span>
+          <span className="bg-black px-1.5 py-0.5 text-[10px] font-black uppercase tracking-widest text-white">Coming soon</span>
+        </button>
+        <span id="instant-lane-tip" role="tooltip"
+          className={cn(
+            'absolute bottom-full left-1/2 z-10 mb-2 w-64 -translate-x-1/2 bg-black px-3 py-2 text-center text-xs leading-relaxed text-white transition-opacity',
+            open ? 'opacity-100' : 'pointer-events-none opacity-0',
+          )}>
+          Send your item straight to us and get paid faster.
+        </span>
+      </span>
     </div>
   );
 }

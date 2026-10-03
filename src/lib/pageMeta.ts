@@ -141,6 +141,7 @@ export const META = {
   orders: { title: 'Your orders', description: 'Track your orders.', noIndex: true },
   account: { title: 'Your profile', description: 'Your profile.', noIndex: true },
   vendorPortal: { title: 'Your items', description: 'Your items and payouts.', noIndex: true },
+  vendorPayouts: { title: 'Your payouts', description: 'What we are paying you.', noIndex: true },
   offer: { title: 'Your offer', description: 'Your offer.', noIndex: true },
   hub: { title: 'Hub', description: 'Operations.', noIndex: true },
   admin: { title: 'Admin', description: 'Operations.', noIndex: true },

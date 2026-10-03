@@ -1,7 +1,7 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, ChevronDown } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../lib/auth';
 import { useCart } from '../lib/cart';
@@ -11,7 +11,7 @@ const AuthModal = React.lazy(() => import('./AuthModal').then((m) => ({ default:
 import { Wordmark } from './Wordmark';
 import { SOCIALS } from './Footer';
 import { useFavorites } from '../lib/favorites';
-import { useOpenOfferCount } from '../lib/openOffers';
+import { useOpenOffers } from '../lib/openOffers';
 
 // The header answers two questions and offers one action.
 //
@@ -32,7 +32,8 @@ export function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const offers = useOpenOfferCount();
+  const offerIds = useOpenOffers();
+  const offers = offerIds.length;
   const { count: cartCount } = useCart();
 
   const closeMenu = () => setIsMenuOpen(false);
@@ -92,16 +93,8 @@ export function Navbar() {
           <div className="flex items-center gap-6 lg:gap-8">
             <div className="hidden md:flex items-center gap-6 lg:gap-8">
               {user ? (
-                // A link, not a menu: the account is one screen now, with its
-                // three tabs, and the dot says an offer is waiting on it.
-                <Link
-                  to="/account"
-                  aria-label={offers > 0 ? `Your account, ${offers} ${offers === 1 ? 'offer' : 'offers'} waiting` : undefined}
-                  className={cn(NAV, 'relative py-7 hover:underline underline-offset-[6px] decoration-2')}
-                >
-                  Your account
-                  {offers > 0 && <span aria-hidden className="absolute -right-3 top-[1.6rem] h-2 w-2 rounded-full bg-amber-400" />}
-                </Link>
+                <AccountMenu offerIds={offerIds} email={user.email ?? null}
+                  onSignOut={async () => { await signOut(); navigate('/'); }} />
               ) : (
                 <button
                   type="button"
@@ -203,9 +196,18 @@ export function Navbar() {
                 <div className="flex flex-col gap-1 border-t border-black/10 pt-6">
                   {user ? (
                     <>
-                      <SubLink to="/account" onClick={closeMenu}>
-                        {offers > 0 ? `Your account (${offers} ${offers === 1 ? 'offer' : 'offers'} waiting)` : 'Your account'}
-                      </SubLink>
+                      {offers > 0 && (
+                        <Link to={offerHref(offerIds)} onClick={closeMenu}
+                          className="mb-3 flex items-center gap-3 bg-amber-100 px-4 py-3 text-[15px] font-bold">
+                          <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full bg-amber-400" />
+                          {offerNotice(offers)}
+                        </Link>
+                      )}
+                      {ACCOUNT_LINKS.map((l) => (
+                        <React.Fragment key={l.to}>
+                          <SubLink to={l.to} onClick={closeMenu}>{l.label}</SubLink>
+                        </React.Fragment>
+                      ))}
                       <SubLink to="/contact" onClick={closeMenu}>Contact us</SubLink>
                       <button
                         onClick={async () => { await signOut(); closeMenu(); navigate('/'); }}
@@ -287,5 +289,104 @@ function SubLink({ to, onClick, children }: { to: string; onClick: () => void; c
     <Link to={to} onClick={onClick} className="self-start py-2.5 text-[15px] hover:text-black/60 transition-colors">
       {children}
     </Link>
+  );
+}
+
+const ACCOUNT_LINKS = [
+  { to: '/account/orders', label: 'Your orders' },
+  { to: '/account/items', label: 'Your items' },
+  { to: '/account/payouts', label: 'Your payouts' },
+  { to: '/account/profile', label: 'Profile' },
+];
+
+function offerNotice(n: number): string {
+  return n === 1 ? 'You have a new offer' : `You have ${n} new offers`;
+}
+
+/** One offer opens it directly; several open the list they sit in. */
+function offerHref(ids: string[]): string {
+  return ids.length === 1 ? `/offer/${ids[0]}` : '/account/items';
+}
+
+// Your account, as a menu: where each part of the account is, a new offer
+// said in words at the top, and the way to sign out. Opens on click, and on
+// hover for a mouse; closes on a click outside, on Escape and on navigating.
+function AccountMenu({ offerIds, email, onSignOut }: { offerIds: string[]; email: string | null; onSignOut: () => void }) {
+  const [open, setOpen] = React.useState(false);
+  const ref = React.useRef<HTMLDivElement>(null);
+  const closeTimer = React.useRef<number | undefined>(undefined);
+  // When hover opened it. A mouse click lands right after the hover that
+  // opened the menu, and must not then close it.
+  const openedAt = React.useRef(0);
+  const { pathname } = useLocation();
+  const offers = offerIds.length;
+
+  React.useEffect(() => { setOpen(false); }, [pathname]);
+  React.useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('pointerdown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('pointerdown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [open]);
+
+  const hoverOpen = (e: React.PointerEvent) => {
+    if (e.pointerType !== 'mouse') return;
+    window.clearTimeout(closeTimer.current);
+    if (!open) openedAt.current = Date.now();
+    setOpen(true);
+  };
+  const hoverClose = (e: React.PointerEvent) => {
+    if (e.pointerType !== 'mouse') return;
+    closeTimer.current = window.setTimeout(() => setOpen(false), 180);
+  };
+
+  return (
+    <div ref={ref} className="relative" onPointerEnter={hoverOpen} onPointerLeave={hoverClose}>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => (o && Date.now() - openedAt.current < 600 ? true : !o))}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label={offers > 0 ? `Your account, ${offerNotice(offers).toLowerCase()}` : 'Your account'}
+        className={cn(NAV, 'relative flex items-center gap-1.5 py-7 hover:underline underline-offset-[6px] decoration-2')}
+      >
+        Your account
+        <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', open && 'rotate-180')} />
+        {offers > 0 && <span aria-hidden className="absolute -right-2.5 top-[1.45rem] h-2 w-2 rounded-full bg-amber-400" />}
+      </button>
+      {open && (
+        <div role="menu" className="absolute right-0 top-full z-50 -mt-2 w-72 border border-black bg-white shadow-[6px_6px_0_0_rgba(0,0,0,1)]">
+          {offers > 0 && (
+            <Link role="menuitem" to={offerHref(offerIds)}
+              className="flex items-start gap-3 border-b border-black bg-amber-100 px-5 py-4 hover:bg-amber-200 transition-colors">
+              <span aria-hidden className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-amber-400 ring-4 ring-amber-400/30" />
+              <span className="flex flex-col gap-0.5">
+                <span className="text-sm font-black">{offerNotice(offers)}</span>
+                <span className="text-xs">Accept it before it runs out.</span>
+              </span>
+            </Link>
+          )}
+          <div className="flex flex-col py-2">
+            {ACCOUNT_LINKS.map((l) => (
+              <Link key={l.to} role="menuitem" to={l.to}
+                className={cn('flex items-center justify-between px-5 py-2.5 text-sm hover:bg-zinc-100', pathname === l.to && 'font-bold')}>
+                {l.label}
+                {l.to === '/account/items' && offers > 0 && (
+                  <span className="min-w-5 rounded-full bg-amber-400 px-1.5 text-center text-[11px] font-black">{offers}</span>
+                )}
+              </Link>
+            ))}
+          </div>
+          <div className="flex flex-col gap-1 border-t border-black/10 px-5 py-3">
+            {email && <span className="truncate text-xs">Signed in as {email}</span>}
+            <button type="button" role="menuitem" onClick={onSignOut} className="self-start py-1 text-sm font-bold underline underline-offset-4">
+              Sign out
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

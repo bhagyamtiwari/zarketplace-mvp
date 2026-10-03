@@ -133,6 +133,7 @@ const shopRoutes = (
         one-tap answer into a chore nobody does. */}
     <Route path="/possession/:token" element={<PossessionCheck />} />
     <Route path="/account/items" element={<SellerPortal />} />
+    <Route path="/account/payouts" element={<SellerPortal view="payouts" />} />
     <Route path="/vendor-portal" element={<KeepSearch to="/account/items" />} />
     <Route path="/offer/:listingId" element={<VendorOfferPage />} />
     <Route path="/hub" element={<Hub />} />
