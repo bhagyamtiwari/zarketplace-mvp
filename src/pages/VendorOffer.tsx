@@ -442,16 +442,26 @@ export function OfferScreen({
         'We set the sale price and may lower it. Your payout stays the same.',
       ]} />
 
-      <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-        <button type="button" onClick={onContinue} disabled={submitting} className={cn(ui.btnPrimary, 'w-full py-5 sm:w-auto sm:min-w-[240px]')}>
-          Accept this offer
-        </button>
-        <button type="button" onClick={onDecline} disabled={submitting} className={cn(ui.btnSecondary, 'w-full py-5 sm:w-auto')}>
-          No thanks
+      {/* Two ways to sell, side by side. Only the first is open today: the
+          instant lane (send it to us first, get paid sooner) is shown as
+          coming, so the choice is familiar when it arrives. MODEL.md section 3. */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-3 border-2 border-black p-4 sm:p-5">
+          <div className="flex flex-col gap-1">
+            <span className="text-sm font-bold">Keep it until it sells</span>
+            <span className="text-sm">{formatCurrency(amount)}, paid once it reaches us after it sells.</span>
+          </div>
+          <button type="button" onClick={onContinue} disabled={submitting} className={cn(ui.btnPrimary, 'mt-auto w-full py-5')}>
+            Accept this offer
+          </button>
+        </div>
+        <InstantLaneOption />
+      </div>
+      <div className="flex justify-center">
+        <button type="button" onClick={onDecline} disabled={submitting} className={cn(ui.link, 'text-sm')}>
+          No thanks, turn this offer down
         </button>
       </div>
-
-      <InstantLaneSoon />
 
       <Questions code={item?.sku} className="text-center" />
     </div>
@@ -1010,31 +1020,35 @@ function ImprovePanel({ listingId, submitting, onResubmit }: {
   );
 }
 
-// The instant lane is not built (MODEL.md section 3). This only says it is
-// coming: one line, and what it is on hover, focus or tap.
-function InstantLaneSoon() {
+// The instant lane is not built (MODEL.md section 3). Its accept button is
+// here, disabled and marked coming soon, with what it is on hover, focus or
+// tap, so vendors learn the choice before it opens.
+function InstantLaneOption() {
   const [open, setOpen] = React.useState(false);
   return (
-    <div className="flex justify-center">
-      <span className="relative inline-flex">
-        <button
-          type="button"
-          onClick={() => setOpen((o) => !o)}
-          onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}
-          onFocus={() => setOpen(true)} onBlur={() => setOpen(false)}
-          aria-expanded={open} aria-describedby="instant-lane-tip"
-          className="inline-flex items-center gap-2 border border-black/15 px-3 py-1.5 text-sm hover:border-black"
-        >
-          <span className="font-bold">Instant lane</span>
+    <div className="relative flex flex-col gap-3 border-2 border-dashed border-black/25 bg-zinc-50 p-4 sm:p-5"
+      onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+      <div className="flex flex-col gap-1">
+        <span className="flex items-center gap-2 text-sm font-bold">
+          Instant lane
           <span className="bg-black px-1.5 py-0.5 text-[10px] font-black uppercase tracking-widest text-white">Coming soon</span>
-        </button>
-        <span id="instant-lane-tip" role="tooltip"
-          className={cn(
-            'absolute bottom-full left-1/2 z-10 mb-2 w-64 -translate-x-1/2 bg-black px-3 py-2 text-center text-xs leading-relaxed text-white transition-opacity',
-            open ? 'opacity-100' : 'pointer-events-none opacity-0',
-          )}>
-          Send your item straight to us and get paid faster.
         </span>
+        <span className="text-sm text-black/70">Send your item straight to us and get paid faster.</span>
+      </div>
+      <button
+        type="button" aria-disabled="true"
+        onClick={() => setOpen((o) => !o)} onFocus={() => setOpen(true)} onBlur={() => setOpen(false)}
+        aria-describedby="instant-lane-tip"
+        className={cn(ui.btnSecondary, 'mt-auto w-full cursor-not-allowed border-black/25 py-5 text-black/40 hover:bg-transparent hover:text-black/40')}
+      >
+        Accept instant offer
+      </button>
+      <span id="instant-lane-tip" role="tooltip"
+        className={cn(
+          'absolute bottom-full left-1/2 z-10 mb-2 w-64 -translate-x-1/2 bg-black px-3 py-2 text-center text-xs leading-relaxed text-white transition-opacity',
+          open ? 'opacity-100' : 'pointer-events-none opacity-0',
+        )}>
+        Not open yet. When it is, you can send the item to our hub first and be paid once we have checked it, without waiting for it to sell.
       </span>
     </div>
   );

@@ -1895,6 +1895,17 @@ function AcquisitionPanel({ listingId, listingTitle, vendorEmail, askingPriceFal
               )}
             </label>
           </div>
+          {/* The instant lane's own offer (item sent to the hub first, paid
+              on arrival) is not built yet: shown so the pricing screen already
+              has its place. MODEL.md section 3. */}
+          <label className="flex flex-col gap-1.5 opacity-50">
+            <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest">
+              Instant lane offer
+              <span className="bg-black px-1.5 py-0.5 text-[10px] text-white">Coming soon</span>
+            </span>
+            <input disabled placeholder="Rs." className="cursor-not-allowed border border-dashed border-black/40 bg-zinc-50 px-3 py-2.5 text-base" />
+            <span className="text-xs ink-mid">For items sent to our hub first and paid on arrival. Not open yet; vendors see the button greyed out.</span>
+          </label>
           {problem && (resale || offer) && <p className="text-xs font-semibold ink-mid">{problem}</p>}
           <div className="flex flex-wrap items-center gap-3">
             <ActBtn label="Send offer" onClick={sendOffer} busy={busy} disabled={!!problem} />
