@@ -322,12 +322,15 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
   // spinner with no count reads as a hang, so say which photo we are on.
   const [uploadProgress, setUploadProgress] = React.useState<{ done: number; total: number } | null>(null);
 
-  const [imageFiles, setImageFiles] = React.useState<File[]>([]);
-  const [imagePreviews, setImagePreviews] = React.useState<string[]>([]);
+  // One entry per photo, in the order the vendor wants them; the first is the
+  // cover. Each carries its own original and cleaning flag, so reordering or
+  // removing a photo never lets one photo's state land on another.
+  const [photos, setPhotos] = React.useState<SellPhoto[]>([]);
+  const imageFiles = React.useMemo(() => photos.map((p) => p.file), [photos]);
+  const imagePreviews = React.useMemo(() => photos.map((p) => p.preview), [photos]);
   // What the vendor actually uploaded, kept per index so "use original" can
   // put it back. Only populated where background removal produced something.
-  const [originals, setOriginals] = React.useState<Record<number, { file: File; preview: string }>>({});
-  const [cleaning, setCleaning] = React.useState<Record<number, boolean>>({});
+
   // True while picked photos are being read and resized, which on a phone can
   // take a moment per photo; the add boxes say so instead of looking dead.
   const [adding, setAdding] = React.useState(false);
@@ -501,30 +504,27 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
     if (notes.length) setPhotoNote(notes.join(' '));
     if (accepted.length === 0) return;
 
-    const urls = accepted.map((f) => URL.createObjectURL(f));
-    const startIndex = imageFiles.length;
-    setImageFiles((prev) => [...prev, ...accepted]);
-    setImagePreviews((prev) => [...prev, ...urls]);
+    const added: SellPhoto[] = accepted.map((file) => ({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      file, preview: URL.createObjectURL(file), cleaning: true,
+    }));
+    setPhotos((prev) => [...prev, ...added]);
+    const patch = (id: string, fn: (p: SellPhoto) => SellPhoto) =>
+      setPhotos((prev) => prev.map((p) => (p.id === id ? fn(p) : p)));
 
     // Strip the background in the background, so to speak. The photo is
     // already usable and already on screen; this swaps it if and when it
     // succeeds. It can never block, never rejects a photo, and every
     // failure quietly leaves the vendor's original in place.
-    accepted.forEach((file, offset) => {
-      const index = startIndex + offset;
-      setCleaning((prev) => ({ ...prev, [index]: true }));
+    added.forEach(({ id, file, preview: originalPreview }) => {
       void atMost(removeBackground(file), CLEAN_TIMEOUT_MS, { processed: null }).then(({ processed }) => {
         // Once Get my offer is pressed the photos are fixed: a late cleaned
         // version is dropped rather than swapped in under the submit.
         if (processed && !submittingRef.current) {
-          setOriginals((prev) => ({ ...prev, [index]: { file, preview: urls[offset] } }));
           const preview = URL.createObjectURL(processed);
-          setImageFiles((prev) => prev.map((f, i) => (i === index ? processed : f)));
-          setImagePreviews((prev) => prev.map((u, i) => (i === index ? preview : u)));
+          patch(id, (p) => ({ ...p, file: processed, preview, original: { file, preview: originalPreview } }));
         }
-      }).finally(() => {
-        setCleaning((prev) => { const next = { ...prev }; delete next[index]; return next; });
-      });
+      }).finally(() => patch(id, (p) => ({ ...p, cleaning: false })));
     });
   };
 
@@ -537,19 +537,26 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
   };
 
   const removeImage = (index: number) => {
-    setImageFiles((prev) => prev.filter((_, i) => i !== index));
-    setImagePreviews((prev) => prev.filter((_, i) => i !== index));
-    setOriginals((prev) => { const next = { ...prev }; delete next[index]; return next; });
+    setPhotos((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  // Drag to reorder, or Make cover: the first photo is the cover.
+  const movePhoto = (from: number, to: number) => {
+    setPhotos((prev) => {
+      if (from === to || from < 0 || to < 0 || from >= prev.length || to >= prev.length) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
   };
 
   // Put back exactly what the vendor uploaded. Their photo is always one tap
   // away: we suggest a cleaner version, we never impose one.
   const useOriginal = (index: number) => {
-    const original = originals[index];
-    if (!original) return;
-    setImageFiles((prev) => prev.map((f, i) => (i === index ? original.file : f)));
-    setImagePreviews((prev) => prev.map((u, i) => (i === index ? original.preview : u)));
-    setOriginals((prev) => { const next = { ...prev }; delete next[index]; return next; });
+    setPhotos((prev) => prev.map((p, i) => (i === index && p.original
+      ? { ...p, file: p.original.file, preview: p.original.preview, original: undefined }
+      : p)));
   };
 
   // What must be true for each step. Navigation between steps is free - this
@@ -850,8 +857,7 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
           >
             {step === 0 && (
               <PhotosStep
-                originals={originals} cleaning={cleaning} onUseOriginal={useOriginal}
-                imagePreviews={imagePreviews}
+                photos={photos} onUseOriginal={useOriginal} onMove={movePhoto}
                 onAdd={handleImageChange}
                 onDropFiles={(files) => { void addPhotos(files); }}
                 ready={imageFiles.map((f) => uploaded.has(f))}
@@ -1057,19 +1063,106 @@ function TrustNote({ children, full }: { children: React.ReactNode; full?: boole
   );
 }
 
-function PhotosStep({ imagePreviews, onAdd, onDropFiles, onRemove, originals, cleaning, onUseOriginal, adding, note, ready }: {
-  imagePreviews: string[];
+interface SellPhoto {
+  id: string;
+  file: File;
+  preview: string;
+  /** What the vendor uploaded, kept when background removal replaced it. */
+  original?: { file: File; preview: string };
+  cleaning: boolean;
+}
+
+// Drag a photo onto another's place to reorder. Pointer events, so one path
+// covers a mouse and a finger; on touch the drag starts after a short hold,
+// so a swipe over the photos still scrolls the page.
+function usePhotoReorder(count: number, onMove: (from: number, to: number) => void) {
+  const [dragging, setDragging] = React.useState<number | null>(null);
+  const draggingRef = React.useRef<number | null>(null);
+  const start = React.useRef<{ x: number; y: number; index: number; touch: boolean; timer?: number } | null>(null);
+
+  React.useEffect(() => {
+    // iOS only lets a page stop a scroll from a non-passive touchmove.
+    const block = (e: TouchEvent) => { if (draggingRef.current !== null) e.preventDefault(); };
+    window.addEventListener('touchmove', block, { passive: false });
+    return () => window.removeEventListener('touchmove', block);
+  }, []);
+
+  const begin = (index: number) => {
+    draggingRef.current = index;
+    setDragging(index);
+    if (start.current?.touch) navigator.vibrate?.(10);
+  };
+  const end = () => {
+    if (start.current?.timer) window.clearTimeout(start.current.timer);
+    start.current = null;
+    draggingRef.current = null;
+    setDragging(null);
+  };
+
+  // Moves and the release are followed on the window, not the tile: the tile
+  // itself moves in the DOM as photos reorder, which would drop a capture.
+  const countRef = React.useRef(count);
+  countRef.current = count;
+  const moveRef = React.useRef(onMove);
+  moveRef.current = onMove;
+
+  const handlers = (index: number) => ({
+    'data-photo-index': index,
+    onPointerDown: (e: React.PointerEvent) => {
+      if ((e.target as HTMLElement).closest('button') || e.button > 0 || countRef.current < 2) return;
+      const touch = e.pointerType !== 'mouse';
+      start.current = { x: e.clientX, y: e.clientY, index, touch };
+      if (touch) start.current.timer = window.setTimeout(() => begin(index), 250);
+
+      const move = (ev: PointerEvent) => {
+        const st = start.current;
+        if (!st) return;
+        if (draggingRef.current === null) {
+          const moved = Math.hypot(ev.clientX - st.x, ev.clientY - st.y);
+          // A finger that moves before the hold is a scroll, not a drag.
+          if (st.touch) { if (moved > 8) stop(); return; }
+          if (moved < 6) return;
+          begin(st.index);
+        }
+        ev.preventDefault();
+        const el = document.elementFromPoint(ev.clientX, ev.clientY)?.closest('[data-photo-index]') as HTMLElement | null;
+        const to = el ? Number(el.dataset.photoIndex) : NaN;
+        const from = draggingRef.current!;
+        if (Number.isInteger(to) && to !== from && to < countRef.current) {
+          moveRef.current(from, to);
+          draggingRef.current = to;
+          setDragging(to);
+        }
+      };
+      const stop = () => {
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', stop);
+        window.removeEventListener('pointercancel', stop);
+        end();
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', stop);
+      window.addEventListener('pointercancel', stop);
+    },
+  });
+
+  return { dragging, handlers };
+}
+
+function PhotosStep({ photos, onAdd, onDropFiles, onRemove, onUseOriginal, onMove, adding, note, ready }: {
+  photos: SellPhoto[];
   /** Per photo: already uploaded, so Submit will not wait on it. */
   ready: boolean[];
   onAdd: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onDropFiles: (files: File[]) => void;
   onRemove: (i: number) => void;
-  originals: Record<number, { file: File; preview: string }>;
-  cleaning: Record<number, boolean>;
   onUseOriginal: (i: number) => void;
+  onMove: (from: number, to: number) => void;
   adding: boolean;
   note: string | null;
 }) {
+  const imagePreviews = photos.map((p) => p.preview);
+  const reorder = usePhotoReorder(photos.length, onMove);
   const slotCount = Math.max(PHOTO_SLOT_LABELS.length, imagePreviews.length + 1);
   const slots = Array.from({ length: Math.min(slotCount, MAX_IMAGES) }, (_, i) => i);
   // Photos dropped anywhere on this step are added, in the order dropped.
@@ -1107,30 +1200,43 @@ function PhotosStep({ imagePreviews, onAdd, onDropFiles, onRemove, originals, cl
           const slot = PHOTO_SLOTS[i];
           const label = slot?.label ?? `Photo ${i + 1}`;
           const required = slot?.required ?? false;
-          const preview = imagePreviews[i];
+          const photo = photos[i];
+          const preview = photo?.preview;
+          const cleaning = photo?.cleaning ?? false;
+          const dragged = reorder.dragging === i;
           return preview ? (
-            <div key={i} className="relative aspect-[3/4] w-full overflow-hidden bg-zinc-100 group">
-              <img src={preview} alt={label} className="h-full w-full object-cover" />
-              {i === 0 && (
+            <div key={photo.id} {...reorder.handlers(i)}
+              className={cn(
+                'relative aspect-[3/4] w-full overflow-hidden bg-zinc-100 group select-none [-webkit-touch-callout:none] transition-[opacity,transform]',
+                photos.length > 1 && 'cursor-grab',
+                dragged && 'z-10 scale-[1.03] opacity-80 shadow-xl outline outline-2 outline-black cursor-grabbing',
+              )}>
+              <img src={preview} alt={label} draggable={false} className="pointer-events-none h-full w-full object-cover" />
+              {i === 0 ? (
                 <span className="absolute top-2 left-2 bg-black px-2 py-1 text-xs font-bold text-white">Cover</span>
+              ) : (
+                <button type="button" onClick={() => onMove(i, 0)}
+                  className="absolute top-2 left-2 bg-white/90 px-2 py-1 text-xs font-bold text-black hover:bg-white">
+                  Make cover
+                </button>
               )}
               <button type="button" onClick={() => onRemove(i)}
                 className="absolute top-2 right-2 bg-black/70 p-2 text-white hover:bg-black transition-all">
                 <X className="h-3 w-3" />
               </button>
-              {cleaning[i] && (
+              {cleaning && (
                 <span className="absolute bottom-2 left-2 bg-black px-2 py-1 text-xs font-bold text-white">
                   Tidying…
                 </span>
               )}
               {/* Uploaded while the rest of the form is filled in, so the
                   last step has nothing left to wait for. */}
-              {ready[i] && !cleaning[i] && (
+              {ready[i] && !cleaning && (
                 <span className="absolute bottom-2 right-2 inline-flex items-center gap-1 bg-white px-2 py-1 text-xs font-bold text-black">
                   <Check className="h-3 w-3" strokeWidth={3} /> Ready
                 </span>
               )}
-              {originals[i] && (
+              {photo.original && (
                 <button
                   type="button" onClick={() => onUseOriginal(i)}
                   className="absolute bottom-2 left-2 bg-white px-2 py-1 text-xs font-bold text-black"
@@ -1179,6 +1285,10 @@ function PhotosStep({ imagePreviews, onAdd, onDropFiles, onRemove, originals, cl
       </div>
 
       <div className="flex flex-col gap-1">
+        {photos.length > 1 && (
+          <p className="text-sm">The first photo is the cover. Drag photos to reorder them{' '}
+            <span className="pointer-fine:hidden">(hold, then drag)</span>, or tap Make cover.</p>
+        )}
         <p className="text-sm font-bold text-black">
           {imagePreviews.length}/{MAX_IMAGES} uploaded.
           {imagePreviews.length < REQUIRED_PHOTOS && ` At least ${REQUIRED_PHOTOS} needed.`}
