@@ -11,19 +11,27 @@ import { supabase } from './supabase';
 import { useAuth } from './auth';
 
 export function useOpenOfferCount(): number {
+  return useOpenOffers().length;
+}
+
+/** The listings with an offer waiting on this vendor, so a notice can link straight to one. */
+export function useOpenOffers(): string[] {
   const { user } = useAuth();
   const { pathname } = useLocation();
-  const [count, setCount] = React.useState(0);
+  const [ids, setIds] = React.useState<string[]>([]);
 
   React.useEffect(() => {
-    if (!user) { setCount(0); return; }
+    if (!user) { setIds([]); return; }
     let alive = true;
     const check = async () => {
-      const { count: n, error } = await supabase
+      const { data, error } = await supabase
         .from('vendor_offers')
-        .select('listing_id', { count: 'exact', head: true })
+        .select('listing_id')
         .eq('offer_status', 'offered');
-      if (alive && !error) setCount(n ?? 0);
+      if (alive && !error) {
+        const next = (data ?? []).map((r: { listing_id: string }) => r.listing_id);
+        setIds((prev) => (prev.join() === next.join() ? prev : next));
+      }
     };
     void check();
     const onVisible = () => { if (document.visibilityState === 'visible') void check(); };
@@ -31,5 +39,5 @@ export function useOpenOfferCount(): number {
     return () => { alive = false; document.removeEventListener('visibilitychange', onVisible); };
   }, [user, pathname]);
 
-  return count;
+  return ids;
 }

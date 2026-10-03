@@ -9,10 +9,7 @@ import { Listing } from '../types';
 import { cn } from '../lib/utils';
 import { variantUrl } from '../lib/images';
 import { shareDataFor } from '../lib/shareImage/data';
-import {
-  ensureFonts, loadPhoto, renderShare, resolveLayout,
-  type ShareFormat, type ShareLayout,
-} from '../lib/shareImage/render';
+import { ensureFonts, loadPhoto, renderShare, type ShareFormat } from '../lib/shareImage/render';
 
 interface Props {
   open: boolean;
@@ -21,14 +18,11 @@ interface Props {
 }
 
 const FORMATS: Array<[ShareFormat, string]> = [['square', 'Post 1:1'], ['story', 'Story 9:16']];
-const LAYOUTS: Array<[ShareLayout, string]> = [['auto', 'Auto'], ['float', 'Float'], ['plate', 'Plate'], ['full', 'Full bleed']];
-const LAYOUT_NAMES: Record<Exclude<ShareLayout, 'auto'>, string> = { float: 'float', plate: 'plate', full: 'full bleed' };
 
-async function renderFor(listing: Listing, src: string, format: ShareFormat, layout: ShareLayout, qr: boolean) {
+async function renderFor(listing: Listing, src: string, format: ShareFormat, qr: boolean) {
   await ensureFonts();
   const photo = await loadPhoto(variantUrl(src, 'full'));
-  const canvas = renderShare({ format, layout, data: shareDataFor(listing), photo, qr });
-  return { canvas, resolved: resolveLayout(layout, photo.analysis) };
+  return renderShare({ format, data: shareDataFor(listing), photo, qr });
 }
 
 function download(canvas: HTMLCanvasElement, name: string): Promise<void> {
@@ -47,11 +41,9 @@ function download(canvas: HTMLCanvasElement, name: string): Promise<void> {
 
 export function ShareInstagramModal({ open, onClose, listing }: Props) {
   const [format, setFormat] = React.useState<ShareFormat>('square');
-  const [layout, setLayout] = React.useState<ShareLayout>('auto');
   const [qr, setQr] = React.useState(true);
   const [imageIdx, setImageIdx] = React.useState(0);
   const [preview, setPreview] = React.useState<string | null>(null);
-  const [resolved, setResolved] = React.useState<Exclude<ShareLayout, 'auto'> | null>(null);
   const [rendering, setRendering] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [downloading, setDownloading] = React.useState<'one' | 'all' | null>(null);
@@ -69,17 +61,16 @@ export function ShareInstagramModal({ open, onClose, listing }: Props) {
     let live = true;
     setRendering(true);
     setError(null);
-    renderFor(listing, images[imageIdx], format, layout, qr)
-      .then(({ canvas, resolved: r }) => {
+    renderFor(listing, images[imageIdx], format, qr)
+      .then((canvas) => {
         if (!live) return;
         current.current = canvas;
-        setResolved(r);
         setPreview(canvas.toDataURL('image/jpeg', 0.9));
       })
       .catch(() => { if (live) setError('This photo could not be loaded. Try another one, or reload.'); })
       .finally(() => { if (live) setRendering(false); });
     return () => { live = false; };
-  }, [open, listing, images, imageIdx, format, layout, qr]);
+  }, [open, listing, images, imageIdx, format, qr]);
 
   const slug = (listing.title || 'item').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
 
@@ -95,7 +86,7 @@ export function ShareInstagramModal({ open, onClose, listing }: Props) {
     setDownloading('all');
     try {
       for (let i = 0; i < images.length; i++) {
-        const { canvas } = await renderFor(listing, images[i], format, layout, qr);
+        const canvas = await renderFor(listing, images[i], format, qr);
         await download(canvas, `zarketplace-${slug}-${format}-${i + 1}.png`);
         // A gap, so the browser does not fold quick downloads into one.
         await new Promise((r) => setTimeout(r, 300));
@@ -156,18 +147,6 @@ export function ShareInstagramModal({ open, onClose, listing }: Props) {
                     <button key={k} type="button" onClick={() => setFormat(k)} className={segment(format === k)} aria-pressed={format === k}>{label}</button>
                   ))}
                 </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <span className="text-sm font-bold">Layout</span>
-                <div className="flex flex-wrap self-start border border-black/15">
-                  {LAYOUTS.map(([k, label]) => (
-                    <button key={k} type="button" onClick={() => setLayout(k)} className={segment(layout === k)} aria-pressed={layout === k}>{label}</button>
-                  ))}
-                </div>
-                {layout === 'auto' && resolved && (
-                  <p className="text-xs">Chosen for this photo: {LAYOUT_NAMES[resolved]}.</p>
-                )}
               </div>
 
               {images.length > 1 && (

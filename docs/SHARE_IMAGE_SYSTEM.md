@@ -19,6 +19,33 @@ type with a strikethrough and a red "On Sale" box, a white QR block with
 Everything had a container, everything was capitals, the panel covered the
 garment, and the story was the square with a taller panel.
 
+## Current design (2026-10-03)
+
+One composition, two formats, no layout options. Float, plate and full
+bleed made too little difference to be worth choosing between, and the
+light type band under-used its space, so they were replaced by this.
+
+- **Photo on top.** A photo with an even backdrop (most of ours) has that
+  backdrop extended across the photo area and the garment centred on it,
+  edges feathered. Any other photo is cropped to where its detail is.
+- **A black band below, all of it used.** Left: the name (brand first when
+  the title lacks it, weight 600, two lines on a post, three on a story),
+  the price at display size (weight 800), and one details line (size, fit,
+  condition) at 72% white. Right: the QR on a white tile, on by default.
+- **A signature bar along the foot.** A hairline, the white zarketplace
+  wordmark large on the left, `zarketplace.com` on the right.
+
+| | Post 1080 x 1080 | Story 1080 x 1920 |
+|---|---|---|
+| Photo height | 640 | 1180 (garment starts below 170, under Instagram's top bar) |
+| Margin | 60 | 80 |
+| Name / price / details | 46 / 72 / 28 | 62 / 104 / 36 |
+| QR | 200 | 260 |
+| Signature bar / wordmark / address | 120 / 52 / 30 | 210 / 80 / 40 |
+
+The sections below describe the earlier system and are kept for its
+reasoning about data and cropping, which still applies.
+
 ## Hierarchy
 
 | Rank | Element | Treatment |

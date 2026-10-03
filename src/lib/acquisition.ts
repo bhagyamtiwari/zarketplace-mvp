@@ -122,7 +122,10 @@ export interface AcceptanceDetails {
   phone: string;
   /** Empty when a confirmed UPI ID is already on file: the database uses that one. */
   upiVpa: string;
+  /** Flat or house number, and the building. */
   address: string;
+  /** Street and area. Sent joined to `address`: the database keeps one line. */
+  street?: string;
   landmark: string;
   city: string;
   pincode: string;
@@ -148,7 +151,7 @@ export async function acceptOffer(
     p_phone: d.phone,
     p_upi_vpa: d.upiVpa,
     p_user_agent: typeof navigator === 'undefined' ? null : navigator.userAgent,
-    p_pickup_address: d.address,
+    p_pickup_address: [d.address.trim(), (d.street ?? '').trim()].filter(Boolean).join(', '),
     p_pickup_landmark: d.landmark,
     p_pickup_city: d.city,
     p_pickup_pincode: d.pincode,
