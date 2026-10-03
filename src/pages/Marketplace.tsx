@@ -409,7 +409,12 @@ export function Marketplace() {
   const sizeCounts = countBy('size', (r) => r.size_type);
   const brandCounts = countBy('brand', (r) => r.brand);
   const conditionCounts = countBy('condition', (r) => r.condition);
-  const categoryCounts = countBy('category', (r) => r.category);
+  // Whole shelf, unfiltered: a tab is shown when its category has stock at all.
+  const allCategoryCounts = React.useMemo(() => {
+    const m = new Map<string, number>();
+    for (const r of facetRows) if (r.category) m.set(r.category, (m.get(r.category) ?? 0) + 1);
+    return m;
+  }, [facetRows]);
   const genderCounts = countBy('gender', (r) => r.gender);
   const instantCount = facetRows.filter((r) => r.is_verified && matchesFacets(r, facets, 'instant')).length;
   const genderCount = (g: string) => g === 'Unisex'
@@ -439,13 +444,6 @@ export function Marketplace() {
         {CONDITIONS.map((c) => (
           <CheckRow key={c.name} label={c.name} count={conditionCounts.get(c.name) ?? 0}
             checked={conditions.includes(c.name)} onChange={() => toggleInList('condition', conditions, c.name)} />
-        ))}
-      </PanelSection>
-
-      <PanelSection title="Category" count={category ? 1 : 0} defaultOpen>
-        {PRODUCT_TYPES.map((c) => (
-          <CheckRow key={c} label={c} count={categoryCounts.get(c) ?? 0} radio
-            checked={category === c} onChange={() => selectCategory(category === c ? null : c)} />
         ))}
       </PanelSection>
 
@@ -496,14 +494,17 @@ export function Marketplace() {
           down to the footer. The hero's "Shop now" scrolls here (#shop). */}
       <div id="shop" className="scroll-mt-20 border-b border-black/10 bg-white">
         <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex flex-col gap-1 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
-          {/* Gender is the one filter that earns a permanent place: it halves
-              the catalogue in one tap. Instant Ship sits beside it because
-              "can I have it this week" is a question people arrive with. */}
+          {/* Category is the filter that earns a permanent place: most stock
+              is menswear or unisex, so gender barely narrows it, while
+              "show me jackets" is how people actually shop. Gender is in the
+              filter column. A category with nothing in it is left out once
+              the counts are in. Instant Ship sits beside them because "can I
+              have it this week" is a question people arrive with. */}
           <div className="-mx-4 px-4 sm:mx-0 sm:px-0 flex items-center gap-6 overflow-x-auto scrollbar-hide">
-            <Tab active={!gender && !quick && !category} onClick={clearAll}>All</Tab>
-            {GENDERS.map((g) => (
-              <React.Fragment key={g}>
-                <Tab active={gender === g} onClick={() => toggleParam('gender', g)}>{g}</Tab>
+            <Tab active={!category && !quick} onClick={() => setParams([['category', null], ['size_type', null], ['q', null]])}>All</Tab>
+            {PRODUCT_TYPES.filter((c) => category === c || facetRows.length === 0 || (allCategoryCounts.get(c) ?? 0) > 0).map((c) => (
+              <React.Fragment key={c}>
+                <Tab active={category === c} onClick={() => selectCategory(category === c ? null : c)}>{c}</Tab>
               </React.Fragment>
             ))}
             <Tab active={quick === 'verified'} onClick={() => toggleParam('q', 'verified')}>Instant Ship</Tab>
