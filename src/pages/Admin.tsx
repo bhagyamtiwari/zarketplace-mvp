@@ -32,6 +32,7 @@ import { writeAudit, AuditEntry } from '../lib/adminAudit';
 import { ListingEditor } from '../components/admin/ListingEditor';
 import { DiscountCodes } from '../components/admin/DiscountCodes';
 import { SiteErrors } from '../components/admin/SiteErrors';
+import { OwnStock } from '../components/admin/OwnStock';
 import { Loading } from '../components/Loading';
 
 const adlog = log('admin');
@@ -62,7 +63,7 @@ interface EmailLogRow {
   created_at: string;
 }
 
-type LeafKind = 'overview' | 'orders' | 'listings' | 'payouts' | 'users' | 'emails' | 'audit' | 'settings' | 'discounts' | 'errors';
+type LeafKind = 'overview' | 'orders' | 'listings' | 'payouts' | 'users' | 'emails' | 'audit' | 'settings' | 'discounts' | 'errors' | 'ownstock';
 
 interface Leaf {
   key: string;
@@ -143,6 +144,8 @@ const NAV: Section[] = [
       order: (o) => o.status === 'paid' },
   ] },
   { key: 'listings', label: 'Listings', icon: Boxes, leaves: [
+    { key: 'own_stock', slug: 'own-stock', label: 'Add our own stock', kind: 'ownstock',
+      hint: 'Items we have already bought and hold at the hub. They go live as Instant Ship with no offer, and the purchase is recorded for GST.' },
     // Split deliberately. These were one queue, and merging them is what let
     // an item waiting on a vendor look like work an operator could do.
     { key: 'l_accepted', slug: 'accepted', label: 'Accepted, not live', kind: 'listings',
@@ -547,6 +550,7 @@ function LeafView({ leaf, orders, listings, acqByListing, payouts, users, vendor
   if (leaf.kind === 'settings') return <SettingsView />;
   if (leaf.kind === 'discounts') return <DiscountCodes />;
   if (leaf.kind === 'errors') return <SiteErrors />;
+  if (leaf.kind === 'ownstock') return <OwnStock />;
   return null;
 }
 
