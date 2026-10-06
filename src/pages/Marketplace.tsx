@@ -515,6 +515,10 @@ export function Marketplace() {
         </span>
       </label>
 
+      <PanelSection title="Price" count={minPrice !== null || maxPrice !== null ? 1 : 0} defaultOpen>
+        <PriceFilter min={minPrice} max={maxPrice} onApply={setPrice} />
+      </PanelSection>
+
       <PanelSection title="Gender" count={gender ? 1 : 0} fixed>
         {GENDERS.map((g) => (
           <CheckRow key={g} label={g} count={genderCount(g)} radio
@@ -522,8 +526,11 @@ export function Marketplace() {
         ))}
       </PanelSection>
 
-      <PanelSection title="Price" count={minPrice !== null || maxPrice !== null ? 1 : 0} defaultOpen>
-        <PriceFilter min={minPrice} max={maxPrice} onApply={setPrice} />
+      <PanelSection title="Condition" count={conditions.length} fixed>
+        {CONDITIONS.map((c) => (
+          <CheckRow key={c.name} label={c.name} count={conditionCounts.get(c.name) ?? 0}
+            checked={conditions.includes(c.name)} onChange={() => toggleInList('condition', conditions, c.name)} />
+        ))}
       </PanelSection>
 
       <PanelSection title="Size" count={sizes.length}>
@@ -546,13 +553,6 @@ export function Marketplace() {
 
       <PanelSection title="Brand" count={brands.length}>
         <BrandFilter counts={brandCounts} selected={brands} onToggle={(b) => toggleInList('brand', brands, b)} />
-      </PanelSection>
-
-      <PanelSection title="Condition" count={conditions.length} fixed>
-        {CONDITIONS.map((c) => (
-          <CheckRow key={c.name} label={c.name} count={conditionCounts.get(c.name) ?? 0}
-            checked={conditions.includes(c.name)} onChange={() => toggleInList('condition', conditions, c.name)} />
-        ))}
       </PanelSection>
     </div>
   );
