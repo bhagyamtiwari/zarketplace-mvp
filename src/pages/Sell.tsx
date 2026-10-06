@@ -791,8 +791,10 @@ export function SellInner({ initialStep = 0 }: { initialStep?: number } = {}) {
             <h1 className="text-4xl sm:text-5xl font-black tracking-tighter uppercase leading-[0.95]">
               What are you selling?
             </h1>
+            {/* Said outright: with no price field anywhere, people wondered
+                whether they had missed one. They had not; we set the number. */}
             <p className="body-longform measure">
-              Add your item. We'll make you an offer.
+              Add your item. No need to price it. We look at it and make you an offer.
             </p>
             {/* A new tab: this form keeps nothing if you leave it, and a
                 vendor who has started adding photos should not lose them to
