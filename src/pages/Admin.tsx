@@ -33,6 +33,7 @@ import { ListingEditor } from '../components/admin/ListingEditor';
 import { DiscountCodes } from '../components/admin/DiscountCodes';
 import { SiteErrors } from '../components/admin/SiteErrors';
 import { OwnStock } from '../components/admin/OwnStock';
+import { REJECTION_REASONS_FIXABLE, REJECTION_REASONS_FINAL, isFinalRejection } from '../lib/acquisition';
 import { Loading } from '../components/Loading';
 
 const adlog = log('admin');
@@ -1692,15 +1693,6 @@ function ListingDrawer({ listing, acq, orders, payouts, audit, backLabel, onClos
 // reads identically to every vendor who gets it, and keeps free text as the
 // exception - a note written in a hurry is where a resale figure or a
 // negotiating phrase would end up, and neither belongs in front of a vendor.
-const REJECTION_REASONS: string[] = [
-  'The photos are too dark. Please reshoot in daylight, near a window.',
-  'We need a clear photo of the size tag.',
-  'We need more angles: front, back, and any detail that matters.',
-  'The description does not match what the photos show.',
-  'The condition is not clear enough from these photos.',
-  'The item needs a clean or a press before we can take it.',
-  'This is not something we are able to resell right now.',
-];
 
 /**
  * Operator triage. A submitted item gets one of two answers: an offer, or a
@@ -1812,7 +1804,9 @@ function AcquisitionPanel({ listingId, listingTitle, vendorEmail, askingPriceFal
       setErr('Pick at least one reason, or write one. The vendor is told why.');
       return;
     }
-    if (!confirm('Reject this item? The vendor can fix what you have named and send it back.')) return;
+    if (!confirm(isFinalRejection(reasons)
+      ? 'Reject this item for good? The vendor is told we will not take it and to send something else.'
+      : 'Reject this item? The vendor is asked to sort out what you have named and send it back.')) return;
     setBusy(true); setErr(null);
     try {
       const { error } = await supabase.rpc('reject_listing', {
@@ -1923,9 +1917,26 @@ function AcquisitionPanel({ listingId, listingTitle, vendorEmail, askingPriceFal
 
           {rejecting && (
             <div className="flex flex-col gap-3 border-t border-black/10 pt-4">
-              <span className="text-[11px] font-black uppercase tracking-widest">What needs fixing?</span>
+              <span className="text-[11px] font-black uppercase tracking-widest">Why are we turning it down?</span>
               <div className="flex flex-col gap-1.5">
-                {REJECTION_REASONS.map((r) => {
+                <span className="pt-1 text-[11px] font-bold ink-mid">Fixable: they can sort it and send it back</span>
+                {REJECTION_REASONS_FIXABLE.map((r) => {
+                  const on = reasons.includes(r);
+                  return (
+                    <button
+                      key={r} type="button" onClick={() => toggleReason(r)}
+                      className={cn(
+                        'flex items-start gap-2.5 border px-3 py-2.5 text-left text-sm leading-snug transition-colors',
+                        on ? 'border-black bg-black text-white' : 'border-black/10 hover:border-black/40',
+                      )}
+                    >
+                      <span className={cn('mt-0.5 h-3.5 w-3.5 shrink-0 border', on ? 'border-white bg-white' : 'border-black/30')} />
+                      <span>{r}</span>
+                    </button>
+                  );
+                })}
+                <span className="pt-2 text-[11px] font-bold ink-mid">Final: we will not take it (they are told to send something else)</span>
+                {REJECTION_REASONS_FINAL.map((r) => {
                   const on = reasons.includes(r);
                   return (
                     <button
@@ -1954,7 +1965,9 @@ function AcquisitionPanel({ listingId, listingTitle, vendorEmail, askingPriceFal
         <div className="flex flex-col gap-3 pt-3">
           <p className="text-[11px] leading-relaxed ink-mid max-w-[44ch]">
             {acq.offer_status === 'declined'
-              ? 'Declined. The vendor can fix what was named and send it back. Nothing happens to this item until they do, or until you reopen it here.'
+              ? (isFinalRejection(acq.review_reasons)
+                ? 'Turned down for good. The vendor was told to send something else. You can still reopen it here.'
+                : 'Declined. The vendor can sort out what was named and send it back. Nothing happens until they do, or until you reopen it here.')
               : 'The offer lapsed unanswered. Reopening puts it back in the queue for a fresh offer.'}
           </p>
           <textarea

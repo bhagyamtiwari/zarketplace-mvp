@@ -32,7 +32,7 @@ import { scrollToTop } from '../lib/scrollToTop';
 import { cn, formatCurrency } from '../lib/utils';
 import { trackEvent } from '../lib/analytics';
 import {
-  getVendorOffer, acceptOffer, rejectOffer, resubmitListing, canResubmit,
+  getVendorOffer, acceptOffer, rejectOffer, resubmitListing, canResubmit, isFinalRejection,
   AGREEMENT_CLAUSES, type VendorOffer, type AcceptanceDetails,
 } from '../lib/acquisition';
 
@@ -834,10 +834,14 @@ export function Verdict({ status, reasons, note, listingId, canSendBack, submitt
   status: string; reasons: string[] | null; note: string | null; listingId: string;
   canSendBack: boolean; submitting: boolean; onResubmit: () => void;
 }) {
-  const copy = {
+  const final = status === 'declined' && isFinalRejection(reasons);
+  const copy = final ? {
+    heading: 'Not one for us',
+    body: 'We will not be making an offer on this item. It is about what we can resell right now, not about you. Have something else? Send it to us and we will make you an offer within 24 hours.',
+  } : {
     declined: {
-      heading: 'We cannot make an offer on this yet',
-      body: 'This is not final. Sort out what is set out here, send the item back to us, and we will look again within 24 hours.',
+      heading: 'We need a little more first',
+      body: 'If you can sort out the points above, send it back and we will look again within 24 hours. If not, no problem: send us something else instead.',
     },
     offer_rejected: {
       heading: 'No problem',
@@ -863,7 +867,7 @@ export function Verdict({ status, reasons, note, listingId, canSendBack, submitt
       {(reasons?.length || note) && (
         <div className="border-l-2 border-black pl-6 py-1 flex flex-col gap-4">
           <span className={ui.label}>
-            What needs fixing
+            {final ? 'Why' : 'What we need'}
           </span>
           {reasons && reasons.length > 0 && (
             <ul className="flex flex-col gap-2.5">
@@ -883,6 +887,9 @@ export function Verdict({ status, reasons, note, listingId, canSendBack, submitt
 
       {canSendBack && (
         <ImprovePanel listingId={listingId} submitting={submitting} onResubmit={onResubmit} />
+      )}
+      {final && (
+        <Link to="/sell" className={cn(ui.btnPrimary, 'self-start py-5 sm:min-w-[240px]')}>Sell something else</Link>
       )}
     </div>
   );
