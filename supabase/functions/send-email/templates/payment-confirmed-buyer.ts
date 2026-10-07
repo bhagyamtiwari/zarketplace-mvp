@@ -7,12 +7,13 @@ export function paymentConfirmedBuyer(ctx: EmailContext): EmailContent {
   const o = ctx.order ?? {};
   return {
     to: o.buyer_email,
-    subject: `Payment received · ${o.order_number}`,
+    subject: `It's yours · ${o.listing_title ?? "your order"} · ${o.order_number}`,
     html: shell(`<div style="${baseStyle}">
       ${header(ctx.siteUrl)}
-      <h1 style="color:#111111; font-weight:900; text-transform:uppercase; letter-spacing:-1px;">Payment received</h1>
+      <h1 style="color:#111111; font-weight:900; text-transform:uppercase; letter-spacing:-1px;">It's yours.</h1>
       <p style="color:#111111; margin:0 0 14px;">Hi ${esc(o.buyer_name)},</p>
-      <p style="color:#111111; margin:0 0 14px;">Your payment is confirmed. We're getting your item ready: it's checked against its listing, repacked in our own packaging, and sent out to you from our hub. You'll get tracking as soon as it ships.</p>
+      <p style="color:#111111; margin:0 0 14px;">Payment confirmed. This piece is one of one, and it's now yours.</p>
+      <p style="color:#111111; margin:0 0 14px;">Next, we check it against its listing, repack it in our own packaging and send it from our hub. We'll email you when it's packed and on its way, and the courier will send you tracking updates from there.</p>
       <h3 style="color:#111111; margin-top:24px;">${esc(o.listing_title)}</h3>
       ${listingImage(o)}
       <p style="color:#5a5a5a; font-size:13px;">SKU: ${esc(o.listing_sku)}</p>

@@ -9,12 +9,12 @@ export function paymentConflictBuyer(ctx: EmailContext): EmailContent {
   const o = ctx.order ?? {};
   return {
     to: o.buyer_email,
-    subject: `Item just sold out · ${o.order_number}`,
+    subject: `Someone got there first · ${o.order_number}`,
     html: shell(`<div style="${baseStyle}">
       ${header(ctx.siteUrl)}
-      <h1 style="color:#111111; font-weight:900; text-transform:uppercase; letter-spacing:-1px;">This item just sold out</h1>
+      <h1 style="color:#111111; font-weight:900; text-transform:uppercase; letter-spacing:-1px;">Someone got there first.</h1>
       <p style="color:#111111; margin:0 0 14px;">Hi ${esc(o.buyer_name)},</p>
-      <p style="color:#111111; margin:0 0 14px;">Your payment for the order below went through, but another buyer's payment for the same one-of-one item was confirmed moments earlier. Since only one buyer can have this item, we're issuing you a full refund.</p>
+      <p style="color:#111111; margin:0 0 14px;">Your payment went through, but another buyer's payment for the same piece was confirmed moments before yours. Every item here is one of one, so we're refunding you in full.</p>
       <h3 style="color:#111111; margin-top:24px;">${esc(o.listing_title)}</h3>
       <p style="color:#111111; margin:0 0 14px;"><strong>Order #:</strong> ${esc(o.order_number)}<br/>
          <strong>Amount:</strong> Rs. ${o.total_amount}</p>

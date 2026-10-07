@@ -31,9 +31,8 @@ export function Terms() {
               legal name, principal geographic address and customer care details
               displayed, and the Grievance page tells people to look for them here.
 
-              TODO: the registered office reads "temporarily relocating" until
-              the new address is settled. Replace it with the full address as
-              soon as it is, and add the GSTIN in the same block once issued. */}
+              The office address is the one GST registration was filed with
+              (2026-10). TODO: add the GSTIN in this block once it is issued. */}
             <p>zarketplace is a trading name of <strong>ADNIZ Private Limited</strong>, a company incorporated in India.</p>
             <dl className="flex flex-col gap-4">
               <div className="flex flex-col gap-1">
@@ -45,8 +44,8 @@ export function Terms() {
                 <dd>U47711DL2023PTC418107</dd>
               </div>
               <div className="flex flex-col gap-1">
-                <dt className="font-bold">Registered office</dt>
-                <dd>Temporarily relocating. Email us and we will send you our current postal address.</dd>
+                <dt className="font-bold">Office address</dt>
+                <dd>ADNIZ Private Limited, 5th Floor, Wing-A, Statesman House, 148 Barakhamba Road, Connaught Place, New Delhi 110001</dd>
               </div>
               <div className="flex flex-col gap-1">
                 <dt className="font-bold">Customer care</dt>

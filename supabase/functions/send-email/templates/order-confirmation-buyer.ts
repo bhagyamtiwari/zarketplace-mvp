@@ -5,12 +5,12 @@ export function orderConfirmationBuyer(ctx: EmailContext): EmailContent {
   const o = ctx.order ?? {};
   return {
     to: o.buyer_email,
-    subject: `Order placed · ${o.order_number}`,
+    subject: `Order placed · ${o.listing_title ?? o.order_number}`,
     html: shell(`<div style="${baseStyle}">
       ${header(ctx.siteUrl)}
-      <h1 style="color:#111111; font-weight:900; text-transform:uppercase; letter-spacing:-1px;">Order placed</h1>
+      <h1 style="color:#111111; font-weight:900; text-transform:uppercase; letter-spacing:-1px;">Order placed.</h1>
       <p style="color:#111111; margin:0 0 14px;">Hi ${esc(o.buyer_name)},</p>
-      <p style="color:#111111; margin:0 0 14px;">Thanks for your order. We're verifying your payment now. Once it clears, we check your item, repack it and send it out to you. Every order is sold and shipped by zarketplace.</p>
+      <p style="color:#111111; margin:0 0 14px;">Thanks for your order. We're confirming your payment now, which usually takes a minute. You'll get another email as soon as it's through.</p>
       <h3 style="color:#111111; margin-top:24px;">${esc(o.listing_title)}</h3>
       <p style="color:#5a5a5a; font-size:13px;">SKU: ${esc(o.listing_sku)}</p>
       <p style="color:#111111; margin:0 0 14px;"><strong>Order #:</strong> ${esc(o.order_number)}<br/>
