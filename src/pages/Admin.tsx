@@ -19,7 +19,7 @@ import { formatCurrency, cn } from '../lib/utils';
 import { variantUrl } from '../lib/images';
 import {
   Loader2, Search, ChevronRight, X, ExternalLink, ArrowLeft, CheckCircle2, XCircle, Clock, AlertCircle, Archive, Zap, Package, CreditCard,
-  Truck, Wallet, Users as UsersIcon, LifeBuoy, Terminal, LayoutGrid, Boxes, ShieldCheck, ListOrdered, Ticket,
+  Truck, Wallet, Terminal, LayoutGrid, Boxes, ShieldCheck,
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
@@ -78,6 +78,8 @@ interface Leaf {
   hint: string;
   order?: (o: Order) => boolean;
   listing?: (l: Listing, a?: AcqRow) => boolean;
+  /** Left out of the sidebar while it has nothing in it. */
+  hideWhenEmpty?: boolean;
   payout?: (p: VendorPayout) => boolean;
   user?: (u: AdminUser, ctx: UserCtx) => boolean;
 }
@@ -122,103 +124,89 @@ export function needsApproval(l: Listing, a?: AcqRow): boolean {
 
 const CLOSED_OFFER = new Set(['declined', 'expired', 'offer_rejected']);
 
+// Five places, in the order the work happens. Each list shows only when it
+// has something in it, unless it is one of the main steps (hideWhenEmpty
+// unset): an empty "Shipping problems" is noise, an empty "Needs approval" is
+// good news worth seeing.
 const NAV: Section[] = [
   { key: 'overview', label: 'Today', icon: LayoutGrid, leaves: [
     { key: 'overview', slug: 'today', label: 'To do', kind: 'overview',
-      hint: 'Everything that needs someone today. Click a number to open that queue.' },
+      hint: 'Everything that needs someone today. Click a number to open that list.' },
   ] },
-  // The four steps every item goes through, in the order it goes through
-  // them, so the work reads as one line: approve and price it, the vendor
-  // accepts, it is on sale, it sells and we ship it.
-  { key: 'workflow', label: 'Workflow', icon: ListOrdered, leaves: [
+  { key: 'items', label: 'Items', icon: Boxes, leaves: [
     { key: 'l_triage', slug: 'needs-approval', step: 1, label: 'Needs approval', kind: 'listings',
-      hint: 'Step 1. New items from vendors, waiting on us. Open one, check it, set the listed price and our offer, then send it, or reject it. We promise an answer within 24 hours.',
+      hint: 'New items from sellers, waiting on us. Open one, set the price and our offer, and send it, or turn it down. We promise an answer within 24 hours.',
       listing: needsApproval },
     { key: 'l_with_vendor', slug: 'offer-sent', step: 2, label: 'Offer sent', kind: 'listings',
-      hint: 'Step 2. We have sent an offer and are waiting on the vendor. Offers close by themselves after 7 days. Nothing to do.',
+      hint: 'We have sent an offer and are waiting on the seller. Offers close by themselves after 7 days. Nothing to do.',
       listing: (l, a) => l.status === 'pending' && a?.offer_status === 'offered' },
     { key: 'l_live', slug: 'live', step: 3, label: 'Live', kind: 'listings',
-      hint: 'Step 3. Accepted and on the site for sale, with the vendor until someone buys it.',
+      hint: 'On the site for sale.',
       listing: (l) => l.status === 'approved' && !l.is_sold },
-    { key: 'o_paid', slug: 'to-ship', step: 4, label: 'Sold, to ship', kind: 'orders',
-      hint: 'Step 4. Paid and waiting for a pickup to be booked. Open one and book it.',
-      order: (o) => o.status === 'paid' },
-  ] },
-  { key: 'listings', label: 'Listings', icon: Boxes, leaves: [
-    { key: 'own_stock', slug: 'own-stock', label: 'Add our own stock', kind: 'ownstock',
-      hint: 'Items we have already bought and hold at the hub. They go live as Instant Ship with no offer, and the purchase is recorded for GST.' },
-    // Split deliberately. These were one queue, and merging them is what let
-    // an item waiting on a vendor look like work an operator could do.
-    { key: 'l_accepted', slug: 'accepted', label: 'Accepted, not live', kind: 'listings',
-      hint: 'The vendor accepted but the item did not go live. Open it and approve it.',
-      listing: (l, a) => l.status === 'pending' && a?.offer_status === 'accepted' },
     { key: 'l_sold', slug: 'sold', label: 'Sold', kind: 'listings', hint: 'Bought by a customer. The order has the shipping.',
       listing: (l) => l.status === 'approved' && l.is_sold },
+    // Split deliberately. These were one queue, and merging them is what let
+    // an item waiting on a vendor look like work an operator could do.
+    { key: 'l_accepted', slug: 'accepted', label: 'Accepted, not live', kind: 'listings', hideWhenEmpty: true,
+      hint: 'The seller accepted but the item did not go live. Open it and put it live.',
+      listing: (l, a) => l.status === 'pending' && a?.offer_status === 'accepted' },
+    // Live listings that could never be picked up: no usable pickup address.
+    { key: 'l_no_pickup', slug: 'no-pickup-address', label: 'No pickup address', kind: 'listings', hideWhenEmpty: true,
+      hint: 'Live items a courier could not collect. Get an address from the seller, or take the item down.',
+      listing: (l) => l.status === 'approved' && !l.is_sold && !l.pickup_address?.pincode },
     // reject_listing writes acquisitions.offer_status, never listings.status,
-    // so keying this on the listing left it permanently empty while every
-    // declined item hid in the approval queue.
-    { key: 'l_rejected', slug: 'closed', label: 'Closed', kind: 'listings',
-      hint: 'Items we rejected, offers that ran out after 7 days, and offers the vendor turned down. Rejected and expired items can be reopened from the item.',
+    // so this is keyed on the acquisition as well as the listing.
+    { key: 'l_rejected', slug: 'closed', label: 'Turned down', kind: 'listings',
+      hint: 'Items we turned down, offers that ran out after 7 days, and offers the seller said no to. They can be reopened from the item.',
       listing: (l, a) => l.status !== 'approved' && (CLOSED_OFFER.has(a?.offer_status ?? '') || l.status === 'rejected') },
     { key: 'l_archived', slug: 'archived', label: 'Archived', kind: 'listings', hint: 'Taken down. Kept for the record.',
       listing: (l) => l.status === 'archived' || l.status === 'suspended' },
+    { key: 'own_stock', slug: 'own-stock', label: '+ Add our own stock', kind: 'ownstock',
+      hint: 'Items we have already bought and hold at the hub. They go live as Instant Ship with no offer, and the purchase is recorded for GST.' },
   ] },
   { key: 'orders', label: 'Orders', icon: Package, leaves: [
-    { key: 'o_awaiting_verification', slug: 'to-verify', label: 'To verify', kind: 'orders',
-      hint: 'Payment received but not yet confirmed. Check it against Razorpay.',
-      order: (o) => o.status === 'awaiting_verification' },
-    { key: 'o_to_ship', slug: 'to-ship', label: 'To ship', kind: 'orders',
-      hint: 'Paid and waiting to go out. Once it is packed, open the order and press Packed: notify buyer. Add the AWB if you have it.',
+    { key: 'o_to_ship', slug: 'to-ship', step: 4, label: 'To ship', kind: 'orders',
+      hint: 'Paid and waiting to go out. Once it is packed, open the order and press Packed: notify buyer.',
       order: (o) => o.status === 'paid' },
-    { key: 'o_in_transit', slug: 'on-the-way', label: 'Shipped', kind: 'orders',
-      hint: 'Picked up by the courier or in transit. Nothing to do unless it stalls.',
+    { key: 'o_in_transit', slug: 'shipped', label: 'Shipped', kind: 'orders',
+      hint: 'With the courier. Mark each one delivered when it arrives.',
       order: (o) => o.status === 'shipped' },
     { key: 'o_delivered', slug: 'delivered', label: 'Delivered', kind: 'orders', hint: 'Arrived with the buyer.',
       order: (o) => o.status === 'delivered' },
-    { key: 'o_awaiting_payment', slug: 'awaiting-payment', label: 'Awaiting payment', kind: 'orders',
+    { key: 'o_claims', slug: 'claims', label: 'Buyer claims', kind: 'orders', hideWhenEmpty: true,
+      hint: 'A buyer says the item is wrong or not as described. Open the order and resolve it.',
+      order: (o) => o.claim_open },
+    { key: 'o_awaiting_verification', slug: 'to-verify', label: 'To verify', kind: 'orders', hideWhenEmpty: true,
+      hint: 'Payment received but not yet confirmed. Check it against Razorpay.',
+      order: (o) => o.status === 'awaiting_verification' },
+    { key: 's_payment', slug: 'payment-problems', label: 'Payment problems', kind: 'orders', hideWhenEmpty: true,
+      hint: 'Payments that failed or do not match Razorpay. Check each one there.',
+      order: (o) => o.status === 'payment_failed' || o.status === 'payment_conflict' },
+    { key: 'sr_failed', slug: 'shipping-problems', label: 'Shipping problems', kind: 'orders', hideWhenEmpty: true,
+      hint: 'Booked with no tracking number, returned to origin, or not delivered.',
+      order: (o) => (!!o.shiprocket_order_id && !o.tracking_number && o.status !== 'delivered') || o.shipment_status === 'rto' || o.shipment_status === 'ndr' },
+    { key: 'o_awaiting_payment', slug: 'awaiting-payment', label: 'Checkout started', kind: 'orders', hideWhenEmpty: true,
       hint: 'Checkout started but not paid. These clear themselves after 5 minutes.',
       order: (o) => o.status === 'awaiting_payment' },
     { key: 'o_cancelled', slug: 'cancelled', label: 'Cancelled & refunded', kind: 'orders', hint: 'Closed orders, for the record.',
       order: (o) => o.status === 'cancelled' || o.status === 'refunded' },
   ] },
-  { key: 'issues', label: 'Issues', icon: LifeBuoy, leaves: [
-    { key: 'o_claims', slug: 'claims', label: 'Buyer claims', kind: 'orders',
-      hint: 'A buyer says the item is wrong or not as described. Open the order and resolve it.',
-      order: (o) => o.claim_open },
-    { key: 's_payment', slug: 'payment-problems', label: 'Payment problems', kind: 'orders',
-      hint: 'Payments that failed or do not match Razorpay. Check each one there.',
-      order: (o) => o.status === 'payment_failed' || o.status === 'payment_conflict' },
-    { key: 'sr_failed', slug: 'shipping-problems', label: 'Shipping problems', kind: 'orders',
-      hint: 'Booked with no tracking number, returned to origin, or not delivered. Check each one in Shiprocket.',
-      order: (o) => (!!o.shiprocket_order_id && !o.tracking_number && o.status !== 'delivered') || o.shipment_status === 'rto' || o.shipment_status === 'ndr' },
-    // Live listings that could never be picked up: no usable pickup address.
-    // New/edited listings are blocked at approval by the DB trigger, so this
-    // only ever holds legacy rows - but it must be visible, because such a
-    // listing fails Shiprocket booking *after* the buyer has already paid.
-    { key: 'l_no_pickup', slug: 'no-pickup-address', label: 'No pickup address', kind: 'listings',
-      hint: 'Live items a courier could not collect. Get an address from the vendor, or take the item down.',
-      listing: (l) => l.status === 'approved' && !l.is_sold && !l.pickup_address?.pincode },
-  ] },
-  { key: 'payouts', label: 'Payouts', icon: Wallet, leaves: [
-    { key: 'p_due', slug: 'payouts-due', label: 'Due', kind: 'payouts', hint: 'Vendors we owe money to. Pay them and mark each one sent.',
+  { key: 'money', label: 'Money', icon: Wallet, leaves: [
+    { key: 'p_due', slug: 'payouts-due', label: 'Payouts due', kind: 'payouts', hint: 'Sellers we owe money to. Pay them and mark each one sent.',
       payout: (p) => p.status === 'due' },
-    { key: 'p_failed', slug: 'payouts-failed', label: 'Failed', kind: 'payouts', hint: 'Payments to vendors that did not go through. Check the UPI ID and retry.',
+    { key: 'p_failed', slug: 'payouts-failed', label: 'Payouts failed', kind: 'payouts', hideWhenEmpty: true, hint: 'Payments to sellers that did not go through. Check the UPI ID and retry.',
       payout: (p) => p.status === 'failed' },
-    { key: 'p_paid', slug: 'payouts-sent', label: 'Sent', kind: 'payouts', hint: 'Paid.', payout: (p) => p.status === 'sent' },
-  ] },
-  { key: 'discounts', label: 'Promo codes', icon: Ticket, leaves: [
-    { key: 'd_codes', slug: 'promo-codes', label: 'Codes', kind: 'discounts',
+    { key: 'p_paid', slug: 'payouts-sent', label: 'Payouts sent', kind: 'payouts', hint: 'Paid.', payout: (p) => p.status === 'sent' },
+    { key: 'd_codes', slug: 'promo-codes', label: 'Promo codes', kind: 'discounts',
       hint: 'Codes that take a rupee amount off an order. Make one for a special customer or to make up for something, share it, and see who has used it.' },
   ] },
-  { key: 'users', label: 'People', icon: UsersIcon, leaves: [
-    { key: 'u_sellers', slug: 'vendors', label: 'Vendors', kind: 'users', hint: 'Everyone who has sent us an item.',
+  { key: 'more', label: 'More', icon: Terminal, leaves: [
+    { key: 'u_sellers', slug: 'vendors', label: 'Sellers', kind: 'users', hint: 'Everyone who has sent us an item.',
       user: (u, c) => c.sellerIds.has(u.id) },
     { key: 'u_buyers', slug: 'buyers', label: 'Buyers', kind: 'users', hint: 'Everyone who has placed an order.',
       user: (u, c) => c.buyerIds.has(u.id) },
-    { key: 'u_flagged', slug: 'flagged', label: 'Flagged', kind: 'users', hint: 'Accounts to keep an eye on.', user: (u) => u.is_flagged },
-    { key: 'u_banned', slug: 'banned', label: 'Banned', kind: 'users', hint: 'Accounts that cannot buy or sell.', user: (u) => u.is_banned },
-  ] },
-  { key: 'system', label: 'System', icon: Terminal, leaves: [
+    { key: 'u_flagged', slug: 'flagged', label: 'Flagged', kind: 'users', hideWhenEmpty: true, hint: 'Accounts to keep an eye on.', user: (u) => u.is_flagged },
+    { key: 'u_banned', slug: 'banned', label: 'Banned', kind: 'users', hideWhenEmpty: true, hint: 'Accounts that cannot buy or sell.', user: (u) => u.is_banned },
     { key: 'sys_errors', slug: 'site-errors', label: 'Site errors', kind: 'errors', hint: 'Errors visitors hit in their browser: crashes, pages that would not load, slow loads. Open one for the details.' },
     { key: 'sys_emails', slug: 'emails', label: 'Emails sent', kind: 'emails', hint: 'Every email the site has sent, newest first.' },
     { key: 'sys_audit', slug: 'change-log', label: 'Change log', kind: 'audit', hint: 'Every change an admin has made, and who made it.' },
@@ -229,7 +217,10 @@ const NAV: Section[] = [
 const LEAF_BY_KEY = new Map<string, Leaf>();
 const LEAF_BY_SLUG = new Map<string, Leaf>();
 for (const s of NAV) for (const l of s.leaves) { LEAF_BY_KEY.set(l.key, l); LEAF_BY_SLUG.set(l.slug, l); }
-const WORKFLOW = NAV.find((s) => s.key === 'workflow')!.leaves;
+// The four main steps, for the strip at the top of To do.
+const WORKFLOW = NAV.flatMap((s) => s.leaves).filter((l) => l.step).sort((a, b) => (a.step ?? 0) - (b.step ?? 0));
+// Old addresses still land: the shipped list moved from /on-the-way.
+LEAF_BY_SLUG.set('on-the-way', LEAF_BY_KEY.get('o_in_transit')!);
 
 // ---------------------------------------------------------------------------
 // Root
@@ -381,10 +372,11 @@ function Console() {
                 {section.leaves.map((l) => {
                   const count = ['orders', 'listings', 'payouts', 'users'].includes(l.kind) ? countFor(l) : 0;
                   const active = activeKey === l.key && !drawer;
+                  if (l.hideWhenEmpty && count === 0 && !active) return null;
                   return (
                     <button key={l.key} onClick={() => openLeaf(l.key)}
                       className={cn('flex items-center justify-between gap-2 pr-3 py-2 text-left text-[13px] font-semibold rounded transition-colors',
-                        l.step ? 'pl-3' : 'pl-8',
+                        'pl-3',
                         active ? 'bg-black text-white' : 'text-black hover:bg-black/[0.05]')}>
                       <span className="flex items-center gap-2.5">
                         {l.step && (
@@ -427,6 +419,7 @@ function Console() {
               <optgroup key={section.key} label={section.label}>
                 {section.leaves.map((l) => {
                   const count = ['orders', 'listings', 'payouts', 'users'].includes(l.kind) ? countFor(l) : 0;
+                  if (l.hideWhenEmpty && count === 0 && l.key !== activeKey) return null;
                   return <option key={l.key} value={l.key}>{l.label}{count > 0 ? ` (${count})` : ''}</option>;
                 })}
               </optgroup>
@@ -580,7 +573,8 @@ function OverviewView({ orders, listings, acqByListing, payouts, refundsOverdue,
   const todo: Array<{ key: string; count: number; label: string; urgent?: boolean }> = [
     { key: 'o_claims', count: orders.filter((o) => o.claim_open).length, label: 'buyer claims to resolve', urgent: true },
     { key: 'l_triage', count: needsOffer.length, label: 'items need approval', urgent: triageOverdue > 0 },
-    { key: 'o_paid', count: orders.filter((o) => o.status === 'paid').length, label: 'orders to ship' },
+    { key: 'o_to_ship', count: orders.filter((o) => o.status === 'paid').length, label: 'orders to ship' },
+    { key: 'o_in_transit', count: orders.filter((o) => o.status === 'shipped').length, label: 'shipped orders to mark delivered' },
     { key: 'o_awaiting_verification', count: orders.filter((o) => o.status === 'awaiting_verification').length, label: 'payments to verify' },
     { key: 'p_due', count: payouts.filter((p) => p.status === 'due').length, label: 'vendors to pay' },
     { key: 'l_accepted', count: acceptedNotLive, label: 'accepted items to put live' },
@@ -1076,6 +1070,17 @@ function DrawerShell({ title, subtitle, backLabel, onClose, children }: { title:
   );
 }
 
+/** The next thing to do with a record, boxed at the top of its page. */
+function NextStep({ title, note, children }: { title: string; note?: string; children?: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-3 border-2 border-black p-4 sm:p-5">
+      <p className="text-sm font-black uppercase tracking-tight">{title}</p>
+      {note && <p className="text-xs leading-relaxed ink-mid">{note}</p>}
+      {children && <div className="flex flex-col gap-2">{children}</div>}
+    </div>
+  );
+}
+
 function Sec({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section>
@@ -1343,6 +1348,22 @@ function OrderDrawer({ order, payouts, emails, audit, backLabel, onClose, onDone
     <DrawerShell title={order.order_number} subtitle={order.listing_title ?? ''} backLabel={backLabel} onClose={onClose}>
       <div className="flex items-center gap-2"><StatusBadge status={order.status} audience="admin" />{order.claim_open && <span className="text-[11px] font-black uppercase text-red-600">Claim open</span>}</div>
 
+      {/* The one thing to do with this order now, before anything else on
+          the page. Everything rarer stays under Admin actions at the foot. */}
+      {(order.status === 'paid' || order.status === 'shipped' || order.status === 'delivered') && (
+        <NextStep
+          title={order.status === 'paid' ? 'Next: pack it and tell the buyer'
+            : order.status === 'shipped' ? 'Next: mark it delivered when it arrives'
+            : 'Done. Delivered.'}
+          note={order.status === 'paid' ? 'Copy the buyer details below for the label, pack it, then press the button. The buyer is emailed that it is packed and ready.'
+            : order.status === 'shipped' ? 'The buyer is emailed that it has arrived, with 7 days to raise anything.'
+            : 'Nothing else to do unless the buyer raises a claim.'}
+        >
+          {order.status === 'paid' && <ShipForm order={order} onDone={async () => { await onDone(); onClose(); }} />}
+          {order.status === 'shipped' && <ActBtn label="Mark delivered" onClick={() => setStatus('delivered')} busy={busy} />}
+        </NextStep>
+      )}
+
       <Sec title="Timeline">
         {timeline.length === 0 ? <p className="ink-mid">-</p> : timeline.map((t, i) => (
           <p key={i} className="flex justify-between gap-3"><span>{t.label}</span><span className="ink-mid text-[11px]">{t.at ? new Date(t.at).toLocaleString() : ''}</span></p>
@@ -1409,8 +1430,6 @@ function OrderDrawer({ order, payouts, emails, audit, backLabel, onClose, onDone
         <div className="flex flex-col gap-2 pt-1">
           {order.status === 'awaiting_verification' && <ActBtn label="Mark Paid" onClick={() => setStatus('paid')} busy={busy} />}
           {order.status === 'paid' && <ActBtn label="Book inbound leg (vendor to hub)" onClick={bookInbound} busy={busy} />}
-          {order.status === 'paid' && <ShipForm order={order} onDone={async () => { await onDone(); onClose(); }} />}
-          {order.status === 'shipped' && <ActBtn label="Mark Delivered" onClick={() => setStatus('delivered')} busy={busy} />}
           <ActBtn label={order.claim_open ? 'Close Claim' : 'Open Claim'} onClick={toggleClaim} busy={busy} />
           {/* Captured payment -> refund it via Razorpay (automated). */}
           {order.razorpay_payment_id && order.status !== 'refunded' && (
@@ -1563,6 +1582,12 @@ function ListingDrawer({ listing, acq, orders, payouts, audit, backLabel, onClos
       {/* Where this item is in the four steps, and what to do about it. */}
       <ItemSteps listing={listing} acq={acq} />
 
+      {/* A new item is opened to be priced: the decision comes straight
+          after the photos and the steps, not below the switches. */}
+      {needsApproval(listing, acq) && (
+        <AcquisitionPanel listingId={listing.id} listingTitle={listing.title} vendorEmail={listing.seller_email ?? null} askingPriceFallback={listing.sale_price ?? listing.price} onDone={onDone} />
+      )}
+
       {/* The numbers, together, every time the item is open. */}
       <div className="grid grid-cols-2 gap-px border border-black/15 bg-black/15 sm:grid-cols-4">
         {[
@@ -1610,8 +1635,9 @@ function ListingDrawer({ listing, acq, orders, payouts, audit, backLabel, onClos
         </div>
       </div>
 
-      {/* The decision first: it is why anyone opens a pending item. */}
-      <AcquisitionPanel listingId={listing.id} listingTitle={listing.title} vendorEmail={listing.seller_email ?? null} askingPriceFallback={listing.sale_price ?? listing.price} onDone={onDone} />
+      {!needsApproval(listing, acq) && (
+        <AcquisitionPanel listingId={listing.id} listingTitle={listing.title} vendorEmail={listing.seller_email ?? null} askingPriceFallback={listing.sale_price ?? listing.price} onDone={onDone} />
+      )}
 
       <Sec title="Item">
         <Row k="Category" v={listing.category} /><Row k="Size" v={`${listing.size ?? ''} (${listing.size_type ?? ''})`} />
