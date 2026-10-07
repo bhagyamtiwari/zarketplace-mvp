@@ -19,9 +19,8 @@ const CHANNELS: Array<{
   // ZARKET on a phone keypad is 927538, so the vanity form dials the real
   // number. The digits stay underneath for anyone typing it in by hand.
   { label: 'WhatsApp', value: '8505-ZARKET', detail: '+91 85059 27538', href: 'https://wa.me/918505927538', external: true },
-  // For post. Same wording as the registered office on the Terms page, and it
-  // changes there too once the new address is settled.
-  { label: 'Address', value: 'Temporarily relocating. Email us and we will send you our current postal address.' },
+  // For post. The same address as on the Terms page; change both together.
+  { label: 'Address', value: 'ADNIZ Private Limited, 5th Floor, Wing-A, Statesman House, 148 Barakhamba Road, Connaught Place, New Delhi 110001' },
 ];
 
 export function Contact() {

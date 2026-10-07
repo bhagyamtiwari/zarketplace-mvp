@@ -10,9 +10,9 @@ export function paymentFailedBuyer(ctx: EmailContext): EmailContent {
     subject: `Payment failed · ${o.order_number}`,
     html: shell(`<div style="${baseStyle}">
       ${header(ctx.siteUrl)}
-      <h1 style="color:#111111; font-weight:900; text-transform:uppercase; letter-spacing:-1px;">Payment didn't go through</h1>
+      <h1 style="color:#111111; font-weight:900; text-transform:uppercase; letter-spacing:-1px;">Payment didn't go through.</h1>
       <p style="color:#111111; margin:0 0 14px;">Hi ${esc(o.buyer_name)},</p>
-      <p style="color:#111111; margin:0 0 14px;">Your payment for the order below couldn't be completed. No amount was charged. You can retry from your orders page.</p>
+      <p style="color:#111111; margin:0 0 14px;">Your payment for the order below didn't complete, and nothing was charged. The item isn't held for you, so if you still want it, try again soon.</p>
       <h3 style="color:#111111; margin-top:24px;">${esc(o.listing_title)}</h3>
       <p style="color:#111111; margin:0 0 14px;"><strong>Order #:</strong> ${esc(o.order_number)}<br/>
          <strong>Total:</strong> Rs. ${o.total_amount}</p>
