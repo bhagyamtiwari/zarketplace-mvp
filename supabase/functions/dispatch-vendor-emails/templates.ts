@@ -8,6 +8,17 @@
 // Copy is governed by COPY_RULES.md: rupee amounts only, never a percentage,
 // "your item" and "your payout" rather than "your sale" or "your buyer".
 
+
+// Reasons that mean we will not take the item at all, so the email does not
+// ask the vendor to fix it. Matched by text: keep in step with
+// REJECTION_REASONS_FINAL in src/lib/acquisition.ts.
+const FINAL_REASONS = [
+  "This is not something we are able to resell right now.",
+  "It is too worn for us to resell.",
+  "We do not take this brand or type of item at the moment.",
+  "We could not confirm that it is authentic.",
+];
+
 export interface VendorEmail { subject: string; html: string }
 
 const INK = "#111111";
@@ -278,6 +289,8 @@ export function renderVendorEmail(
 
     case "offer_rejected": {
       const reasons = Array.isArray(payload.reasons) ? (payload.reasons as unknown[]).map(String) : [];
+      // Any reason we will never get past makes the whole rejection final.
+      const final = reasons.some((r) => FINAL_REASONS.includes(r));
       const list = reasons.length
         ? `<ul style="padding-left:18px; margin:16px 0;">${reasons.map((r) => `<li style="margin-bottom:6px;">${esc(r)}</li>`).join("")}</ul>`
         : "";
@@ -285,12 +298,20 @@ export function renderVendorEmail(
         ? `<p style="color:#111111; border-left:2px solid #000; padding-left:16px; color:#333;">${esc(payload.note)}</p>` : "";
       return {
         subject: `About your ${payload.item_title ?? "item"}`,
-        html: shell(`<div style="${WRAP}">${top}
-          ${h1("Not this time.")}
-          <p style="color:#111111; margin:0 0 14px;">We cannot make an offer on your ${title} as it stands.</p>
+        html: final
+          ? shell(`<div style="${WRAP}">${top}
+          ${h1("Not one for us.")}
+          <p style="color:#111111; margin:0 0 14px;">We will not be making an offer on your ${title}.</p>
           ${list}${note}
-          <p style="color:#111111; margin:0 0 14px;">This is not final. Fix what is above, send it back to us, and we look again within 24 hours.</p>
-          ${button(offerUrl, "Improve and resend")}
+          <p style="color:#111111; margin:0 0 14px;">It is about what we can resell right now, not about you. Have something else? Send it to us and we will make you an offer within 24 hours.</p>
+          ${button(`${site}/sell`, "Sell something else")}
+        </div>`)
+          : shell(`<div style="${WRAP}">${top}
+          ${h1("We need a little more first.")}
+          <p style="color:#111111; margin:0 0 14px;">Before we can make an offer on your ${title}, we need the following:</p>
+          ${list}${note}
+          <p style="color:#111111; margin:0 0 14px;">If you can sort these out, send it back and we will look again within 24 hours. If not, no problem: send us something else instead.</p>
+          ${button(offerUrl, "Update and send back")}
         </div>`),
       };
     }

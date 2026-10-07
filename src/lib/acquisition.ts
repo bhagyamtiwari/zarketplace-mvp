@@ -245,10 +245,37 @@ export function canDelete(offer: VendorOffer | null | undefined, isSold: boolean
   return !isSold && offer?.offer_status !== 'accepted';
 }
 
+// Why we turn an item down, in two kinds. A fixable reason (a dark photo, a
+// missing size tag) asks the vendor to sort it out and send the item back. A
+// final one (we cannot resell it) does not: telling someone to "fix" an item
+// we will never take is what made the old wording read wrong. Any final
+// reason makes the whole rejection final.
+//
+// Matched by text, so keep these strings in step with
+// supabase/functions/dispatch-vendor-emails/templates.ts (FINAL_REASONS).
+export const REJECTION_REASONS_FIXABLE: string[] = [
+  'The photos are too dark. Please reshoot in daylight, near a window.',
+  'We need a clear photo of the size tag.',
+  'We need more angles: front, back, and any detail that matters.',
+  'The description does not match what the photos show.',
+  'The condition is not clear enough from these photos.',
+  'The item needs a clean or a press before we can take it.',
+];
+export const REJECTION_REASONS_FINAL: string[] = [
+  'This is not something we are able to resell right now.',
+  'It is too worn for us to resell.',
+  'We do not take this brand or type of item at the moment.',
+  'We could not confirm that it is authentic.',
+];
+
+export function isFinalRejection(reasons: string[] | null | undefined): boolean {
+  return (reasons ?? []).some((r) => REJECTION_REASONS_FINAL.includes(r));
+}
+
 /** True when the vendor can rework this item and send it back. */
 export function canResubmit(offer: VendorOffer | null | undefined): boolean {
-  return offer?.offer_status === 'declined'
-    || offer?.offer_status === 'offer_rejected'
+  if (offer?.offer_status === 'declined') return !isFinalRejection(offer.review_reasons);
+  return offer?.offer_status === 'offer_rejected'
     || offer?.offer_status === 'expired';
 }
 
@@ -275,7 +302,7 @@ export interface VendorStatusView {
 const STATUS_COPY: Record<VendorStatus, { label: string; detail: string; needsAction: boolean }> = {
   awaiting_offer:  { label: 'With us',           detail: 'We will come back to you within 24 hours.', needsAction: false },
   offer_ready:     { label: 'Offer ready',       detail: 'Review what we will pay and accept it to go live.', needsAction: true },
-  declined:        { label: 'Needs a change',    detail: 'Fix what we have asked for and send it back to us.', needsAction: true },
+  declined:        { label: 'Needs a change',    detail: 'We need a little more before we can make an offer. Open it to see what.', needsAction: true },
   offer_rejected:  { label: 'Offer turned down', detail: 'You can improve this item and send it back to us.', needsAction: true },
   offer_expired:   { label: 'Offer expired',     detail: 'Send it back to us and we will look again.', needsAction: true },
   // "Live" means the item is sitting in the vendor's home, listed. Saying so
@@ -324,7 +351,10 @@ export function vendorStatus(
     case undefined:
     case 'pending_pricing': return { key: 'awaiting_offer', ...STATUS_COPY.awaiting_offer };
     case 'offered':         return { key: 'offer_ready', ...STATUS_COPY.offer_ready };
-    case 'declined':        return { key: 'declined', ...STATUS_COPY.declined };
+    case 'declined':
+      return isFinalRejection(offer.review_reasons)
+        ? { key: 'declined', label: 'Not for us', detail: 'We cannot make an offer on this one. Send us something else any time.', needsAction: false }
+        : { key: 'declined', ...STATUS_COPY.declined };
     case 'offer_rejected':  return { key: 'offer_rejected', ...STATUS_COPY.offer_rejected };
     case 'expired':         return { key: 'offer_expired', ...STATUS_COPY.offer_expired };
   }
