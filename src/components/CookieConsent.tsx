@@ -38,7 +38,7 @@ export function CookieConsent() {
                 <span className="text-sm">Always on</span>
               </div>
               <p className="max-w-[60ch] text-sm leading-relaxed">
-                Your sign-in session, cart, favorites and checkout progress. Stored on this device, needed for the site to work at all.
+                Required for the site to function. These store your sign-in session, cart, favorites and checkout progress on this device.
               </p>
             </div>
             <div className="flex flex-col gap-2 border-t border-white/10 pt-4 sm:border-t-0 sm:pt-0">
@@ -59,7 +59,7 @@ export function CookieConsent() {
                 </button>
               </div>
               <p className="max-w-[60ch] text-sm leading-relaxed">
-                Which pages get used and where people drop off, under a random ID. Reject and the script is never loaded.
+                Used only with your consent, to measure which pages are visited and where visitors leave, under a randomly generated identifier. If declined, the script is not loaded.
               </p>
             </div>
           </div>
@@ -67,8 +67,11 @@ export function CookieConsent() {
           {/* The qualifier and the action on one row, on the same two edges as
               the bar below, so the panel closes where the bar does. */}
           <div className="flex flex-col gap-4 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between sm:gap-10">
-            <p className="max-w-[70ch] text-sm leading-relaxed">
-              No advertising, and nothing that follows you to another site. The full list is in our{' '}
+            {/* This line answers the question the two columns above raise, so
+                it runs the full width of the panel rather than stopping at the
+                first column's edge. */}
+            <p className="text-sm leading-relaxed">
+              No advertising or cross-site tracking cookies are used. Full details of what is stored, and for how long, are set out in our{' '}
               <Link to="/privacy" className="underline text-white hover:text-white/80">Privacy Policy</Link>.
             </p>
             <button
@@ -94,13 +97,13 @@ export function CookieConsent() {
           {/* Sentence case on a phone: the uppercase body voice needs six lines
               for the same sentence and pushes the buttons off the bar. */}
           <span className="sm:hidden text-[13px] leading-snug">
-            We use cookies.{' '}
+            This site uses cookies.{' '}
             <Link to="/privacy" className="inline-block py-3.5 -my-3.5 underline text-white">Privacy</Link>
           </span>
           {/* One line where there is room. What is stored and why is one
               click away, under Settings. */}
           <span className="hidden sm:inline text-xs font-medium">
-            We use essential cookies to run this site and, with your consent, analytics to improve it.{' '}
+            Essential cookies are required for this site to function. Analytics cookies are used only with your consent.{' '}
             <Link to="/privacy" className="inline-block py-3.5 -my-3.5 underline text-white hover:text-white/80">Privacy Policy</Link>
           </span>
           </>)}
