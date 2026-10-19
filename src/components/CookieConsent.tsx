@@ -68,7 +68,7 @@ export function CookieConsent() {
               the bar below, so the panel closes where the bar does. */}
           <div className="flex flex-col gap-4 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between sm:gap-10">
             <p className="max-w-[70ch] text-sm leading-relaxed">
-              We do not use advertising or cross-site tracking cookies. Details are in our{' '}
+              No advertising, and nothing that follows you to another site. The full list is in our{' '}
               <Link to="/privacy" className="underline text-white hover:text-white/80">Privacy Policy</Link>.
             </p>
             <button
@@ -86,7 +86,11 @@ export function CookieConsent() {
         {/* Short form on a phone: five lines of consent copy over the fold is
             its own dark pattern. The full wording stays where there is room,
             and both link to the policy that spells it out. */}
+        {/* While the panel is open this sentence, and the second link to the
+            same policy, only repeat what is spelled out two lines above. The
+            element stays as the spacer that holds the buttons to the right. */}
         <p className="flex-1 text-[13px] leading-snug sm:text-xs sm:leading-relaxed">
+          {!settingsOpen && (<>
           {/* Sentence case on a phone: the uppercase body voice needs six lines
               for the same sentence and pushes the buttons off the bar. */}
           <span className="sm:hidden text-[13px] leading-snug">
@@ -99,6 +103,7 @@ export function CookieConsent() {
             We use essential cookies to run this site and, with your consent, analytics to improve it.{' '}
             <Link to="/privacy" className="inline-block py-3.5 -my-3.5 underline text-white hover:text-white/80">Privacy Policy</Link>
           </span>
+          </>)}
         </p>
         <div className="flex shrink-0 items-center gap-2.5">
           <button
