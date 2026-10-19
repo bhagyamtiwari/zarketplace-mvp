@@ -2,6 +2,7 @@ import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { usePageMeta, META } from '../lib/pageMeta';
+import { LEGAL_NAME, GSTIN, CIN, ADDRESS_ONE_LINE } from '../lib/business';
 
 export function Privacy() {
   usePageMeta(META.privacy);
@@ -23,7 +24,7 @@ export function Privacy() {
         </div>
 
         <div className="flex flex-col gap-12 text-black body-longform [&>p+p]:-mt-8">
-          <p>zarketplace is run by ADNIZ Private Limited (CIN U47711DL2023PTC418107). We decide what personal data is collected through this site and why, which makes us responsible for it under India's Digital Personal Data Protection Act, 2023.</p>
+          <p>zarketplace is run by {LEGAL_NAME} (CIN {CIN}, GSTIN {GSTIN}), at {ADDRESS_ONE_LINE}. We decide what personal data is collected through this site and why, which makes us responsible for it under India's Digital Personal Data Protection Act, 2023.</p>
 
           <p>This Privacy Policy explains how zarketplace ("we", "us", or "our") collects, uses, and shares your personal information when you use our services, including visiting zarketplace.com or contacting us. By using our site or services, you agree to this policy. If you disagree, please don’t use our services. We may update this policy from time to time, and the latest version will always be on our site with the updated date.</p>
 

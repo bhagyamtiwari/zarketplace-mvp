@@ -2,6 +2,7 @@ import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { usePageMeta, META } from '../lib/pageMeta';
+import { LEGAL_NAME, GSTIN, ADDRESS_ONE_LINE } from '../lib/business';
 
 export function GrievanceOfficer() {
   usePageMeta(META.grievance);
@@ -39,7 +40,7 @@ export function GrievanceOfficer() {
             </div>
             <div className="flex flex-col gap-1">
               <dt className="font-bold">Company</dt>
-              <dd>ADNIZ Private Limited</dd>
+              <dd>{LEGAL_NAME}</dd>
             </div>
             <div className="flex flex-col gap-1">
               <dt className="font-bold">Email</dt>
@@ -53,6 +54,14 @@ export function GrievanceOfficer() {
                 <a href="tel:+918505927538" className="underline underline-offset-4">8505-ZARKET</a>{' '}
                 <span className="tabular-nums">(+91 85059 27538)</span>
               </dd>
+            </div>
+            <div className="flex flex-col gap-1">
+              <dt className="font-bold">GSTIN</dt>
+              <dd className="tabular-nums">{GSTIN}</dd>
+            </div>
+            <div className="flex flex-col gap-1">
+              <dt className="font-bold">Office address</dt>
+              <dd>{ADDRESS_ONE_LINE}</dd>
             </div>
           </dl>
 
@@ -68,7 +77,7 @@ export function GrievanceOfficer() {
           <div className="flex flex-col gap-3">
             <h2 className="text-xl font-black uppercase tracking-tight">Who you are dealing with</h2>
             <p>
-              zarketplace is a trading name of ADNIZ Private Limited. We buy
+              zarketplace is a trading name of {LEGAL_NAME}. We buy
               pre-owned items and resell them, so we are the seller for every
               order on this site, not a venue where other people sell to you.
               That means your complaint is with us and is ours to fix.

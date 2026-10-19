@@ -2,6 +2,7 @@ import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { usePageMeta, META } from '../lib/pageMeta';
+import { LEGAL_NAME } from '../lib/business';
 
 export function Trademark() {
   usePageMeta(META.trademark);
@@ -23,7 +24,7 @@ export function Trademark() {
 
         <div className="flex flex-col gap-12 text-black body-longform [&>p+p]:-mt-8">
           <p>
-            zarketplace is a pre-owned fashion retailer operated by ADNIZ Private Limited. We buy items from individuals and resell them under our own name. Please read the following carefully: it explains what we sell, how brand names appear on our site, and how rights holders can reach us.
+            zarketplace is a pre-owned fashion retailer operated by {LEGAL_NAME}. We buy items from individuals and resell them under our own name. Please read the following carefully: it explains what we sell, how brand names appear on our site, and how rights holders can reach us.
           </p>
 
           <section className="flex flex-col gap-4">

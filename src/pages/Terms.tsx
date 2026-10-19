@@ -2,6 +2,7 @@ import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { usePageMeta, META } from '../lib/pageMeta';
+import { LEGAL_NAME, GSTIN, CIN, POSTAL_ADDRESS } from '../lib/business';
 
 export function Terms() {
   usePageMeta(META.terms);
@@ -32,20 +33,26 @@ export function Terms() {
               displayed, and the Grievance page tells people to look for them here.
 
               The office address is the one GST registration was filed with
-              (2026-10). TODO: add the GSTIN in this block once it is issued. */}
-            <p>zarketplace is a trading name of <strong>ADNIZ Private Limited</strong>, a company incorporated in India.</p>
+              (2026-10), and the GSTIN is the registration it produced. All of
+              it reads from src/lib/business.ts, which is the one place to
+              change any of it. */}
+            <p>zarketplace is a trading name of <strong>{LEGAL_NAME}</strong>, a company incorporated in India.</p>
             <dl className="flex flex-col gap-4">
               <div className="flex flex-col gap-1">
                 <dt className="font-bold">Legal name</dt>
-                <dd>ADNIZ Private Limited</dd>
+                <dd>{LEGAL_NAME}</dd>
               </div>
               <div className="flex flex-col gap-1">
                 <dt className="font-bold">CIN</dt>
-                <dd>U47711DL2023PTC418107</dd>
+                <dd>{CIN}</dd>
+              </div>
+              <div className="flex flex-col gap-1">
+                <dt className="font-bold">GSTIN</dt>
+                <dd className="tabular-nums">{GSTIN}</dd>
               </div>
               <div className="flex flex-col gap-1">
                 <dt className="font-bold">Office address</dt>
-                <dd>ADNIZ Private Limited, 5th Floor, Wing-A, Statesman House, 148 Barakhamba Road, Connaught Place, New Delhi 110001</dd>
+                <dd>{POSTAL_ADDRESS}</dd>
               </div>
               <div className="flex flex-col gap-1">
                 <dt className="font-bold">Customer care</dt>
