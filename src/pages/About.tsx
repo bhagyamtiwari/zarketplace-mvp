@@ -1,7 +1,7 @@
 import React from 'react';
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, ShieldCheck, Truck, IndianRupee, BadgeCheck, PackageCheck, EyeOff } from 'lucide-react';
+import { ArrowLeft, ArrowRight, ShieldCheck, Truck, IndianRupee, BadgeCheck, PackageCheck, EyeOff } from 'lucide-react';
 import { usePageMeta, META } from '../lib/pageMeta';
 
 // "What is zarketplace" is the one page allowed to explain at length, because
@@ -33,31 +33,9 @@ export function About() {
         </div>
 
         <div className="flex flex-col gap-12 text-black body-longform [&>p+p]:-mt-8">
-          {/* Six boxes, so the grid closes cleanly at two and three columns. */}
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">What we handle</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[
-                { icon: ShieldCheck, title: 'Buyer protection', body: 'You buy from zarketplace: one company, one standard. If an item is not as described, you are covered.', to: '/buyer-protection' },
-                { icon: IndianRupee, title: 'A fixed offer, upfront', body: 'We tell you what we will pay before you part with anything. Accept it and that number never moves.', to: '/how-it-works' },
-                { icon: Truck, title: 'Doorstep pickup', body: 'Once someone buys your item, a courier collects it from your door on a prepaid label. You never arrange postage.', to: '/shipping-policy' },
-                { icon: BadgeCheck, title: 'Checked before it ships', body: 'Every item comes to our hub and is checked against its listing before it goes to you. If it does not match, it does not ship.', to: '/conditions-guide' },
-                { icon: PackageCheck, title: 'Returns that exist', body: 'A stated returns and refunds process, in writing, for the cases where something goes wrong.', to: '/returns' },
-                { icon: EyeOff, title: 'No sold-out clutter', body: 'The moment an item sells it leaves the feed. Scrolling past things you cannot buy is annoying, so we do not show them.', to: '/faq' },
-              ].map(({ icon: Icon, title, body, to }) => (
-                <Link
-                  key={title}
-                  to={to}
-                  className="flex h-full flex-col gap-2 border border-black/15 px-5 py-4 hover:border-black transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon className="h-5 w-5 shrink-0" />
-                    <h3 className="text-[15px] font-bold leading-snug">{title}</h3>
-                  </div>
-                  <p>{body}</p>
-                </Link>
-              ))}
-            </div>
+            <WhatWeHandle />
           </section>
 
           <section className="flex flex-col gap-4">
@@ -100,5 +78,62 @@ export function About() {
         </div>
       </motion.div>
     </div>
+  );
+}
+
+// Six promises, and nobody read them when they were six equal boxes: a grid
+// of identical cards gives the eye no order to read them in, so it reads the
+// first one and skips the rest.
+//
+// A list has one. Each row is one claim set large, with the detail under it,
+// and they arrive one after another as the section scrolls into view, which
+// is what makes an eye follow a list to the end. Each row is still a page you
+// can go and check.
+const HANDLES: Array<{ icon: React.ComponentType<{ className?: string }>; title: string; body: string; to: string }> = [
+  { icon: ShieldCheck, title: 'Buyer protection', body: 'You buy from zarketplace: one company, one standard. If an item is not as described, you are covered.', to: '/buyer-protection' },
+  { icon: IndianRupee, title: 'A fixed offer, upfront', body: 'We tell you what we will pay before you part with anything. Accept it and that number never moves.', to: '/how-it-works' },
+  { icon: Truck, title: 'Doorstep pickup', body: 'Once someone buys your item, a courier collects it from your door on a prepaid label. You never arrange postage.', to: '/shipping-policy' },
+  { icon: BadgeCheck, title: 'Checked before it ships', body: 'Every item comes to our hub and is checked against its listing before it goes to you. If it does not match, it does not ship.', to: '/conditions-guide' },
+  { icon: PackageCheck, title: 'Returns that exist', body: 'A stated returns and refunds process, in writing, for the cases where something goes wrong.', to: '/returns' },
+  { icon: EyeOff, title: 'No sold-out clutter', body: 'The moment an item sells it leaves the feed. Scrolling past things you cannot buy is annoying, so we do not show them.', to: '/faq' },
+];
+
+function WhatWeHandle() {
+  // Anyone who has asked their system not to animate gets the list as it is,
+  // in place, with no movement and nothing waiting on a scroll position.
+  const still = useReducedMotion();
+
+  return (
+    <ol className="flex flex-col border-t border-black/10">
+      {HANDLES.map(({ icon: Icon, title, body, to }, i) => (
+        <motion.li
+          key={title}
+          initial={still ? false : { opacity: 0, y: 14 }}
+          whileInView={still ? undefined : { opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.4, margin: '0px 0px -10% 0px' }}
+          transition={{ duration: 0.4, delay: Math.min(i, 3) * 0.07, ease: [0.22, 1, 0.36, 1] }}
+          className="border-b border-black/10"
+        >
+          <Link
+            to={to}
+            className="group flex items-start gap-4 py-5 sm:gap-6 sm:py-6 transition-colors hover:bg-black/[0.03]"
+          >
+            {/* The icon carries the left column on its own. A counter was
+                there to give the list an order to read in, and it read as a
+                ranking of six things that are not ranked. */}
+            <Icon className="mt-0.5 h-6 w-6 shrink-0 sm:mt-1" />
+            <div className="flex flex-1 flex-col gap-1.5">
+              <h3 className="text-lg font-black leading-tight tracking-tight sm:text-xl">
+                {title}
+              </h3>
+              <p>{body}</p>
+            </div>
+            {/* Sits still until the row is pointed at, so the page is not six
+                arrows nudging at once. */}
+            <ArrowRight className="mt-1.5 h-4 w-4 shrink-0 text-black/30 transition-all group-hover:translate-x-1 group-hover:text-black" />
+          </Link>
+        </motion.li>
+      ))}
+    </ol>
   );
 }

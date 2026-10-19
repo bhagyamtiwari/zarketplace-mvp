@@ -373,11 +373,14 @@ export function ProductPage() {
         <ArrowLeft className="h-4 w-4" /> Back to browse
       </Link>
 
-      {/* Photos take the smaller share (about 40/60). They are the vendor's
-          own, from a phone, and shown at half a laptop screen wide they looked
-          worse than they are. */}
+      {/* An even split. The photos used to take the smaller share, on the
+          reasoning that a vendor's phone photo looks worse enlarged, which is
+          true of a photo stretched past its pixels and not of this one: the
+          frame is one image now rather than a column of them, so half the
+          page is a size the uploads carry. The item is the photograph; the
+          column beside it is a short list and two buttons. */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
-        <div className="lg:col-span-5">
+        <div className="lg:col-span-6">
           {listing.is_sold ? (
             <div className="relative [&_img]:grayscale [&_img]:opacity-60">
               <ProductGallery images={images} alt={listing.title} />
@@ -394,7 +397,7 @@ export function ProductPage() {
             for what matters, regular for everything else, and the buttons. */}
         <div
           ref={infoRef}
-          className="lg:col-span-7 lg:max-w-[38rem] lg:sticky lg:self-start flex flex-col"
+          className="lg:col-span-6 lg:max-w-[34rem] lg:sticky lg:self-start flex flex-col"
           style={{ top: infoTop }}
         >
           {/* Instant Ship first, as a sign: it is the one thing that differs

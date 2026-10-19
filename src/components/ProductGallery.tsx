@@ -99,26 +99,13 @@ export function ProductGallery({ images, alt }: Props) {
 
   return (
     <div>
-      {/* Desktop: every photo, full width of the column, one under another,
-          each in its own shape (square to 3:4). This is how a garment is
-          looked at on a screen this size: by scrolling down it, not by
-          clicking through a frame. A click opens that photo in zoom. */}
-      <div className="hidden lg:flex flex-col gap-2">
-        {images.map((img, i) => (
-          <React.Fragment key={img + i}>
-            <StackedPhoto
-              src={img}
-              alt={i === 0 ? alt : `${alt}, image ${i + 1}`}
-              priority={i === 0}
-              onOpen={() => { setIndex(i); setZoomOpen(true); }}
-            />
-          </React.Fragment>
-        ))}
-      </div>
-
-      {/* Phone and tablet: one frame you swipe, with a count underneath
-          rather than dots, arrows or a hint laid over the photo. */}
-      <div className="lg:hidden flex flex-col gap-2">
+      {/* One frame at every width. Desktop used to be a column of every
+          photo, scrolled past: it showed the whole set, but a buyer could not
+          tell from the first screen that there WAS a set, and the arrows that
+          say so only existed on the other layout. One frame, arrows where
+          there is a pointer, a swipe where there is a finger, and a row of
+          thumbnails under it so the count is visible without scrolling. */}
+      <div className="flex flex-col gap-2">
       <div
         ref={frameRef}
         tabIndex={0}
@@ -148,7 +135,7 @@ export function ProductGallery({ images, alt }: Props) {
               key={img + i}
               src={variantUrl(img, 'full')}
               srcSet={variantSrcSet(img, ['grid', 'full'])}
-              sizes="100vw"
+              sizes="(min-width: 1024px) 50vw, 100vw"
               alt={i === index ? alt : ''}
               draggable={false}
               loading={i === 0 ? 'eager' : 'lazy'}
@@ -174,9 +161,41 @@ export function ProductGallery({ images, alt }: Props) {
       </div>
 
       {count > 1 && (
-        <p className="self-end text-xs font-medium tabular-nums" aria-hidden>
-          {index + 1} / {count}
-        </p>
+        <>
+          {/* The count is the phone's version of the thumbnail row: same
+              fact, in the space a phone has for it. */}
+          <p className="lg:hidden self-end text-xs font-medium tabular-nums" aria-hidden>
+            {index + 1} / {count}
+          </p>
+          <div className="hidden lg:grid grid-cols-6 gap-2">
+            {images.map((img, i) => (
+              <button
+                key={img + i}
+                type="button"
+                onClick={() => setIndex(i)}
+                aria-label={`Show image ${i + 1} of ${count}`}
+                aria-current={i === index}
+                onContextMenu={(e) => e.preventDefault()}
+                className={cn(
+                  'aspect-square overflow-hidden bg-zinc-100 outline-none transition-opacity',
+                  'focus-visible:ring-2 focus-visible:ring-black',
+                  i === index ? 'ring-1 ring-black' : 'opacity-55 hover:opacity-100',
+                )}
+                style={PROTECT}
+              >
+                <img
+                  src={variantUrl(img, 'grid')}
+                  alt=""
+                  draggable={false}
+                  loading="lazy"
+                  referrerPolicy="no-referrer"
+                  className="h-full w-full object-cover"
+                  style={PROTECT}
+                />
+              </button>
+            ))}
+          </div>
+        </>
       )}
       </div>
 
@@ -187,41 +206,6 @@ export function ProductGallery({ images, alt }: Props) {
         />
       )}
     </div>
-  );
-}
-
-// One photo in the desktop stack. Takes its own shape, square to 3:4, from
-// the photo itself once it loads; outside that range it fills the frame and
-// the edges are trimmed rather than barred. The full photo is in zoom.
-function StackedPhoto({ src, alt, priority, onOpen }: {
-  src: string; alt: string; priority: boolean; onOpen: () => void;
-}) {
-  const [ratio, setRatio] = React.useState(3 / 4);
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      onContextMenu={(e) => e.preventDefault()}
-      aria-label={`Zoom: ${alt}`}
-      className="block w-full overflow-hidden bg-zinc-100 cursor-zoom-in outline-none focus-visible:ring-2 focus-visible:ring-black"
-      style={{ ...PROTECT, aspectRatio: String(ratio) }}
-    >
-      <img
-        src={variantUrl(src, 'full')}
-        srcSet={variantSrcSet(src, ['grid', 'full'])}
-        sizes="(min-width: 1280px) 45vw, 55vw"
-        alt={alt}
-        draggable={false}
-        loading={priority ? 'eager' : 'lazy'}
-        referrerPolicy="no-referrer"
-        onLoad={(e) => {
-          const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
-          if (w && h) setRatio(Math.min(1, Math.max(3 / 4, w / h)));
-        }}
-        className="h-full w-full object-cover"
-        style={PROTECT}
-      />
-    </button>
   );
 }
 

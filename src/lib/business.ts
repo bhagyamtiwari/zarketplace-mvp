@@ -36,3 +36,10 @@ export const ADDRESS_ONE_LINE =
 
 /** Address with the company in front, for anything addressed to us by post. */
 export const POSTAL_ADDRESS = `${LEGAL_NAME}, ${ADDRESS_ONE_LINE}`;
+
+/**
+ * The office in the form a person can place: the building and the
+ * neighbourhood, no floor or street number. For the footer, where the point is
+ * that there is a real address, not what to write on an envelope.
+ */
+export const SHORT_ADDRESS = 'Statesman House, Connaught Place, New Delhi';
