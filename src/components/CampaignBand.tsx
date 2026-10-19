@@ -53,7 +53,9 @@ export function CampaignBand({
           block rather than three cards separated by white gutters. */}
       <div
         className={cn(
-          'relative mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-16 sm:py-24',
+          // The same side padding as the footer below it, so the two bands at the
+          // foot of the page start and end on one line.
+          'relative mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-16 xl:px-24 py-16 sm:py-24',
           // Alignment applies at every width now, not just md and up. Both
           // bands used to be left-aligned on a phone, so the pair lost the
           // alternation that makes them read as two separate statements rather

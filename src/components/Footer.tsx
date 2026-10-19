@@ -8,7 +8,6 @@ import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronUp, Instagram } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Wordmark } from './Wordmark';
-import { LEGAL_NAME, SHORT_ADDRESS } from '../lib/business';
 
 interface FooterLink {
   label: string;
@@ -154,27 +153,6 @@ function SocialIcons() {
   );
 }
 
-// One quiet line under the wordmark: the company, and where it sits. The
-// four-line block with the GSTIN in it was a filing in a place nobody reads a
-// filing, so the registration moved to where someone checking us would look
-// for it anyway - Terms, Contact, Grievance and Returns all carry it in full,
-// from src/lib/business.ts. What stays is the address, because an address is
-// the part a visitor can place.
-function LegalLine({ align = 'left' }: { align?: 'left' | 'center' }) {
-  return (
-    <p className={cn('text-[11px] leading-relaxed text-white/60', align === 'center' && 'text-center')}>
-      <span className="block">{LEGAL_NAME} &middot; {SHORT_ADDRESS}</span>
-      {/* On its own line, or it reads as the last clause of the address. */}
-      <Link
-        to="/terms"
-        className="mt-0.5 inline-block underline underline-offset-2 hover:text-white/85 transition-colors"
-      >
-        Company details, including our GSTIN
-      </Link>
-    </p>
-  );
-}
-
 export function Footer() {
   // Phone: every section starts open, so all the links are there on arrival;
   // each can still be folded away on its own.
@@ -191,7 +169,7 @@ export function Footer() {
     <footer className="bg-black text-white py-16 sm:py-20">
       {/* The header's full width, with more padding than the header so the
           columns do not run into the edges: the same amount on both sides. */}
-      <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-16 xl:px-20">
+      <div className="mx-auto max-w-[1600px] px-6 sm:px-10 lg:px-16 xl:px-24">
         {/* The four errands, then Connect, where the social links read as
             named links like every other column rather than four loose marks.
             Spread with equal gaps, so the first column starts at the left
@@ -257,13 +235,10 @@ export function Footer() {
             right, on the same edges as the columns above, with no rule over
             them. The wordmark is the same one as the nav, so the page opens
             and closes on the same mark. */}
-        <div className="hidden md:flex mt-16 items-start justify-between gap-10">
-          <div className="flex flex-col gap-3">
-            <Link to="/" aria-label="zarketplace home" className="flex min-h-[44px] items-center">
-              <Wordmark on="dark" heightClassName="h-8" />
-            </Link>
-            <LegalLine />
-          </div>
+        <div className="hidden md:flex mt-16 items-center justify-between gap-10">
+          <Link to="/" aria-label="zarketplace home" className="flex min-h-[44px] items-center">
+            <Wordmark on="dark" heightClassName="h-8" />
+          </Link>
           <span className="text-[11px] font-bold uppercase tracking-widest text-white/80">© 2026 All rights reserved.</span>
         </div>
 
@@ -274,7 +249,6 @@ export function Footer() {
           <Link to="/" className="flex min-h-[44px] items-center">
             <Wordmark on="dark" heightClassName="h-7" />
           </Link>
-          <LegalLine align="center" />
           <SocialIcons />
           <span className="text-[11px] font-bold uppercase tracking-widest ink-mid">© 2026 All rights reserved.</span>
         </div>
