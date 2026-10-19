@@ -690,25 +690,25 @@ export function ProductPage() {
 
 
           {/* Instant Ship stock is on our shelf, so we can answer anything
-              about it today. Said once, quietly, after the description: it is
+              about it today. One line, quietly, after the description: it is
               for the person who has read everything and still has a question,
               not a second call to action beside the buttons. */}
           {listing.is_verified && !listing.is_sold && listing.sku && (
             <p className="mt-4 text-xs leading-relaxed ink-mid">
-              Questions about this piece?{' '}
+              Questions?{' '}
               <a
                 href={`https://wa.me/918505927538?text=${encodeURIComponent(`Hi, I have a question about ${listing.sku}`)}`}
                 target="_blank" rel="noopener noreferrer"
                 className="underline underline-offset-4 decoration-black/30 hover:decoration-black"
               >
-                WhatsApp us
+                WhatsApp
               </a>{' '}
-              or email{' '}
+              or{' '}
               <a
                 href={`mailto:contact@zarketplace.com?subject=${encodeURIComponent(`Question about ${listing.sku}`)}`}
                 className="underline underline-offset-4 decoration-black/30 hover:decoration-black"
               >
-                contact@zarketplace.com
+                email us
               </a>, quoting <span className="whitespace-nowrap">{listing.sku}</span>.
             </p>
           )}

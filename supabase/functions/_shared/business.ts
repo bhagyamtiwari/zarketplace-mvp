@@ -9,5 +9,5 @@ export const LEGAL_NAME = "ADNIZ Private Limited";
 export const GSTIN = "07AAZCA1680Q1ZQ";
 export const CIN = "U47711DL2023PTC418107";
 export const ADDRESS_ONE_LINE =
-  "5th Floor, Wing-A, Statesman House, 148 Barakhamba Road, Connaught Place, New Delhi – 110001";
+  "5th Floor, Wing-A, Statesman House, 148 Barakhamba Road, Connaught Place, New Delhi 110001";
 export const POSTAL_ADDRESS = `${LEGAL_NAME}, ${ADDRESS_ONE_LINE}`;
