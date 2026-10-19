@@ -660,17 +660,17 @@ export function ProductPage() {
               whether a stranger sends money for a used item. */}
           <Link
             to="/buyer-protection"
-            className="group mt-5 flex flex-col items-center gap-1.5 border border-black/20 px-5 py-5 text-center transition-colors hover:border-black"
+            className="group mt-4 flex flex-col items-center gap-1 border border-black/20 px-4 py-3.5 text-center transition-colors hover:border-black"
           >
-            <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em]">
-              <ShieldCheck className="h-4 w-4" />
+            <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.18em]">
+              <ShieldCheck className="h-3.5 w-3.5" />
               Buyer Protection
             </span>
-            <span className="text-sm leading-relaxed">
+            <span className="text-xs leading-relaxed">
               <span className="block font-bold">Not as described, or the wrong item?</span>
               Tell us within 7 days of delivery and you get a full refund.
             </span>
-            <span className="text-xs font-bold underline underline-offset-4 decoration-black/30 group-hover:decoration-black">
+            <span className="text-[11px] font-bold underline underline-offset-4 decoration-black/30 group-hover:decoration-black">
               How it works
             </span>
           </Link>
