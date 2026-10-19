@@ -71,6 +71,18 @@
     @apply text-sm font-normal normal-case tracking-normal leading-[1.75];
   }
 
+  /* The shell is 1024px, which is one edge across the site and the right call
+     for that. It is the wrong MEASURE for prose: a paragraph set the full
+     width runs to about 120 characters, so two whole sentences land on one
+     line and the eye loses its place returning to the left. Capping the
+     paragraphs alone shortens the line without moving the edge, so pages
+     still align with each other exactly as before. Headings, lists and
+     panels inside the same block keep the full width. */
+  .body-longform > p,
+  .body-longform > section > p {
+    max-width: 72ch;
+  }
+
   /* ---------------------------------------------------------------------
      SHELLS. Two, named for the content they hold rather than for a width.
      ---------------------------------------------------------------------

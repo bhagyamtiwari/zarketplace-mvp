@@ -2,6 +2,7 @@ import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { usePageMeta, META } from '../lib/pageMeta';
+import { cn } from '../lib/utils';
 import { LEGAL_NAME, GSTIN, CIN, POSTAL_ADDRESS } from '../lib/business';
 
 export function Terms() {
@@ -37,31 +38,40 @@ export function Terms() {
               it reads from src/lib/business.ts, which is the one place to
               change any of it. */}
             <p>zarketplace is a trading name of <strong>{LEGAL_NAME}</strong>, a company incorporated in India.</p>
-            <dl className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1">
-                <dt className="font-bold">Legal name</dt>
-                <dd>{LEGAL_NAME}</dd>
-              </div>
-              <div className="flex flex-col gap-1">
-                <dt className="font-bold">CIN</dt>
-                <dd>{CIN}</dd>
-              </div>
-              <div className="flex flex-col gap-1">
-                <dt className="font-bold">GSTIN</dt>
-                <dd className="tabular-nums">{GSTIN}</dd>
-              </div>
-              <div className="flex flex-col gap-1">
-                <dt className="font-bold">Office address</dt>
-                <dd>{POSTAL_ADDRESS}</dd>
-              </div>
-              <div className="flex flex-col gap-1">
-                <dt className="font-bold">Customer care</dt>
-                <dd>
-                  <a href="mailto:contact@zarketplace.com" className="underline underline-offset-4">contact@zarketplace.com</a>
-                  {' '}&middot;{' '}
-                  <a href="tel:+918505927538" className="underline underline-offset-4">+91 85059 27538</a>
-                </dd>
-              </div>
+            {/* Set as a black panel, not as more of the same running text.
+                These are the details someone opens this page to check, and as
+                five bold labels in the body they read as another five
+                paragraphs of policy. Inverted, the block is the one thing on
+                the page the eye goes to, and each field is a row you can find
+                at a glance rather than a line to read past. */}
+            <dl className="not-prose grid grid-cols-1 gap-px overflow-hidden bg-white/15 text-white sm:grid-cols-2 [--ink:255_255_255]">
+              {[
+                { term: 'Legal name', value: LEGAL_NAME },
+                { term: 'CIN', value: CIN, mono: true },
+                { term: 'GSTIN', value: GSTIN, mono: true },
+                {
+                  term: 'Customer care',
+                  value: (
+                    <>
+                      <a href="mailto:contact@zarketplace.com" className="underline underline-offset-4 hover:text-white/80">contact@zarketplace.com</a>
+                      <br />
+                      <a href="tel:+918505927538" className="underline underline-offset-4 hover:text-white/80">+91 85059 27538</a>
+                    </>
+                  ),
+                },
+                { term: 'Registered office', value: POSTAL_ADDRESS, wide: true },
+              ].map(({ term, value, mono, wide }) => (
+                <div
+                  key={term}
+                  className={cn(
+                    'flex flex-col gap-1.5 bg-black px-5 py-4',
+                    wide && 'sm:col-span-2',
+                  )}
+                >
+                  <dt className="text-[10px] font-black uppercase tracking-[0.2em] text-white/55">{term}</dt>
+                  <dd className={cn('text-sm leading-relaxed text-white', mono && 'tabular-nums tracking-wide')}>{value}</dd>
+                </div>
+              ))}
             </dl>
           </section>
 

@@ -81,15 +81,14 @@ export function About() {
   );
 }
 
-// Six promises, and nobody read them when they were six equal boxes: a grid of
-// identical cards gives the eye no order to read them in, so it reads the
+// Six promises, and nobody read them when they were six equal boxes: a grid
+// of identical cards gives the eye no order to read them in, so it reads the
 // first one and skips the rest.
 //
-// A numbered list has an order built in. Each row is one line of claim set
-// large, with the detail under it, and they arrive one after another as the
-// section scrolls into view, which is what makes an eye follow a list to the
-// end. The numbers are the point: six things, counted, each one a page you can
-// go and check.
+// A list has one. Each row is one claim set large, with the detail under it,
+// and they arrive one after another as the section scrolls into view, which
+// is what makes an eye follow a list to the end. Each row is still a page you
+// can go and check.
 const HANDLES: Array<{ icon: React.ComponentType<{ className?: string }>; title: string; body: string; to: string }> = [
   { icon: ShieldCheck, title: 'Buyer protection', body: 'You buy from zarketplace: one company, one standard. If an item is not as described, you are covered.', to: '/buyer-protection' },
   { icon: IndianRupee, title: 'A fixed offer, upfront', body: 'We tell you what we will pay before you part with anything. Accept it and that number never moves.', to: '/how-it-works' },
@@ -119,14 +118,12 @@ function WhatWeHandle() {
             to={to}
             className="group flex items-start gap-4 py-5 sm:gap-6 sm:py-6 transition-colors hover:bg-black/[0.03]"
           >
-            {/* The count, which is the whole reason this reads as a list and
-                not as six unrelated cards. */}
-            <span className="w-6 shrink-0 pt-1 text-[11px] font-black tabular-nums tracking-widest text-black/35 sm:w-10">
-              {String(i + 1).padStart(2, '0')}
-            </span>
+            {/* The icon carries the left column on its own. A counter was
+                there to give the list an order to read in, and it read as a
+                ranking of six things that are not ranked. */}
+            <Icon className="mt-0.5 h-6 w-6 shrink-0 sm:mt-1" />
             <div className="flex flex-1 flex-col gap-1.5">
-              <h3 className="flex items-center gap-2.5 text-lg font-black leading-tight tracking-tight sm:text-xl">
-                <Icon className="h-5 w-5 shrink-0" />
+              <h3 className="text-lg font-black leading-tight tracking-tight sm:text-xl">
                 {title}
               </h3>
               <p className="max-w-[62ch]">{body}</p>
