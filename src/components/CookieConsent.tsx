@@ -23,45 +23,65 @@ export function CookieConsent() {
     // settings panel rendered black on black. Solid from sm up, where the
     // settings panel lives, so the detail is always readable.
     <div className="fixed z-[60] bottom-3 inset-x-3 rounded-xl sm:rounded-none sm:bottom-0 sm:inset-x-0 bg-black/70 sm:bg-black [--ink:255_255_255] backdrop-blur-md text-white border border-white/10 sm:border-x-0 sm:border-b-0 shadow-[0_8px_30px_rgba(0,0,0,0.25)] sm:shadow-none">
+      {/* Only ever shown from sm up: the Settings button that opens it is
+          hidden on a phone. It was capped at max-w-3xl and pinned left, so on
+          a wide screen it sat as a narrow column under a full-width bar and
+          read as a panel that had failed to load. It now runs the same width
+          as the bar, with the two categories side by side so the measure
+          stays short rather than stretching one paragraph across 1600px. */}
       {settingsOpen && (
-        <div className="border-b border-white/10 px-4 sm:px-6 lg:px-8 py-5 flex flex-col gap-4 max-w-3xl mx-auto sm:mx-0">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-bold">Essential</span>
-            <span className="text-sm">Always on</span>
+        <div className="border-b border-white/10 px-4 sm:px-6 lg:px-8 py-5 flex flex-col gap-5">
+          <div className="grid gap-5 sm:grid-cols-2 sm:gap-x-12 lg:gap-x-20">
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm font-bold">Essential</span>
+                <span className="text-sm">Always on</span>
+              </div>
+              <p className="max-w-[60ch] text-sm leading-relaxed">
+                Required for the site to function. These store your sign-in session, cart, favorites and checkout progress on this device.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2 border-t border-white/10 pt-4 sm:border-t-0 sm:pt-0">
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm font-bold">Analytics</span>
+                <button
+                  type="button"
+                  onClick={() => setAnalyticsOn((v) => !v)}
+                  className="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
+                  style={{ backgroundColor: analyticsOn ? '#fff' : 'rgba(255,255,255,0.2)' }}
+                  aria-pressed={analyticsOn}
+                  aria-label="Toggle analytics cookies"
+                >
+                  <span
+                    className="inline-block h-4 w-4 rounded-full bg-black transition-transform"
+                    style={{ transform: analyticsOn ? 'translateX(18px)' : 'translateX(2px)' }}
+                  />
+                </button>
+              </div>
+              <p className="max-w-[60ch] text-sm leading-relaxed">
+                Used only with your consent, to measure which pages are visited and where visitors leave, under a randomly generated identifier. If declined, the script is not loaded.
+              </p>
+            </div>
           </div>
-          <p className="text-sm leading-relaxed -mt-2">
-            Your sign-in session, cart, favorites and checkout progress. Stored on this device, needed for the site to work at all.
-          </p>
-          <div className="flex items-center justify-between pt-2 border-t border-white/10">
-            <span className="text-sm font-bold">Analytics</span>
+
+          {/* The qualifier and the action on one row, on the same two edges as
+              the bar below, so the panel closes where the bar does. */}
+          <div className="flex flex-col gap-4 border-t border-white/10 pt-4 sm:flex-row sm:items-center sm:justify-between sm:gap-10">
+            {/* This line answers the question the two columns above raise, so
+                it runs the full width of the panel rather than stopping at the
+                first column's edge. */}
+            <p className="text-sm leading-relaxed">
+              No advertising or cross-site tracking cookies are used. Full details of what is stored, and for how long, are set out in our{' '}
+              <Link to="/privacy" className="underline text-white hover:text-white/80">Privacy Policy</Link>.
+            </p>
             <button
               type="button"
-              onClick={() => setAnalyticsOn((v) => !v)}
-              className="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
-              style={{ backgroundColor: analyticsOn ? '#fff' : 'rgba(255,255,255,0.2)' }}
-              aria-pressed={analyticsOn}
-              aria-label="Toggle analytics cookies"
+              onClick={() => setConsent(analyticsOn ? 'accepted' : 'rejected')}
+              className="self-start shrink-0 bg-white px-5 min-h-[44px] py-3 text-[10px] font-black uppercase tracking-widest text-black hover:bg-white/90 transition-colors sm:self-auto"
             >
-              <span
-                className="inline-block h-4 w-4 rounded-full bg-black transition-transform"
-                style={{ transform: analyticsOn ? 'translateX(18px)' : 'translateX(2px)' }}
-              />
+              Save Preferences
             </button>
           </div>
-          <p className="text-sm leading-relaxed -mt-2">
-            Which pages get used and where people drop off, under a random ID. Reject and the script is never loaded.
-          </p>
-          <p className="text-sm leading-relaxed pt-2 border-t border-white/10">
-            We do not use advertising or cross-site tracking cookies. Details are in our{' '}
-            <Link to="/privacy" className="underline text-white hover:text-white/80">Privacy Policy</Link>.
-          </p>
-          <button
-            type="button"
-            onClick={() => setConsent(analyticsOn ? 'accepted' : 'rejected')}
-            className="self-start bg-white px-5 min-h-[44px] py-3 text-[10px] font-black uppercase tracking-widest text-black hover:bg-white/90 transition-colors"
-          >
-            Save Preferences
-          </button>
         </div>
       )}
 
@@ -69,19 +89,24 @@ export function CookieConsent() {
         {/* Short form on a phone: five lines of consent copy over the fold is
             its own dark pattern. The full wording stays where there is room,
             and both link to the policy that spells it out. */}
+        {/* While the panel is open this sentence, and the second link to the
+            same policy, only repeat what is spelled out two lines above. The
+            element stays as the spacer that holds the buttons to the right. */}
         <p className="flex-1 text-[13px] leading-snug sm:text-xs sm:leading-relaxed">
+          {!settingsOpen && (<>
           {/* Sentence case on a phone: the uppercase body voice needs six lines
               for the same sentence and pushes the buttons off the bar. */}
           <span className="sm:hidden text-[13px] leading-snug">
-            We use cookies.{' '}
+            This site uses cookies.{' '}
             <Link to="/privacy" className="inline-block py-3.5 -my-3.5 underline text-white">Privacy</Link>
           </span>
           {/* One line where there is room. What is stored and why is one
               click away, under Settings. */}
           <span className="hidden sm:inline text-xs font-medium">
-            We use essential cookies to run this site and, with your consent, analytics to improve it.{' '}
+            Essential cookies are required for this site to function. Analytics cookies are used only with your consent.{' '}
             <Link to="/privacy" className="inline-block py-3.5 -my-3.5 underline text-white hover:text-white/80">Privacy Policy</Link>
           </span>
+          </>)}
         </p>
         <div className="flex shrink-0 items-center gap-2.5">
           <button

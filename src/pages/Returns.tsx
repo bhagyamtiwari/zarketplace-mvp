@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { usePageMeta, META } from '../lib/pageMeta';
 import { ProcessFlow, type FlowStep } from '../components/ProcessFlow';
+import { LEGAL_NAME, GSTIN, ADDRESS_ONE_LINE } from '../lib/business';
 
 // The logistics only. Who qualifies and when is the written policy below, and
 // the diagram must not say more than it does.
@@ -65,6 +66,14 @@ export function Returns() {
           <section className="flex flex-col gap-4">
             <h2 className="text-xl font-black uppercase tracking-tight text-black">Reporting a problem</h2>
             <p>If you need to report a problem with an order or a listing, write to us at <a href="mailto:contact@zarketplace.com" className="font-bold text-black underline">contact@zarketplace.com</a>. We acknowledge every complaint within 48 hours and resolve it within one month. Our grievance officer's details are on the <a href="/grievance-officer" className="font-bold text-black underline">Grievance Officer</a> page.</p>
+          </section>
+
+          {/* Who the refund comes from. A return is a transaction with the
+              company, so it says which company, on the same details as Terms
+              and Contact. All of it from src/lib/business.ts. */}
+          <section className="flex flex-col gap-4">
+            <h2 className="text-xl font-black uppercase tracking-tight text-black">Who you are returning to</h2>
+            <p>Every order is sold by {LEGAL_NAME} (GSTIN {GSTIN}), {ADDRESS_ONE_LINE}. We are the seller on every item here, so a return is settled with us and we are the ones who refund you.</p>
           </section>
         </div>
 

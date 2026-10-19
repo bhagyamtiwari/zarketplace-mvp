@@ -882,7 +882,10 @@ function HeroBanner() {
       <div aria-hidden className="absolute inset-y-0 right-0 w-[68%] sm:hidden">
         <div
           className="absolute inset-0 bg-cover bg-no-repeat"
-          style={{ backgroundImage: HERO_IMAGE, backgroundPosition: '14% center' }}
+          /* The shorter hero crops the frame harder, and centred it cut the
+             face off the top. Held at 28% down, which keeps the head and the
+             sunglasses in the panel. */
+          style={{ backgroundImage: HERO_IMAGE, backgroundPosition: '14% 10%' }}
         />
         <div className="absolute inset-0 bg-gradient-to-r from-black via-black/55 to-black/10" />
       </div>
@@ -894,7 +897,11 @@ function HeroBanner() {
         <div className="absolute inset-0 bg-gradient-to-r from-black via-black/45 via-35% to-transparent to-75%" />
       </div>
 
-      <div className="relative mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-14 sm:py-20 lg:py-24 flex flex-col items-start gap-6 sm:gap-8">
+      {/* Half the vertical padding this had. The hero was tall enough to push
+          the category tabs under the fold on a phone, which hid the shop
+          behind a scroll on the page whose job is the shop. The copy block
+          keeps its own order, just tighter. */}
+      <div className="relative mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-7 sm:py-10 lg:py-12 flex flex-col items-start gap-4 sm:gap-5">
         {/* Two lines, broken where the joke breaks: the phrase, then the thing
             it buries. */}
         <h1 className="text-[2.35rem] leading-[0.9] sm:text-6xl lg:text-7xl font-black uppercase tracking-tighter">

@@ -1,5 +1,5 @@
 // Buyer: "Order placed" confirmation, sent right after the buyer confirms payment.
-import { shell, baseStyle, button, EmailContent, EmailContext, esc, header, trackUrl } from "./_shared.ts";
+import { shell, baseStyle, button, EmailContent, EmailContext, esc, header, trackUrl, legalFooter } from "./_shared.ts";
 
 export function orderConfirmationBuyer(ctx: EmailContext): EmailContent {
   const o = ctx.order ?? {};
@@ -16,6 +16,7 @@ export function orderConfirmationBuyer(ctx: EmailContext): EmailContent {
       <p style="color:#111111; margin:0 0 14px;"><strong>Order #:</strong> ${esc(o.order_number)}<br/>
          <strong>Total:</strong> Rs. ${o.total_amount}</p>
       ${button(trackUrl(o, ctx.siteUrl), "Track your order")}
+      ${legalFooter()}
     </div>`),
   };
 }

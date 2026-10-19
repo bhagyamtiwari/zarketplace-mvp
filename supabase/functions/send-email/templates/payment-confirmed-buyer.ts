@@ -1,7 +1,7 @@
 // Buyer: payment captured via Razorpay. Sent by the razorpay-webhook
 // function once the webhook has verified the payment with Razorpay — never
 // sent on the buyer's own say-so.
-import { shell, baseStyle, button, EmailContent, EmailContext, esc, header, listingImage, trackUrl } from "./_shared.ts";
+import { shell, baseStyle, button, EmailContent, EmailContext, esc, header, listingImage, trackUrl, legalFooter } from "./_shared.ts";
 
 export function paymentConfirmedBuyer(ctx: EmailContext): EmailContent {
   const o = ctx.order ?? {};
@@ -27,6 +27,7 @@ export function paymentConfirmedBuyer(ctx: EmailContext): EmailContent {
       </table>
       ${o.shipping_address ? `<p style="color:#5a5a5a; font-size:13px;">Shipping to: ${esc([o.shipping_address.address, o.shipping_address.city, o.shipping_address.state, o.shipping_address.pincode].filter(Boolean).join(", "))}</p>` : ""}
       ${button(trackUrl(o, ctx.siteUrl), "Track your order")}
+      ${legalFooter()}
     </div>`),
   };
 }

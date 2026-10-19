@@ -4,6 +4,8 @@
 // function. They all share the helpers below so the look-and-feel stays
 // consistent and so editing one template never touches another.
 
+import { LEGAL_NAME, GSTIN, ADDRESS_ONE_LINE } from "../../_shared/business.ts";
+
 export interface EmailContext {
   // The full `orders` row (or {} when none was loaded).
   order: any;
@@ -127,6 +129,27 @@ export function trackUrl(o: any, siteUrl: string): string {
   return `${siteUrl}/track-order?order=${o.order_number}&email=${encodeURIComponent(o.buyer_email ?? "")}`;
 }
 
+
+/**
+ * Who sent this mail, in law: the company, its GST registration and the
+ * registered office. An order confirmation and a payment receipt are the
+ * documents a buyer keeps, and a receipt from a GST-registered seller has to
+ * say which seller and under which registration.
+ *
+ * The values come from _shared/business.ts, the edge functions' copy of
+ * src/lib/business.ts, which a test keeps in step.
+ */
+export function legalFooter(): string {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top:28px; border-top:1px solid ${RULE};">
+    <tr>
+      <td style="padding-top:14px; color:${MUTED}; font-size:11px; line-height:1.6; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+        Sold by ${esc(LEGAL_NAME)}, trading as zarketplace.<br/>
+        GSTIN: ${esc(GSTIN)}<br/>
+        ${esc(ADDRESS_ONE_LINE)}
+      </td>
+    </tr>
+  </table>`;
+}
 
 export function esc(v: unknown): string {
   if (v == null) return "";

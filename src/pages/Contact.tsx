@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { ArrowLeft } from 'lucide-react';
 import { usePageMeta, META } from '../lib/pageMeta';
+import { GSTIN, POSTAL_ADDRESS } from '../lib/business';
 
 // The three places a person actually answers. One shape each, so the rows are
 // interchangeable and nothing looks more official than the rest.
@@ -19,8 +20,9 @@ const CHANNELS: Array<{
   // ZARKET on a phone keypad is 927538, so the vanity form dials the real
   // number. The digits stay underneath for anyone typing it in by hand.
   { label: 'WhatsApp', value: '8505-ZARKET', detail: '+91 85059 27538', href: 'https://wa.me/918505927538', external: true },
-  // For post. The same address as on the Terms page; change both together.
-  { label: 'Address', value: 'ADNIZ Private Limited, 5th Floor, Wing-A, Statesman House, 148 Barakhamba Road, Connaught Place, New Delhi 110001' },
+  // For post, and the registration anyone checking us is looking for. Both
+  // read from src/lib/business.ts, so the Terms page can never disagree.
+  { label: 'Address', value: POSTAL_ADDRESS, detail: `GSTIN: ${GSTIN}` },
 ];
 
 export function Contact() {
