@@ -126,7 +126,7 @@ function WhatWeHandle() {
               <h3 className="text-lg font-black leading-tight tracking-tight sm:text-xl">
                 {title}
               </h3>
-              <p className="max-w-[62ch]">{body}</p>
+              <p>{body}</p>
             </div>
             {/* Sits still until the row is pointed at, so the page is not six
                 arrows nudging at once. */}
