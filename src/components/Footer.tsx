@@ -8,7 +8,7 @@ import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronUp, Instagram } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Wordmark } from './Wordmark';
-import { LEGAL_NAME, GSTIN, ADDRESS_LINES } from '../lib/business';
+import { LEGAL_NAME, SHORT_ADDRESS } from '../lib/business';
 
 interface FooterLink {
   label: string;
@@ -154,38 +154,24 @@ function SocialIcons() {
   );
 }
 
-// The company behind the wordmark, under the mark in both bottom bars: who we
-// are legally, the GST registration and the registered office. Set small and
-// quiet, in the muted ink the copyright line uses, because it is there to be
-// found rather than read. Every value comes from src/lib/business.ts.
-function LegalDetails({ align = 'left' }: { align?: 'left' | 'center' }) {
+// One quiet line under the wordmark: the company, and where it sits. The
+// four-line block with the GSTIN in it was a filing in a place nobody reads a
+// filing, so the registration moved to where someone checking us would look
+// for it anyway - Terms, Contact, Grievance and Returns all carry it in full,
+// from src/lib/business.ts. What stays is the address, because an address is
+// the part a visitor can place.
+function LegalLine({ align = 'left' }: { align?: 'left' | 'center' }) {
   return (
-    <address
-      className={cn(
-        'not-italic text-[11px] leading-relaxed text-white/60',
-        align === 'center' && 'text-center',
-      )}
-    >
-      <span className="block">{LEGAL_NAME}</span>
-      <span className="block tabular-nums">GSTIN: {GSTIN}</span>
-      {ADDRESS_LINES.map((line) => (
-        <span key={line} className="block">{line}</span>
-      ))}
-    </address>
-  );
-}
-
-// The wordmark in the footer carries the trademark claim, and only here: the
-// header shows the mark itself, and a ™ beside it would read as part of the
-// logo. Lowercase, as the brand always is, with the ™ set small and raised by
-// hand - <sup> on its own leaves it full size in some browsers and throws the
-// line height out.
-function TrademarkedWordmark({ heightClassName }: { heightClassName: string }) {
-  return (
-    <span className="inline-flex items-start">
-      <Wordmark on="dark" heightClassName={heightClassName} />
-      <sup className="ml-1 mt-0.5 text-[0.6rem] font-bold leading-none">™</sup>
-    </span>
+    <p className={cn('text-[11px] leading-relaxed text-white/60', align === 'center' && 'text-center')}>
+      <span className="block">{LEGAL_NAME} &middot; {SHORT_ADDRESS}</span>
+      {/* On its own line, or it reads as the last clause of the address. */}
+      <Link
+        to="/terms"
+        className="mt-0.5 inline-block underline underline-offset-2 hover:text-white/85 transition-colors"
+      >
+        Company details, including our GSTIN
+      </Link>
+    </p>
   );
 }
 
@@ -274,9 +260,9 @@ export function Footer() {
         <div className="hidden md:flex mt-16 items-start justify-between gap-10">
           <div className="flex flex-col gap-3">
             <Link to="/" aria-label="zarketplace home" className="flex min-h-[44px] items-center">
-              <TrademarkedWordmark heightClassName="h-8" />
+              <Wordmark on="dark" heightClassName="h-8" />
             </Link>
-            <LegalDetails />
+            <LegalLine />
           </div>
           <span className="text-[11px] font-bold uppercase tracking-widest text-white/80">© 2026 All rights reserved.</span>
         </div>
@@ -286,9 +272,9 @@ export function Footer() {
             together rather than the icons hiding in an accordion above. */}
         <div className="md:hidden mt-10 pt-8 flex flex-col items-center gap-5 text-center">
           <Link to="/" className="flex min-h-[44px] items-center">
-            <TrademarkedWordmark heightClassName="h-7" />
+            <Wordmark on="dark" heightClassName="h-7" />
           </Link>
-          <LegalDetails align="center" />
+          <LegalLine align="center" />
           <SocialIcons />
           <span className="text-[11px] font-bold uppercase tracking-widest ink-mid">© 2026 All rights reserved.</span>
         </div>
