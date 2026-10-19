@@ -7,7 +7,7 @@ import { formatCurrency, cn } from '../lib/utils';
 import { variantUrl } from '../lib/images';
 import { ProductGallery } from '../components/ProductGallery';
 import { motion } from 'motion/react';
-import { ArrowLeft, Zap, Heart, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Zap, Heart, ShieldCheck, MessageCircle } from 'lucide-react';
 import { log } from '../lib/log';
 import { useCart } from '../lib/cart';
 import { useAuth } from '../lib/auth';
@@ -484,9 +484,9 @@ export function ProductPage() {
                 <dt>Measurements</dt>
                 <dd className="flex flex-col gap-2">
                   <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-            <dl className="flex flex-wrap gap-x-7 gap-y-2 text-sm">
+            <dl className="flex flex-wrap gap-x-4 gap-y-0.5 text-sm">
               {measurements.map(([label, cm]) => (
-                <div key={label} className="flex items-baseline gap-2">
+                <div key={label} className="flex items-baseline gap-1">
                   <dt>{label}</dt>
                   <dd className="font-bold tabular-nums">
                     {formatLength(cm, unit)}<span className="ml-0.5 font-normal">{unit}</span>
@@ -534,7 +534,7 @@ export function ProductPage() {
                       </a>
                       <span
                         aria-hidden
-                        className="pointer-events-none absolute bottom-full left-0 z-30 mb-3 hidden w-60 border border-black bg-white p-2 opacity-0 transition-opacity duration-150 [@media(hover:hover)]:block group-hover/guide:opacity-100"
+                        className="pointer-events-none absolute top-full left-0 z-30 mt-2 hidden w-60 border border-black bg-white p-2 opacity-0 transition-opacity duration-150 [@media(hover:hover)]:block group-hover/guide:opacity-100"
                       >
                         <picture>
                           <source srcSet={`/images/${guide}.webp`} type="image/webp" />
@@ -667,12 +667,48 @@ export function ProductPage() {
               Buyer Protection
             </span>
             <span className="text-sm leading-relaxed">
-              Not as described, or the wrong item? Tell us within 7 days of delivery and you get a full refund.
+              <span className="block font-bold">Not as described, or the wrong item?</span>
+              Tell us within 7 days of delivery and you get a full refund.
             </span>
             <span className="text-xs font-bold underline underline-offset-4 decoration-black/30 group-hover:decoration-black">
               How it works
             </span>
           </Link>
+          {/* Instant Ship stock is on our shelf, so we can answer anything
+              about it today: the measurement nobody listed, what the inside
+              of a cuff looks like. That is worth a panel rather than a line
+              of prose, and it belongs beside the purchase, where someone is
+              still deciding, not under the description where they have
+              already stopped reading. */}
+          {listing.is_verified && !listing.is_sold && listing.sku && (
+            <div className="mt-3 flex flex-col items-center gap-1.5 border border-black/20 px-5 py-5 text-center">
+              <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.2em]">
+                <MessageCircle className="h-4 w-4" />
+                Questions about this piece?
+              </span>
+              <span className="text-sm leading-relaxed">
+                It is on our shelf, so we can check anything for you today.
+              </span>
+              <span className="mt-1 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm">
+                <a
+                  href={`https://wa.me/918505927538?text=${encodeURIComponent(`Hi, I have a question about ${listing.sku}`)}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="font-bold underline underline-offset-4 decoration-black/30 hover:decoration-black"
+                >
+                  WhatsApp us
+                </a>
+                <span aria-hidden className="text-black/30">/</span>
+                <a
+                  href={`mailto:contact@zarketplace.com?subject=${encodeURIComponent(`Question about ${listing.sku}`)}`}
+                  className="font-bold underline underline-offset-4 decoration-black/30 hover:decoration-black"
+                >
+                  Email us
+                </a>
+              </span>
+              <span className="text-xs">Quote <span className="font-bold whitespace-nowrap">{listing.sku}</span>.</span>
+            </div>
+          )}
+
           {(listing.description || listing.has_flaws) && (
             <section id="flaws" className="mt-10 flex scroll-mt-32 flex-col gap-3">
               <h2 className="text-[15px] font-bold">Item description</h2>
@@ -685,22 +721,6 @@ export function ProductPage() {
                 </p>
               )}
             </section>
-          )}
-
-          {/* Instant Ship stock is on our shelf, so we can answer anything
-              about it today: a quiet way to ask, with the code filled in. */}
-          {listing.is_verified && !listing.is_sold && listing.sku && (
-            <p className="mt-2 text-sm leading-relaxed">
-              Questions about this piece?{' '}
-              <a
-                href={`https://wa.me/918505927538?text=${encodeURIComponent(`Hi, I have a question about ${listing.sku}`)}`}
-                target="_blank" rel="noopener noreferrer"
-                className="font-bold underline underline-offset-4 decoration-black/30 hover:decoration-black"
-              >
-                WhatsApp us
-              </a>{' '}
-              or email <a href={`mailto:contact@zarketplace.com?subject=${encodeURIComponent(`Question about ${listing.sku}`)}`} className="underline underline-offset-4 decoration-black/30 hover:decoration-black">contact@zarketplace.com</a>, quoting <span className="font-bold whitespace-nowrap">{listing.sku}</span>.
-            </p>
           )}
 
           <div ref={stickyStopRef} />
