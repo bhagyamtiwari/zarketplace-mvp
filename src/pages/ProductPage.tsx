@@ -654,24 +654,19 @@ export function ProductPage() {
             )}
           </div>
 
-          {/* Directly under the buttons, centred, and the only thing there.
-              It was a line of prose that read as a footnote to the purchase,
-              which is the wrong weight for the one promise that decides
-              whether a stranger sends money for a used item. */}
+          {/* Under the buttons and the only thing there. Left-aligned and
+              set as one short paragraph beside the mark: centred over four
+              lines it took as much room as the buttons it follows, which is
+              more weight than a reassurance needs. */}
           <Link
             to="/buyer-protection"
-            className="group mt-4 flex flex-col items-center gap-1 border border-black/20 px-4 py-3.5 text-center transition-colors hover:border-black"
+            className="group mt-4 flex items-start gap-3 border border-black/20 px-4 py-3 transition-colors hover:border-black"
           >
-            <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.18em]">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              Buyer Protection
-            </span>
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
             <span className="text-xs leading-relaxed">
-              <span className="block font-bold">Not as described, or the wrong item?</span>
-              Tell us within 7 days of delivery and you get a full refund.
-            </span>
-            <span className="text-[11px] font-bold underline underline-offset-4 decoration-black/30 group-hover:decoration-black">
-              How it works
+              <span className="font-bold">Buyer Protection.</span>{' '}
+              Not as described, or the wrong item? Tell us within 7 days of delivery and you get a full refund.{' '}
+              <span className="font-bold underline underline-offset-2 decoration-black/30 group-hover:decoration-black">How it works</span>
             </span>
           </Link>
           {(listing.description || listing.has_flaws) && (

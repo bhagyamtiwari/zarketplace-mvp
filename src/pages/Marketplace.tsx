@@ -5,7 +5,7 @@
 // it the page is search, filters and real inventory, and nothing else.
 import React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, SlidersHorizontal, X, Loader2, ChevronDown } from 'lucide-react';
+import { Search, SlidersHorizontal, X, Loader2, ChevronDown, Zap, Heart } from 'lucide-react';
 import { supabasePublic } from '../lib/supabase';
 import { rememberListings } from '../lib/listingCache';
 import { Listing } from '../types';
@@ -530,7 +530,11 @@ export function Marketplace() {
         ))}
       </PanelSection>
 
-      <label className="flex min-h-[44px] cursor-pointer items-center justify-between gap-3 border-b border-black/10 py-3">
+      {/* Instant Ship and Favorites are one-click cuts rather than filters you
+          build up, so on a computer they sit beside the search as chips. Here
+          they are the phone's version of the same two, in the sheet: lg:hidden
+          takes them out of the column, which only exists at that width. */}
+      <label className="lg:hidden flex min-h-[44px] cursor-pointer items-center justify-between gap-3 border-b border-black/10 py-3">
         <span className="flex flex-col">
           <span className="text-sm font-bold">Instant Ship</span>
           <span className="text-xs ink-mid">At our hub, dispatched next day</span>
@@ -540,10 +544,8 @@ export function Marketplace() {
         </span>
       </label>
 
-      {/* Only once there is something to show. It used to live in the tab row
-          over the grid, which no longer exists on a computer. */}
       {favorites.size > 0 && (
-        <label className="flex min-h-[44px] cursor-pointer items-center justify-between gap-3 border-b border-black/10 py-3">
+        <label className="lg:hidden flex min-h-[44px] cursor-pointer items-center justify-between gap-3 border-b border-black/10 py-3">
           <span className="flex flex-col">
             <span className="text-sm font-bold">Favorites</span>
             <span className="text-xs ink-mid">Only the ones you have saved</span>
@@ -633,8 +635,8 @@ export function Marketplace() {
           {/* Search sits on the left edge, under the grid's own left edge and
               in line with the filter column's heading; sort stays on the
               right. On a phone the two share one row under the tabs. */}
-          <div className="flex items-center gap-5 sm:gap-6 lg:w-full lg:justify-between lg:gap-10">
-            <form onSubmit={onSearchSubmit} className="relative min-w-0 flex-1 lg:w-72 lg:flex-none">
+          <div className="flex items-center gap-5 sm:gap-6 lg:w-full lg:justify-between lg:gap-6">
+            <form onSubmit={onSearchSubmit} className="relative min-w-0 flex-1 lg:w-72 lg:flex-none lg:mr-auto">
               <Search className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4" />
               <input
                 type="search"
@@ -645,6 +647,21 @@ export function Marketplace() {
                 className="w-full min-h-[44px] border-b border-black/20 bg-transparent pl-7 pr-2 text-sm placeholder:text-black/40 focus:border-black focus:outline-none"
               />
             </form>
+            {/* Computer only: the two cuts people arrive wanting, one click
+                each, where the eye already is after the search. On a phone
+                they are tabs over the grid and rows in the sheet. */}
+            <span className="hidden lg:flex items-center gap-2">
+              <QuickChip active={quick === 'verified'} onClick={() => toggleParam('q', 'verified')}>
+                <Zap className="h-3.5 w-3.5" />
+                Instant Ship
+              </QuickChip>
+              {favorites.size > 0 && (
+                <QuickChip active={quick === 'saved'} onClick={() => toggleParam('q', 'saved')}>
+                  <Heart className={cn('h-3.5 w-3.5', quick === 'saved' && 'fill-current')} />
+                  Favorites
+                </QuickChip>
+              )}
+            </span>
             {/* Sort moves into the sheet on a phone, where the row has no room
                 for it next to the search. */}
             <span className="hidden sm:flex">
@@ -1190,3 +1207,25 @@ const SheetChip: React.FC<ToggleProps> = ({ active, onClick, children }) => {
     </button>
   );
 };
+
+// A one-click cut, beside the search: on when the feed is showing only that.
+// Not a filter you build up, which is what the column is for.
+function QuickChip({ active, onClick, children }: {
+  active: boolean; onClick: () => void; children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        'flex min-h-[36px] shrink-0 items-center gap-1.5 whitespace-nowrap border px-3 text-xs font-bold transition-colors',
+        active
+          ? 'border-black bg-black text-white'
+          : 'border-black/20 text-black hover:border-black',
+      )}
+    >
+      {children}
+    </button>
+  );
+}
