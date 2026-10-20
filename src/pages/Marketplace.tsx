@@ -386,6 +386,13 @@ export function Marketplace() {
 
   const hasMore = total === null ? listings.length > 0 && listings.length % PAGE_SIZE === 0 : listings.length < total;
 
+  // Where the sell prompt goes: two thirds down the cards actually loaded,
+  // never in the first row, and nowhere at all until there are enough cards
+  // for it to be an interruption rather than the content.
+  const sellTileAfter = listings.length >= 8
+    ? Math.max(3, Math.floor(listings.length * 0.66))
+    : -1;
+
   // Remember this feed for coming back to it.
   React.useEffect(() => {
     if (state !== 'ready' || fetchedAt.current === 0) return;
@@ -773,10 +780,13 @@ export function Marketplace() {
                 {listings.map((listing, i) => (
                   <React.Fragment key={listing.id}>
                     <ListingCard listing={listing} priority={i < 4} />
-                    {/* One contextual sell prompt, deep enough in the feed that
-                        it reaches someone who is browsing rather than someone
-                        who just landed. */}
-                    {i === 15 && <SellTile />}
+                    {/* One contextual sell prompt, deep enough in the feed
+                        that it reaches someone who is browsing rather than
+                        someone who just landed. Pinned to card 16 it never
+                        appeared at all on a shelf smaller than that, which is
+                        most days: two thirds of the way down whatever is
+                        there, and never in the first row. */}
+                    {i === sellTileAfter && <SellTile />}
                   </React.Fragment>
                 ))}
               </FeedGrid>}

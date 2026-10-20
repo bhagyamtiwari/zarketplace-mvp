@@ -22,7 +22,7 @@ export function CookieConsent() {
     // and this bar is a translucent black, so without it the grey text in the
     // settings panel rendered black on black. Solid from sm up, where the
     // settings panel lives, so the detail is always readable.
-    <div className="fixed z-[60] bottom-3 inset-x-3 rounded-xl sm:rounded-none sm:bottom-0 sm:inset-x-0 bg-black/70 sm:bg-black [--ink:255_255_255] backdrop-blur-md text-white border border-white/10 sm:border-x-0 sm:border-b-0 shadow-[0_8px_30px_rgba(0,0,0,0.25)] sm:shadow-none">
+    <div className="fixed z-[60] bottom-2 inset-x-2 rounded-xl sm:rounded-none sm:bottom-0 sm:inset-x-0 bg-black/70 sm:bg-black [--ink:255_255_255] backdrop-blur-md text-white border border-white/10 sm:border-x-0 sm:border-b-0 shadow-[0_8px_30px_rgba(0,0,0,0.25)] sm:shadow-none">
       {/* Only ever shown from sm up: the Settings button that opens it is
           hidden on a phone. It was capped at max-w-3xl and pinned left, so on
           a wide screen it sat as a narrow column under a full-width bar and
@@ -85,7 +85,7 @@ export function CookieConsent() {
         </div>
       )}
 
-      <div className="px-4 sm:px-6 lg:px-8 py-2.5 sm:py-4 flex items-center gap-3 text-left sm:gap-8">
+      <div className="px-3 sm:px-6 lg:px-8 py-2 sm:py-4 flex items-center gap-2 text-left sm:gap-8">
         {/* Short form on a phone: five lines of consent copy over the fold is
             its own dark pattern. The full wording stays where there is room,
             and both link to the policy that spells it out. */}
@@ -96,7 +96,7 @@ export function CookieConsent() {
           {!settingsOpen && (<>
           {/* Sentence case on a phone: the uppercase body voice needs six lines
               for the same sentence and pushes the buttons off the bar. */}
-          <span className="sm:hidden text-[13px] leading-snug">
+          <span className="sm:hidden text-xs leading-snug">
             This site uses cookies.{' '}
             <Link to="/privacy" className="inline-block py-3.5 -my-3.5 underline text-white">Privacy</Link>
           </span>
@@ -112,14 +112,14 @@ export function CookieConsent() {
           <button
             type="button"
             onClick={() => setConsent('accepted')}
-            className="rounded-md sm:rounded-none bg-white px-4 sm:px-8 min-h-[40px] sm:min-h-[44px] py-2 sm:py-3 text-[11px] font-black uppercase tracking-widest text-black hover:bg-white/90 transition-colors"
+            className="rounded-md sm:rounded-none bg-white px-3 sm:px-8 min-h-[36px] sm:min-h-[44px] py-1.5 sm:py-3 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-black hover:bg-white/90 transition-colors"
           >
             Accept<span className="hidden sm:inline"> all cookies</span>
           </button>
           <button
             type="button"
             onClick={() => setConsent('rejected')}
-            className="px-1 min-h-[40px] sm:min-h-[44px] py-2 sm:py-3 text-[11px] font-black uppercase tracking-widest text-white/75 underline underline-offset-4 hover:text-white transition-colors"
+            className="px-1 min-h-[36px] sm:min-h-[44px] py-1.5 sm:py-3 text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-white/75 underline underline-offset-4 hover:text-white transition-colors"
           >
             <span className="sm:hidden">Decline</span><span className="hidden sm:inline">Essential only</span>
           </button>
