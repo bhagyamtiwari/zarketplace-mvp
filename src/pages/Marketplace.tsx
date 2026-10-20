@@ -630,7 +630,10 @@ export function Marketplace() {
             )}
           </div>
 
-          <div className="flex items-center gap-5 sm:gap-6 lg:ml-auto">
+          {/* Search sits on the left edge, under the grid's own left edge and
+              in line with the filter column's heading; sort stays on the
+              right. On a phone the two share one row under the tabs. */}
+          <div className="flex items-center gap-5 sm:gap-6 lg:w-full lg:justify-between lg:gap-10">
             <form onSubmit={onSearchSubmit} className="relative min-w-0 flex-1 lg:w-72 lg:flex-none">
               <Search className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4" />
               <input
