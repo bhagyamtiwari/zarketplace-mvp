@@ -540,6 +540,18 @@ export function Marketplace() {
         </span>
       </label>
 
+      {/* Only once there is something to show. It used to live in the tab row
+          over the grid, which no longer exists on a computer. */}
+      {favorites.size > 0 && (
+        <label className="flex min-h-[44px] cursor-pointer items-center justify-between gap-3 border-b border-black/10 py-3">
+          <span className="flex flex-col">
+            <span className="text-sm font-bold">Favorites</span>
+            <span className="text-xs ink-mid">The {favorites.size} you have saved</span>
+          </span>
+          <input type="checkbox" checked={quick === 'saved'} onChange={() => toggleParam('q', 'saved')} className="h-4 w-4 accent-black" />
+        </label>
+      )}
+
       <PanelSection title="Price" count={minPrice !== null || maxPrice !== null ? 1 : 0} defaultOpen>
         <PriceFilter min={minPrice} max={maxPrice} onApply={setPrice} />
       </PanelSection>
@@ -598,13 +610,14 @@ export function Marketplace() {
           down to the footer. The hero's "Shop now" scrolls here (#shop). */}
       <div id="shop" className="scroll-mt-20 border-b border-black/10 bg-white">
         <div className="mx-auto max-w-[1600px] px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex flex-col gap-1 lg:flex-row lg:items-center lg:justify-between lg:gap-10">
-          {/* Category is the filter that earns a permanent place: most stock
-              is menswear or unisex, so gender barely narrows it, while
-              "show me jackets" is how people actually shop. Gender is in the
-              filter column. A category with nothing in it is left out once
-              the counts are in. Instant Ship sits beside them because "can I
-              have it this week" is a question people arrive with. */}
-          <div className="-mx-4 px-4 sm:mx-0 sm:px-0 flex items-center gap-6 overflow-x-auto scrollbar-hide">
+          {/* Phone and tablet only. There is no filter column at these
+              widths, so this row is the only way to cut the feed without
+              opening the sheet, and category is what people cut by first.
+              From lg up the column is always open beside the grid and holds
+              all of this, so the row would be the same control twice: two
+              places to change one thing, and an eye going back and forth to
+              see which one is winning. */}
+          <div className="lg:hidden -mx-4 px-4 sm:mx-0 sm:px-0 flex items-center gap-6 overflow-x-auto scrollbar-hide">
             <Tab active={!category && !quick} onClick={() => setParams([['category', null], ['size_type', null], ['q', null]])}>All</Tab>
             {PRODUCT_TYPES.filter((c) => category === c || facetRows.length === 0 || (allCategoryCounts.get(c) ?? 0) > 0).map((c) => (
               <React.Fragment key={c}>
@@ -617,7 +630,7 @@ export function Marketplace() {
             )}
           </div>
 
-          <div className="flex items-center gap-5 sm:gap-6">
+          <div className="flex items-center gap-5 sm:gap-6 lg:ml-auto">
             <form onSubmit={onSearchSubmit} className="relative min-w-0 flex-1 lg:w-72 lg:flex-none">
               <Search className="pointer-events-none absolute left-0 top-1/2 -translate-y-1/2 h-4 w-4" />
               <input
