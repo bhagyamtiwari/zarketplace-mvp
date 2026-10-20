@@ -7,7 +7,7 @@ import { formatCurrency, cn } from '../lib/utils';
 import { variantUrl } from '../lib/images';
 import { ProductGallery } from '../components/ProductGallery';
 import { motion } from 'motion/react';
-import { ArrowLeft, Zap, Heart } from 'lucide-react';
+import { ArrowLeft, Zap, Heart, ShieldCheck } from 'lucide-react';
 import { log } from '../lib/log';
 import { useCart } from '../lib/cart';
 import { useAuth } from '../lib/auth';
@@ -373,14 +373,12 @@ export function ProductPage() {
         <ArrowLeft className="h-4 w-4" /> Back to browse
       </Link>
 
-      {/* An even split. The photos used to take the smaller share, on the
-          reasoning that a vendor's phone photo looks worse enlarged, which is
-          true of a photo stretched past its pixels and not of this one: the
-          frame is one image now rather than a column of them, so half the
-          page is a size the uploads carry. The item is the photograph; the
-          column beside it is a short list and two buttons. */}
+      {/* Photos take the smaller share (about 40/60). They are the vendor's
+          own, from a phone, and shown at half a laptop screen wide they
+          looked worse than they are: an even split put you close enough to
+          see every thread before you had decided you were interested. */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
-        <div className="lg:col-span-6">
+        <div className="lg:col-span-5">
           {listing.is_sold ? (
             <div className="relative [&_img]:grayscale [&_img]:opacity-60">
               <ProductGallery images={images} alt={listing.title} />
@@ -397,7 +395,7 @@ export function ProductPage() {
             for what matters, regular for everything else, and the buttons. */}
         <div
           ref={infoRef}
-          className="lg:col-span-6 lg:max-w-[34rem] lg:sticky lg:self-start flex flex-col"
+          className="lg:col-span-7 lg:max-w-[38rem] lg:sticky lg:self-start flex flex-col"
           style={{ top: infoTop }}
         >
           {/* Instant Ship first, as a sign: it is the one thing that differs
@@ -474,6 +472,94 @@ export function ProductPage() {
             )}
             <dt>Size</dt>
             <dd className="font-bold">{listing.size_type || 'One size'}</dd>
+            {/* MODEL.md §8: "it did not fit" is the biggest single reason
+                used clothing comes back, so the numbers sit in the facts
+                list, under the size they qualify, rather than in a section of
+                their own below the buttons. Inches first; stored in
+                centimetres. */}
+            {measurements.length > 0 && (
+              <>
+                <dt>Measurements</dt>
+                <dd className="flex flex-col gap-2">
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+            <dl className="flex flex-wrap gap-x-4 gap-y-0.5 text-sm">
+              {measurements.map(([label, cm]) => (
+                <div key={label} className="flex items-baseline gap-1">
+                  <dt>{label}</dt>
+                  <dd className="font-bold tabular-nums">
+                    {formatLength(cm, unit)}<span className="ml-0.5 font-normal">{unit}</span>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+              <div className="flex items-baseline gap-4 text-sm">
+                {/* Two words, the chosen one bold: a unit switch does not
+                    need to be a control that looks like a control. */}
+                <span role="group" aria-label="Measurement unit" className="flex items-baseline gap-1.5">
+                  {(['in', 'cm'] as Unit[]).map((u, i) => (
+                    <React.Fragment key={u}>
+                      {i > 0 && <span aria-hidden>/</span>}
+                      <button
+                        type="button"
+                        onClick={() => setUnit(u)}
+                        aria-pressed={unit === u}
+                        className={cn(unit === u ? 'font-bold' : 'underline underline-offset-4 decoration-black/30 hover:decoration-black')}
+                      >
+                        {u}
+                      </button>
+                    </React.Fragment>
+                  ))}
+                </span>
+              </div>
+                  </div>
+                  <p className="text-sm">
+                {guide && (
+                  <span className="text-sm">
+                    (<span className="group/guide relative inline-block">
+                      <a
+                        href={`/images/${guide}.png`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-expanded={showGuide}
+                        onClick={(e) => {
+                          if (window.matchMedia('(hover: hover)').matches) return;
+                          e.preventDefault();
+                          setShowGuide((v) => !v);
+                        }}
+                        className="underline underline-offset-4 decoration-black/30 hover:decoration-black"
+                      >
+                        See how we measure
+                      </a>
+                      <span
+                        aria-hidden
+                        className="pointer-events-none absolute top-full left-0 z-30 mt-2 hidden w-60 border border-black bg-white p-2 opacity-0 transition-opacity duration-150 [@media(hover:hover)]:block group-hover/guide:opacity-100"
+                      >
+                        <picture>
+                          <source srcSet={`/images/${guide}.webp`} type="image/webp" />
+                          <img src={`/images/${guide}.png`} alt="" width={720} height={1080} loading="lazy" decoding="async" className="block h-auto w-full" />
+                        </picture>
+                      </span>
+                    </span>)
+                  </span>
+                )}
+                  </p>
+            {guide && showGuide && (
+              <picture className="[@media(hover:hover)]:hidden">
+                <source srcSet={`/images/${guide}.webp`} type="image/webp" />
+                <img
+                  src={`/images/${guide}.png`}
+                  alt="How each measurement is taken, drawn on the garment"
+                  width={720}
+                  height={1080}
+                  loading="lazy"
+                  decoding="async"
+                  className="block h-auto w-full max-w-[16rem] border border-black/10"
+                />
+              </picture>
+            )}
+                </dd>
+              </>
+            )}
             {fitsLike && (
               <>
                 <dt>Fits like</dt>
@@ -566,122 +652,24 @@ export function ProductPage() {
             )}
           </div>
 
-          {/* One line under the buttons. What the protection covers is one
-              click away; spelling it out here pulled the eye off the item. */}
-          <p className="mt-5 text-sm leading-relaxed">
-            Your order is protected by{' '}
-            <Link to="/buyer-protection" className="font-bold underline underline-offset-4 decoration-black/30 hover:decoration-black">Buyer Protection</Link>.
-          </p>
-          {/* Instant Ship stock is on our shelf, so we can answer anything
-              about it today: a quiet way to ask, with the code filled in. */}
-          {listing.is_verified && !listing.is_sold && listing.sku && (
-            <p className="mt-2 text-sm leading-relaxed">
-              Questions about this piece?{' '}
-              <a
-                href={`https://wa.me/918505927538?text=${encodeURIComponent(`Hi, I have a question about ${listing.sku}`)}`}
-                target="_blank" rel="noopener noreferrer"
-                className="font-bold underline underline-offset-4 decoration-black/30 hover:decoration-black"
-              >
-                WhatsApp us
-              </a>{' '}
-              or email <a href={`mailto:contact@zarketplace.com?subject=${encodeURIComponent(`Question about ${listing.sku}`)}`} className="underline underline-offset-4 decoration-black/30 hover:decoration-black">contact@zarketplace.com</a>, quoting <span className="font-bold whitespace-nowrap">{listing.sku}</span>.
-            </p>
-          )}
-
-          {/* MODEL.md §8: "it did not fit" is the biggest single reason used
-              clothing comes back. Inches first; stored in centimetres. */}
-          {measurements.length > 0 && (
-            <section className="mt-10 flex flex-col gap-3" aria-labelledby="measurements-heading">
-              <div className="flex items-baseline justify-between gap-4">
-                <div className="flex flex-wrap items-baseline gap-x-2">
-                  <h2 id="measurements-heading" className="text-[15px] font-bold">Measurements</h2>
-                  {/* How the numbers were taken. On a computer, hover the link
-                      and the drawing appears above it (click opens it full
-                      size). On a phone there is no hover, so a tap shows it in
-                      place, under this line. */}
-                  {guide && (
-                    <span className="text-sm">
-                      (<span className="group/guide relative inline-block">
-                        <a
-                          href={`/images/${guide}.png`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          aria-expanded={showGuide}
-                          onClick={(e) => {
-                            if (window.matchMedia('(hover: hover)').matches) return;
-                            e.preventDefault();
-                            setShowGuide((v) => !v);
-                          }}
-                          className="underline underline-offset-4 decoration-black/30 hover:decoration-black"
-                        >
-                          See how we measure
-                        </a>
-                        <span
-                          aria-hidden
-                          className="pointer-events-none absolute bottom-full left-0 z-30 mb-3 hidden w-60 border border-black bg-white p-2 opacity-0 transition-opacity duration-150 [@media(hover:hover)]:block group-hover/guide:opacity-100"
-                        >
-                          <picture>
-                            <source srcSet={`/images/${guide}.webp`} type="image/webp" />
-                            <img src={`/images/${guide}.png`} alt="" width={720} height={1080} loading="lazy" decoding="async" className="block h-auto w-full" />
-                          </picture>
-                        </span>
-                      </span>)
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-baseline gap-4 text-sm">
-                  {/* Two words, the chosen one bold: a unit switch does not
-                      need to be a control that looks like a control. */}
-                  <span role="group" aria-label="Measurement unit" className="flex items-baseline gap-1.5">
-                    {(['in', 'cm'] as Unit[]).map((u, i) => (
-                      <React.Fragment key={u}>
-                        {i > 0 && <span aria-hidden>/</span>}
-                        <button
-                          type="button"
-                          onClick={() => setUnit(u)}
-                          aria-pressed={unit === u}
-                          className={cn(unit === u ? 'font-bold' : 'underline underline-offset-4 decoration-black/30 hover:decoration-black')}
-                        >
-                          {u}
-                        </button>
-                      </React.Fragment>
-                    ))}
-                  </span>
-                </div>
-              </div>
-              {guide && showGuide && (
-                <picture className="[@media(hover:hover)]:hidden">
-                  <source srcSet={`/images/${guide}.webp`} type="image/webp" />
-                  <img
-                    src={`/images/${guide}.png`}
-                    alt="How each measurement is taken, drawn on the garment"
-                    width={720}
-                    height={1080}
-                    loading="lazy"
-                    decoding="async"
-                    className="block h-auto w-full max-w-[16rem] border border-black/10"
-                  />
-                </picture>
-              )}
-              {/* One compact row, label then number, wrapping as needed. A
-                  three-column grid left wide gaps when an item has only two
-                  measurements. */}
-              <dl className="flex flex-wrap gap-x-7 gap-y-2 text-sm">
-                {measurements.map(([label, cm]) => (
-                  <div key={label} className="flex items-baseline gap-2">
-                    <dt>{label}</dt>
-                    <dd className="font-bold tabular-nums">
-                      {formatLength(cm, unit)}<span className="ml-0.5 font-normal">{unit}</span>
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </section>
-          )}
-
+          {/* Under the buttons and the only thing there. Left-aligned and
+              set as one short paragraph beside the mark: centred over four
+              lines it took as much room as the buttons it follows, which is
+              more weight than a reassurance needs. */}
+          <Link
+            to="/buyer-protection"
+            className="group mt-4 flex items-start gap-3 border border-black/20 px-4 py-3 transition-colors hover:border-black"
+          >
+            <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
+            <span className="text-xs leading-relaxed">
+              <span className="font-bold">Buyer Protection.</span>{' '}
+              Not as described, or the wrong item? Tell us within 7 days of delivery and you get a full refund.{' '}
+              <span className="font-bold underline underline-offset-2 decoration-black/30 group-hover:decoration-black">How it works</span>
+            </span>
+          </Link>
           {(listing.description || listing.has_flaws) && (
             <section id="flaws" className="mt-10 flex scroll-mt-32 flex-col gap-3">
-              <h2 className="text-[15px] font-bold">Description</h2>
+              <h2 className="text-[15px] font-bold">Item description</h2>
               {listing.description && (
                 <p className="text-sm leading-relaxed whitespace-pre-line">{listing.description}</p>
               )}
@@ -691,6 +679,31 @@ export function ProductPage() {
                 </p>
               )}
             </section>
+          )}
+
+
+          {/* Instant Ship stock is on our shelf, so we can answer anything
+              about it today. One line, quietly, after the description: it is
+              for the person who has read everything and still has a question,
+              not a second call to action beside the buttons. */}
+          {listing.is_verified && !listing.is_sold && listing.sku && (
+            <p className="mt-4 text-xs leading-relaxed ink-mid">
+              Questions?{' '}
+              <a
+                href={`https://wa.me/918505927538?text=${encodeURIComponent(`Hi, I have a question about ${listing.sku}`)}`}
+                target="_blank" rel="noopener noreferrer"
+                className="underline underline-offset-4 decoration-black/30 hover:decoration-black"
+              >
+                WhatsApp
+              </a>{' '}
+              or{' '}
+              <a
+                href={`mailto:contact@zarketplace.com?subject=${encodeURIComponent(`Question about ${listing.sku}`)}`}
+                className="underline underline-offset-4 decoration-black/30 hover:decoration-black"
+              >
+                email us
+              </a>, quoting <span className="whitespace-nowrap">{listing.sku}</span>.
+            </p>
           )}
 
           <div ref={stickyStopRef} />

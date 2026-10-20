@@ -108,29 +108,33 @@ function WhatWeHandle() {
       {HANDLES.map(({ icon: Icon, title, body, to }, i) => (
         <motion.li
           key={title}
-          initial={still ? false : { opacity: 0, y: 14 }}
+          initial={still ? false : { opacity: 0, y: 8 }}
           whileInView={still ? undefined : { opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.4, margin: '0px 0px -10% 0px' }}
-          transition={{ duration: 0.4, delay: Math.min(i, 3) * 0.07, ease: [0.22, 1, 0.36, 1] }}
+          viewport={{ once: true, amount: 0.2 }}
+          transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
           className="border-b border-black/10"
         >
+          {/* Black and white, and the black arrives on the row you are
+              pointing at: the ground fills, the type reverses out, the arrow
+              walks right. The only animation on the page that answers a
+              gesture rather than a scroll position. */}
           <Link
             to={to}
-            className="group flex items-start gap-4 py-5 sm:gap-6 sm:py-6 transition-colors hover:bg-black/[0.03]"
+            className="group -mx-4 flex items-start gap-4 px-4 py-3.5 transition-colors duration-200 hover:bg-black hover:text-white sm:gap-5"
           >
             {/* The icon carries the left column on its own. A counter was
                 there to give the list an order to read in, and it read as a
                 ranking of six things that are not ranked. */}
-            <Icon className="mt-0.5 h-6 w-6 shrink-0 sm:mt-1" />
-            <div className="flex flex-1 flex-col gap-1.5">
-              <h3 className="text-lg font-black leading-tight tracking-tight sm:text-xl">
+            <Icon className="mt-0.5 h-5 w-5 shrink-0" />
+            <div className="flex flex-1 flex-col gap-1">
+              <h3 className="text-base font-black leading-tight tracking-tight sm:text-lg">
                 {title}
               </h3>
               <p>{body}</p>
             </div>
             {/* Sits still until the row is pointed at, so the page is not six
                 arrows nudging at once. */}
-            <ArrowRight className="mt-1.5 h-4 w-4 shrink-0 text-black/30 transition-all group-hover:translate-x-1 group-hover:text-black" />
+            <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-black/30 transition-all duration-200 group-hover:translate-x-1 group-hover:text-white" />
           </Link>
         </motion.li>
       ))}

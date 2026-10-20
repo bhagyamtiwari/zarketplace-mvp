@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { usePageMeta, META } from '../lib/pageMeta';
 import { LEGAL_NAME, GSTIN, ADDRESS_ONE_LINE } from '../lib/business';
+import { cn } from '../lib/utils';
 
 export function GrievanceOfficer() {
   usePageMeta(META.grievance);
@@ -28,41 +29,40 @@ export function GrievanceOfficer() {
             answer. This page exists so you always know who that is.
           </p>
 
-          {/* Four facts, two by two on a wider screen so the block is as short
-              as it can be. Set as plain text, bold label over value. Rule 4(5) of the
-              Consumer Protection (E-Commerce) Rules 2020 asks for a name,
-              designation, email and phone number, so the designation stays,
-              set beside the name rather than on a line of its own. */}
-          <dl className="grid grid-cols-1 gap-x-10 gap-y-5 sm:grid-cols-2">
-            <div className="flex flex-col gap-1">
-              <dt className="font-bold">Grievance Officer</dt>
-              <dd>Bhagyam Tiwari, Director</dd>
-            </div>
-            <div className="flex flex-col gap-1">
-              <dt className="font-bold">Company</dt>
-              <dd>{LEGAL_NAME}</dd>
-            </div>
-            <div className="flex flex-col gap-1">
-              <dt className="font-bold">Email</dt>
-              <dd>
-                <a href="mailto:grievance@zarketplace.com" className="underline underline-offset-4">grievance@zarketplace.com</a>
-              </dd>
-            </div>
-            <div className="flex flex-col gap-1">
-              <dt className="font-bold">Phone</dt>
-              <dd>
-                <a href="tel:+918505927538" className="underline underline-offset-4">8505-ZARKET</a>{' '}
-                <span className="tabular-nums">(+91 85059 27538)</span>
-              </dd>
-            </div>
-            <div className="flex flex-col gap-1">
-              <dt className="font-bold">GSTIN</dt>
-              <dd className="tabular-nums">{GSTIN}</dd>
-            </div>
-            <div className="flex flex-col gap-1">
-              <dt className="font-bold">Office address</dt>
-              <dd>{ADDRESS_ONE_LINE}</dd>
-            </div>
+          {/* The same ruled table as the company details on Terms: black
+              hairlines on white, label over value, so the two pages state
+              their facts in one form. Rule 4(5) of the Consumer Protection
+              (E-Commerce) Rules 2020 asks for a name, designation, email and
+              phone number, so the designation stays, beside the name rather
+              than on a line of its own. */}
+          <dl className="not-prose grid grid-cols-1 gap-px overflow-hidden border border-black bg-black sm:grid-cols-2">
+            {[
+              { term: 'Grievance Officer', value: 'Bhagyam Tiwari, Director' },
+              { term: 'Company', value: LEGAL_NAME },
+              {
+                term: 'Email',
+                value: <a href="mailto:grievance@zarketplace.com" className="underline underline-offset-4">grievance@zarketplace.com</a>,
+              },
+              {
+                term: 'Phone',
+                value: (
+                  <>
+                    <a href="tel:+918505927538" className="underline underline-offset-4">8505-ZARKET</a>{' '}
+                    <span className="tabular-nums">(+91 85059 27538)</span>
+                  </>
+                ),
+              },
+              { term: 'GSTIN', value: GSTIN, mono: true },
+              { term: 'Office address', value: ADDRESS_ONE_LINE, wide: true },
+            ].map(({ term, value, mono, wide }) => (
+              <div
+                key={term}
+                className={cn('flex flex-col gap-1.5 bg-white px-5 py-4', wide && 'sm:col-span-2')}
+              >
+                <dt className="text-[10px] font-black uppercase tracking-[0.2em] text-black">{term}</dt>
+                <dd className={cn('text-sm leading-relaxed text-black', mono && 'tabular-nums tracking-wide')}>{value}</dd>
+              </div>
+            ))}
           </dl>
 
           <div className="flex flex-col gap-3">

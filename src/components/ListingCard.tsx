@@ -99,7 +99,11 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing, priority = fa
           {/* The item's name, with its brand in bold as the first words of
               it, rather than the brand on a line of its own: a grid led by a
               column of brand names reads as a list of logos. */}
-          <h3 className="line-clamp-2 text-sm leading-snug">
+          {/* Two lines whether the name needs them or not. The photos are a
+              fixed 3:4 and already line up; it was the text under them,
+              one line here and two there, that left the grid's rows ending
+              at different heights with nothing for the eye to run along. */}
+          <h3 className="line-clamp-2 min-h-[2.4rem] text-sm leading-snug">
             {listing.brand ? (
               <>
                 <span className="font-bold">{listing.brand}</span>{' '}
@@ -123,13 +127,16 @@ export const ListingCard: React.FC<ListingCardProps> = ({ listing, priority = fa
             {size && <span className="shrink-0 text-sm">{size}</span>}
           </div>
           {/* The same mark as the sign on the item page, so the two read as
-              one thing. */}
-          {listing.is_verified && !sold && (
-            <span className="flex items-center gap-1 text-sm">
-              <Zap aria-hidden className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
-              Instant Ship
-            </span>
-          )}
+              one thing. The slot is there on every card, filled or not, for
+              the same reason the title is always two lines. */}
+          <span className="flex min-h-[1.375rem] items-center gap-1 text-sm">
+            {listing.is_verified && !sold && (
+              <>
+                <Zap aria-hidden className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+                Instant Ship
+              </>
+            )}
+          </span>
         </div>
 
         {/* Beside the type rather than floating on the photo. Negative margin

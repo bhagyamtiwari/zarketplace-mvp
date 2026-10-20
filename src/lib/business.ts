@@ -27,12 +27,12 @@ export const CIN = 'U47711DL2023PTC418107';
  */
 export const ADDRESS_LINES = [
   '5th Floor, Wing-A, Statesman House, 148 Barakhamba Road,',
-  'Connaught Place, New Delhi – 110001',
+  'Connaught Place, New Delhi 110001',
 ] as const;
 
 /** The same address on one line, for prose and for a dl value. */
 export const ADDRESS_ONE_LINE =
-  '5th Floor, Wing-A, Statesman House, 148 Barakhamba Road, Connaught Place, New Delhi – 110001';
+  '5th Floor, Wing-A, Statesman House, 148 Barakhamba Road, Connaught Place, New Delhi 110001';
 
 /** Address with the company in front, for anything addressed to us by post. */
 export const POSTAL_ADDRESS = `${LEGAL_NAME}, ${ADDRESS_ONE_LINE}`;

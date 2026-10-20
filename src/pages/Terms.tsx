@@ -38,13 +38,12 @@ export function Terms() {
               it reads from src/lib/business.ts, which is the one place to
               change any of it. */}
             <p>zarketplace is a trading name of <strong>{LEGAL_NAME}</strong>, a company incorporated in India.</p>
-            {/* Set as a black panel, not as more of the same running text.
-                These are the details someone opens this page to check, and as
-                five bold labels in the body they read as another five
-                paragraphs of policy. Inverted, the block is the one thing on
-                the page the eye goes to, and each field is a row you can find
-                at a glance rather than a line to read past. */}
-            <dl className="not-prose grid grid-cols-1 gap-px overflow-hidden bg-white/15 text-white sm:grid-cols-2 [--ink:255_255_255]">
+            {/* A ruled table, not more running text. These are the details
+                someone opens this page to check, and as five bold labels in
+                the body they read as another five paragraphs of policy. The
+                grid is drawn in black hairlines on white: the structure does
+                the work, with no grey and no filled panel. */}
+            <dl className="not-prose grid grid-cols-1 gap-px overflow-hidden border border-black bg-black sm:grid-cols-2">
               {[
                 { term: 'Legal name', value: LEGAL_NAME },
                 { term: 'CIN', value: CIN, mono: true },
@@ -53,9 +52,9 @@ export function Terms() {
                   term: 'Customer care',
                   value: (
                     <>
-                      <a href="mailto:contact@zarketplace.com" className="underline underline-offset-4 hover:text-white/80">contact@zarketplace.com</a>
+                      <a href="mailto:contact@zarketplace.com" className="underline underline-offset-4">contact@zarketplace.com</a>
                       <br />
-                      <a href="tel:+918505927538" className="underline underline-offset-4 hover:text-white/80">+91 85059 27538</a>
+                      <a href="tel:+918505927538" className="underline underline-offset-4">+91 85059 27538</a>
                     </>
                   ),
                 },
@@ -64,12 +63,12 @@ export function Terms() {
                 <div
                   key={term}
                   className={cn(
-                    'flex flex-col gap-1.5 bg-black px-5 py-4',
+                    'flex flex-col gap-1.5 bg-white px-5 py-4',
                     wide && 'sm:col-span-2',
                   )}
                 >
-                  <dt className="text-[10px] font-black uppercase tracking-[0.2em] text-white/55">{term}</dt>
-                  <dd className={cn('text-sm leading-relaxed text-white', mono && 'tabular-nums tracking-wide')}>{value}</dd>
+                  <dt className="text-[10px] font-black uppercase tracking-[0.2em] text-black">{term}</dt>
+                  <dd className={cn('text-sm leading-relaxed text-black', mono && 'tabular-nums tracking-wide')}>{value}</dd>
                 </div>
               ))}
             </dl>
