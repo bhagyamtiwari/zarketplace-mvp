@@ -546,7 +546,7 @@ export function Marketplace() {
         <label className="flex min-h-[44px] cursor-pointer items-center justify-between gap-3 border-b border-black/10 py-3">
           <span className="flex flex-col">
             <span className="text-sm font-bold">Favorites</span>
-            <span className="text-xs ink-mid">The {favorites.size} you have saved</span>
+            <span className="text-xs ink-mid">Only the ones you have saved</span>
           </span>
           <input type="checkbox" checked={quick === 'saved'} onChange={() => toggleParam('q', 'saved')} className="h-4 w-4 accent-black" />
         </label>
@@ -626,7 +626,7 @@ export function Marketplace() {
             ))}
             <Tab active={quick === 'verified'} onClick={() => toggleParam('q', 'verified')}>Instant Ship</Tab>
             {favorites.size > 0 && (
-              <Tab active={quick === 'saved'} onClick={() => toggleParam('q', 'saved')}>Favorites ({favorites.size})</Tab>
+              <Tab active={quick === 'saved'} onClick={() => toggleParam('q', 'saved')}>Favorites</Tab>
             )}
           </div>
 
@@ -1049,12 +1049,15 @@ function PanelSection({ title, count, defaultOpen = false, fixed = false, childr
 const CheckRow: React.FC<{
   label: string; count?: number; checked: boolean; onChange: () => void; radio?: boolean;
 }> = ({ label, count, checked, onChange, radio = false }) => {
+  // `count` is still how a row knows it has nothing behind it, which dims it.
+  // It is not shown: a shop this size is counting in single figures, and a
+  // number next to every line reads as an inventory report rather than a way
+  // to narrow a feed.
   return (
     <label className={cn('flex min-h-[36px] cursor-pointer items-center gap-2.5 text-sm', count === 0 && !checked && 'opacity-40')}>
       <input type="checkbox" checked={checked} onChange={onChange}
         className={cn('h-4 w-4 shrink-0 accent-black', radio && 'rounded-full')} />
       <span className="min-w-0 flex-1 truncate">{label}</span>
-      {count !== undefined && <span className="text-xs ink-mid">{count}</span>}
     </label>
   );
 };
