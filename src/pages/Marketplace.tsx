@@ -5,7 +5,7 @@
 // it the page is search, filters and real inventory, and nothing else.
 import React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, SlidersHorizontal, X, Loader2, ChevronDown, PanelLeftClose } from 'lucide-react';
+import { Search, SlidersHorizontal, X, Loader2, ChevronDown } from 'lucide-react';
 import { supabasePublic } from '../lib/supabase';
 import { rememberListings } from '../lib/listingCache';
 import { Listing } from '../types';
@@ -119,10 +119,13 @@ function useFilterRail() {
     try { const v = localStorage.getItem(key); return v == null ? fallback : (JSON.parse(v) as T); } catch { return fallback; }
   };
   const write = (key: string, v: unknown) => { try { localStorage.setItem(key, JSON.stringify(v)); } catch { /* private mode */ } };
-  const [open, setOpenState] = React.useState<boolean>(() => read('zk_filters_open', true));
+  // No open/closed any more: the filters are how this page is used, and a
+  // reader who had hidden them once arrived at a shop with no way to narrow
+  // it until they found the button that brought them back. The width stays
+  // theirs, remembered on this device; narrower is the answer to "I want more
+  // room", not gone.
   const [width, setWidthState] = React.useState<number>(() => read('zk_filters_width', RAIL_DEFAULT));
   const clampW = (w: number) => Math.round(Math.min(RAIL_MAX, Math.max(RAIL_MIN, w)));
-  const setOpen = (v: boolean) => { setOpenState(v); write('zk_filters_open', v); };
   const setWidth = (w: number) => { const c = clampW(w); setWidthState(c); write('zk_filters_width', c); };
   const startDrag = (e: React.PointerEvent) => {
     e.preventDefault();
@@ -142,7 +145,7 @@ function useFilterRail() {
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
   };
-  return { open, setOpen, width, setWidth, startDrag };
+  return { width, setWidth, startDrag };
 }
 
 /** How many of PRICE_RANGES show before "More prices". */
@@ -505,6 +508,28 @@ export function Marketplace() {
   // the phone's sheet, so the two can never offer different filters.
   const filterPanel = (
     <div className="flex flex-col">
+      {/* Category is a row of tabs over the grid as well. It is the first
+          thing anyone narrows by, and someone who has come to this column to
+          narrow should not have to go back up to the tabs to do the most
+          obvious part of it. The two drive the same parameter, so whichever
+          you use the other shows it. */}
+      <PanelSection title="Category" count={category ? 1 : 0} defaultOpen>
+        {/* One at a time, so these are drawn as radios. "All categories"
+            carries no count: it is the absence of this filter, not a bucket
+            of its own. */}
+        <CheckRow label="All categories" checked={!category} radio onChange={() => selectCategory(null)} />
+        {PRODUCT_TYPES.filter((c) => category === c || facetRows.length === 0 || (allCategoryCounts.get(c) ?? 0) > 0).map((c) => (
+          <CheckRow
+            key={c}
+            label={c}
+            checked={category === c}
+            count={allCategoryCounts.get(c) ?? 0}
+            radio
+            onChange={() => selectCategory(category === c ? null : c)}
+          />
+        ))}
+      </PanelSection>
+
       <label className="flex min-h-[44px] cursor-pointer items-center justify-between gap-3 border-b border-black/10 py-3">
         <span className="flex flex-col">
           <span className="text-sm font-bold">Instant Ship</span>
@@ -609,36 +634,21 @@ export function Marketplace() {
             <span className="hidden sm:flex">
               <SortChip value={sortBy} onChange={(v) => setParam('sort', v === 'relevance' ? null : v)} />
             </span>
-            {/* Desktop only: brings back the filter column once it is hidden. */}
-            {!rail.open && (
-              <button type="button" onClick={() => rail.setOpen(true)}
-                className="hidden lg:flex shrink-0 min-h-[44px] items-center gap-2 text-sm font-bold hover:underline underline-offset-4">
-                <SlidersHorizontal className="h-4 w-4" />
-                Show filters{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
-              </button>
-            )}
           </div>
         </div>
       </div>
 
       <div className="mx-auto max-w-[1600px] w-full px-4 sm:px-6 lg:px-8 pb-16 pt-6 sm:pt-8 flex gap-10">
 
-        {/* The filter column can be hidden, and dragged narrower or wider by
-            its right edge. Both are remembered on this device. */}
-        {rail.open && (
-          <aside aria-label="Filters" className="relative hidden lg:block shrink-0" style={{ width: rail.width }}>
+        {/* The filter column is always there, and can be dragged narrower or
+            wider by its right edge. The width is remembered on this device. */}
+        <aside aria-label="Filters" className="relative hidden lg:block shrink-0" style={{ width: rail.width }}>
             <div className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto pr-3 scrollbar-hide">
               <div className="flex items-center justify-between gap-2 pb-2">
                 <h2 className="text-sm font-black uppercase tracking-[0.2em]">Filters</h2>
-                <span className="flex items-center gap-3">
-                  {activeFilterCount > 0 && (
-                    <button type="button" onClick={clearAll} className="text-xs font-bold underline underline-offset-4">Clear all</button>
-                  )}
-                  <button type="button" onClick={() => rail.setOpen(false)} aria-label="Hide filters" title="Hide filters"
-                    className="flex h-8 w-8 items-center justify-center hover:bg-zinc-100">
-                    <PanelLeftClose className="h-4 w-4" />
-                  </button>
-                </span>
+                {activeFilterCount > 0 && (
+                  <button type="button" onClick={clearAll} className="text-xs font-bold underline underline-offset-4">Clear all</button>
+                )}
               </div>
               {filterPanel}
             </div>
@@ -656,8 +666,7 @@ export function Marketplace() {
             >
               <span className="h-full w-px bg-black/10 transition-colors group-hover:w-0.5 group-hover:bg-black group-focus-visible:bg-black" />
             </div>
-          </aside>
-        )}
+        </aside>
 
         <div className="min-w-0 flex-1 flex flex-col gap-4">
           {chips.length > 0 && (
