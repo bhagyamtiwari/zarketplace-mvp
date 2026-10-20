@@ -375,6 +375,21 @@ export function Marketplace() {
       } catch (err) {
         if (cancelled) return;
         mlog.warn('fetchPage failed', err);
+        // Local development with no way to reach Supabase: a sandbox with no
+        // outbound network, a dropped wifi, a paused project. The sample rows
+        // already exist for an empty catalogue, and the layout is just as
+        // workable on them when the query threw instead of returning nothing.
+        // Guarded by DEV like the branch above, so a production build still
+        // shows the error, which is the truth there.
+        if (import.meta.env.DEV && page === 0) {
+          const { devListings } = await import('../lib/devListings');
+          const rows = applyDevFilters(devListings, { category, gender, quick, sortBy, brands, sizes, conditions, min: minPrice, max: maxPrice });
+          setListings(rows as Listing[]);
+          setTotal(rows.length);
+          fetchedAt.current = Date.now();
+          setState('ready');
+          return;
+        }
         reportError('load', err, 'Shop feed');
         setState('error');
       }
